@@ -286,6 +286,11 @@ func _ready() -> void:
 		add_child(extras)
 		var streamer := get_parent()
 		extras.setup(_sky, int(streamer.get("world_seed")) if streamer and streamer.get("world_seed") != null else 0)
+		# Cloud shadows from the volume's own clouds (Forward+ desktop; CLOUD_SHADOWS=0 the A/B).
+		if CloudShadows.supported():
+			var shadows := CloudShadows.new()
+			shadows.setup(self, _sky)
+			add_child(shadows)
 		if OffshoreIsland.enabled():
 			var island := OffshoreIsland.new()
 			island.name = "OffshoreIsland"

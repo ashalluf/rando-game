@@ -3920,6 +3920,10 @@ none of either.
   not erase it - the flash's light is scaled by the night (the exposure is set for the moon) and
   the bolt stays the brightest thing in the frame. Forward+ lighting verdicts on lavapipe are taken
   only after the GI has converged (~90 frames). STORM_NIGHT_FLASH=0 is the A/B.
+- 2026-11-01 (Forward+ review g, wave 5): what the Mac draws differently is fixed at its colour-space
+  cause, not tuned per renderer - the traced room behind every window is display numbers and is
+  decoded on Forward+ like the wall and the glass round it; and a closed cloud deck on Forward+
+  runs into its own haze at the horizon like the painted one on the web. FWD_REVIEW_G=0 is the A/B.
 - **2026-10-31 The first minute is part of the load (loading-first-frame, HANDOFF "The first
   minute").** Whatever play would build in its first seconds - the traffic, the streamer's own
   window, wave 3's first-use pipelines - is built behind the shade, and nothing the loading screen
@@ -4119,6 +4123,17 @@ none of either.
   people in the water are placed on the surfaces that are drawn - waders on the sand mesh's
   foreshore, swimmers and surfers on the ocean's own height model - rather than at a fixed level.
   A summer afternoon's water is busy (waders, more swimmers). SAND_ROADS=0 / WADERS=0 the A/B.
+- **2026-11-01 Cloud shadows come from the clouds the sky draws (sky-clouds-3, HANDOFF "Cloud
+  shadows from the real clouds").** On Forward+ one screen pass multiplies the lit picture by the
+  volume's own weather-map columns seen up the sun (no new texture, no per-material code); the old
+  noise shadows on the far plane and the sea stay only where the volume is not drawn. A sky look
+  that depends on the sun is keyed on its elevation, not the clock (the day's rays and cirrus).
+
+- **2026-11-01 Load time after wave 4 (load-time-3, HANDOFF "Load time after wave 4").** Every
+  system a wave adds that first appears mid-play gets a stage in WarmRehearsal, measured with the
+  first-use probe's events for that wave (`EVENTS=wave4`); wave 4's are behind `WARM_WAVE4=0`.
+  The rehearsal is timed like every other loading-screen step. Bake-only memoisation is allowed
+  where it is proved byte-identical (the raw-height memo); LoadCache's key stays every script.
 
 - **2026-11-01 The glass at arm's length: shops have people in them, and their light lands where
   the window says (interiors-glass, HANDOFF "The glass at arm's length").** People behind the glass

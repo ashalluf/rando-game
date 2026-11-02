@@ -25156,6 +25156,221 @@ beach; `LOOK=swim|wade|surf` saves a close look at the first one). Checks `tests
 Stills on `shots/rc-beach`.
 
 
+## 9kf. Cloud shadows from the real clouds, and the 09:00 / 16:00 sky (fleet wave 5, `sky-clouds-3`)
+
+The task: the sky through a day from the street and from 300 m - the cumulus at 09:00, 12:00,
+15:00, 18:00, overcast and broken skies, cloud shadows on the ground, the horizon haze against the
+far ranges. Stills: `shots/sky-clouds-3` (README there; Forward+ on lavapipe, `tools/sky/sky_shot.gd`).
+
+**What read fake:**
+1. **No cloud shadows where the player is.** The streamed city had none at all; the horizon plane
+   and the far sea drew their own from a value noise that had nothing to do with the cumulus
+   overhead (a shadow crawled over the mountains under a clear sky and the ground under a heap
+   stayed in full sun).
+2. **09:00 and 16:00 kept the old sky.** SkyDay's weight is on the CLOCK (0 at and outside
+   09:00 / 16:00), so a 36-degree morning sun drew a searchlight fan of crepuscular rays across
+   half the sky and the long-streaked cirrus veil whitened it (the before of the day-sky review).
+3. 18:00 (not changed, see below): every cloud the same flat saturated orange.
+
+**The fixes.**
+- **`CloudShadows`** (`scripts/world/cloud_shadows.gd`, a MeshInstance3D DayNight makes in one hook
+  line; `CLOUD_SHADOWS=0` the A/B): one full-screen quad on `shaders/cloud_shadow_screen.gdshader`,
+  `blend_mul`, render_priority MIN (before every transparent), multiplying the lit HDR picture -
+  so before AgX - by the sun the clouds take away at each pixel's ground point. The field is
+  `shaders/cloud_shadow.gdshaderinc`: cumulus()'s own weather-map columns (the warp, the map's
+  tiling and offsets, the field term, the heap and fragment envelopes at the body's height,
+  `cs_body` 0.18 of the deck) read up the sun's direction from the TRUE world point (depth +
+  `origin_shift`) at the deck's height and drifted by `cloud_wind * TIME`, as the sky drifts them.
+  So a shadow lies under the cloud you see, offset by the sun, moving with it. Every number is
+  copied off the sky material each frame. The sun's share of a pixel is estimated: a face turned
+  from the sun keeps `shade_keep` 0.25 of the darkening, mirror-like pixels (roughness from the
+  normal buffer) `mirror_keep`, the far haze fades to `far_keep` past 1.5-9 km. Strength
+  (`strength_for()`, pure): 0.5 by day, in from sun sin 0.05 to 0.2, out between coverage 0.74
+  and 0.92 (overcast is all shade), none in rain or the marine layer. Forward+ desktop only and
+  only while the sky draws its volume (HIGH / MEDIUM); while it runs the horizon plane's and the
+  ocean's own noise shadows are turned to 0 (no double shadow); elsewhere they stay as they were.
+  `CLOUD_SHADOW_DEBUG=1` paints the field green / magenta, `=2` paints the pass's coverage,
+  `CLOUD_SHADOW_PRINT=1` prints what is pushed.
+  **Trap:** the first field was a field-wide optical depth (col x height x extinction): half the
+  ground under a grey wash and no shapes. The cloud is where the billows keep the envelope, about
+  half and over; `cs_edge` is the penumbra. Measured offline (python over cloud_weather.png):
+  13 / 23 / 35 / 48 / 60 % of the ground shadowed at coverage 0.35 / 0.45 / 0.55 / 0.65 / 0.75.
+  From 300 m at noon (coverage ~0.3) the shadows of the clouds in view lie kilometres out (the deck
+  is 1.5 km up), so most of the time they are near the horizon: correct, not a bug.
+- **Rays and cirrus by the sun's elevation** (`sky.gdshader` `high_sun_from` / `high_sun_to`, sin
+  0.3-0.5): the day's thin rays (`day_rays`) and wispy cirrus come in by the sun itself as well as
+  by the clock's weight (max of the two, inside the same gates; the cubemap takes `day_cubemap`
+  of the cirrus change, as of everything else). 09:00 (sin 0.59) gets the day look, 16:00 (0.41)
+  most of it, 16:30 a trace, the golden hour, the sunset, dawn before ~08:15 and the night are
+  untouched.
+
+**Not done / not verified.** The city frame on the Mac (Forward+): seen only on lavapipe sky-only
+scenes (the city does not fit). The sun share is an estimate - a street in a building's shadow is
+darkened a little under a cloud too (shade_keep). HeatHaze reads the screen before this pass, so
+on a hot afternoon its far shimmer band shows the unshadowed copy. From above the deck (4 km) the
+sky draws no clouds below the camera (the volume skips rays under the horizon) - the shadows are
+there without their clouds. 18:00's flat orange cumulus and the far ranges' haze were looked at
+but not changed (the sunset's and the far ranges' sessions' tuning; the far ranges cannot be seen
+in a sky-only scene). Checks: `tests/sky_clouds_3_checks.gd`.
+
+## 9kg. Forward+ review g: wave 4's look work on the Mac's renderer (fleet wave 5, session `fwd-review-g`, branch `wt/fwd-review-g`)
+
+Same method as reviews a-f: each feature in a SMALL scene on the real Forward+ pipeline under
+lavapipe beside the same frame on opengl3, measured; stills and their README on
+`shots/fwd-review-g`. Seed 1337. Wave 4 = batches 26-32 (every shader changed since e5bb9e4f:
+~100 files).
+
+**Static pass first** (render modes, colour-space includes, cs_out / disp / source_color / COLOR
+use of every changed shader; every new light and its `light_volumetric_fog_energy`). The new
+additive quads (muzzle_flash, tracer_streak, blast_spark, pier_wheel_glow, night_wet / night_shaft
+`look2`) hand linear numbers over with cs_out() and carry Forward+ gains where broad (night_wet
+`gain2_forward`, light_pool's street pools in display numbers); the hero's hair / cloth carry their
+Forward+ lobe gains; tree_light decodes sky_tint per renderer; skyline_glass decodes DayNight's
+display-number sky (sg_srgb_in()); roof_weather and window_rooms use raw numbers like the code they
+replace (see the second fix). The only new light is GunplayFeel's (main at fog energy 3.0, hands
+and wall at Godot's 1.0).
+
+**Fixed 1: under a closed deck the sky stopped dead at the horizon (Forward+ only).** The cumulus
+volume's march (sky.gdshader `cumulus_march()`) gives up when the deck is entered more than 90 km
+out - under a 1.4 km deck that is about half a degree over the horizon - and the half-res pass
+skipped everything under -0.08. So in rain or a storm the deck ended in a hard line and the city's
+light dome showed under it in its own saturated orange (21:30 rain, the sky alone: deck
+(98,75,55) then (128,67,45) across one row; opengl3's painted deck runs on into its haze, 108 ->
+114). From the street the far city hides most of that band; from the air (and in the small-scene
+tools, which have no horizon plane) it is a red stripe across the frame. Now, from under a deck
+the march cannot reach, it returns the deck's own airlight at the stratus share
+(`smoothstep(0.72, 0.95, coverage)`, the volume's own `strat`), and the half-res pass also runs
+under the horizon while the deck is closed and the camera is under it (above the deck nothing
+changes). The march's own aerial haze is 91 % airlight at 90 km (`cloud_haze_km` 38), so there is
+no seam: rows 395 / 400 / 450 now read (98,75,55) / (102,77,57) / (102,76,57). Day storm: the horizon
+joins (121 -> 124 -> 124), and under it the storm's own green-grey haze replaces a pale blue band
+brighter than the deck. Overcast under coverage 0.72 and clear skies are bit-identical
+(`far_deck` only acts past the old cut, and the march is never compiled on Compatibility).
+`sky.gdshader` `far_deck` (1), set by `FwdReviewG.apply_sky()` from SkyExtras.
+
+**Fixed 2: by day every window was a pale panel on the Mac (Forward+ only; predates wave 4).**
+building.gdshader is a renderer-space shader with no colour include: its wall colours, glass tint
+and mirror are `source_color` (decoded on Forward+), but the room traced behind each pane -
+room_interior()'s offices, wave 4's homes (window_rooms.gdshaderinc), shop_interior() - is written
+in display numbers straight into the albedo, which Forward+ reads as linear (0.4 display read as
+0.4 linear is 0.66 display). An apartment block at 11:00 (`building_shot.gd BSEED=11 HMIN=20
+HMAX=26 STYLE=0`): pane luminance 69-80 beside a 107 wall on Forward+, 20-35 beside 79 on opengl3
+(WINDOW_INTERIORS=0 measured the same: it is the old office rule too). Now the room is decoded
+(`fx_srgb_in()`, facade_variety's, a no-op on Compatibility) after its exposure and before the
+albedo takes it, behind the new `fwd_review_g` shader global; `room_raw` (the lit room's emission
+at night) keeps its numbers, so the night block is unchanged (p50/p95 31/141 -> 31/140). The far
+box's stand-ins for the room (building_lod.gdshader: the office, shop, blind and home-cover
+averages) follow through `fg_room()` = cs_as_uniform(). After: panes 56-67 (the rest is Forward+'s
+own specular off the glass, which opengl3 does not have). Compatibility, the web and every refcam
+still are bit-identical by construction.
+
+**Looked at, nothing to fix (Forward+ against opengl3):**
+- The muzzle flash's lights in rain fog at night (`fwd_block_shot.gd FLASH=1`, new: GunplayFeel's
+  real `_lights()` held with the clock stopped, saved as `<file>_flash.png`; suburb street
+  1801.8,1.7,4135.2 at 21:30 rain): no veil - mean change 0.07 levels. The volumetric fog's
+  temporal reprojection (0.9) takes ~20 frames to show a light, and a 0.07 s flash lasts ~4, so
+  the main light's fog energy 3.0 is harmless. Lightning is different only because it is held.
+- The guns at night (`gun_strip.gd LIGHT=night`, AK and shotgun, 0.02 / 0.05 s): the flash, the
+  hands and the floor light alike; Forward+ clips less (1.45 % of the frame against 2.72 % for the
+  shotgun).
+- The pier at night (`pier_shot.tscn`): the wheel's analytic LEDs and glow (pier_wheel_glow, zero
+  at its quad's edge) read the same; the night cumulus are brown on Forward+ (the city glow on
+  their bases, the light dome's colour) where opengl3's painted ones are grey-blue.
+- The wet road's mirror (`mirror_shot.gd`): on Forward+ SSR adds a crisp mirror of the lit fronts
+  on top of the drawn streaks (the soaked road's roughness 0.07 is a deliberate choice, see
+  CLAUDE.md's Weather note); the window grid in it is the real windows', not wave 4's old hashed
+  grid.
+- Dawn 06:15 and noon 12:30 (`sky_shot.gd`): the usual renderer difference (Forward+ pinker at
+  dawn, paler blue at noon), no seam or clip.
+- Buildings near and far (`far_building_shot.gd`): far / near luminance 0.93 by day and 0.91 at
+  night on Forward+. On opengl3 the night ratio is 0.63 (the far boxes darker) - unchanged with
+  WINDOW_INTERIORS=0 and FACADE_MID=0, so it predates wave 4; left for the far city's owner.
+
+**Not rendered:** downtown blocks and the whole city (lavapipe OOM), the explosions-3 volume at
+night in rain, the street lamps' LampShadows, the hero close-up (its own session measured both).
+
+**Tools:** `fwd_block_shot.gd FLASH=<k>` (FLASH_AT); with BLOCKS=0 it is the sky and weather
+alone in ~3 minutes on lavapipe - the fastest way to see a weather sky on Forward+.
+
+**Switch:** `FWD_REVIEW_G=0` (`FwdReviewG`, `scripts/world/fwd_review_g.gd`) puts both back (the
+sky's `far_deck` 0 and the `fwd_review_g` global 0). Checks: `tests/fwd_review_g_checks.gd`.
+
+**Frame cost:** none in the city's usual skies. Under a closed deck the half-res sky pass now
+also runs under the horizon, where the march returns at once (one slab test a pixel); no node,
+mesh or draw (so GEO is unchanged by construction and was not re-measured). Lavapipe, sky alone at
+21:30 under coverage 0.95 looking 6 degrees down, 960x540, `sky_shot.gd BENCH=30` off / on / off /
+on: 34.4 / 32.4 / 31.2 / 30.1 ms a frame - the run-to-run drift, no cost to see. The room decode
+is a few ALU on glass pixels. Gate: SHARDS=3, 5,093 checks passed, 0 failed, peak RSS 3,675 MB.
+
+## 9kh. Load time after wave 4: wave 4's first uses rehearsed, the rehearsal timed, the bake memo (fleet wave 5, `wt/load-time-3`, 2026-11-01)
+
+**Ask (wave 5, infra):** load time and the first minute after wave 4 - LoadClock stages, the
+loading screen's warm-up and WarmRehearsal's coverage of what wave 4 added, the load cache.
+Measure with tools/load_time/ and tools/shader_warm/, fix the biggest items.
+
+**Measured on main (bb03d73, this 4-core box, headless with `LOAD_SCREEN_HEADLESS=1`).** Cold cache
+185 s, warm 114 s. Cold: engine + script compile 20 s, macro map 5.9 s, ground bake 25.1 s, far
+landmarks 7.2 s, first streaming 46.6 s (18 FULL 21 s, 129 LOD 8.6 s, 57 near far-city tiles 16.6 s),
+shaders and effects 13.4 s (headless: the kits' GDScript, no compile), beach figures 3.8 s, far city
+35.6 s (371 tiles), the rehearsal ~12 s WITH NO LOADING LINE, trees 1.1 s, rigs 3.5 s. Warm, the
+bake is 1.5 s and the far city 0.4 s (LoadCache), the rest the same. A SCRIPT ERROR on every launch
+(`Emergency._scan`: "Left operand of 'is' is a previously freed instance"). The first 30 s after the
+shade: 0 swaps, traffic settled at 1.1 s (wave 4's FirstFill holds). **Trap met:** editing any
+script between two launches makes the second cold (every script is in LoadCache's key) - measure
+warm with nothing touched in between.
+
+First use on opengl3 with the rehearsal on (`first_use_probe.tscn`, `WARM=0 REHEARSE=1`, base frame
+~0.4 s at 480 x 270; the full shader warm-up, `WARM=1`, is OOM-killed on opengl3 now - llvmpipe keeps
+every GL program - so the rehearsal alone is what is compared):
+
+| first use, ms over 1.5 x base | before | after |
+|---|---|---|
+| the five-star troop truck (wanted-escalation) | 1,097 | 0 |
+| the gunship / the first helicopter of any kind | 1,079 (519 in an A/B rerun) | 0 |
+| a long rifle burst (barrel smoke, marks, streaks) | 824 | 0 |
+| a corner crash at speed (torn wheel, debris) | 404 | 0 |
+| a spike strip and a flat | 395 | 0 |
+| blood on the hero | 308 | 0 |
+| a blast (volume, bits), gibs, troopers | 0 | 0 |
+| total over the wave-4 events | 4,136 | 333 -> 0 (gore's 666 in one run was frame noise: 0 in both arms of the A/B) |
+
+**What changed.**
+1. **`WarmRehearsal.wave4`** (`WARM_WAVE4=0` the A/B): the cars stage adds the agency's troop truck
+   (`PoliceCar.make(false, rng, true)`), then `_stage_wave4_cars()`: a ChaseSpikeStrip deployed
+   across the row and two of a car's tyres punctured on it, and a corner crash at 28 m/s over on
+   another car (CrashBreakup's torn wheel, hub sparks, debris). The people stage splashes the hero
+   (HeroBlood, cleared after). The effects stage adds `_stage_wave4_effects()`: a bullet mark on
+   every baked surface (on Compatibility one quad material per mark set; all mark textures loaded),
+   BarrelSmoke on the player's gun (it stays, as it would after the first burst), and a police
+   Helicopter armed as the gunship (no helicopter was ever rehearsed; the air traffic flies them
+   over the city in the first minute).
+2. **The rehearsal is a LOADING stage** (`screen: rehearsal`, plus `LOADING rehearsal <stage>` per
+   stage, always printed): it was the one loading-screen step with no line.
+3. **Freed entries in CarDamage's lists**: `Emergency._scan()` and `Blast3.fire_list()` test
+   `is_instance_valid()` before `is` (the rehearsal's burnt car is freed a tick before
+   `_purge_statics()` runs). The purge also drops freed bullet marks from `WeaponFX._holes`, and
+   `WarmRehearsal.clear_pools()` empties CrashDebris' and BlastBits' rings (the rehearsal's crash
+   and blast pieces lay at the spawn all session).
+4. **The bake's raw-height memo**: inside `MacroMap.bake()` a pixel's `raw_height_at()` was worked
+   out three times (height_at, zone_at, district_at). A one-entry memo (`_bake_memo`, on only inside
+   the bake; `MacroMap.bake_memo` false the A/B) hands it back with its drainage: 17.0 -> 13.5 s in
+   the probe, 25.1 -> 20.0 s in a cold launch, colour and height images byte-identical
+   (`bake_probe.tscn FULL=1` prints `identical colour=true height=true`).
+
+**New tools.** `tools/load_time/bake_probe.tscn` (the bake's cost by call, `FULL=1` the memo A/B and
+the byte check), `tools/load_time/warm_probe.tscn` (every loading-screen warm-up's GDScript time:
+beach figures 2.6 s, camp figures 1.9 s, BlastAftermath 0.8 s, LaTrees 0.8 s, bonfires 0.7 s, dogs
+0.7 s, wildlife 0.5 s, ... 12 s in all), `first_use_probe` `EVENTS=wave4` (blast3, burst, crash_hard,
+spikes, troop, officers, gunship, gore, hero_blood). Checks: `tests/load_time_3_checks.gd`.
+
+**Not done / not verified.**
+- Nothing on the Mac (a launch log's LOADING lines, now with the rehearsal's, is the real measure).
+- The cold launch is still ~3 minutes on this box, and the owner gets it after every release (any
+  script edit misses LoadCache): far city 52 s, bake 20 s, FULL chunks 21-25 s (parked cars ~4 ms
+  and walkers ~9 ms each to build), kits 6 s. Narrowing the cache key per entry, or shipping a
+  cache built by CI, would make a release launch warm; neither tried (the key must stay safe).
+- Forward+ first uses (LampShadows' shadowed omnis, Blast3's haze) are not measured: lavapipe cannot
+  hold the rehearsal.
 ## 9d?. The glass at arm's length: people in the shops, the fittings' light, the window on the pavement (fleet wave 5, `wt/interiors-glass`, 2026-11-01)
 
 The task: walk the street 2-6 m from storefronts and apartment windows at 13:00 and 21:00 and fix
