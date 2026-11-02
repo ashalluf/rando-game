@@ -68,9 +68,9 @@ uniform float sun_glow = 0.6;
 // lit tan as at dusk. Gated on the clock (sun_direction is the moon's at night): full from 19:48
 // to 04:12, nothing before 19:00 or after 05:00, so dusk and dawn are untouched.
 uniform float night_look = 0.0;
-uniform float night_desat = 0.6;
-uniform float night_dim = 0.72;
-uniform vec3 night_tint = vec3(0.86, 0.93, 1.0);
+uniform float night_desat = 0.45;
+uniform float night_dim = 0.82;
+uniform vec3 night_tint = vec3(0.92, 0.96, 1.0);
 
 varying vec3 wpos;
 

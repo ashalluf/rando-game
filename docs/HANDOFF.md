@@ -28195,7 +28195,7 @@ per camera (the key, or -1 for a camera without it, once a run has set it). Run:
    and the omni's attenuation 2.0 (was 1.3): the warm light now dies within a few metres of the
    group, as a fire's does. The LOD pools are unchanged (`pool_mesh(false)`).
 5. **The sand at 21:00 was dusk tan.** beach_sand.gdshader `night_look` (set by
-   `PropFactory.beach_sand_material()`): the dry sand's albedo moves 60 % to a cool grey and 0.72x
+   `PropFactory.beach_sand_material()`): the dry sand's albedo moves 45 % to a cool grey and 0.82x
    brightness, full from 19:48 to 04:12 by `city_hour` (sun_direction is the MOON's at night, so a
    sun-elevation gate never fired). Dusk (the sunset camera at 18:36) and dawn are untouched.
 
