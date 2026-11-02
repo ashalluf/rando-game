@@ -10,3 +10,4 @@ Refcam `rain_day` (tools/refcams/cameras_w5.json): Wilshire in midtown, 14:00, r
 - `06_crop_sky_and_light_before_over_after.jpg` - the sky and the tower: the flat grey deck becomes heavy masses and thin places; the helicopter searchlight (top left, before) is gone.
 - `07_forwardplus_sky_rain_deck_off_over_on.jpg` - Forward+ (lavapipe), tools/sky/sky_shot.gd at coverage 0.92: rain_deck 0 over 1 - the volume path takes the masses too. (The street scene itself was OOM-killed on lavapipe at ~14 GB, home block only, so the street's lighting is unproven on Forward+.)
 - `08_ten_refcams_off_over_on.jpg` - the ten original refcams, RAIN_DAY=0 over on: identical but for live traffic (street_noon's bus, the freeway's truck, street_night's bus).
+- `09_after_rain_day_final_merged.jpg` - the final branch (merged with main batch 34): the same row, no bus at the stop this time so the deco frontage shows. p5/p50/p95 41/121/163.
