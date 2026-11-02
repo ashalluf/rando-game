@@ -26679,7 +26679,7 @@ Gate on the merge of main 2026-11-02: SHARDS=3, 5210 / 5210. The ten original re
 switches off vs on: eight within tolerance; street_noon and freeway flagged for traffic that moved
 between runs (street_noon also shows a few more walkers on its far pavement, by design). Forward+
 (the Mac) not verified for the mulch colour or the dither.
-**Round 4: the colour of the first half second** (from rc2-mayhem's finding). On Forward+ the
+**Round 4: the colour of the first half second** (from rc2-mayhem's finding; NOTE: what this round describes in the shader only shipped in round 8, `core4` and `quiet4` below). On Forward+ the
 car fireball was white-hot over its whole skin at 0.3 s: `field4()` started the temperature at
 0.5 + 0.5 x depth, so every billow sat in the blackbody's white stage (a cream cotton ball). Now
 the heat follows the DEPTH into the ball (`0.38 + sh.y * 1.1` plus the noise: a white heart,
@@ -26774,6 +26774,30 @@ pieces' fire reads as round puffs.
    twice the steps. NOTE: round 4's note said this Compatibility fix was in; it was rc2-mayhem's,
    reverted with its handover, and only lands here. `BLAST_QUIET=0` the A/B.
 Checks: `_round6()` in tests/explosions_4_checks.gd.
+
+**Round 8: the first instant, debris smoke, the shop fronts** (the lead's next list):
+1. **The first 0.3 s on Forward+ was a soft cream ball** (lavapipe strips, `DIST=25 LOOK_Y=5
+   TIMES=0.03,0.08,0.15,0.3`): AgX took every billow to the same cream. `core4`
+   (blast_volume.gdshader, `BLAST_CORE=0` the A/B): the heat follows the DEPTH into the ball
+   (`0.3 + 1.15 x core` - a small white-hot heart, orange flesh, a dull red skin), a fuel ball's
+   skin goes to soot from 0.15 s (`shell`, never for gas), `blackbody4()` holds green near half of
+   red once bright (the car fire's rule: the old ramp's orange drew peach), the young ball's
+   unburnt soot is dark so the fire stands out of black gaps, and the flash lights the dust skirt
+   for its first 0.1 s. NOTE: round 4's note described the depth-led heat and the soot shell as
+   shipped; like the Compatibility jitter fix they were rc2-mayhem's, reverted in its handover,
+   and only land here.
+2. **Debris smoke**: a smoke ribbon behind each burning piece (`BlastDebris._ribbons()`: one
+   ImmediateMesh a blast, a point a physics tick per piece, camera-facing strips widening and
+   fading over `RIB_LIFE` 1.6 s, thick behind a piece flying fast, a wisp off one lying burning),
+   and the pieces burn 1.6x longer on the ground. Trap: an ImmediateMesh's `custom_aabb` is round
+   its node - the first version sat the node at the world origin and every ribbon was culled
+   600 m away; the node now sits at the blast with vertices relative to it. `BLAST_RIBBONS=0`.
+3. **The shop fronts answer the blast** (`Blast4.facade_response()`, after BlastFX's glass):
+   within `facade_reach` (3.2) radii, every kit awning facing the blast is torn off (its instance
+   hidden, a burst of scraps in its own colour - burning within 1.4 radii - thrown off at the
+   wave's arrival and fluttering down, `max_awnings` 6) and every blade sign facing it swings
+   12-34 degrees askew and drops a little. The glass was already BlastFX's. `BLAST_FACADES=0`.
+Checks: `_round7()` in tests/explosions_4_checks.gd. Stills 49 on.
 
 ## 9lb. The camera lens (wave 5, `camera-lens`)
 
