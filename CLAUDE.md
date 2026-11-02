@@ -3729,6 +3729,13 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   it beats into rings, the rumble strip is milled scoops, expansion joints dull steel with an
   antialiased seam, and deck / girder / barriers are mitred at segment ends (`mitre()`).
   `FREEWAY_FILL=0` / `FREEWAY_LOOK=0` are the A/Bs; checks `tests/rc_freeway_checks.gd`.
+- The freeway at night (wave 6, refcam `freeway_night` in `tools/refcams/cameras_w6.json`,
+  docs/HANDOFF.md "The freeway at night"): `FreewayNight` (`scripts/world/freeway_night.gd`): the
+  light standards' pools are point-source cobra pools (light_pool.gdshader `cobra_size`, the quad's
+  u shifted by 4); `budget()` OmniLights at the nearest heads (`heads_near()`, pure) light cars and
+  barriers, never the deck top (`DECK_LAYER`, out of their cull mask); freeway cars' lamps reach
+  `FAR_LIGHTS`. refcams' `freeway_cars` key stages freeway traffic. `FREEWAY_NIGHT=0` is the A/B;
+  checks `tests/rc3_freeway_night_checks.gd`.
 - Footbridges (2026-10-30, docs/HANDOFF.md "Footbridges"): `Footbridges` (pure placement: boulevards
   >= 22 m by schools / parks, one freeway slot of 36 segments at a time with caged stair towers on
   the corridor lots), `FootbridgeKit` (one mesh, `shaders/footbridge.gdshader`, kind in COLOR.a / 16),

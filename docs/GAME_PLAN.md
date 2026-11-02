@@ -4315,3 +4315,9 @@ none of either.
   comes in with distance; broad road-light pools have no hard rim and dim from the air; floodlit
   masonry is a fifth of the old brick and render, not most of it; a far searchlight seen from the air
   saturates softly and fades with distance. NIGHT_AERIAL=0 is the A/B.
+- 2026-11-02 (wave 6, rc3-freeway-night): the freeway at night is lit like one. Each median light
+  standard's heads throw a point-source pool (light_pool's cobra branch) with a rhythm along the
+  deck; a small budget of real OmniLights at the heads nearest the camera lights the cars, barriers
+  and gantries but not the deck top (its own render layer: its light is the pools at every
+  distance); freeway cars' lamps draw to 720 m. FREEWAY_NIGHT=0 is the A/B. New refcam
+  `freeway_night` in cameras_w6.json, staged with the optional `freeway_cars` key.

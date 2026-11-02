@@ -51,6 +51,17 @@ and ignored by the ten originals:
   `2d:*`, `dbg:unshaded`...) renders the frame again with each hidden, `CHASE_BISECT=1` halves the
   drawables to find what draws a given pixel difference.
 
+## Wave 6's cameras (`cameras_w6.json`)
+
+Run with `REFCAMS_JSON=tools/refcams/cameras_w6.json`. `freeway_night`: the 110 northbound at 22:00
+clear, a driver's eye (1.2 m over the deck) in lane 2 toward the downtown skyline. Its optional
+`freeway_cars` key stages freeway traffic three frames before the shot: `{"route": r, "clear": m,
+"cars": [[ahead, lane, dir, speed, kind], ...]}` - cars `ahead` metres along route `r` from the eye
+in the direction it looks, lane 0 by the median, dir -1 toward the route's start (the 110 runs
+north to south), `kind` a Vehicle.BodyType name or "", and every other traffic car within `clear`
+metres of the eye hidden for the shot (the load's own traffic put a box truck on the lens). The log
+prints each staged car's distance at the shot.
+
 ## Running
 
 ```
