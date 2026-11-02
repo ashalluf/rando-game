@@ -50,6 +50,20 @@ uniform float time_offset = 0.0;
 // PierDay: salt grime toward the deck, sun fade, rust streaks on the white steel, a blotchy tone
 // (0 = the park as it was, showroom clean).
 uniform float weathered = 0.0;
+// RcPierNight (rc4-pier-night-2): the park lit by its own lamps after dark, emitted, so it reads
+// from the beach where the real OmniLights (90 m) never reach and on Compatibility (0 = as before).
+// The two lamp rows (park frame: x from wash_row.x to wash_row.y, z +-wash_row.z, height
+// wash_row.w) as line sources, and the midway's glows (park frame xyz, intensity; colour).
+uniform float wash = 0.0;
+uniform vec3 wash_anchor = vec3(0.0);
+uniform vec4 wash_row = vec4(-20.0, -254.0, 11.4, 11.75);
+uniform vec4 wash_pts[10];
+uniform vec3 wash_pt_col[10];
+uniform int wash_pt_count = 0;
+// A floor of light on everything (the midway's own glow off the deck and the air).
+uniform float wash_floor = 0.0;
+// The downlights under the deck (on the piles and bracing), relative to the lamps above.
+uniform float wash_under = 0.1;
 
 varying vec2 v_data;
 varying vec3 v_local;
@@ -94,6 +108,40 @@ vec3 pier_weather(vec3 alb, int kind, vec3 wp, float hd, inout float rough) {
 		alb = mix(alb, rust, (0.30 * streak + 0.12 * mottle) * weathered);
 	}
 	return alb;
+}
+
+// RcPierNight: the light the park's lamps and glows throw on a surface at park-frame `p` facing
+// `n` (world). Rows are line sources, 1/r with their two ends; glows are points, 1/r^2; facing is
+// wrapped (a lamp-lit night is all scatter). Under the deck the lamps above see nothing: a tenth.
+vec3 park_wash(vec3 p, vec3 n) {
+	vec3 e = vec3(wash_floor);
+	// Under the deck the lamps above see nothing; a row of downlights under the stringers lights
+	// the piles and the bracing instead (dimmer, closer in).
+	bool below = p.y < 5.6;
+	float under = below ? wash_under : 1.0;
+	float ly = below ? 5.1 : wash_row.w;
+	float lz = below ? wash_row.z * 0.55 : wash_row.z;
+	for (int s = 0; s < 2; s++) {
+		float zs = s == 0 ? -lz : lz;
+		vec3 to = vec3(0.0, ly - p.y, zs - p.z);
+		float r = max(length(to), 0.6);
+		float u0 = wash_row.x - p.x;
+		float u1 = wash_row.y - p.x;
+		float ends = abs(u1 / sqrt(u1 * u1 + r * r) - u0 / sqrt(u0 * u0 + r * r)) * 0.5;
+		float face = max(dot(n, to / r), 0.0) * 0.7 + 0.3;
+		e += vec3(1.0, 0.82, 0.58) * ends * face / r * under;
+	}
+	for (int k = 0; k < 10; k++) {
+		if (k >= wash_pt_count) {
+			break;
+		}
+		vec4 pt = wash_pts[k];
+		vec3 to = pt.xyz - p;
+		float d2 = dot(to, to);
+		float face = max(dot(n, to * inversesqrt(d2 + 1e-4)), 0.0) * 0.7 + 0.3;
+		e += wash_pt_col[k] * pt.w * face / (d2 + 4.0);
+	}
+	return e;
 }
 
 vec3 rot_z(vec3 p, float a) {
@@ -251,6 +299,10 @@ void fragment() {
 	// The piles where they stand in the sea (nothing else on the pier comes down near the water).
 	if (kind == 0 && v_wpos.y < 3.4 && ocean_closeup > 0.5) {
 		alb = wl_wet(alb, v_wpos.y, v_wpos.xz + origin_shift.xz, (v_local.x + v_local.z) * 1.7, t, rough);
+	}
+	if (wash > 0.0 && lit > 0.0) {
+		vec3 nw = normalize((INV_VIEW_MATRIX * vec4(NORMAL, 0.0)).xyz);
+		emit += alb * park_wash(v_wpos + origin_shift - wash_anchor, nw) * (wash * lit);
 	}
 	ALBEDO = cs_out(alb);
 	EMISSION = cs_out(emit);

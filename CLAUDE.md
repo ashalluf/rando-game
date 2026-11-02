@@ -4689,6 +4689,16 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   `PIER_NIGHT=0` / `NIGHT_CLOUDS=0` are the A/B; the pier alone in a minute:
   `tools/pier_night/pier_shot.tscn` (`EYE`, `T`, `FAR=1`, either renderer); checks
   `tests/rc_pier_night_checks.gd`.
+- The pier at night, second pass (wave 7, docs/HANDOFF.md "The pier at night from the beach, second
+  pass"): `CoastExposure` (`scripts/world/coast_exposure.gd`, one hook in DayNight's exposure line):
+  a camera on the sand or over the sea opens up `COAST_GAIN` 1.75x deep into the night only (gone
+  160 m inland and above moonlight 0.6: the 18:36 sunset untouched). `RcPierNight`
+  (`scripts/world/rc4_pier_night.gd`): pier_park.gdshader's `wash` (the lamp rows as line sources,
+  the midway's `GLOWS`, downlights under the deck on the piles; set in `PierMesh.material()`), the
+  piers' rows lighting the sand and the sea (`shaders/pier_wash.gdshaderinc`, pushed by Weather
+  with the ocean's own `pier_lines`; the deck shades its own side), clothed `BeachWalker`
+  strollers on the wet sand by a pier after dark. `RC4_PIER_NIGHT=0` is the A/B; checks
+  `tests/rc4_pier_night_2_checks.gd`.
 - Downtown skyline (owner, 2026-09-24: "a 1:1 match of DTLA skyline ... It needs more
   buildings"): `LandmarkDowntown` (`scripts/world/landmark_downtown.gd`) builds nineteen `dt_*`
   landmarks, listed in ONE contiguous block at the end of `Landmarks.all()` (other branches add

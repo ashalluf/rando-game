@@ -28372,3 +28372,47 @@ of them anyway; not timed separately). The far copy of the sign (far_canopy's ri
 plane from past the LOD ring) is built from the same ribbons but drawn in that material's one colour:
 no panels or dust from the basin (under a pixel there anyway). HillScatter's clumps (between
 the shrubs) are RcHills' field, not this one.
+
+## 9ly. The pier at night from the beach, second pass (fleet wave 7, `rc4-pier-night-2`, refcam pier_night)
+
+The pier_night reference camera (eye (-945, 1.8, -235), 21:00 clear) after the first pass (9iz)
+still measured p50 22 and read as a black frame with a few lit dots: the sand, the sea and the sky
+in the bottom tenth of the range, the pier a black slab with its lights on it, nobody about.
+What was fixed, in the order the eye reads the frame:
+
+1. **The exposure on a dark coast** (`CoastExposure`, `scripts/world/coast_exposure.gd`, one factor
+   on DayNight's `tonemap_exposure` line). The night exposure is set for lit streets; on the open
+   sand there is nothing a street has. A camera on the coast opens up `COAST_GAIN` 1.75x, weighted
+   by `coast_weight()` (1 on the sand and over the sea - MacroMap.coast_x + beach_width_at - to 0
+   `COAST_REACH` 160 m inland) and by DayNight's moonlight (`DARK_FROM` 0.6 .. `DARK_TO` 0.95, so
+   the sunset at 17:51-18:36 and the golden hour keep their exposure). No easing: the weight is a
+   smooth function of the camera's place. Untyped (no MacroMap) and kept out of RcPierNight's
+   Landmarks graph, because the sky tools load DayNight without a city.
+2. **The pier lit by its own lamps** (`RcPierNight.dress_material()`, one hook at the end of
+   `PierMesh.material()`; pier_park.gdshader `wash`, `park_wash()`): the real OmniLights fade at
+   90 m and Compatibility has none from the beach, so the steel, stands and rails were black shapes
+   between the points. Every pier_park surface emits its albedo times the light of the two lamp
+   rows (line sources, 1/r with their ends), the midway's `GLOWS` (carousel, arcade, bumper hall,
+   wheel base, stands, the coaster station; points, 1/r^2) and a `WASH_FLOOR`, after dark; under
+   the deck a row of downlights (`WASH_UNDER`) lights the piles and bracing.
+3. **The pier's light on the sand and the sea** (`shaders/pier_wash.gdshaderinc` in beach_sand and
+   ocean; `RcPierNight.push()` from `Weather._push_pier_lights()`): every pier's lamp rows
+   (Weather.pier_light_lines(), the rows the ocean mirrors) as continuous line sources on the
+   horizontal surface, E = I/s * H/r^2 * [u/sqrt(u^2+r^2)] over the row's ends, the deck shading its
+   own side (`deck_side()`: toward the nearest other row), plus RANDO PIER's glows as points. pw_gain
+   0 (the default) adds nothing.
+4. **People** (`RcPierNight.night_strollers()`, one hook at the end of `BeachLife.build()`): clothed
+   `BeachWalker`s (`clothed` -> BonfireFigure.clothe()) on the wet sand, up to `STROLLERS` 7 a
+   chunk within `PIER_REACH` 420 m of a pier, 19:18-23:30, none in rain, in the crowd cap, hashes of
+   seed + chunk. `RC4_DEBUG=1` prints how many a chunk got.
+
+**Numbers** (refcams, opengl3, ten cameras, `RC4_PIER_NIGHT=0` vs on, same tree): see the
+compare table below. pier_night p50 22 -> 39, p95 45 -> 72, crush 3.9 % -> 1.6 %.
+
+**Checks**: `tests/rc4_pier_night_2_checks.gd` (exposure by place and hour, the wash and its glows,
+the sand / sea rows and deck sides, the strollers by hour, place and weather, the A/B).
+
+**Not done / not verified**: Forward+ on the Mac (the wash and spill are emitted in renderer
+space like the rest of pier_park / beach_sand / ocean; auto exposure on Forward+ stacks on the coast
+gain as on every other camera); the pier's root and its sand pools are off this camera's frame; the
+bonfire rings belong to rc4-bonfire-night.

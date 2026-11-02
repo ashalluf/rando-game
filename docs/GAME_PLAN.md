@@ -3755,6 +3755,15 @@ already mapped so milestone 2 is script-only.
   valley reads as beige dunes at this hour: the brush is there (the stand rule says ~80 %), the
   morning's warm light and fog take its colour; left for a hills / atmosphere pass. GOLF_MORNING=0.
 
+- **2026-11-02 The pier at night from the beach, second pass (rc4-pier-night-2, HANDOFF "The pier
+  at night from the beach, second pass").** The pier_night refcam still read as a black frame (p50
+  22). Decisions: a camera on the open coast at night meters for the dark beach (x1.75, fading out
+  160 m inland and before 19:00, so the sunset and every night street keep their exposure) rather
+  than raising the night exposure or the moon everywhere; a lit place lights its own surroundings
+  in the shader (the pier's lamp rows as line sources on its steel, piles, sand and sea) where real
+  lights cannot reach on Compatibility or past their fade; after dark people stroll the wet sand by
+  a lit pier, clothed, in the crowd cap. RC4_PIER_NIGHT=0 (COAST_EXPOSURE=0 the exposure alone).
+
 ## Correction: what build 135 (0ce833f) actually contained
 
 That commit's subject says "denser grass, real palm fronds, finer ground". It also shipped a
