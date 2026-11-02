@@ -43,6 +43,33 @@ static var wreck_fire_enabled: bool = OS.get_environment("BLAST_WRECK_FIRE") != 
 static var side_flame_seconds: float = 14.0
 ## The crater's soot specks from a smooth noise (Blast3.crater_maps()): BLAST_CRATER=0 the A/B.
 static var crater_smooth: bool = OS.get_environment("BLAST_CRATER") != "0"
+## Flames as tall licking tongues (shaders/flame_tongue.gdshader) in place of the round fire
+## puffs: the car fire, the pools, the wreck's sides, the burning debris. BLAST_FLAMES=0 the A/B.
+static var flames_enabled: bool = OS.get_environment("BLAST_FLAMES") != "0"
+## The crater's pit with depth (`pit_dress()`): a traced bowl, a raised lip of earth and loose
+## chunks on it. BLAST_PIT=0 is the A/B.
+static var pit_enabled: bool = OS.get_environment("BLAST_PIT") != "0"
+## The volume's march jitter narrowed (blast_volume.gdshader `quiet4`): TAA does not clear it.
+## BLAST_QUIET=0 is the A/B.
+static var quiet_enabled: bool = OS.get_environment("BLAST_QUIET") != "0"
+static var quiet_jitter: float = 0.3
+## The shop fronts round a blast answer it (`facade_response()`): awnings torn off into canvas
+## scraps (burning near it), blade signs knocked askew. BLAST_FACADES=0 is the A/B.
+static var facades_enabled: bool = OS.get_environment("BLAST_FACADES") != "0"
+## The first half second as a violent core (blast_volume.gdshader `core4`): depth-led heat, a fuel
+## ball's soot skin, the flash on the dust. BLAST_CORE=0 is the A/B.
+static var core_enabled: bool = OS.get_environment("BLAST_CORE") != "0"
+static var facade_reach: float = 3.2 # blast radii
+static var max_awnings: int = 6
+## A continuous smoke ribbon behind each burning piece of debris, and longer burns on the ground
+## (BlastDebris._ribbons()). BLAST_RIBBONS=0 is the A/B.
+static var debris_ribbons: bool = OS.get_environment("BLAST_RIBBONS") != "0"
+static var _ribbon_mat: StandardMaterial3D
+static var pit_depth: float = 0.35 # metres of depth per metre of pit radius
+static var _pit_shader: Shader
+static var _lip_mat: StandardMaterial3D
+static var _rock_mesh: ArrayMesh
+static var _flame_mat: ShaderMaterial
 
 ## The volume's life (seconds) by kind, and the march's steps (the mushroom's box is taller).
 static var volume_life: float = 9.0
@@ -97,6 +124,8 @@ static func dress_volume(mat: ShaderMaterial, fuel: bool, gas: bool) -> Array:
 	mat.set_shader_parameter("value4", value_range if value_enabled else 0.0)
 	mat.set_shader_parameter("under4", underlight_gain if underlight_enabled else 0.0)
 	mat.set_shader_parameter("stem_hold", 1.0 if stem_enabled else 0.0)
+	mat.set_shader_parameter("quiet4", quiet_jitter if quiet_enabled else 0.0)
+	mat.set_shader_parameter("core4", 1.0 if core_enabled else 0.0)
 	return [Vector3(2.3, 2.1, 2.3) * big, Vector3(0.0, 2.0, 0.0) * big, life]
 
 
@@ -472,6 +501,7 @@ static func side_flames(car: Node3D) -> CPUParticles3D:
 	quad.size = Vector2(0.55, 1.45)
 	quad.center_offset = Vector3(0.0, 0.45, 0.0)
 	quad.material = CarDamage.fire_material()
+	tongue_quad(quad, 1.25)
 	f.mesh = quad
 	f.custom_aabb = AABB(Vector3(-8.0, -2.0, -8.0), Vector3(16.0, 10.0, 16.0))
 	car.add_child(f)
@@ -482,3 +512,264 @@ static func side_flames(car: Node3D) -> CPUParticles3D:
 	tw.tween_interval(1.2)
 	tw.tween_callback(f.queue_free)
 	return f
+
+
+## True when the flame tongues replace the round fire puffs (not on the web: no depth texture).
+static func tongues() -> bool:
+	return enabled and flames_enabled and not WeaponFX._web()
+
+
+## The flame tongue material, shared by every fire that uses it.
+static func flame_material() -> Material:
+	if not tongues():
+		return CarDamage.fire_material()
+	if _flame_mat == null:
+		_flame_mat = ShaderMaterial.new()
+		_flame_mat.shader = preload("res://shaders/flame_tongue.gdshader")
+		_flame_mat.set_shader_parameter("noise3d", Blast3.noise_texture())
+	return _flame_mat
+
+
+## A flame system's card made a tongue: taller and narrower, its root at the particle.
+static func tongue_quad(quad: QuadMesh, gain: float = 1.6) -> void:
+	if not tongues():
+		return
+	quad.size = Vector2(quad.size.x * 1.15, quad.size.y * gain)
+	quad.center_offset = Vector3(0.0, quad.size.y * 0.42, 0.0)
+	quad.material = flame_material()
+
+
+## The pit's depth, lip and loose rubble on a crater mark (BlastAftermath.crater()'s hook).
+static func pit_dress(mark: Node3D, pit_r: float) -> bool:
+	if not enabled or not pit_enabled or mark == null or pit_r < 0.4:
+		return false
+	var h := hash([int(mark.global_position.x * 8.0), int(mark.global_position.z * 8.0), "pit"])
+	# The bowl, traced on a quad just over the road.
+	if _pit_shader == null:
+		_pit_shader = preload("res://shaders/blast_pit.gdshader")
+	var m := ShaderMaterial.new()
+	m.shader = _pit_shader
+	m.set_shader_parameter("noise3d", Blast3.noise_texture())
+	m.set_shader_parameter("pit_r", pit_r)
+	m.set_shader_parameter("depth", pit_r * pit_depth)
+	m.set_shader_parameter("seed", float(h & 1023) / 97.0)
+	m.render_priority = 1
+	var quad := MeshInstance3D.new()
+	quad.name = "PitBowl"
+	var pm := PlaneMesh.new()
+	pm.size = Vector2.ONE * pit_r * 2.08
+	quad.mesh = pm
+	quad.material_override = m
+	quad.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	quad.position = Vector3(0.0, 0.11, 0.0)
+	mark.add_child(quad)
+	# The lip: earth and crushed base course thrown up round the opening.
+	var lip := MeshInstance3D.new()
+	lip.name = "PitLip"
+	lip.mesh = lip_mesh(pit_r, h)
+	if _lip_mat == null:
+		_lip_mat = StandardMaterial3D.new()
+		_lip_mat.vertex_color_use_as_albedo = true
+		_lip_mat.roughness = 0.96
+	lip.material_override = _lip_mat
+	lip.position = Vector3(0.0, 0.02, 0.0)
+	mark.add_child(lip)
+	# Loose chunks on the lip and tipped into the opening.
+	if _rock_mesh == null:
+		_rock_mesh = BlastAftermath._chunk_mesh(6, Vector3(0.26, 0.16, 0.2), 29, Color(0.08, 0.075, 0.07), Color(0.3, 0.27, 0.24))
+	var mm := MultiMesh.new()
+	mm.transform_format = MultiMesh.TRANSFORM_3D
+	mm.mesh = _rock_mesh
+	var n := clampi(int(pit_r * 9.0), 8, 28)
+	mm.instance_count = n
+	for i in n:
+		var hi := hash([h, i])
+		var a := float(hi & 1023) / 1023.0 * TAU
+		var d := pit_r * (0.92 + 0.5 * float((hi >> 10) & 255) / 255.0)
+		var sc := 0.6 + 1.3 * float((hi >> 18) & 63) / 63.0
+		var b := Basis(Vector3(float((hi >> 3) & 7) - 3.5, 2.0, float((hi >> 6) & 7) - 3.5).normalized(), float(hi & 255) / 40.0)
+		var y := lip_height(d / pit_r, pit_r) * 0.85
+		mm.set_instance_transform(i, Transform3D(b.scaled(Vector3.ONE * sc), Vector3(cos(a) * d, y, sin(a) * d)))
+	var mi := MultiMeshInstance3D.new()
+	mi.name = "PitRubble"
+	mi.multimesh = mm
+	mi.visibility_range_end = 120.0
+	mark.add_child(mi)
+	return true
+
+
+## The lip's height at s (distance / pit radius): up from the opening's edge to a crest, falling
+## away over the road.
+static func lip_height(s: float, pit_r: float) -> float:
+	var k := clampf((s - 0.92) / 0.6, 0.0, 1.0)
+	return pit_r * 0.075 * sin(k * PI) * (1.0 - 0.3 * k)
+
+
+## The lip as a ring of quads: the opening's edge to 1.55 radii, raised by lip_height(), ragged.
+static func lip_mesh(pit_r: float, h: int) -> ArrayMesh:
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var na := 40
+	var nr := 6
+	var pts: Array = []
+	for j in nr + 1:
+		var row: Array = []
+		for i in na:
+			var a := TAU * float(i) / float(na)
+			var jit := float(hash([h, i, j]) & 255) / 255.0
+			var s := 0.92 + 0.6 * float(j) / float(nr) + (jit - 0.5) * 0.06
+			var y := lip_height(s, pit_r) * (0.7 + 0.6 * jit)
+			if j == nr:
+				y = -0.02
+			row.append(Vector3(cos(a) * s * pit_r, y, sin(a) * s * pit_r))
+		pts.append(row)
+	for j in nr:
+		for i in na:
+			var i2 := (i + 1) % na
+			var p00: Vector3 = pts[j][i]
+			var p01: Vector3 = pts[j][i2]
+			var p10: Vector3 = pts[j + 1][i]
+			var p11: Vector3 = pts[j + 1][i2]
+			var c0 := Color(0.2, 0.18, 0.15).lerp(Color(0.1, 0.095, 0.09), float(j) / float(nr))
+			var c1 := Color(0.2, 0.18, 0.15).lerp(Color(0.1, 0.095, 0.09), float(j + 1) / float(nr))
+			# Wound clockwise seen from above (Godot's front faces).
+			for v in [[p00, c0], [p01, c0], [p10, c1], [p01, c0], [p11, c1], [p10, c1]]:
+				st.set_color(v[1])
+				st.add_vertex(v[0])
+	st.generate_normals()
+	return st.commit()
+
+
+## The shop fronts within `facade_reach` radii of a blast: every awning facing it is torn off (its
+## kit instance hidden, a burst of scraps in its colour - burning within 1.4 radii - fluttering
+## down), and every blade sign facing it swings askew on its bracket. Returns [awnings, signs].
+static func facade_response(node: Node, at: Vector3, radius: float) -> Array:
+	var done := [0, 0]
+	if not enabled or not facades_enabled or not (node is Node3D) or not (node as Node3D).is_inside_tree():
+		return done
+	var space := (node as Node3D).get_world_3d().direct_space_state
+	var reach := radius * facade_reach
+	var shape := SphereShape3D.new()
+	shape.radius = reach
+	var q := PhysicsShapeQueryParameters3D.new()
+	q.shape = shape
+	q.transform = Transform3D(Basis(), at)
+	q.collision_mask = 1
+	var seen := {}
+	var parent := WeaponFX.fx_parent(node)
+	for res: Dictionary in space.intersect_shape(q, 64):
+		var t := BuildingDamage.target_of(res.get("collider"), int(res.get("shape", -1)))
+		if t.is_empty() or t.building == null or seen.has(t.key):
+			continue
+		seen[t.key] = true
+		var b: Building = t.building
+		for c in b.get_children():
+			var mmi := c as MultiMeshInstance3D
+			if mmi == null or mmi.multimesh == null:
+				continue
+			var nm := String(mmi.name)
+			var awning := nm.begins_with("Batch_kit_awning")
+			var blade := nm.begins_with("Batch_kit_shop_blade")
+			if not awning and not blade:
+				continue
+			var mm := mmi.multimesh
+			for i in mm.instance_count:
+				var xf := mmi.global_transform * mm.get_instance_transform(i)
+				if xf.basis.get_scale().length() < 0.01:
+					continue
+				var d := xf.origin.distance_to(at)
+				if d > reach:
+					continue
+				# Only what faces the blast (its +Z is the wall's outward normal).
+				var out := xf.basis.z.normalized()
+				if out.dot((at - xf.origin).normalized()) < 0.1:
+					continue
+				var keep := 1.0 - d / reach
+				var hi := hash([int(xf.origin.x * 10.0), int(xf.origin.z * 10.0), int(xf.origin.y * 10.0), "facade"])
+				if float(hi & 1023) / 1023.0 > 0.4 + 0.6 * keep:
+					continue
+				if awning and done[0] < max_awnings:
+					var col := mm.get_instance_color(i) if mm.use_colors else Color(0.6, 0.2, 0.15)
+					var width := (mm.get_instance_custom_data(i).b * 2.0 + 1.0) if mm.use_custom_data else 2.5
+					MultiMeshBatch.hide_instance(mmi, i)
+					_awning_scraps(parent, xf, col, width, d < radius * 1.4, d / 343.0)
+					done[0] += 1
+				elif blade:
+					# Swung on its bracket away from the blast, a little dropped.
+					var tilt := deg_to_rad(12.0 + 22.0 * keep) * (1.0 if (hi & 2) == 0 else -1.0)
+					var local := mm.get_instance_transform(i)
+					local.basis = Basis(local.basis.x.normalized(), tilt) * local.basis
+					local.origin.y -= 0.12 * keep
+					mm.set_instance_transform(i, local)
+					done[1] += 1
+	return done
+
+
+## Torn canvas: scraps of the awning's colour thrown off its frame by the wave (arriving at the
+## speed of sound), fluttering down; near the blast they burn.
+static func _awning_scraps(parent: Node, xf: Transform3D, col: Color, width: float, burning: bool, delay: float) -> void:
+	var p := CPUParticles3D.new()
+	p.name = "AwningScraps"
+	p.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	p.one_shot = true
+	p.emitting = false
+	p.amount = WeaponFX._count(26)
+	p.explosiveness = 0.9
+	p.lifetime = 3.2
+	p.lifetime_randomness = 0.4
+	p.emission_shape = CPUParticles3D.EMISSION_SHAPE_BOX
+	p.emission_box_extents = Vector3(maxf(width * 0.5, 0.5), 0.25, 0.4)
+	p.direction = Vector3(0.0, 0.4, 1.0)
+	p.spread = 55.0
+	p.initial_velocity_min = 2.5
+	p.initial_velocity_max = 7.0
+	p.gravity = Vector3(0.0, -3.2, 0.0)
+	p.damping_min = 1.5
+	p.damping_max = 3.5
+	p.angular_velocity_min = -360.0
+	p.angular_velocity_max = 360.0
+	p.angle_min = -180.0
+	p.angle_max = 180.0
+	p.scale_amount_min = 0.18
+	p.scale_amount_max = 0.55
+	var dark := col.darkened(0.55) if burning else col
+	p.color = dark
+	if burning:
+		p.color_ramp = WeaponFX._ramp([Color(2.0, 1.0, 0.25, 1.0), Color(1.0, 0.45, 0.08, 1.0),
+			Color(0.12, 0.08, 0.06, 1.0), Color(0.05, 0.04, 0.035, 0.0)])
+	var quad := QuadMesh.new()
+	quad.size = Vector2(1.0, 0.7)
+	var m := StandardMaterial3D.new()
+	m.cull_mode = BaseMaterial3D.CULL_DISABLED
+	m.vertex_color_use_as_albedo = true
+	m.roughness = 0.9
+	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR
+	m.alpha_scissor_threshold = 0.3
+	if burning:
+		m.emission_enabled = true
+		m.emission = Color(1.0, 0.4, 0.08)
+		m.emission_energy_multiplier = 1.2
+	quad.material = m
+	p.mesh = quad
+	p.custom_aabb = AABB(Vector3(-15.0, -15.0, -15.0), Vector3(30.0, 30.0, 30.0))
+	parent.add_child(p)
+	p.global_transform = Transform3D(xf.basis.orthonormalized(), xf.origin)
+	var tw := p.create_tween()
+	tw.tween_interval(maxf(delay, 0.02))
+	tw.tween_callback(func(): p.emitting = true)
+	tw.tween_interval(p.lifetime * 1.5 + 0.5)
+	tw.tween_callback(p.queue_free)
+
+
+## The debris ribbons' material: soot that takes the sun and sky, see-through by its alpha.
+static func ribbon_material() -> StandardMaterial3D:
+	if _ribbon_mat == null:
+		_ribbon_mat = StandardMaterial3D.new()
+		_ribbon_mat.vertex_color_use_as_albedo = true
+		_ribbon_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		_ribbon_mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+		_ribbon_mat.depth_draw_mode = BaseMaterial3D.DEPTH_DRAW_DISABLED
+		_ribbon_mat.roughness = 1.0
+		_ribbon_mat.specular_mode = BaseMaterial3D.SPECULAR_DISABLED
+		_ribbon_mat.disable_receive_shadows = true
+	return _ribbon_mat

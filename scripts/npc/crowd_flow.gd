@@ -716,7 +716,11 @@ static func _swap(p: Node) -> void:
 	_frame = f
 	_prev = _cur
 	_cur = {}
-	var cam := p.get_viewport().get_camera_3d() if p.is_inside_tree() else null
+	# The game window's camera (CrowdLook's rule), not the first caller's own viewport: a walker in
+	# another viewport, or one asked about out of the tree, turned the grid off for everyone that
+	# frame (the gate's head-on pair saw no neighbour at all with the camera 24 m off).
+	var tree := p.get_tree() if p.is_inside_tree() else Engine.get_main_loop() as SceneTree
+	var cam := tree.root.get_camera_3d() if tree and tree.root else null
 	_cam = cam.global_position if cam else Vector3.INF
 
 

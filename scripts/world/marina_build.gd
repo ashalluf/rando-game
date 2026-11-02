@@ -360,6 +360,9 @@ static func boat_material() -> ShaderMaterial:
 	if not _mats.has("boat"):
 		var m := ShaderMaterial.new()
 		m.shader = load("res://shaders/boat.gdshader")
+		# MarinaGolden: rigging widened to a pixel, the furled jibs' cover strips.
+		m.set_shader_parameter("wire_px", 1.0 if MarinaGolden.enabled else 0.0)
+		m.set_shader_parameter("jib_strip", 1.0 if MarinaGolden.enabled else 0.0)
 		_mats["boat"] = m
 	return _mats["boat"]
 
@@ -624,6 +627,9 @@ func _dock_step() -> void:
 
 
 func _pile(p: Vector2) -> void:
+	if MarinaGolden.enabled:
+		_pile_round(p)
+		return
 	var sides := 8
 	var r := 0.2
 	var y0 := -1.2
@@ -640,6 +646,60 @@ func _pile(p: Vector2) -> void:
 		var c1 := p + Vector2(cos(a1), sin(a1)) * (r + 0.03)
 		quad("white", Vector3(c0.x, y1 - 0.25, c0.y), Vector3(c1.x, y1 - 0.25, c1.y), Vector3(c1.x, y1 + 0.05, c1.y), Vector3(c0.x, y1 + 0.05, c0.y), out, false)
 		tri("white", Vector3(c0.x, y1 + 0.05, c0.y), Vector3(c1.x, y1 + 0.05, c1.y), Vector3(p.x, y1 + 0.14, p.y), Vector3.UP, false)
+
+
+## MarinaGolden: a round pile (14 sides, smooth normals: the 8-sided flat-shaded one read as a
+## square post at the headwalk), a dark band of growth at the waterline, a rounded white cap.
+func _pile_round(p: Vector2) -> void:
+	var sides := 14
+	var r := 0.19
+	var y0 := -1.2
+	var y1 := Marina.DOCK_Y + 2.7
+	var bands := [[y0, Marina.WATER_Y + 0.35, "rubber"], [Marina.WATER_Y + 0.35, y1, "pile"]]
+	for k in sides:
+		var a0 := TAU * k / sides
+		var a1 := TAU * (k + 1) / sides
+		var n0 := Vector3(cos(a0), 0.0, sin(a0))
+		var n1 := Vector3(cos(a1), 0.0, sin(a1))
+		for bd: Array in bands:
+			var ya: float = bd[0]
+			var yb: float = bd[1]
+			_quad_smooth(bd[2], [Vector3(p.x, ya, p.y) + n0 * r, Vector3(p.x, ya, p.y) + n1 * r, Vector3(p.x, yb, p.y) + n1 * r, Vector3(p.x, yb, p.y) + n0 * r], [n0, n1, n1, n0], true)
+		# The cap: a short collar and a dome.
+		var rc := r + 0.025
+		var cy0 := y1 - 0.22
+		var cy1 := y1 + 0.02
+		_quad_smooth("white", [Vector3(p.x, cy0, p.y) + n0 * rc, Vector3(p.x, cy0, p.y) + n1 * rc, Vector3(p.x, cy1, p.y) + n1 * rc, Vector3(p.x, cy1, p.y) + n0 * rc], [n0, n1, n1, n0])
+		var top := Vector3(p.x, y1 + 0.12, p.y)
+		var u0 := (n0 + Vector3.UP * 0.8).normalized()
+		var u1 := (n1 + Vector3.UP * 0.8).normalized()
+		_tri_smooth("white", [Vector3(p.x, cy1, p.y) + n0 * rc, Vector3(p.x, cy1, p.y) + n1 * rc, top], [u0, u1, Vector3.UP], (n0 + n1 + Vector3.UP).normalized())
+
+
+## A triangle with its own normal per vertex, wound to face `want` (Godot's front is clockwise).
+func _tri_smooth(key: String, pts: Array, nrms: Array, want: Vector3, collide := false) -> void:
+	var a: Vector3 = pts[0]
+	var b: Vector3 = pts[1]
+	var c: Vector3 = pts[2]
+	var order := [0, 1, 2]
+	if (c - a).cross(b - a).dot(want) < 0.0:
+		order = [0, 2, 1]
+	var st := _surf(key)
+	for i: int in order:
+		var q: Vector3 = pts[i]
+		var nn: Vector3 = nrms[i]
+		st.set_normal(nn)
+		st.set_color(Color.WHITE)
+		st.set_uv(Vector2(atan2(nn.z, nn.x) * 0.2, q.y))
+		st.add_vertex(q)
+		if collide:
+			_faces.append(q)
+
+
+func _quad_smooth(key: String, pts: Array, nrms: Array, collide := false) -> void:
+	var want: Vector3 = ((nrms[0] as Vector3) + (nrms[1] as Vector3)).normalized()
+	_tri_smooth(key, [pts[0], pts[1], pts[2]], [nrms[0], nrms[1], nrms[2]], want, collide)
+	_tri_smooth(key, [pts[0], pts[2], pts[3]], [nrms[0], nrms[2], nrms[3]], want, collide)
 
 
 func _gangway(top: Vector2, bot: Vector2, w: float) -> void:
@@ -1290,6 +1350,9 @@ func _traffic_step() -> void:
 # --- Commit ---------------------------------------------------------------------------------------
 
 func _commit_step() -> void:
+	# MarinaGolden: the node that hands the water the boats nearest the camera to mirror.
+	if full and ch.plan.marina_block(ch.ix, ch.iz):
+		MarinaGolden.ensure(ch, mr)
 	for key: String in _st:
 		var st: SurfaceTool = _st[key]
 		var mi := MeshInstance3D.new()

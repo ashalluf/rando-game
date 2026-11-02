@@ -973,6 +973,7 @@ func _flame_system(sys_name: String, amount: int, quad_size: Vector2, angle: flo
 	# The root of a tongue at the particle, the rest of it above.
 	quad.center_offset = Vector3(0.0, (quad_size.y - quad_size.x) * 0.5, 0.0)
 	quad.material = fire_material()
+	Blast4.tongue_quad(quad)
 	p.mesh = quad
 	# The particles are in world space and a fire's box is a car or two across; set it or the
 	# whole fire can vanish (CLAUDE.md, effects).

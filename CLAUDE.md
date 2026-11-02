@@ -141,7 +141,11 @@ drops a pending build once its block stands at the wanted level (`STALE_BUILD_CA
 it was installed over the chunk, the "spawn chunk replaced" family); anything that works round the
 camera (CrowdFlow's 35 m) is staged near the CURRENT camera and the gate reset makes the setup's
 camera current again; a weather-dependent check holds every DayNight weather hook (`marine`,
-`santa_ana`, the flash), not only `weather_darken`; gate loops run from a separate worktree.
+`santa_ana`, the flash), not only `weather_darken`; a check that builds chunks or places service
+cars lifts `PhysicsBudget.max_active_bodies` for it (a busy city sits at the cap); stage and act in
+the SAME frame when a live system re-checks the condition (CarPanic's kerb); a system that sends
+walkers off (doors, errands) takes plain `_lives()` walkers without `no_trim` only; a shared grid
+keyed on the camera reads the game window's camera; gate loops run from a separate worktree.
 
 Download a Linux headless-capable build with:
 
@@ -1626,7 +1630,7 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   the wave; later rounds: a rolling lit dust front, the plume's value range, panel debris, the fires'
   underlight on the cap, a held stem, fuel trails and flames up the wreck's sides, a soft crater.
   `EXPLOSIONS_4=0` is the A/B (`BLAST_DUST_ROLL`, `BLAST_VALUE`, `BLAST_CHUNKS`, `BLAST_UNDERLIGHT`,
-  `BLAST_STEM`, `BLAST_WRECK_FIRE`, `BLAST_CRATER` =0 each part); strips blast_room_shot.gd (`GAS=1`,
+  `BLAST_STEM`, `BLAST_WRECK_FIRE`, `BLAST_CRATER`, `BLAST_FLAMES`, `BLAST_PIT`, `BLAST_QUIET`, `BLAST_CORE`, `BLAST_RIBBONS`, `BLAST_FACADES` =0 each part; flame tongues `shaders/flame_tongue.gdshader`, the traced pit `shaders/blast_pit.gdshader`); strips blast_room_shot.gd (`GAS=1`,
   `WEB=1`, `CAR=1 CHAIN=1`); checks `tests/explosions_4_checks.gd`.
 - The mayhem refcam (2026-11-01, docs/HANDOFF.md "The mayhem refcam"): `mayhem` in
   `tools/refcams/cameras_w5.json` is STAGED (`"stage": "mayhem"` -> `tools/refcams/mayhem_stage.gd`:
@@ -1950,6 +1954,15 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   livery index from a varying is ROUNDED); chamfered AirportKit boxes and grime; the concourse glass
   lit by day; weathered roofs; a straw infield (lawn.gdshader `straw`). `AIRPORT_APRON=0` the A/B;
   the jet alone `tools/airport_apron/jet_shot.gd`; checks `tests/rc2_airport_checks.gd`.
+- The airfield at night (wave 6, refcam3 `airport_night` in `tools/refcams/cameras_w6.json`,
+  docs/HANDOFF.md "The airfield at night"): `AirportNight` (`scripts/world/airport_night.gd`): each
+  apron mast lays a point-source pool (`shaders/airport_flood.gdshader`, display-number add) and its
+  floods fall on the gate jets and ground equipment as emitted light (`airport_flood.gdshaderinc`,
+  masts as a uniform array in TRUE world via `origin_shift`, from `note_macro()` in
+  `Airport.build_chunk()`); logo lights wash every airliner's fin (`logo_light`); an aimed landing
+  light keeps `landing_side` of its glare off axis; a patrol helicopter's shaft is `PATROL_BEAM` of a
+  pursuit's. A refcam row's staged aircraft prints `REFCAM <name> air at x,y,z`. `AIRPORT_NIGHT=0`
+  is the A/B; `jet_shot.gd NIGHT=1 [AN=0]` both renderers; checks `tests/rc3_airport_night_checks.gd`.
 - Shop signs: storefront sign bands carry real names. `Building` picks how many window bays
   make one shop per face (`_shop_spans()`, hashed from the seed, never from `_rng`) and passes
   it to the shader as `shop_span`, so the bands the shader draws and the `TextMesh` names the
@@ -3953,6 +3966,13 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   environment is the A/B. Probe: `tools/marina/probe.gd` (headless, seconds); quick checks:
   `tools/marina/marina_check.tscn` (the marina's checks alone, a minute); checks:
   `tests/marina_checks.gd`.
+- The marina at golden hour (wave 6, refcam `marina_golden` in `tools/refcams/cameras_w6.json`,
+  docs/HANDOFF.md "The marina at golden hour"): `MarinaGolden` (`scripts/world/marina_golden.gd`)
+  hands marina_water.gdshader the 40 boats nearest the camera; `shaders/marina_mirror.gdshaderinc`
+  traces the reflected ray against their hulls, cabins and masts and zeroes SPECULAR where one stands
+  in it (Godot's f0 then drops the renderer's own reflection). Rigging is `BoatMesh.Region.WIRE`
+  (centre line in the mesh), widened to a pixel in boat_body's vertex stage; jibs wear a UV cover;
+  piles are round. `MARINA_GOLDEN=0` is the A/B; checks `tests/rc3_marina_golden_checks.gd`.
 - Ocean traffic (wave 3, docs/HANDOFF.md "Ocean traffic"): `OceanTraffic`
   (`scripts/world/ocean_traffic.gd`, a Node3D in city.tscn; its children's local space is true world)
   runs `Vessel`s (`scripts/vehicles/vessel.gd`, AnimatableBody3D on props, mask 0, `take_hit()`:
@@ -4309,6 +4329,15 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   the ridge sign `HillSignLetters` (strokes on a pipe frame, each letter on its own ground), the far
   sign's rigid seat held off inside the LOD ring (far_canopy `rigid_real_reach`).
   `RC_HILLS=0` is the A/B; probe `tools/rc_hills/sign_probe.tscn`; checks `tests/rc_hills_checks.gd`.
+- The ridge sign refcam (2026-11-02, docs/HANDOFF.md "The ridge sign refcam", camera `ridge_sign` in
+  `tools/refcams/cameras_w6.json`): `RcRidgeSign` (`scripts/world/rc_ridge_sign.gd`) - the letters as
+  mitred ribbons of sheet metal (`HillSignLetters._letters_v2()`, `shaders/ridge_sign.gdshader`: panels,
+  seams, streaks, dust at the foot; strokes of a letter a few cm apart in depth), the legs braced to
+  the slope, HillShrubs gathered into thickets (`shrub_gather()`), a plaza's lawn beds at LOD, the bake
+  painting a HILLS block's flat foot as hill (`MacroMap.bake_block_zone`), a claimed tor lowered to the
+  terrain its chunk draws and a summit crag's footprint onto the spike (`tor_drops()` ->
+  `RockFar.claim(..., drops)`). `RC3_SIGN=0` is the A/B; probes `tools/rc3_ridge_sign/`; checks
+  `tests/rc3_ridge_sign_checks.gd`.
 - The canyon road refcam (2026-11-02, docs/HANDOFF.md "The canyon road refcam"): `CanyonRoad`
   (`scripts/world/canyon_road.gd`, one hook in `_build_hill_roads()`) rebuilds drawn hill roads
   >= 5 m wide with a gravel shoulder and lateral metres in UV.x on `shaders/canyon_road.gdshader`
@@ -4531,6 +4560,15 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   colour x energy, kept by a TreeLight node); the sway is weighted (`tl_rate()` by `sway_height`,
   `tl_load()` late with a swing-back; `TreeLight.load_of()` the GDScript copy). `TREE_LIGHT=0` the A/B;
   stills `tools/tree_light/tree_light_shot.tscn` (AB=1, PARAMS=); checks `tests/tree_light_checks.gd`.
+- Palm crowns without the flecks (2026-11-02, docs/HANDOFF.md "Palm crowns without the flecks"):
+  `PalmShimmer` (`scripts/world/palm_shimmer.gd`). A frond's two ranks wind opposite ways, so
+  foliage.gdshader keeps the mesh normal on back faces (Godot turned every second leaflet's
+  up-leaning normal to the camera: near-black flecks that crawled); the underside shade
+  (`leaf_under_shade`) is keyed to normal vs view, never FRONT_FACING. Leaflet vertices carry their
+  offset across the blade in CUSTOM0 (`PropFactory._palm_leaf_vertex()`; w 1, 0 elsewhere): a blade
+  under `MIN_PX` (1.5) px is widened to it (<= `MAX_WIDEN` 4x), kept by coverage (dithered on
+  Forward+, whole on Compatibility); never in the shadow pass. `PALM_SHIMMER=0` the A/B; strips
+  `tools/palm_shimmer/palm_strip.gd` (+ strip.py measure); checks `tests/palm_shimmer_checks.gd`.
 - Replica areas (see the technical rule): `ReplicaAreas` (`scripts/world/replica_areas.gd`,
   `MacroMap.replica`, built in `MacroMap.setup()` before the hill roads, `fit_hill_profile()`
   after) holds each area as a table - today only `ESPLANADE`: Knob Hill down the Redondo
@@ -4847,6 +4885,13 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   include). **`set_shadow_distance()` does nothing on these code meshes: use `set_shadow_reach()`.**
   Every roll a hash; FULL only. `FASHION=0` is the A/B; probe `tools/fashion/probe.tscn`
   (`BUILD=1`, `AT=`, `FASHION_DEBUG=1`); checks `tests/fashion_district_checks.gd`.
+- The fashion district refcam (2026-11-02, refcam `fashion_district` in `tools/refcams/cameras_w6.json`,
+  docs/HANDOFF.md "The fashion district refcam"): the pavement goods are batched per variant, face and
+  `SET_CELL` 36 m stretch (a block-wide batch's 75 m range is measured to its centre: never drawn beside
+  you); `FashionDistrict.clears_planter()` leaves LotFill's forecourt planters out of a goods face
+  (rolls kept); denser frontage and `crowd_gain()` 2.6x walkers via ShopCrowd; folded stock creases.
+  `FD_CELLS=0` / `FD_PLANTERS=0` / `FD_DENSE=0` / `FD_FOLDS=0` the A/Bs; checks
+  `tests/rc3_fashion_district_checks.gd`.
 - Chinatown (2026-10-05, HANDOFF "Chinatown"): `Chinatown` (`scripts/world/chinatown.gd`) is a
   site table off the pinned streets - the district (Olive to Main, 520 m north of Cesar Chavez),
   the plaza's Hill-Broadway block, the gate over Broadway - applied LAST in `CityPlan.block()`

@@ -2,6 +2,7 @@
 	"_doc": "Wave 6 reference cameras (tools/refcams/README.md), the same format as cameras.json and cameras_w5.json. One row a camera, each on its own line. Run with REFCAMS_JSON=tools/refcams/cameras_w6.json.",
 	"resolution": [1280, 720],
 	"cameras": [
+		{"name": "fashion_district", "label": "The fashion district's goods-lined pavement 11:30, eye level among the shoppers", "eye": [3330.0, 1.7, 1021.0, -95.0, -4.0], "agl": true, "hour": 11.5, "weather": "clear", "fov": 55},
 		{"name": "stadium_night", "label": "The ravine ballpark during a night game, 21:00 clear, from the bank above the north lot into the bowl, downtown beyond", "eye": [1965.6, 235.0, -3155.6, -173.6, -14.0], "agl": false, "hour": 21.0, "weather": "clear", "fov": 48},
 		{"name": "pier_day", "label": "Gullwing Park on Rando Pier at 15:00, on the promenade in the crowd, toward the wheel, the coaster, the carousel and the sea end", "eye": [-1020.0, 8.1, -352.0, 115.0, 6.0], "agl": false, "hour": 15.0, "weather": "clear", "fov": 55},
 		{"name": "person_closeup", "label": "A pedestrian at arm's length on a midtown pavement, 13:00 clear", "eye": [1501.0, 1.62, 1470.0, 0.0, -18.0], "agl": true, "hour": 13.0, "weather": "clear", "fov": 60, "stage": "person", "person": {"model": "crowd_h", "look": 0, "dist": 1.6, "turn": 18}},
@@ -12,6 +13,9 @@
 		{"name": "refinery_night", "label": "The refinery at 22:30 from the south street (Bay Works: flares, tanks, process units, steam)", "eye": [3180.0, 1.7, 5838.0, 40.0, 7.0], "agl": true, "hour": 22.5, "weather": "clear", "fov": 55},
 		{"name": "rooftop_golden", "label": "Downtown skyline from the black twins' helipad 17:45 clear", "eye": [2288.5, 218.3, 43.0, 165.0, -11.0], "agl": false, "hour": 17.75, "weather": "clear", "fov": 55},
 		{"name": "oil_field", "label": "The oil field's crest lease road among pumpjacks, downtown behind, 16:00", "eye": [611.4, 1.7, 1542.8, -56.6, -2.0], "agl": true, "hour": 16.0, "weather": "clear", "fov": 55},
-		{"name": "golf_morning", "label": "Valley Oaks golf course 08:30, behind a group on the 9th tee toward the clubhouse and the front range", "eye": [39.6, 1.75, -2858.2, 158.4, -3.0], "agl": true, "hour": 8.5, "weather": "clear", "fov": 55, "golf_group": "9:0:0:3"}
+		{"name": "golf_morning", "label": "Valley Oaks golf course 08:30, behind a group on the 9th tee toward the clubhouse and the front range", "eye": [39.6, 1.75, -2858.2, 158.4, -3.0], "agl": true, "hour": 8.5, "weather": "clear", "fov": 55, "golf_group": "9:0:0:3"},
+		{"name": "marina_golden", "label": "The marina at 18:00 clear, from the east headwalk west across the docks to the bridge", "eye": [-621.5, 2.3, 136.0, 110.0, -1.5], "agl": false, "hour": 18.0, "weather": "clear", "fov": 55},
+		{"name": "airport_night", "label": "The airfield at 21:30 from a stand west of the concourse, a jet on final to 27L", "eye": [-600.0, 12.0, 770.0, -96.0, -3.0], "agl": true, "hour": 21.5, "weather": "clear", "fov": 55, "air": "final", "air_dist": 800, "air_side": 102, "shot_frames": 120},
+		{"name": "ridge_sign", "label": "The ridge sign from 120 m at 16:30 clear: the letters, the hill, the basin behind", "eye": [-262.0, 388.0, -1030.0, -68.0, -11.0], "agl": false, "hour": 16.5, "weather": "clear", "fov": 55}
 	]
 }

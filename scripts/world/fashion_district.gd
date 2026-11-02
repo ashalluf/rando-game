@@ -52,10 +52,17 @@ const MARKET_ODDS := 0.8
 ## front (m), the most sets a chunk lays, odds a set slot is left empty.
 const CORNER_CLEAR := 6.5
 const DOOR_GAP := 1.7
+## rc3-fashion-district: the gap a denser frontage leaves (FD_DENSE=0: DOOR_GAP and EMPTY_ODDS).
+const DENSE_GAP := 1.15
 const WALL_OFF := 0.08
 const MAX_WALL_DEPTH := 9.0
 const MAX_SETS := 40
 const EMPTY_ODDS := 0.18
+const DENSE_EMPTY_ODDS := 0.05
+static var dense: bool = OS.get_environment("FD_DENSE") != "0"
+## A district block near the camera carries this many times its planned walkers (ShopCrowd's
+## gain for it; the downtown default is 1.35): the real district is packed at lunch.
+const CROWD_GAIN := 2.6
 ## The walkers keep to the kerb half of a district pavement (CityChunk._pedestrian_steps()).
 const WALK_SIDEWALK := 3.0
 ## Sellers by the goods: one per this many sets, at most per chunk.
@@ -86,6 +93,11 @@ const MAX_KEEPERS := 3
 ## Draw distances (m): the goods, the stalls and tarps (seen down the alley and from above). The
 ## goods and stalls cast no shadow (see dress_market()).
 const GOODS_DRAW := 75.0
+## The goods' batches are cut per face into stretches this long (m): a node's draw range is
+## measured to its bounds' centre, and a downtown block's face runs 200 m - one batch for the
+## whole block drew nothing while you stood next to its goods (rc3-fashion-district).
+const SET_CELL := 36.0
+static var cells_enabled: bool = OS.get_environment("FD_CELLS") != "0"
 const STALL_DRAW := 110.0
 ## The market alleys' invented names (on the banners at the mouths).
 const ALLEY_NAMES := ["CALLEJON DE LA MODA", "SANTA LUZ ALLEY", "EL BAZAR TEXTIL", "MERCADITO DEL SOL",
@@ -187,6 +199,41 @@ static func owns_face(plan: CityPlan, bx: int, bz: int, e: int) -> bool:
 	return not info.is_empty() and e in (info.faces as Array)
 
 
+## ShopCrowd.steps(): a district block's walker gain near the camera (`fallback` elsewhere, or
+## with FD_DENSE=0).
+static func crowd_gain(ch: Node3D, block: Dictionary, fallback: float) -> float:
+	if not dense or not (ch is CityChunk) or block_info((ch as CityChunk).plan, (ch as CityChunk).ix, (ch as CityChunk).iz).is_empty():
+		return fallback
+	return maxf(fallback, CROWD_GAIN)
+
+
+## LotFill._planter(): a forecourt planter in the frontage band of a goods face (within
+## MAX_WALL_DEPTH of the kerb) is not built - it stood as a bare concrete box between the pavement
+## and the goods, walling the stock off from the shoppers (rc3-fashion-district). FD_PLANTERS=0
+## keeps them.
+static var clear_planters: bool = OS.get_environment("FD_PLANTERS") != "0"
+## Planters left out so far (checks).
+static var planters_cleared: int = 0
+
+
+static func clears_planter(ch: CityChunk, r: Rect2) -> bool:
+	if not clear_planters or ch == null or ch.capturing or ch.level != CityChunk.Level.FULL:
+		return false
+	var info := block_info(ch.plan, ch.ix, ch.iz)
+	if info.is_empty() or (info.faces as Array).is_empty():
+		return false
+	var rect: Rect2 = info.rect
+	var c := r.get_center()
+	if c.x > float(info.east):
+		return false
+	var d := [c.y - rect.position.y, rect.end.y - c.y, c.x - rect.position.x, rect.end.x - c.x]
+	for e: int in info.faces:
+		if float(d[e]) < MAX_WALL_DEPTH + 1.0:
+			planters_cleared += 1
+			return true
+	return false
+
+
 ## The walkers' sidewalk inset on a district block (they keep to the kerb half), or `fallback`.
 static func walk_sidewalk(ch: CityChunk, block: Dictionary, fallback: float) -> float:
 	return WALK_SIDEWALK if fallback < 0.0 and wanted(ch, block) else fallback
@@ -241,6 +288,8 @@ static func _state(ch: CityChunk) -> Dictionary:
 ## mouth. Fills `sellers` with the people to stand by them.
 static func build_pavement(ch: CityChunk, block: Dictionary, sellers: Array) -> void:
 	var info := block_info(ch.plan, ch.ix, ch.iz)
+	if OS.get_environment("FASHION_DEBUG") == "1":
+		print("FASHION pavement block %d,%d faces %s open %s hour %.2f" % [ch.ix, ch.iz, info.get("faces", []), _open(ch, OPEN_HOURS), StreetVendors.hour_now(ch)])
 	if info.is_empty() or not _open(ch, OPEN_HOURS):
 		return
 	var plan := ch.plan
@@ -273,7 +322,7 @@ static func build_pavement(ch: CityChunk, block: Dictionary, sellers: Array) -> 
 			if t + len > length - CORNER_CLEAR:
 				break
 			var kerb := a + dir * mid
-			var ok := kerb.x <= east and h01([plan.seed, "fashion_empty", ch.ix, ch.iz, e, slot]) >= EMPTY_ODDS
+			var ok := kerb.x <= east and h01([plan.seed, "fashion_empty", ch.ix, ch.iz, e, slot]) >= (DENSE_EMPTY_ODDS if dense else EMPTY_ODDS)
 			# The wall along the set's whole length: a shop front, not a forecourt or a gap.
 			var depth := INF
 			if ok:
@@ -297,7 +346,7 @@ static func build_pavement(ch: CityChunk, block: Dictionary, sellers: Array) -> 
 						st.stats.rej_occ = int(st.stats.get("rej_occ", 0)) + 1
 						break
 			if ok:
-				_lay_set(ch, fs, v, Vector3(front.x, CityChunk.SIDEWALK_TOP, front.y), yaw, e, slot)
+				_lay_set(ch, fs, v, Vector3(front.x, CityChunk.SIDEWALK_TOP, front.y), yaw, e, slot, int(floor(mid / SET_CELL)))
 				laid += 1
 				if slot % SELLER_EVERY == 1 and sellers.size() < MAX_SELLERS:
 					var end := front + dir * (len * 0.5 + 0.55) - inward * 0.9
@@ -305,17 +354,18 @@ static func build_pavement(ch: CityChunk, block: Dictionary, sellers: Array) -> 
 				if (st.eyes as Array).size() < 6:
 					var eye := front - inward * 6.5 + dir * 3.0
 					(st.eyes as Array).append("%.1f,1.7,%.1f,%.0f,-4" % [eye.x, eye.y, rad_to_deg(atan2(-(inward.x - dir.x * 0.4), -(inward.y - dir.y * 0.4))) + 180.0])
-			t += len + DOOR_GAP
+			t += len + (DENSE_GAP if dense else DOOR_GAP)
 	st.stats.sets = int(st.stats.sets) + laid
 	sets_laid += laid
-	for v in FashionKit.SET_VARIANTS:
-		var key := "fd_set_%d" % v
+	if OS.get_environment("FASHION_DEBUG") == "1":
+		print("FASHION laid %d sets in block %d,%d %s" % [laid, ch.ix, ch.iz, st.stats])
+	for key: String in (st.get("set_keys", {}) as Dictionary):
 		ch._batch.set_draw_distance(key, GOODS_DRAW)
 		ch._batch.set_no_shadow(key)
 
 
 ## One frontage set as a prop (it breaks as one: shot to pieces, the debris flies, it stays gone).
-static func _lay_set(ch: CityChunk, fs: Dictionary, v: int, at: Vector3, yaw: float, e: int, slot: int) -> void:
+static func _lay_set(ch: CityChunk, fs: Dictionary, v: int, at: Vector3, yaw: float, e: int, slot: int, cell: int = 0) -> void:
 	var b := Basis(Vector3.UP, yaw)
 	var custom := Color(h01([ch.plan.seed, "fd_hue", ch.ix, ch.iz, e, slot]), h01([ch.ix, ch.iz, e, slot]), 0.0, 0.0)
 	var shapes: Array = []
@@ -323,8 +373,14 @@ static func _lay_set(ch: CityChunk, fs: Dictionary, v: int, at: Vector3, yaw: fl
 		var size: Vector3 = bx[0]
 		var c: Vector3 = at + b * (bx[1] as Vector3)
 		shapes.append([size, c, yaw])
-	ch._add_prop("fd_set", at, Color(0.5, 0.42, 0.36), [["fd_set_%d" % v, fs.mesh, Transform3D(b, at), Color.WHITE, custom]], shapes)
+	# One batch per variant, face and SET_CELL stretch of it (FD_CELLS=0: per variant, the old
+	# chunk-wide batches, whose 75 m draw range was measured to a block-wide box's centre).
+	var key := "fd_set_%d" % v if not cells_enabled else "fd_set_%d_%d_%d" % [v, e, cell]
 	var st := _state(ch)
+	if not st.has("set_keys"):
+		st["set_keys"] = {}
+	(st.set_keys as Dictionary)[key] = true
+	ch._add_prop("fd_set", at, Color(0.5, 0.42, 0.36), [[key, fs.mesh, Transform3D(b, at), Color.WHITE, custom]], shapes)
 	st.stats.set_tris = int(st.stats.set_tris) + int(fs.tris)
 
 
