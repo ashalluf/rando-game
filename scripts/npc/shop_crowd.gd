@@ -28,8 +28,13 @@ const FULL_SHOPS := 3
 ## Full gain within NEAR metres of the camera (BusyStreets' block distance), none past FAR.
 const NEAR := 70.0
 const FAR := 150.0
-## The most extra walkers one block spawns at build.
+## The most extra walkers one block spawns at build, and how near the player (metres, true world)
+## they are put down on the ring: a long midtown block's ring is 800 m, and spread over all of it
+## two dozen more walkers still left nobody within 12 m of him. They walk off round it after.
 const MAX_EXTRA := 30
+const SPAWN_REACH := 50.0
+## Never put down on top of the player.
+const SPAWN_CLEAR := 3.5
 
 
 ## The steps for a FULL block, after its walkers' (CityChunk._block_steps).
@@ -40,7 +45,7 @@ static func steps(ch: Node3D, block: Dictionary) -> Array[Callable]:
 	var g: float = GAIN.get(block.district, 1.0)
 	if g <= 1.0:
 		return out
-	var state := {"extra": 0, "entry": []}
+	var state := {"extra": 0, "entry": [], "at": Vector3.INF}
 	out.append(func() -> void: _decide(ch, block, g, state))
 	for i in MAX_EXTRA:
 		out.append(func() -> void: _spawn(ch, state, i))
@@ -79,12 +84,22 @@ static func _decide(ch: Node3D, block: Dictionary, g: float, state: Dictionary) 
 		if entry.size() < 4:
 			entry.append(weight(ch, rect, g))
 		state.entry = entry
-		var e := BusyStreets.eye(ch.get_tree(), null)
-		var at: Vector3 = e[0]
+		# Nearer of the camera and the player: while the city loads or a teleport streams, the
+		# camera can still be anywhere.
+		var tree := ch.get_tree()
+		var player := tree.get_first_node_in_group("player") as Node3D
 		var c := rect.get_center()
-		var d := Vector2(c.x - at.x, c.y - at.z).length() - rect.size.length() * 0.35
+		var d := INF
+		for at: Vector3 in [BusyStreets.eye(tree, player)[0], WorldState.to_world(player.global_position) if player else Vector3.INF]:
+			if at != Vector3.INF:
+				var da := Vector2(c.x - at.x, c.y - at.z).length() - rect.size.length() * 0.35
+				if da < d:
+					d = da
+					state.at = at
 		var factor := BusyStreets.crowd_factor(BusyStreets.hour_now(ch))
 		state.extra = mini(MAX_EXTRA, roundi(int(entry[2]) * factor * (gain(entry, d) - 1.0)))
+		if OS.get_environment("SHOP_CROWD_DEBUG") == "1":
+			print("SHOP_CROWD block %d,%d weight %.2f d %.0f planned %d extra %d" % [int((ch as CityChunk).ix), int((ch as CityChunk).iz), float(entry[3]), d, int(entry[2]), int(state.extra)])
 		return
 
 
@@ -101,6 +116,14 @@ static func _spawn(ch: Node3D, state: Dictionary, i: int) -> void:
 	ped.setup(rect, sidewalk, hash([chunk.plan.seed, chunk.ix, chunk.iz, "shop_crowd", i]))
 	FashionDistrict.walker(chunk, ped)
 	var start := ped._random_ring_point(sidewalk)
+	var at: Vector3 = state.at
+	if at != Vector3.INF:
+		# Chunk space is true world (a chunk is placed at -world_offset).
+		for k in 40:
+			var dd := Vector2(start.x - at.x, start.y - at.z).length()
+			if dd < SPAWN_REACH and dd > SPAWN_CLEAR:
+				break
+			start = ped._random_ring_point(sidewalk)
 	ped.position = Vector3(start.x, CityChunk.SIDEWALK_TOP + 0.1 + chunk._gy(start.x, start.y), start.y)
 	chunk.add_child(ped)
 	CrowdFlow.spawned(chunk, ped)

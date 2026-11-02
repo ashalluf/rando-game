@@ -28,6 +28,11 @@ uniform float asphalt_scale = 7.0;
 uniform vec3 lawn_tint : source_color = vec3(0.46, 0.62, 0.30);
 uniform vec3 soil_tint : source_color = vec3(0.36, 0.46, 0.24);
 uniform float grass_scale = 3.0;
+// rc2-hero-foot: a planter's soil (kind 6) is bark mulch with patches of low ground cover, not a
+// lawn (the on-foot camera passes raised planters that read as green carpet in a concrete box).
+// 0 = the old lawn-textured soil (PLANTER_MULCH=0, LotFill.fill_material()).
+uniform float planter_mulch = 1.0;
+uniform vec3 mulch_tint : source_color = vec3(0.24, 0.175, 0.13);
 
 global uniform float road_wetness;
 global uniform float ground_detail;
@@ -119,6 +124,18 @@ void fragment() {
 		albedo = g * mix(tint, tint * vec3(1.25, 1.1, 0.7), dry * 0.6) * mottle;
 		rough = 0.95;
 		wet_k = 0.4;
+		if (kind > 5.5 && planter_mulch > 0.5) {
+			// Shredded bark: 3-6 cm chips in two octaves (their average once under a pixel), a few
+			// pale weathered ones, and ground cover creeping over it in patches.
+			float px = max(fwp.x, fwp.y);
+			float fine = mix(vnoise(p * 41.0 + 3.0), 0.5, smoothstep(0.012, 0.03, px));
+			float chip = vnoise(p * 17.0) * 0.55 + fine * 0.45;
+			vec3 bark = mulch_tint * mix(0.45, 1.25, chip) * mix(1.0, 1.6, step(0.86, vnoise(p * 23.0 + 9.0)));
+			float cover = smoothstep(0.44, 0.62, vnoise(p * 0.9 + 11.0) * 0.7 + vnoise(p * 3.1) * 0.3);
+			albedo = mix(bark, albedo * 0.85, cover);
+			rough = mix(0.9, 0.95, cover);
+			wet_k = 0.7;
+		}
 	} else if (kind < 7.5) {
 		albedo = vec3(0.05, 0.065, 0.07);
 		rough = 0.08;

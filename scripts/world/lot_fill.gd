@@ -201,6 +201,8 @@ static func fill_material() -> ShaderMaterial:
 	mat.set_shader_parameter("paving_scale", Vector4(PAVINGS[0][1], PAVINGS[1][1], PAVINGS[2][1], PAVINGS[3][1]))
 	for i in 4:
 		mat.set_shader_parameter("paving_tint_%d" % i, PAVINGS[i][2])
+	# A planter's soil as bark mulch (rc2-hero-foot; PLANTER_MULCH=0 the old lawn-textured soil).
+	mat.set_shader_parameter("planter_mulch", 0.0 if OS.get_environment("PLANTER_MULCH") == "0" else 1.0)
 	_fill_material = mat
 	return mat
 
