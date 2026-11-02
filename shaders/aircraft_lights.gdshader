@@ -57,6 +57,10 @@ uniform float strobe_on : hint_range(0.0, 1.0) = 1.0;
 // Airfield lights by day (kinds 4-7): a field's edge lights are off or low in daylight, and a
 // billboard dot on the apron at noon reads as a glowing bug, not a lamp.
 uniform float field_day : hint_range(0.0, 1.0) = 0.0;
+// An aimed LANDING light (kind 3) seen from off its axis keeps this share of its glare as long as
+// the eye is not behind it (AirportNight: a jet on short final seen from beside the approach was a
+// dark shape; a real landing light flares from well off its beam). 0 is the old 6 %.
+uniform float landing_side : hint_range(0.0, 1.0) = 0.0;
 
 varying float v_kind;
 varying float v_phase;
@@ -90,6 +94,9 @@ void vertex() {
 		// A light facing the eye points back along the view ray.
 		float f = dot(n / nl, -normalize(centre));
 		v_facing = 0.06 + 0.94 * pow(max(f, 0.0), 2.5);
+		if (landing_side > 0.0 && floor(code / 10.0 + 0.001) > 2.5 && floor(code / 10.0 + 0.001) < 3.5) {
+			v_facing = max(v_facing, landing_side * smoothstep(-0.25, 0.35, f));
+		}
 	}
 	v_kind = floor(code / 10.0 + 0.001);
 	v_phase = (code - v_kind * 10.0) / 9.0;
