@@ -27810,6 +27810,12 @@ levels and 0-1.4 % of their cost; street_night and freeway flagged for live traf
 different cars in the lane; the diff maps are the vehicles). Peak RSS of a ten-camera run on this box
 12.1 GB (the first run after an edit rebuilds the bake and the far city: load 545 s).
 
+**Gate** on the merge of main `378dc685` + this branch: `SHARDS=3`, 5,591 checks, all passed; peak
+RSS 3.76 GB a shard. (A run before the merge had one shard-order flake outside this work,
+pedestrian_flow_checks' "somebody comes out of a shop door", which passes alone.) Checks:
+`tests/rc3_ridge_sign_checks.gd` (letters one ribbon mesh on the shader, every front facing out,
+strokes at their own depths, the bake's block zone, the shrub field, tor drops and release, the row).
+
 **Not done / not verified.** Never seen on the Mac. The bake's block-zone pass costs one
 `CityPlan.block()` per block of the 16 km bake on a cold LoadCache (the far city asks for every one
 of them anyway; not timed separately). The far copy of the sign (far_canopy's rigid material, seated on the
