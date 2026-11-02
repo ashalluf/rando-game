@@ -11,3 +11,9 @@ unless the name says Forward+ (lavapipe car_shot).
 - 06 - grime and the alloy on Compatibility: left main (tan camouflage, grey plastic wheel), right the branch.
 - 07 - the tyre: left round, right sat on a contact patch with the sidewall bowed out.
 - 08 - four bodies (sedan, crossover, hatchback, SUV): left main grime, right the branch.
+
+Final set (one load each, the ten refcams plus car_closeup, `CAR_CLOSEUP=0` vs on):
+- 09_before_car_closeup_final_framing.jpg / 10_after_car_closeup_final.jpg - the camera as committed.
+- 11 - the nose and front wheel cropped: left main, right the branch.
+- 12 - refcams compare (before over after); the three flagged shots differ by live traffic only.
+- 13 - the after contact sheet.
