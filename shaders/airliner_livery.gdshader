@@ -19,6 +19,11 @@ render_mode cull_back;
 #include "res://shaders/port_lettering.gdshaderinc"
 
 global uniform float lamp_factor;
+global uniform vec3 origin_shift;
+// The apron masts' floods on a parked jet (AirportNight; af_gain 0 is the old look).
+#include "res://shaders/airport_flood.gdshaderinc"
+// The logo lights (AirportNight): lamps on the tailplane washing the fin after dark; 0 off.
+uniform float logo_light = 0.0;
 
 // -1: take the livery from INSTANCE_CUSTOM.r (MultiMesh); 0..5 to fix it (a single jet).
 uniform float livery = -1.0;
@@ -32,9 +37,11 @@ uniform float detail = 1.0;
 varying vec3 mpos;
 varying vec3 mnrm;
 varying float v_livery;
+varying vec3 v_world;
 
 void vertex() {
 	mpos = VERTEX;
+	v_world = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
 	mnrm = NORMAL;
 	v_livery = livery >= 0.0 ? livery : floor(INSTANCE_CUSTOM.r * 8.0 + 0.5);
 }
@@ -299,6 +306,23 @@ void fragment() {
 			float le = smoothstep(0.35, 0.75, -mnrm.x);
 			col = mix(col, vec3(0.70, 0.71, 0.73), le * 0.8);
 			metal = mix(metal, 0.85, le);
+		}
+	}
+	if (lamp_factor > 0.001 && (af_count > 0 || logo_light > 0.0)) {
+		if (tail_fin && logo_light > 0.0) {
+			// The logo lights stand on the tailplane either side of the fin, a little aft of its
+			// mid chord, aimed up: brightest low and in the middle of the fin, widening and dying
+			// away toward its tip.
+			float fy = max(p.y, 0.0);
+			float du = (u - 0.875) * 1.902;
+			float spread = 0.05 + fy * 0.55;
+			float wash = exp(-du * du / (spread * spread)) * (1.0 - smoothstep(0.05, 0.40, fy));
+			wash = wash * 0.85 + 0.15 * (1.0 - smoothstep(0.0, 0.42, fy));
+			emit += col * wash * logo_light * lamp_factor;
+		}
+		if (af_count > 0) {
+			vec3 wn = normalize((INV_VIEW_MATRIX * vec4(NORMAL, 0.0)).xyz);
+			emit += col * af_flood(v_world + origin_shift, wn);
 		}
 	}
 	ALBEDO = cs_out(col);

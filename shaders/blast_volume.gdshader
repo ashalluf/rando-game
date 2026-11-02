@@ -78,6 +78,11 @@ uniform float under4 = 0.0;
 // Blast4 round 5: the stem holds on to the end of the volume's life, a little fatter and denser,
 // fed by the fire under it (a mushroom without its stem reads as a cloud floating away). 0 = off.
 uniform float stem_hold = 0.0;
+// Blast4 round 7: the march's per-pixel jitter is a screen door TAA does not remove (its
+// neighbourhood clamp keeps the per-pixel noise: proved with 60 fps frames on lavapipe), so with
+// this on the jitter is narrowed to `quiet4` of a step and the steps are 1.5x (Forward+); on
+// Compatibility (no TAA) the march takes each step's middle and twice the steps. 0 = off.
+uniform float quiet4 = 0.0;
 uniform vec3 under_col = vec3(1.0, 0.42, 0.12);
 // The fires burning round it now (Blast3.push_fires(): xyz world, w = reach + strength / 2), so
 // the smoke over a burning wreck or a fuel pool is lit orange from below long after the fireball
@@ -320,10 +325,19 @@ void fragment() {
 		discard;
 	}
 	int n = max(steps, 4);
-	float seg = (f1 - f0) * length(VERTEX);
-	float ds_m = seg / float(n);
 	// Interleaved gradient noise on the start, so the steps' bands become grain (TAA resolves it).
 	float jit = fract(52.9829189 * fract(dot(FRAGCOORD.xy, vec2(0.06711056, 0.00583715)) + float(int(TIME * 60.0) % 64) * 0.618));
+	if (v4 > 0.5 && quiet4 > 0.0) {
+#if CURRENT_RENDERER == RENDERER_COMPATIBILITY
+		jit = 0.5;
+		n *= 2;
+#else
+		jit = 0.5 + (jit - 0.5) * quiet4;
+		n = n * 3 / 2;
+#endif
+	}
+	float seg = (f1 - f0) * length(VERTEX);
+	float ds_m = seg / float(n);
 	vec3 L = normalize(sun_direction);
 	float day = 1.0 - night_factor;
 	vec3 sun = mix(vec3(1.0, 0.55, 0.3), vec3(1.0, 0.95, 0.88), smoothstep(0.0, 0.35, L.y)) * smoothstep(-0.05, 0.08, L.y) * day;

@@ -277,6 +277,7 @@ static func build_chunk(ch: CityChunk) -> void:
 		ch._add_slab(Vector3(rc.x, top - 0.05, rc.y), Vector3(r.size.x, 0.1, r.size.y), col, false, mat)
 	if ch.capturing:
 		return
+	AirportNight.note_macro(macro)
 	_masts(ch, area, macro)
 	_fences(ch, area, macro)
 	_navaids(ch, area, macro)
@@ -711,6 +712,9 @@ static func _masts(ch: CityChunk, area: Rect2, macro: MacroMap) -> void:
 			continue
 		var fwd: Vector2 = spot[1]
 		ch._batch.add("ap_mast", AirportKit.mast(), Transform3D(Basis(Vector3.UP, atan2(-fwd.x, -fwd.y)), Vector3(p.x, y, p.y)))
+		if AirportNight.enabled:
+			AirportNight.mast_pool(ch, p, fwd, y)
+			continue
 		# The pool on the concrete, out in front of the floods.
 		var pool_at := p + fwd * 14.0
 		ch._batch.add("ap_pool", PropFactory.light_pool(Color(1.0, 0.88, 0.66), 0.9, 1.6),
