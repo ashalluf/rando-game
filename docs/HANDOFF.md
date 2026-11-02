@@ -27081,7 +27081,7 @@ is `glob:wet_world=0` and swapping hero_cloth for a flat material in the city (t
 either (hidden with Weather, they stay).
 
 **Checks** (`tests/web_build_checks.gd`): every shader's source with its includes under 200 KB
-(the most: building, 160 KB) and its constant arrays under 1,600 items (building's vinyl glyphs,
+(the most: building, 186 KB after the merge with main - close to the budget) and its constant arrays under 1,600 items (building's vinyl glyphs,
 1,240), the counter proven on a planted source; the fountain plume gated on the web and built
 everywhere else. CI (`godot-check.yml`) prints the pck and site size after the web export, warns
 over 650 MB and fails over GitHub Pages' 1 GB.

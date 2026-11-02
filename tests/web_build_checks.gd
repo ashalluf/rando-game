@@ -23,7 +23,7 @@ const WEB_UBO_BYTES := 16384
 const WEB_VARYING_COMPONENTS := 40
 ## A shader's source with its includes, comments stripped (KB): the browser translates and
 ## compiles every byte when the material is first drawn, and the page stops while it does
-## (building.gdshader, 160 KB after wave 4, is the slowest program the web compiles). A budget
+## (building.gdshader, 186 KB after wave 4, is the slowest program the web compiles). A budget
 ## so the next pass that grows it sees the number.
 const WEB_SOURCE_KB := 200
 ## Elements of a shader's constant arrays, summed (const_array_items()): building's vinyl glyph
