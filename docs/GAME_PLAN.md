@@ -295,6 +295,13 @@ already mapped so milestone 2 is script-only.
 
 ## Decisions log
 
+- **2026-11-02 The terminal's departures kerb (rc4-terminal-curb, HANDOFF "The terminal's
+  departures kerb").** A landmark's people and their props are dealt from ONE pure list of spots,
+  and the props are laid only for the people who actually spawned (a bag with nobody beside it
+  reads as abandoned); a landmark that spans several chunks spawns its people from the chunk that
+  builds it, not from its own owned rect. The airport loop's kerb lane stops cars by a hash of the
+  car and its lap (no state outside the car's traffic dict). TERMINAL_CURB=0 is the A/B.
+
 - **2026-11-02 The pier by day (rc3-pier-day, HANDOFF "The pier by day from the deck").** A deck
   the camera stands on is worked out per board in its own shader (transverse boards, gaps,
   weathering, wear) rather than a tiled plank photo, which smooths into a brown sheet at grazing

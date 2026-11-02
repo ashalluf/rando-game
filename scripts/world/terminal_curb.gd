@@ -43,12 +43,14 @@ const PULL_IN := 1.55
 ## The share of loop cars that are taxis and shuttle vans (loop_car()).
 const TAXI_SHARE := 0.22
 const SHUTTLE_SHARE := 0.12
+## The shuttles' fleet bands (teal, navy, red, green, orange).
+const SHUTTLE_BANDS := [Color(0.0, 0.42, 0.45), Color(0.08, 0.14, 0.38), Color(0.62, 0.08, 0.08), Color(0.10, 0.38, 0.18), Color(0.85, 0.42, 0.05)]
 ## Invented airlines checking in behind each door (west to east), the pylons' second line.
 const AIRLINES := ["SUNCREST AIR", "GULLWING", "PALMAIRE", "CORAL SKIES", "NORTHWIND", "TERRALUZ", "HALCYON"]
 ## Muted luggage colours (sRGB): black and charcoal most, then navy, grey, silver, the odd colour.
 const BAG_COLORS := [Color(0.07, 0.07, 0.08), Color(0.08, 0.08, 0.09), Color(0.16, 0.16, 0.18), Color(0.12, 0.15, 0.24),
-	Color(0.42, 0.43, 0.45), Color(0.62, 0.62, 0.62), Color(0.30, 0.10, 0.10), Color(0.15, 0.22, 0.20), Color(0.55, 0.40, 0.26),
-	Color(0.07, 0.07, 0.08), Color(0.10, 0.10, 0.11), Color(0.20, 0.30, 0.45)]
+	Color(0.42, 0.43, 0.45), Color(0.66, 0.66, 0.67), Color(0.45, 0.10, 0.10), Color(0.12, 0.30, 0.28), Color(0.55, 0.40, 0.26),
+	Color(0.07, 0.07, 0.08), Color(0.10, 0.10, 0.11), Color(0.20, 0.32, 0.52), Color(0.70, 0.55, 0.20), Color(0.30, 0.18, 0.35)]
 
 static var _meshes: Dictionary = {}
 
@@ -183,7 +185,7 @@ static func furniture_rects() -> Array[Rect2]:
 
 ## The kerb's material for the strip Landmarks lays: large concrete paving with joints.
 static func paving() -> Material:
-	return LandmarkMats.paving("paving", 4.0, Color(0.93, 0.92, 0.89), 6271, 1.5, 0.35)
+	return LandmarkMats.paving("concrete", 4.0, Color(0.84, 0.83, 0.80), 6271, 1.5, 0.3)
 
 
 ## Called at the end of Landmarks._build_dropoff(): the kerb, the furniture, the planted median,
@@ -235,8 +237,8 @@ static func build(parent: Node3D, statics: StaticBody3D, macro: MacroMap, detail
 			var yaw := PI * 0.5 * s
 			var bas := Basis(Vector3.UP, yaw)
 			texts.append(["DOOR %d" % (di + 1), 0.42, Transform3D(bas, Vector3(px + 0.118 * s, top + 3.80, pz))])
-			var air := "%s  %s" % [AIRLINES[di % AIRLINES.size()], AIRLINES[(di + 3) % AIRLINES.size()]]
-			plates.append([air, 0.17, Transform3D(bas, Vector3(px + 0.118 * s, top + 3.17, pz))])
+			var air := "%s  " % AIRLINES[di % AIRLINES.size()]
+			plates.append([air, 0.15, Transform3D(bas, Vector3(px + 0.118 * s, top + 3.17, pz))])
 		# A loading-zone plate on a post at the kerb, between bollards.
 		var lx := dx + 9.0
 		g.box("steel", Vector3(lx, top + 1.2, KERB_Z + 0.55), Vector3(0.06, 2.4, 0.06), Color.WHITE, Basis(), 0.0, collide)
@@ -310,13 +312,6 @@ static func build(parent: Node3D, statics: StaticBody3D, macro: MacroMap, detail
 			batch.add("la_%d_%d" % [sp, var_i], LaTrees.mesh(sp, var_i), Transform3D(Basis(Vector3.UP, _r([k, "tc_ly"]) * TAU).scaled(Vector3.ONE * (0.85 + 0.3 * _r([k, "tc_ls"]))), at))
 		mx += 2.3
 		k += 1
-	var seed_value: int = macro.seed
-	for s: Dictionary in spots(seed_value):
-		for b: Array in s.bags:
-			var at2: Vector2 = b[1]
-			var col: Color = BAG_COLORS[int(b[3])]
-			var kind: int = int(b[0])
-			batch.add("tc_bag_%d" % kind, bag_mesh(kind), Transform3D(Basis(Vector3.UP, float(b[2])), Vector3(at2.x, top, at2.y)), col)
 	# The luggage cart corral: a row of nested carts.
 	for i in 6:
 		batch.add("tc_cart", cart_mesh(), Transform3D(Basis(Vector3.UP, PI * 0.5), Vector3(-365.4 + 1.05 * float(i), top, 626.65)))
@@ -325,6 +320,26 @@ static func build(parent: Node3D, statics: StaticBody3D, macro: MacroMap, detail
 		if key.begins_with("tc_bag") or key == "tc_cart":
 			(nodes[key] as GeometryInstance3D).material_override = bag_material()
 			(nodes[key] as GeometryInstance3D).visibility_range_end = 120.0
+
+
+## The bags of the travellers who are there (people_steps() records them as they spawn), one
+## batch under the chunk; bags with nobody beside them read as a lost-luggage alert.
+static func _commit_bags(chunk: CityChunk, here: Array, top: float) -> void:
+	if not is_instance_valid(chunk) or here.is_empty():
+		return
+	var batch := MultiMeshBatch.new()
+	for s: Dictionary in here:
+		for b: Array in s.bags:
+			var at2: Vector2 = b[1]
+			var kind: int = int(b[0])
+			batch.add("tc_bag_%d" % kind, bag_mesh(kind), Transform3D(Basis(Vector3.UP, float(b[2])), Vector3(at2.x, top, at2.y)), BAG_COLORS[int(b[3])])
+	var holder := Node3D.new()
+	holder.name = "TerminalLuggage"
+	chunk.add_child(holder)
+	var nodes: Dictionary = batch.build(holder)
+	for key: String in nodes:
+		(nodes[key] as GeometryInstance3D).material_override = bag_material()
+		(nodes[key] as GeometryInstance3D).visibility_range_end = 120.0
 
 
 ## The glass vestibules on the head house's front (AirportTerminal.build_head_house() calls this
@@ -620,11 +635,26 @@ static func loop_car(pick: int) -> Vehicle:
 		if want == Vehicle.BodyType.TAXI and type == Vehicle.BodyType.SEDAN and job < Vehicle.TAXI_SHARE:
 			return Vehicle.random_car(rng)
 		if want == Vehicle.BodyType.VAN and type == Vehicle.BodyType.VAN and job < Vehicle.DELIVERY_SHARE:
-			return Vehicle.random_car(rng)
+			# A hotel or car-park shuttle: white, its fleet's band down the side (the courier
+			# livery's band, repainted before the car is in the tree).
+			var van := Vehicle.random_car(rng)
+			van.paint = Color(0.93, 0.93, 0.92)
+			van.trim_color = SHUTTLE_BANDS[absi(pick) % SHUTTLE_BANDS.size()]
+			return van
 	return null
 
 
 # --- The travellers ---------------------------------------------------------------------------------
+
+## How many plain walkers the airport chunk puts on the kerb (CityChunk._build_airport()): fewer
+## with the travellers standing there (they share the crowd cap; the walkers bunched at the strip's
+## ends, the travellers are dealt along it).
+const WALKERS := 12
+
+
+static func walkers(count: int) -> int:
+	return mini(count, WALKERS) if enabled else count
+
 
 ## Landmarks.people_steps() for the terminal: one CurbTraveller a step at each spot, in the crowd cap.
 static func people_steps(chunk: CityChunk) -> Array[Callable]:
@@ -632,20 +662,24 @@ static func people_steps(chunk: CityChunk) -> Array[Callable]:
 	if not enabled or chunk == null or chunk.plan == null or chunk.plan.macro == null:
 		return steps
 	var macro: MacroMap = chunk.plan.macro
-	var area := chunk.owned_rect()
 	var rect: Rect2 = macro.terminal_curb.grow(2.0)
 	var y: float = macro.tarmac_top + STRIP_TOP
-	for s: Dictionary in spots(chunk.plan.seed):
-		var p: Vector2 = s.p
-		if not area.has_point(p):
-			continue
-		steps.append(func() -> void: _spawn(chunk, rect, s, y))
+	# Dealt in a hashed order, so a crowd cap that runs out thins the whole kerb evenly.
+	var all := spots(chunk.plan.seed)
+	all.sort_custom(func(a: Dictionary, b: Dictionary) -> bool: return int(a.seed) < int(b.seed))
+	var here: Array = []
+	for s: Dictionary in all:
+		# All of them under the chunk that builds the terminal (the kerb runs over three chunks; the
+		# people go with the building they stand in front of).
+		steps.append(func() -> void: _spawn(chunk, rect, s, y, here))
+	steps.append(func() -> void: _commit_bags(chunk, here, y))
 	return steps
 
 
-static func _spawn(chunk: CityChunk, rect: Rect2, s: Dictionary, y: float) -> void:
+static func _spawn(chunk: CityChunk, rect: Rect2, s: Dictionary, y: float, here: Array) -> void:
 	if not is_instance_valid(chunk) or not chunk._take_crowd_room():
 		return
+	here.append(s)
 	var ped := CurbTraveller.new()
 	ped.setup_traveller(rect, int(s.seed), s.p, float(s.yaw), s.group)
 	ped.position = Vector3((s.p as Vector2).x, y + 0.05, (s.p as Vector2).y)
