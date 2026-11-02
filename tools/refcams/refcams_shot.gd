@@ -37,6 +37,9 @@ func _initialize() -> void:
 		_out_dir = OS.get_environment("OUT_DIR")
 	DirAccess.make_dir_recursive_absolute(_out_dir)
 	_golf_group()
+	# OCCLUSION=0: occlusion culling off (still_shot's switch), to tell what is culled in plain sight.
+	if OS.get_environment("OCCLUSION") == "0":
+		get_root().use_occlusion_culling = false
 	change_scene_to_file("res://scenes/levels/city.tscn")
 	_run.call_deferred()
 

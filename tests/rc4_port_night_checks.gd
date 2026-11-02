@@ -107,7 +107,8 @@ func _materials(plan: CityPlan) -> void:
 	PortNight.apply(plan)
 	_t._check(float(cm.get_shader_parameter("port_night")) < 0.5 and int(sm.get_shader_parameter("flood_count")) == 0,
 		"PORT_NIGHT=0 puts the old look back")
-	_t._check(is_equal_approx(PortNight.pool_strength(), 0.5) and is_equal_approx(PortNight.pool_falloff(), 1.5), "PORT_NIGHT=0 keeps the old pools")
+	_t._check(is_equal_approx(PortNight.pool_strength(), 0.5) and is_equal_approx(PortNight.pool_falloff(), 1.5) and PortNight.pool_custom() == Color.BLACK,
+		"PORT_NIGHT=0 keeps the old pools")
 	_t._check(PortNight.crane_halos(Vector3.ZERO).is_empty() and PortNight.mast_halo(Vector3.ZERO).is_empty(), "PORT_NIGHT=0 adds no halo")
 	PortNight.enabled = was
 	PortNight.apply(plan)
@@ -116,7 +117,11 @@ func _materials(plan: CityPlan) -> void:
 func _extras() -> void:
 	if not PortNight.enabled:
 		return
-	_t._check(PortNight.pool_strength() > 0.5, "the yard's pools are stronger")
+	_t._check(PortNight.pool_custom().a < 0.5, "a yard pool's custom alpha is 0 (not light_pool's point-source branch)")
+	var src := FileAccess.get_file_as_string("res://shaders/light_pool.gdshader")
+	_t._check(src.contains("} else if (v_custom.a > 0.5) {"), "light_pool.gdshader still takes custom alpha > 0.5 as a point source (PortNight.POOL_CUSTOM's reason)")
+	var cc := FileAccess.get_file_as_string("res://scripts/world/city_chunk.gd")
+	_t._check(cc.contains("PortNight.pool_mesh(), xf, Color.WHITE, PortNight.pool_custom())"), "the masts' and cranes' pools carry PortNight's custom")
 	if NightAtmos.enabled:
 		var h := PortNight.crane_halos(Vector3(10.0, 0.2, 20.0))
 		_t._check(h.size() == 4 and String(h[0][0]) == NightAtmos.HALO_KEY, "a halo on each of a crane's four portal lamps")

@@ -915,7 +915,7 @@ func _add_port_pool(at: Vector3, size: float) -> void:
 	var xf := Transform3D(Basis(Vector3.RIGHT, -PI * 0.5).scaled(Vector3(size, 1.0, size)), Vector3(at.x, PORT_YARD_TOP + 0.07, at.z))
 	# A soft falloff: floodlights 34 m up light the yard evenly, not in a hot spot like a street
 	# lamp's.
-	_batch.add("port_pool", PortNight.pool_mesh(), xf)
+	_batch.add("port_pool", PortNight.pool_mesh(), xf, Color.WHITE, PortNight.pool_custom())
 
 
 ## One stack slot: the rolled `height` of boxes in the row line, a second pile abreast (most

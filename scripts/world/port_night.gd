@@ -34,9 +34,9 @@ const TINT := Color(1.0, 0.88, 0.7)
 const GAIN := 0.8
 ## The most a face takes from all the floods together (port_flood.gdshaderinc's flood_cap).
 const CAP := 1.1
-## The yard's additive pools (were 0.5, falloff 1.5).
-const POOL_STRENGTH := 0.85
-const POOL_FALLOFF := 1.25
+## The yard's additive pools (were 0.5, falloff 1.5, and drew as hot spots: POOL_CUSTOM).
+const POOL_STRENGTH := 0.16
+const POOL_FALLOFF := 1.4
 ## The quay's apron (42 m deep, the cranes' lanes): two rows of pools along it, `APRON_STEP` apart,
 ## `APRON_POOL` across, at these depths back from the quay edge (the cranes' and masts' pools only
 ## reached a strip of it, and the camera's foreground was an unlit plain).
@@ -44,11 +44,15 @@ const APRON_ROWS := [11.0, 30.0]
 const APRON_STEP := 24.0
 const APRON_POOL := 60.0
 ## The apron pools overlap into one wash: weaker each and flat-topped.
-const APRON_STRENGTH := 0.5
-const APRON_FALLOFF := 0.7
+const APRON_STRENGTH := 0.06
+const APRON_FALLOFF := 0.9
 ## Halo sizes (metres) on a crane's portal lamps and a mast head.
 const CRANE_HALO := 1.6
 const MAST_HALO := 2.6
+## Their strength (NightAtmos' INSTANCE_CUSTOM.r; a street lamp's is 1): a crane's and a mast's
+## floods are kilowatt lamps against a street lamp's hundred watts.
+const CRANE_HALO_GAIN := 2.0
+const MAST_HALO_GAIN := 2.6
 
 
 static var _cache: Dictionary = {}
@@ -61,6 +65,17 @@ static func pool_mesh() -> Mesh:
 	if enabled:
 		(mesh.material as ShaderMaterial).set_shader_parameter("display_add", true)
 	return mesh
+
+
+## The custom data a yard pool's instance carries. MultiMeshBatch.add() defaults it to Color.BLACK,
+## whose alpha 1 sent every port pool down light_pool.gdshader's NightLamps branch (a point source
+## at INSTANCE_CUSTOM.r of the quad's half width, 0.05 by default): each mast's 92 m pool and each
+## crane's 60 m pool drew as a hot spot 3-5 m across under its lamp, and the yard stayed dark.
+const POOL_CUSTOM := Color(0.0, 0.0, 0.0, 0.0)
+
+
+static func pool_custom() -> Color:
+	return POOL_CUSTOM if enabled else Color.BLACK
 
 
 ## The pool's strength and falloff for PortKit's yard pools (`_add_port_pool`).
@@ -171,7 +186,7 @@ static func _dress(ch: CityChunk, ix: int, iz: int) -> void:
 		var x := area.position.x + APRON_STEP * 0.5
 		while x < area.end.x:
 			var xf := Transform3D(Basis(Vector3.RIGHT, -PI * 0.5).scaled(Vector3(APRON_POOL, 1.0, APRON_POOL)), Vector3(x, CityChunk.PORT_YARD_TOP + 0.07, area.end.y - back))
-			ch._batch.add("port_apron_pool", mesh, xf)
+			ch._batch.add("port_apron_pool", mesh, xf, Color.WHITE, POOL_CUSTOM)
 			x += APRON_STEP
 	ch._batch.set_no_shadow("port_apron_pool")
 
@@ -235,7 +250,7 @@ static func crane_halos(base: Vector3) -> Array:
 	var y := PortKit.STS_PORTAL_Y - 3.5
 	for sz: float in [-1.0, 1.0]:
 		for fx: float in [-5.0, 5.0]:
-			out.append([NightAtmos.HALO_KEY, NightAtmos.halo_mesh(), Transform3D(Basis.from_scale(Vector3.ONE * CRANE_HALO), base + Vector3(fx, y, sz * gz)), TINT, Color(1.0, 0.0, 0.0, 0.0)])
+			out.append([NightAtmos.HALO_KEY, NightAtmos.halo_mesh(), Transform3D(Basis.from_scale(Vector3.ONE * CRANE_HALO), base + Vector3(fx, y, sz * gz)), TINT, Color(CRANE_HALO_GAIN, 0.0, 0.0, 0.0)])
 	return out
 
 
@@ -243,4 +258,4 @@ static func crane_halos(base: Vector3) -> Array:
 static func mast_halo(at: Vector3) -> Array:
 	if not enabled or not NightAtmos.enabled:
 		return []
-	return [[NightAtmos.HALO_KEY, NightAtmos.halo_mesh(), Transform3D(Basis.from_scale(Vector3.ONE * MAST_HALO), at + Vector3(0.0, PortKit.MAST_H - 1.1, 0.0)), TINT, Color(1.0, 0.0, 0.0, 0.0)]]
+	return [[NightAtmos.HALO_KEY, NightAtmos.halo_mesh(), Transform3D(Basis.from_scale(Vector3.ONE * MAST_HALO), at + Vector3(0.0, PortKit.MAST_H - 1.1, 0.0)), TINT, Color(MAST_HALO_GAIN, 0.0, 0.0, 0.0)]]

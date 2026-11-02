@@ -53,6 +53,8 @@ func _initialize() -> void:
 		e.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
 		e.ambient_light_color = Color(0.12, 0.15, 0.25)
 		RenderingServer.global_shader_parameter_set("lamp_factor", 1.0)
+		for kv in OS.get_environment("GLOBALS").split(";", false):
+			RenderingServer.global_shader_parameter_set(kv.get_slice("=", 0), float(kv.get_slice("=", 1)))
 		# PortNight by path (it names PortLife, which needs the autoloads a --script lacks).
 		var pn: Dictionary = (load("res://scripts/world/port_night.gd") as GDScript).get_script_constant_map()
 		var src := PackedVector4Array()
@@ -69,6 +71,14 @@ func _initialize() -> void:
 			m.set_shader_parameter("flood_tint", Vector3((pn.TINT as Color).r, (pn.TINT as Color).g, (pn.TINT as Color).b))
 			m.set_shader_parameter("flood_gain", float(pn.GAIN))
 			m.set_shader_parameter("flood_cap", float(pn.CAP))
+		# The apron's pools as PortNight lays them (POOL_Y over the apron plane, y 0).
+		var pool := PropFactory.light_pool(Color(1.0, 0.9, 0.74), float(pn.APRON_STRENGTH), float(pn.APRON_FALLOFF))
+		(pool.material as ShaderMaterial).set_shader_parameter("display_add", OS.get_environment("PORT_NIGHT") != "0")
+		for k in 5:
+			var pi := MeshInstance3D.new()
+			pi.mesh = pool
+			pi.transform = Transform3D(Basis(Vector3.RIGHT, -PI * 0.5).scaled(Vector3(float(pn.APRON_POOL), 1.0, float(pn.APRON_POOL))), Vector3(-30.0 + k * float(pn.APRON_STEP), float(OS.get_environment("POOL_Y")) if OS.get_environment("POOL_Y") != "" else 0.07, -30.0))
+			stage.add_child(pi)
 	sun.shadow_enabled = true
 	sun.directional_shadow_max_distance = 300.0
 	stage.add_child(sun)

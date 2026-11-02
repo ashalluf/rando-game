@@ -122,7 +122,8 @@ void fragment() {
 		albedo = col(vec3(0.03, 0.03, 0.03));
 		rough = 0.8;
 	} else if (part == 5) {
-		albedo = col(vec3(0.6, 0.6, 0.58));
+		// PortNight: a dark housing round the lens, not a pale box (the lens is the down face).
+		albedo = col(port_night > 0.5 ? vec3(0.16, 0.16, 0.17) : vec3(0.6, 0.6, 0.58));
 		rough = 0.3;
 		emit = col(vec3(1.0, 0.93, 0.8)) * lamp_factor * lamp_energy * step(v_nrm.y, -0.5);
 	} else if (part == 6) {
