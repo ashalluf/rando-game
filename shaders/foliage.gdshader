@@ -82,9 +82,13 @@ uniform float bark_relief : hint_range(0.0, 3.0) = 1.0;
 // --- Palm shimmer (palm-shimmer, 2026-11-02; PalmShimmer). 0 = as it was (the A/B) -----------
 uniform float palm_shimmer : hint_range(0.0, 1.0) = 1.0;
 /// A leaflet narrower than this many pixels is widened to it along its blade (PalmShimmer).
-uniform float leaf_min_px : hint_range(0.0, 4.0) = 1.1;
+uniform float leaf_min_px : hint_range(0.0, 4.0) = 1.5;
 /// ...but never more than this many times its own width.
-uniform float leaf_max_widen : hint_range(1.0, 8.0) = 3.0;
+uniform float leaf_max_widen : hint_range(1.0, 8.0) = 4.0;
+/// How much darker a leaflet reads seen from under its face (the camera on the side its normal
+/// leans away from): worked out from the normal and the view, never the winding, so both ranks of
+/// a frond agree and a crown shades as a mass - lit over the top, deeper underneath.
+uniform float leaf_under_shade : hint_range(0.0, 1.0) = 0.24;
 /// The share of its widened blade a leaflet really covers (1 = not widened, or not a leaflet).
 varying float leaf_cover;
 
@@ -232,6 +236,10 @@ void fragment() {
 	}
 	float occl = 1.0;
 	bool frond = COLOR.g > COLOR.r * 0.95;
+	if (palm_shimmer > 0.5 && frond) {
+		float under = clamp(-dot(NORMAL, VIEW) * 2.5, 0.0, 1.0);
+		albedo *= 1.0 - leaf_under_shade * under;
+	}
 	bool trunk = !frond && length(rest_pos.xz) < 0.5 && COLOR.r - COLOR.b < 0.2;
 	if (closeup > 0.5) {
 		if (frond) {

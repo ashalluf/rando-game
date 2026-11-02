@@ -23,9 +23,9 @@ extends RefCounted
 static var enabled: bool = OS.get_environment("PALM_SHIMMER") != "0"
 
 ## A leaflet narrower than this many pixels is widened to it (foliage.gdshader `leaf_min_px`).
-const MIN_PX := 1.1
+const MIN_PX := 1.5
 ## At most this many times its own width (an edge-on blade is never widened into a sheet).
-const MAX_WIDEN := 3.0
+const MAX_WIDEN := 4.0
 ## The boots' undersides (the sawn frond stubs on the trunk) lean this far outward: straight
 ## down (the old -nt) only the ground's bounce lit them, and from the pavement they were black
 ## triangles stuck to every trunk.
@@ -37,8 +37,11 @@ static func mark(mat: ShaderMaterial) -> void:
 	if mat == null:
 		return
 	mat.set_shader_parameter("palm_shimmer", 1.0 if enabled else 0.0)
-	mat.set_shader_parameter("leaf_min_px", MIN_PX)
-	mat.set_shader_parameter("leaf_max_widen", MAX_WIDEN)
+	# PALM_MIN_PX / PALM_MAX_WIDEN override the two for a strip's A/B (tools/palm_shimmer/).
+	var mp := OS.get_environment("PALM_MIN_PX")
+	var mw := OS.get_environment("PALM_MAX_WIDEN")
+	mat.set_shader_parameter("leaf_min_px", float(mp) if mp != "" else MIN_PX)
+	mat.set_shader_parameter("leaf_max_widen", float(mw) if mw != "" else MAX_WIDEN)
 
 
 ## The widening a leaflet gets (the vertex shader's rule, for the checks): `width_px` its

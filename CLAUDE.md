@@ -4474,6 +4474,15 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   colour x energy, kept by a TreeLight node); the sway is weighted (`tl_rate()` by `sway_height`,
   `tl_load()` late with a swing-back; `TreeLight.load_of()` the GDScript copy). `TREE_LIGHT=0` the A/B;
   stills `tools/tree_light/tree_light_shot.tscn` (AB=1, PARAMS=); checks `tests/tree_light_checks.gd`.
+- Palm crowns without the flecks (2026-11-02, docs/HANDOFF.md "Palm crowns without the flecks"):
+  `PalmShimmer` (`scripts/world/palm_shimmer.gd`). A frond's two ranks wind opposite ways, so
+  foliage.gdshader keeps the mesh normal on back faces (Godot turned every second leaflet's
+  up-leaning normal to the camera: near-black flecks that crawled); the underside shade
+  (`leaf_under_shade`) is keyed to normal vs view, never FRONT_FACING. Leaflet vertices carry their
+  offset across the blade in CUSTOM0 (`PropFactory._palm_leaf_vertex()`; w 1, 0 elsewhere): a blade
+  under `MIN_PX` (1.5) px is widened to it (<= `MAX_WIDEN` 4x), kept by coverage (dithered on
+  Forward+, whole on Compatibility); never in the shadow pass. `PALM_SHIMMER=0` the A/B; strips
+  `tools/palm_shimmer/palm_strip.gd` (+ strip.py measure); checks `tests/palm_shimmer_checks.gd`.
 - Replica areas (see the technical rule): `ReplicaAreas` (`scripts/world/replica_areas.gd`,
   `MacroMap.replica`, built in `MacroMap.setup()` before the hill roads, `fit_hill_profile()`
   after) holds each area as a table - today only `ESPLANADE`: Knob Hill down the Redondo
