@@ -441,6 +441,7 @@ func _wreck_two_lane() -> void:
 	var wreck := _obstacle(axis, index, 1, 1, mid)
 	var car := _traffic.place_car(axis, index, 1, 1, lo + 6.0, 9.0, false)
 	car.traffic.ai = true
+	car.traffic.no_dp = true # never a double park of its own roll (2.5 % a block: shuffled gate 10404)
 	car.traffic.tb = true
 	var c0 := int(TrafficBehaviour.counts.get("wreck_lane_change", 0))
 	var worst := INF
