@@ -175,6 +175,9 @@ uniform float cloud_sun = 1.55;
 /// How bright the shaded underside stays (x the ambient), and the haze that takes the far deck.
 uniform float cloud_ambient = 1.0;
 uniform float cloud_haze_km = 38.0;
+// fwd-review-g: 1 hands a closed deck past the march's 90 km reach over as its haze (no hard line
+// at the horizon under overcast on Forward+); 0 the old cut (FWD_REVIEW_G=0).
+uniform float far_deck = 1.0;
 /// Wind for the deck, km/s (about 8 m/s).
 uniform vec2 cloud_wind = vec2(0.0075, 0.0028);
 /// The march's step budget: its steps are distance x 0.024 x 48 / this (the more, the finer).
@@ -549,6 +552,16 @@ vec4 cumulus_march(vec3 dir, vec3 ldir, vec3 lcol, vec3 amb_top, vec3 amb_bot, v
 		t1 = tb > 0.0 ? tb : t0 + 6.0;
 	}
 	if (t0 < 0.0 || t1 <= t0 || t0 > 90.0) {
+		// fwd-review-g: from under a closed deck the march gives up at 90 km, a degree or less
+		// over the horizon - and there the far deck stopped dead and the city's light dome showed
+		// under it in its own saturated orange: a hard line along the horizon on Forward+ at a
+		// rainy night (Compatibility's painted deck runs on into its haze). The deck out there is
+		// all haze (cloud_haze_km): hand it over as that, and under the horizon too (the far land
+		// in the rain is that haze; the half-res pass runs there while the deck is closed).
+		if (far_deck > 0.5 && h0 > 0.0) {
+			float s = smoothstep(0.72, 0.95, coverage);
+			return vec4(airlight * s, 1.0 - s);
+		}
 		return vec4(0.0, 0.0, 0.0, 1.0);
 	}
 	t1 = min(t1, t0 + 30.0);
@@ -897,7 +910,7 @@ void sky() {
 	// The half-resolution pass carries the expensive part: the cumulus volume and the rays.
 	if (AT_HALF_RES_PASS) {
 		vec4 res = vec4(0.0, 0.0, 0.0, 1.0);
-		if (volume && up > -0.08) {
+		if (volume && (up > -0.08 || (far_deck > 0.5 && cloud_coverage > 0.72 && view_km.y < cloud_base - 0.06 * cloud_depth))) {
 			float coverage = clamp(cloud_coverage, 0.0, 0.98);
 			// The key light: the sun, which at 2 km still lights the deck from under the horizon
 			// for a few minutes after the street has lost it (pink bases), then the moon.

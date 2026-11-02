@@ -3920,6 +3920,10 @@ none of either.
   not erase it - the flash's light is scaled by the night (the exposure is set for the moon) and
   the bolt stays the brightest thing in the frame. Forward+ lighting verdicts on lavapipe are taken
   only after the GI has converged (~90 frames). STORM_NIGHT_FLASH=0 is the A/B.
+- 2026-11-01 (Forward+ review g, wave 5): what the Mac draws differently is fixed at its colour-space
+  cause, not tuned per renderer - the traced room behind every window is display numbers and is
+  decoded on Forward+ like the wall and the glass round it; and a closed cloud deck on Forward+
+  runs into its own haze at the horizon like the painted one on the web. FWD_REVIEW_G=0 is the A/B.
 - **2026-10-31 The first minute is part of the load (loading-first-frame, HANDOFF "The first
   minute").** Whatever play would build in its first seconds - the traffic, the streamer's own
   window, wave 3's first-use pipelines - is built behind the shade, and nothing the loading screen

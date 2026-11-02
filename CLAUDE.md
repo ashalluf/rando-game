@@ -6832,6 +6832,15 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   many times over: anything bright and brief (lightning) gets a low value or veils the frame.
   A small scene on both renderers: `tools/fwd_review_f/shoot.sh` (`override.cfg` with
   `[threading] worker_pool/max_threads=1`, never committed, or lavapipe OOMs at ~13.5 GB).
+- And two more (fwd-review-g, 2026-11-01, HANDOFF "Forward+ review g"): **a colour a renderer-space
+  shader writes as plain numbers into ALBEDO is display on Compatibility and LINEAR on Forward+** -
+  building.gdshader's traced rooms were (`fwd_review_g` global: decoded there now, fx_srgb_in());
+  any new constant colour in such a shader goes through fx_srgb_in() / cs_as_uniform(). And the
+  Forward+ cloud volume's march stops at 90 km: anything that ends it must hand over to the deck's
+  haze (sky.gdshader `far_deck`), or a closed deck draws a hard line at the horizon. A light of a
+  few frames (a muzzle flash) does not veil the fog: the fog's temporal blend damps it.
+  `fwd_block_shot.gd BLOCKS=0` is a weather sky on Forward+ in three minutes; `FLASH=` holds a
+  muzzle flash. `FWD_REVIEW_G=0` is the A/B; checks `tests/fwd_review_g_checks.gd`.
 - Native screenshots without a browser: `tools/glshot/building_shot.gd` (one building),
   `tools/glshot/block_shot.tscn` (a few FULL city blocks alone, no far city: a block's ground and
   furniture) and `tools/glshot/city_shot.gd` (the city at a `--spawn`) render with the real
