@@ -149,6 +149,7 @@ float fbm(vec2 p) {
 
 #include "res://shaders/wet_drying.gdshaderinc"
 #include "res://shaders/wet_road_mirror.gdshaderinc"
+#include "res://shaders/rain_day_mirror.gdshaderinc"
 
 
 // Raindrop rings on standing water, as a tangent-space slope (xy). Three offset layers of cells,
@@ -457,6 +458,10 @@ void fragment() {
 	puddle *= 1.0 - side;
 	gutter *= 1.0 - side;
 	base *= mix(1.0, 0.62, damp);
+	// A soaked pavement by day (RainDay's rain_day, 0 at night): paving darkens further than tarmac
+	// (porous concrete drinks the water) and keeps a sheen, never asphalt's mirror.
+	float pave_day = joint_spacing > 0.01 ? rain_day * damp : 0.0;
+	base *= 1.0 - 0.22 * pave_day;
 	float standing = max(puddle, gutter);
 	base *= 1.0 - 0.35 * standing;
 
@@ -464,7 +469,7 @@ void fragment() {
 	// 0.07, not 0.18: at 0.18 the screen-space reflections blur into a warm smear, and a soaked
 	// street at night is nearly a mirror - the lit windows and tail lights standing in it are
 	// the whole look.
-	ROUGHNESS = clamp(mix(mix(rough, 0.07, film), 0.02, standing), 0.02, 1.0);
+	ROUGHNESS = clamp(mix(mix(rough, mix(0.07, 0.2, pave_day), film), 0.02, standing), 0.02, 1.0);
 	METALLIC = 0.0;
 	SPECULAR = mix(0.5, 0.85, max(film, gutter));
 	// The gutter keeps a ripple of its own: running water is never mirror-flat, and its streaky
@@ -561,11 +566,27 @@ void fragment() {
 			// The film is broken up where the tarmac is rough, so a streak runs in lengths.
 			film_break = smoothstep(0.35, 0.75, value_noise(w * 0.7 + seed));
 		}
-		float gain = mirror_night * lamp_factor * fres * max(standing, film * mirror_film * film_break);
+		// The lit city and the night sky are the night's mirror: by day (a rain deck brings the lamps
+		// on at noon) the canyon below is (RainDay's rain_day, 0 at night).
+		float night_k = lamp_factor * (1.0 - rain_day);
+		float gain = mirror_night * night_k * fres * max(standing, film * mirror_film * film_break);
 		glow += city * gain * near_mirror(length(VERTEX));
 		// The night sky in the water, everywhere the city's lights are not: the horizon's colour.
-		float sky_k = mirror_sky * lamp_factor * fres * max(standing, film * film_break);
+		float sky_k = mirror_sky * night_k * fres * max(standing, film * film_break);
 		glow += cs_as_uniform(sky_tint.rgb) * sky_k * near_mirror(0.0);
+	}
+	// By day the wet road mirrors the sky down the middle and the fronts along its sides
+	// (rain_day_mirror.gdshaderinc): the sky's specular taken away where a front stands in it.
+	if (wet > 0.01 && rain_day > 0.001 && side < 0.5) {
+		vec3 td = normalize(world_pos - CAMERA_POSITION_WORLD);
+		vec3 nd = normalize(vec3(-slope.x * 0.6, 1.0, -slope.y * 0.6));
+		vec3 rd = reflect(td, nd);
+		float fres_d = 0.02 + 0.98 * pow(1.0 - clamp(-td.y, 0.0, 1.0), 5.0);
+		float tone;
+		float cover = rdm_cover(rd, wrm_st, mix(0.08, 0.014, standing), seed, tone);
+		float k = rain_day * cover * max(standing, film);
+		SPECULAR *= 1.0 - rdm_spec_cut * k;
+		glow += cs_as_uniform(sky_tint.rgb) * (rdm_wall * tone * fres_d * k);
 	}
 	EMISSION = glow;
 }

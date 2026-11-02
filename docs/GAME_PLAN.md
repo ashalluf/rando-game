@@ -4294,3 +4294,11 @@ none of either.
   desktop); a car's near body and far twin crossfade by a complementary screen door in their own
   shaders (CarLodBlend), which is opaque and needs TAA; the web keeps every cut. LOD_POPS=0 /
   CAR_LOD_BLEND=0 the A/B.
+- **2026-11-01 The rainy day is lit by the sky, not the sun (rc2-rain-day, HANDOFF "The rainy day").**
+  Daylight rain was the clear day with a grey sky drawn over it. Decisions: under a rain deck by day
+  the sun keeps about a third of its key and its shadows fade (RainDay); a wet road by day mirrors
+  the sky down its middle and the fronts along its sides, worked out from the plan like the night
+  mirror, and the night city's mirror and sky emission belong to the night only; things that burn
+  only after dark (searchlights, premiere beams) follow the lamps' night level, not the weather's
+  share (street and car lamps still come on under a storm at noon). New refcam `rain_day` in
+  tools/refcams/cameras_w5.json. RAIN_DAY=0 the A/B.

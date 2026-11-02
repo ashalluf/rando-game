@@ -103,9 +103,11 @@ func _run() -> void:
 		# the default count before the shot, so it is where the row says whatever the wait.
 		var frames := maxi(_env_int("SHOT_FRAMES", 30), int(cam.get("shot_frames", 0)))
 		var stage_at := frames - _env_int("SHOT_FRAMES", 30)
+		var traffic_staged := false
 		for i in frames:
 			if i == stage_at:
 				_stage_air(scene, cam)
+				traffic_staged = _stage_street_cars(cam, scene, plan)
 			await process_frame
 			_place(player, fov)
 			if day:
@@ -131,6 +133,8 @@ func _run() -> void:
 		await process_frame
 		if not _hero.is_empty():
 			_hero_report(player, cam.name)
+		if traffic_staged:
+			scene.get_node("Traffic").set("staged", false)
 		var png := _out_dir.path_join("%s.png" % cam.name)
 		get_root().get_texture().get_image().save_png(png)
 		var c: Array = await _geo_report("GEO_%s" % cam.name)
@@ -152,6 +156,36 @@ func _run() -> void:
 		print("REFCAM %s saved %s eye %s hour %.2f %s" % [cam.name, png, eye_text, float(cam.hour), cam.get("weather", "clear")])
 	print("REFCAMS done, %d shots in %d ms" % [shots.size(), Time.get_ticks_msec() - started])
 	quit()
+
+
+## A camera row's optional `street_cars` (wave 5, rain_day): {"axis": "z" (a road of constant z) or
+## "x", "at": the road's coordinate (the nearest road there is taken), "cars": [[along, dir, lane,
+## speed], ...]} - street traffic placed through TrafficManager.place_car() as the camera starts
+## (along = the TRUE world coordinate down the road; dir +1 runs toward +along), with the upkeep
+## held (`staged`) until the shot is taken, so the view always has its traffic (and its tyre spray)
+## whatever the load's own traffic did. Rows without the key place nothing.
+func _stage_street_cars(cam: Dictionary, scene: Node, plan: Variant) -> bool:
+	var spec: Variant = cam.get("street_cars")
+	var traffic := scene.get_node_or_null("Traffic")
+	if not spec is Dictionary or traffic == null or plan == null:
+		return false
+	var axis := 1 if String(spec.get("axis", "z")) == "z" else 0  # CityPlan.AXIS_Z / AXIS_X
+	var at := float(spec.get("at", 0.0))
+	var probe := Vector2(0.0, at) if axis == 1 else Vector2(at, 0.0)
+	var start: Vector2i = plan.block_index_at(probe)
+	var i0 := start.y if axis == 1 else start.x
+	var best := i0
+	for i in range(i0 - 1, i0 + 3):
+		if absf(float(plan.road_pos(axis, i)) - at) < absf(float(plan.road_pos(axis, best)) - at):
+			best = i
+	traffic.set("staged", true)
+	var placed := 0
+	for c: Array in spec.get("cars", []):
+		var car: Variant = traffic.call("place_car", axis, best, int(c[1]), int(c[2]), float(c[0]), float(c[3]))
+		if car != null:
+			placed += 1
+	print("REFCAM %s: placed %d street cars on road %d (axis %d at %.1f)" % [cam.name, placed, best, axis, float(plan.road_pos(axis, best))])
+	return true
 
 
 ## A camera row's optional "air" key (cameras_w5.json): AirTraffic.stage() of that kind with

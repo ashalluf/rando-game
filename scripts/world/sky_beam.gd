@@ -127,7 +127,8 @@ func _volumetric() -> bool:
 
 
 func _process(_delta: float) -> void:
-	var lamp := DayNight.lamp_now
+	# After dark only: a rain deck at noon brings the street lamps on, not a premiere's searchlight.
+	var lamp := RainDay.after_dark_lamp(DayNight.lamp_now)
 	var lit := lamp > 0.08
 	if lit != _lit:
 		_lit = lit

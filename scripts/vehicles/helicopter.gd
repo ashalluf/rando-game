@@ -532,7 +532,8 @@ func _aim_gear(dt: float) -> void:
 		gear.global_basis = Basis(now.get_rotation_quaternion().slerp(want.get_rotation_quaternion(), 1.0 - exp(-searchlight_track * dt)))
 	if _spot == null:
 		return
-	var lamp: float = traffic.lamp_level() if traffic else 0.0
+	# After dark only (RainDay): a rain deck brings the lamps on at noon, not a sweeping searchlight.
+	var lamp: float = RainDay.after_dark_lamp(traffic.lamp_level()) if traffic else 0.0
 	var lit := searchlight_on and lamp > 0.05 and life == Life.FLYING
 	_spot.visible = lit
 	_pool.visible = lit
