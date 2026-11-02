@@ -41,3 +41,10 @@ Batch 2 (Forward+, lavapipe - the Mac's renderer - and a car in daylight):
   plume over the burning wreck.
 - `20_dither_old2_old4_new2_new4.jpg` - the screen door: left pair before, right pair with the march
   backing up and refining in dense smoke (60 m, 2 s and 4 s).
+- `21_web_top_desktop_bottom_0.3_2_5.jpg` - the web fallback (WEB=1, cards: the volume is desktop
+  only) over the desktop fourth pass, the same rocket at 0.3 / 2 / 5 s.
+
+Frame cost with the blast in view (blast_room_shot GEO, opengl3, 1280x720), fourth pass vs
+EXPLOSIONS_4=0: 0.3 s 409 / 411 draws, 505k / 506k tris; 2 s 402 / 406, 504.5k / 504.7k;
+5 s 378 / 380, 502.0k / 502.0k. The volume's cost is ALU per covered pixel (40 steps, up to 16
+refined), not geometry.
