@@ -4128,3 +4128,9 @@ none of either.
   volume's own weather-map columns seen up the sun (no new texture, no per-material code); the old
   noise shadows on the far plane and the sea stay only where the volume is not drawn. A sky look
   that depends on the sun is keyed on its elevation, not the clock (the day's rays and cirrus).
+
+- **2026-11-01 Load time after wave 4 (load-time-3, HANDOFF "Load time after wave 4").** Every
+  system a wave adds that first appears mid-play gets a stage in WarmRehearsal, measured with the
+  first-use probe's events for that wave (`EVENTS=wave4`); wave 4's are behind `WARM_WAVE4=0`.
+  The rehearsal is timed like every other loading-screen step. Bake-only memoisation is allowed
+  where it is proved byte-identical (the raw-height memo); LoadCache's key stays every script.

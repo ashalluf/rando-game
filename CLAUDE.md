@@ -6322,6 +6322,13 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   Measure with `LOAD_FIRST_MINUTE=<s>` (FIRSTMIN lines: missing chunks, swaps, cars) and
   `LOAD_SCREEN_HEADLESS=1` on `tools/load_time/load_time.sh headless`; the desktop launch is
   OOM-killed on a 15 GB box now, and first-use probes run on opengl3. `FIRST_FILL=0` the A/B.
+- Load time after wave 4 (2026-11-01, docs/HANDOFF.md "Load time after wave 4"): WarmRehearsal
+  stages wave 4's first uses (`WARM_WAVE4=0` the A/B: troop truck, gunship, spike strip, a corner
+  crash, bullet marks, barrel smoke, hero blood) and prints `LOADING rehearsal ...` lines; a new
+  wave's mid-play first uses get a stage there and an `EVENTS=` set in first_use_probe (opengl3,
+  `WARM=0 REHEARSE=1`: the full warm-up no longer fits). `MacroMap.bake()` memoises a pixel's raw
+  height (byte-identical, `bake_probe.tscn FULL=1`). Never `x is T` on a list entry that can be
+  freed: `is_instance_valid()` first.
 - Performance: `Quality` node in the city scene (`scripts/util/quality.gd`) starts desktop at
   **HIGH** (owner, 2026-09-21: "I need it PS5 level graphics" - global illumination is the single
   biggest difference between this and a modern-looking game) and steps down to MEDIUM, LOW and
