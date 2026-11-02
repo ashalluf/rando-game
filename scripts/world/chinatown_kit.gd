@@ -1216,7 +1216,7 @@ static func build_plaza(ch: CityChunk, block: Dictionary) -> void:
 				_string_pools(ch, p[1], q[1], CityChunk.SIDEWALK_TOP + 0.1))
 	# People in the court, one a step, in the crowd cap.
 	var court: Array = L.court
-	for i in PLAZA_PEOPLE:
+	for i in Rc3Chinatown.plaza_people(PLAZA_PEOPLE):
 		_job(ch, func() -> void: _plaza_goer(ch, court, walk_z, absi(hash([seed_value, ch.ix, ch.iz, "ct_goer", i]))))
 	# Trees in planters at the four quarters (a private rng: the block's is untouched).
 	_job(ch, func() -> void:

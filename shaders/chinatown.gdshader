@@ -378,7 +378,7 @@ void fragment() {
 			float sd = floor(hash21(floor(v_world.xz * 0.12)) * 97.0);
 			vec4 room = shop_room(uv, d3, sd, night * open_, pxs);
 			// Glass: the room through it (dimmed by Fresnel), the street's sky mirrored on top.
-			emit = room.rgb * (0.12 + shop_night * 0.42 * night * open_) * (1.0 - 0.6 * fres)
+			emit = room.rgb * (0.12 + shop_night * 0.34 * night * open_) * (1.0 - 0.6 * fres)
 				+ cs_srgb_to_linear(sky_tint.rgb) * (0.04 + 0.45 * fres) * (1.0 - night * 0.6);
 		}
 		rough = 0.05;

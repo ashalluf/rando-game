@@ -19,7 +19,10 @@ func run(t: Object, _city: Node3D) -> void:
 	_material(true)
 	var on := _lantern_tris()
 	var hall_on := _hall()
+	var people_on := Rc3Chinatown.plaza_people(ChinatownKit.PLAZA_PEOPLE)
 	Rc3Chinatown.enabled = false
+	_t._check(people_on > ChinatownKit.PLAZA_PEOPLE and Rc3Chinatown.plaza_people(ChinatownKit.PLAZA_PEOPLE) == ChinatownKit.PLAZA_PEOPLE,
+		"the plaza court holds %d people with the refcam, %d without" % [people_on, ChinatownKit.PLAZA_PEOPLE])
 	_material(false)
 	var off := _lantern_tris()
 	var hall_off := _hall()

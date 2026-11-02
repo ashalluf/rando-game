@@ -10,6 +10,7 @@ extends RefCounted
 ## - the hall was a flat red box lit evenly by the street wash: its screens are lit from inside
 ##   (UV2 flag LIT_FLAG on the hall's lattice: always lit after dark), its upper storeys get side
 ##   screens, the lacquer takes less wash;
+## - the court held a handful of people: PLAZA_PEOPLE in the evening (each through the crowd cap);
 ## - the lanterns were 8-sided: 12 sides near (LANTERN_SIDES), the silhouette of a round lantern.
 ## Off (RC3_CHINATOWN=0 in the environment): the district exactly as before (the shader's `rc3` 0
 ## is bit-identical, the hall and the lanterns built as they were).
@@ -27,6 +28,15 @@ const LACQUER_WASH := 0.45
 static func apply(mat: ShaderMaterial) -> void:
 	mat.set_shader_parameter("rc3", 1.0 if enabled else 0.0)
 	mat.set_shader_parameter("lacquer_wash", LACQUER_WASH if enabled else 1.0)
+
+
+## The plaza court's people (ChinatownKit.PLAZA_PEOPLE before): the evening crowd of a real
+## plaza, still each one through the crowd cap.
+const PLAZA_PEOPLE := 30
+
+
+static func plaza_people(old: int) -> int:
+	return PLAZA_PEOPLE if enabled else old
 
 
 static func lantern_sides() -> int:
