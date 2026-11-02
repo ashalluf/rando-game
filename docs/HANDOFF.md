@@ -27034,3 +27034,46 @@ truck in one run, a red car in the other; the deck is freeway_deck.gdshader, not
 (one line in smoke_test.gd's city_files): street asphalt gets lane wear and pavements / car parks do
 not, the shader applies it and 0 is the old road, the switch, the camera row and its staging
 script. Stills on `shots/rc2-chase-cam`.
+
+## 9d?. The refinery at night, refcam refinery_night, 2026-11-02 (agent branch `wt/rc3-refinery-night`, fleet wave 6)
+
+**The camera.** `refinery_night` in `tools/refcams/cameras_w6.json`: eye (3180, 1.7 agl, 5838), yaw 40,
+pitch 7, fov 55, 22:30 clear - on the south street outside the fence (the port across the road),
+looking north-west: the flare row on the left, the tank farm's floating-roof tanks behind the berms,
+the cat cracker's structures and the cooling towers' steam beyond. Chosen from four candidates
+(south street NW, west street ENE, Alameda SW, this one; `build/refcams/cand` stills in the shots).
+
+**What gave it away, worst first, and what changed** (`RefineryNight`, `scripts/world/refinery_night.gd`;
+`REFINERY_NIGHT=0` is the A/B - every new shader block is behind a `night_look` uniform that stays 0):
+1. **The flares lit nothing.** A 75-96 m flame over its derrick, and the steel round it was lit by the
+   moon alone: the flare OmniLight sat 4 m over the tip with a 70 m range (FULL chunks only, so never
+   from this camera, where the flares are far pieces). Now `refinery.gdshader` lights every surface of
+   the plant near a flame from the real flame positions (`flare_tips[8]`, TRUE world through the
+   `origin_shift` global, a flicker each; falloff 1 / (1 + (d / 24)^2), gone by 160 m, the face turned
+   to the flame lit most) - the same in FULL chunks and the far pieces, on both renderers, nothing on
+   the CPU. `RefineryNight.flare_light()` is the GDScript copy (checked against the shader's text). The
+   old OmniLight is gone (on Forward+ it also tinted the pavement under the flares pink).
+2. **No air round a flame.** The flame mesh gains one sprite a flare (UV2.x 3): a 170 m haze dome of
+   amber, zero at its edge (fwd-review-d's additive rule), stronger after dark (`HAZE_W`, `HAZE_GAIN`).
+3. **The steam read as brown smoke.** The puff texture is a fire-and-smoke billow; the plume is now lit
+   from its luminance only - cool white from the moon and the city, the plant's warm light under it.
+4. **The berms were one flat tan plane at the fence**, moonlit as bright as the tanks: now dry weedy
+   dirt (patches of dead weeds and dark brush, runnels down the slope, the foot shaded), and darker
+   under the moon.
+5. The masts' OmniLights (FULL, desktop) reach 40 m with a steeper falloff (`MAST_RANGE`,
+   `MAST_ATTENUATION`) so a flood is a pool with an edge.
+
+`RefineryNight.apply()` is called by `RefineryFar.attach()` and by `ensure()` from `Refinery.site_steps()`
+(so block_shot / fwd_block_shot, which build no far city, get it too).
+
+**Proof.** opengl3: `build/refcams/{cand,after3}` (before / after of the camera). Forward+ (lavapipe,
+`tools/glshot/fwd_block_shot.tscn EYE=2925,1.7,5831,10,14 --hour=22.5`, `REFINERY_NIGHT=0|1`): the
+derricks under the flames take their light; the first pass (gain 1.15, a redder colour) read salmon on
+the white bands there, so the light is amber (1.0, 0.56, 0.22) at 0.9. Frame cost: the same geometry
+(the haze is five quads; the shader loop runs over five flares only inside the plant's material).
+
+**Not done / seen.** The foreground road is lit bright and flat by the street's own lamps behind the
+camera and the moon (not the refinery's; every eye along the south street reads the same) - a street
+lamp / night-exposure question for whoever owns those. The tanks are still moonlit nearly white. No
+heat shimmer over the flares, no people or trucks inside the fence. Forward+ seen only on the small
+scene, not the whole camera.

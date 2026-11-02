@@ -295,6 +295,11 @@ already mapped so milestone 2 is script-only.
 
 ## Decisions log
 
+- **2026-11-02 The refinery at night (rc3-refinery-night, HANDOFF "The refinery at night").** A
+  flare's light on the plant is worked out in the plant's own shader from the real flame positions
+  (every tier, both renderers, no OmniLight), not a light node that only FULL chunks carry; each
+  flame stands in a faint haze dome; steam is lit as white water, never from the smoke texture's
+  colour. New refcam `refinery_night` (cameras_w6.json). REFINERY_NIGHT=0 is the A/B.
 - **2026-11-02 The chase camera's street (rc2-chase-cam, HANDOFF "The chase camera's street").** A
   driving view is a reference camera too: a camera row may stage the player's own car (`drive`) and
   shoot his DriveCam. The carriageway's wear is per lane in the road shader (wheel tracks, oil band,
