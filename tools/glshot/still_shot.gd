@@ -1528,7 +1528,12 @@ func _diff_freeze(player: Node3D) -> void:
 	(load("res://scripts/world/traffic_signals.gd") as GDScript).set("clock", 0.0)
 	RenderingServer.global_shader_parameter_set("signal_clock", 0.0)
 	var hidden := 0
+	# DIFF_KEEP=vehicle,...: groups left visible (tools/specular_aliasing/strip.py keeps the parked
+	# cars for the car paint's shimmer; with SHOT_FRAMES=0 the clock never runs at full speed).
+	var keep := OS.get_environment("DIFF_KEEP").split(",", false)
 	for g in ["pedestrian", "police", "vehicle", "police_car", "debris", "gib", "player"]:
+		if keep.has(g):
+			continue
 		for n in get_nodes_in_group(g):
 			if n is Node3D:
 				(n as Node3D).visible = false
@@ -2082,6 +2087,12 @@ func _eye(player: Node3D, fov: float) -> void:
 			_eye_cam.near = player_cam.near
 		_eye_cam.make_current()
 	_eye_cam.fov = fov if fov > 0.0 else 45.0
+	# MSAA=2|4|8: multisampled geometry edges (Quality turns MSAA off), so a frame strip's flicker
+	# measure (tools/specular_aliasing/strip.py) sees what shading and sub-pixel geometry do, not
+	# every polygon edge's stair step (TAA takes those on the Mac).
+	var msaa := _env_int("MSAA", 0)
+	if msaa > 0:
+		get_root().msaa_3d = {2: Viewport.MSAA_2X, 4: Viewport.MSAA_4X, 8: Viewport.MSAA_8X}.get(msaa, Viewport.MSAA_4X)
 	_eye_cam.global_transform = Transform3D(Basis.from_euler(Vector3(deg_to_rad(p[4].to_float()), deg_to_rad(p[3].to_float()), 0.0)), at)
 	# EYE_KEEP_PLAYER=1: the player stays in the shot where he is (the swimming stills).
 	if OS.get_environment("EYE_KEEP_PLAYER") == "1":

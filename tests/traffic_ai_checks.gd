@@ -558,6 +558,14 @@ func _freeway_pass() -> void:
 	var at: Vector3 = fw.point_at(ri, t0)[0]
 	_player.global_position = _ws.to_local(at + Vector3(0.0, 40.0, 0.0))
 	_player.velocity = Vector3.ZERO
+	# An empty deck: with the fill's cars in the next lane the pass waits on a gap, and whether
+	# there is one depends on what earlier files left and which bodies the fill rolled.
+	var max_was: int = _traffic.max_freeway_cars
+	_traffic.max_freeway_cars = 0
+	for c in _traffic.freeway_cars.duplicate():
+		if is_instance_valid(c):
+			_traffic._retire(c)
+	_traffic.freeway_cars.clear()
 	var slow := _traffic.place_freeway_car(ri, t0 + 70.0, 1, -1, 13.0)
 	var fast := _traffic.place_freeway_car(ri, t0, 1, -1, 28.0)
 	fast.traffic.ai = true
@@ -576,6 +584,7 @@ func _freeway_pass() -> void:
 		if float(a.t) > float(b.t) + 30.0:
 			passed = true
 			break
+	_traffic.max_freeway_cars = max_was
 	_check(moved and passed and worst > 2.0, "a fast freeway car moves over and passes a slow one (moved %s, passed %s, closest in one lane %.1f m)" % [moved, passed, worst if worst < INF else 999.0])
 
 
