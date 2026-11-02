@@ -7,3 +7,4 @@ opengl3 (Compatibility) stills from tools/refcams, REFCAMS_JSON=tools/refcams/ca
 - 03_after_water_bed_bounce_weeds.jpg - the low flow mirrors the banks, joints and stains on the bed, the shaded bank's bounce, weeds and litter
 - 04_after_final_with_graffiti.jpg - the final after: plus a second graffiti layer on the banks and pieces on the ramp wall
 - 05_after_closeup_water_weeds.jpg / 06_before_closeup_water.jpg - the water and the bed close up, after and before
+- 07_ten_refcams_compare_RIVER_LOOK0_vs_1.jpg - the ten original cameras, RIVER_LOOK=0 over the branch: only street_night and freeway flagged, by rain, people and traffic (run-to-run noise)
