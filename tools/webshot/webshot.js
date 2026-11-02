@@ -63,6 +63,14 @@ const OLD_CHROME = (() => {
     note(`${stamp()} [fps] ${r.frames} frames in ${(r.ms / 1000).toFixed(1)} s = ${(r.ms / r.frames).toFixed(0)} ms a frame`);
   }
   await page.screenshot({ path: process.env.SHOT || 'web_shot2.png', timeout: parseInt(process.env.SHOT_TIMEOUT || '180000') });
+  // MORE=n takes n more shots MORE_GAP ms apart (<shot>_1.png ...): what changes after the first
+  // (web-build-5: the MacArthur Park glare came and went between runs).
+  for (let i = 1; i <= parseInt(process.env.MORE || '0'); i++) {
+    await page.waitForTimeout(parseInt(process.env.MORE_GAP || '60000'));
+    const p = (process.env.SHOT || 'web_shot2.png').replace(/\.png$/, `_${i}.png`);
+    await page.screenshot({ path: p, timeout: parseInt(process.env.SHOT_TIMEOUT || '180000') });
+    note(`${stamp()} [shot] ${p}`);
+  }
   if (process.env.LOG) {
     // The whole console, timestamped from page load, plus the JS heap at the end (LOG=file).
     const mem = await page.evaluate(() => performance.memory ? JSON.stringify({used: performance.memory.usedJSHeapSize, total: performance.memory.totalJSHeapSize}) : 'n/a').catch(() => 'n/a');
