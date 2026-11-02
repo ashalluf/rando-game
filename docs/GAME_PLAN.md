@@ -4288,3 +4288,9 @@ none of either.
   exposure compensation from an enclosure probe (slow to open up, fast to close down); the sun gets
   a flare in the lens pass occluded by one screen tap, the grain follows the exposure, the bloom a
   wider spread. CAMERA_LENS=0 the A/B.
+- **2026-11-01 Popping: fade what alpha can fade, dissolve what it cannot (lod-pops, HANDOFF
+  "Popping while driving and flying").** Godot's visibility-range fade is an alpha blend on
+  Forward+ and nothing on Compatibility, so it is given to flat things only (LodFade, Forward+
+  desktop); a car's near body and far twin crossfade by a complementary screen door in their own
+  shaders (CarLodBlend), which is opaque and needs TAA; the web keeps every cut. LOD_POPS=0 /
+  CAR_LOD_BLEND=0 the A/B.

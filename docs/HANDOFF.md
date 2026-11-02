@@ -26750,3 +26750,66 @@ too, and a dark open place (a deep alley without a lid) does not. No flare from 
 lamps or headlights (the bloom carries those). Godot's own meter could be made useful by lowering
 `auto_exposure_scale` and both clamps together; that changes every frame's look and needs the
 grade re-tuned on the Mac first.
+
+## 9lc. Popping while driving and flying (wave 5, lod-pops)
+
+**What pops, and why.** `tools/lod_pops/range_audit.gd` walks a loaded city and lists every
+drawn node with a visibility range, grouped by kind; at the Flower St bookmark ~200 kinds had a
+HARD range (`VISIBILITY_RANGE_FADE_DISABLED`, or a zero margin): every car's near body / far twin
+swap at 30 m (60 for buses), the wheel rigs at 85, shop names and blade signs at 75 (~1,900
+nodes), hats and hand props at 60, the car parks' real / static cars at 42, the cars' night
+lamps at 160, facade frames, bays, StreetDress / MidDress, camp figures. Script-driven swaps
+(the crowd's body tiers at 45 / 50 / 140 m to the PLAYER) had no hysteresis at all.
+
+**What Godot's range fade really is** (`tools/lod_pops/fade_probe.gd`, measured): on Forward+ a
+FADE_SELF range is an ALPHA blend (the instance goes to the transparent pass, no depth write)
+over [end, end + margin] / [begin - margin, begin]; on Compatibility (the web, every opengl3
+still) there is no fade at all, a margin only moves the cut. Alpha suits a flat thing; on a car
+it shows the body through itself (underside, doubled wheels: `tools/lod_pops/car_pop_shot.gd`,
+`l1` stills) - worse than the cut.
+
+**Fixes.**
+- `LodFade` (`scripts/util/lod_fade.gd`, one hook in `CityStreamer._ready()`): on Forward+ desktop
+  (a real display, never headless) it watches `SceneTree.node_added` and, a frame later, gives every hard range a margin of 12 % of
+  its distance (2..40 m) and FADE_SELF. Vehicles (anything under a "vehicle" node), skinned
+  meshes and the car parks' real far bodies are skipped; meta `lod_hard` opts out. Nothing on
+  Compatibility.
+- `CarLodBlend` (`scripts/vehicles/car_lod_blend.gd`, one hook at the end of
+  `Vehicle._add_body_model()`, one in `damage_state()`): the near body and far twin overlap by
+  6 m round the swap and SCREEN-DOOR crossfade (`shaders/lod_blend.gdshaderinc`: interleaved
+  gradient noise, StandardMaterial3D's OBJECT_DITHER rule line for line, so the glTF part
+  materials faded that way take the same pixels): each pixel is drawn by exactly one of the two,
+  opaque; TAA makes it a dissolve. The far twin gets its own paint copy (side 1); never in a
+  shadow pass (the shadow twins overlap). The first hit puts the hard swap back (CarDamage copies
+  the paint). Forward+ desktop only.
+- Crowd tiers: `LodFade.tier_band()` holds a body tier 4 m past its threshold.
+
+**A/B:** `LOD_POPS=0` (all of it), `CAR_LOD_BLEND=0` (the cars).
+
+**Measured / not measured.** Proof is a small Forward+ scene (`tools/lod_pops/car_pop_shot.gd`,
+lavapipe: a row of parked cars, the camera backing away 26 -> 34 m; `CAR_LOD_BLEND=0` the
+before), stills on `shots/lod-pops`. The city can only be stripped on opengl3
+(`tools/lod_pops/pop_strip.gd` + `pops.py`: one-frame changes per 16 px tile with the chunk
+events of that frame), where neither fix runs (Compatibility has no fade), so the strips are the
+"before" and a pop finder, not the proof. Frame cost: nothing changes on Compatibility. On
+Forward+ each softened range draws `SHARE` (12 %) further, in the transparent pass while inside
+its margin (~25 % more sign / lettering / hat instances on screen at the edge of their range),
+and a car inside the 9 m overlap draws both bodies; the car paint and cabin glass now carry a
+`discard` (their depth pre-pass already ran their own vertex code). Not measured on a GPU - ask the
+owner for an F1 FULL screenshot of a busy street.
+
+**Gate notes.** Headless reports `forward_plus`, so `LodFade.supported()` also asks for a real
+display (`DisplayServer.get_name() != "headless"`): with LodFade and CarLodBlend running in the
+gate, shard 2's `night_atmos_checks` "every prop keeps its id and place" failed three runs in a row
+and passed with them off (cause not found; nothing they touch is read by a chunk build). The
+checks force both on for themselves, on free-standing meshes and a stand-in "vehicle" node (a real
+Vehicle built in the city disturbed the next file's twice-built block). Shard 2 still shows
+intermittent failures that move from run to run - `street_clutter_2` / `night_atmos` "built twice",
+`traffic_motion` "costs little" (wall clock), valets, emergency "fire goes out", boats "stays on the
+water" - several of them also with `LOD_POPS=0`.
+
+**Not done.** The FULL chunk's arrival (its trees, props and cars appear at once while the LOD
+boxes dissolve; at the ring's 240 m it is a few pixels each); shadow twins still cut (a shadow
+cannot be faded); mesh LOD switches inside a batch (Godot picks them by pixel error); the crowd's
+body swaps are still swaps (only held by the band); motorcycles keep their own hard 26 m swap;
+CarDetail plates, wipers and the underside still end at their own distances.
