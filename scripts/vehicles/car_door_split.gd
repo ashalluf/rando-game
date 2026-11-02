@@ -31,6 +31,9 @@ const DOORS := {
 	Vehicle.BodyType.SUV: {"front": [Vector2(0.995, 1.28), Vector2(0.985, 1.00), Vector2(0.975, 0.70), Vector2(0.970, 0.44)], "rear": -0.425, "sill": 0.44},
 	Vehicle.BodyType.MINIVAN: {"front": [Vector2(1.355, 1.12), Vector2(1.345, 0.90), Vector2(1.335, 0.60), Vector2(1.330, 0.32)], "rear": 0.005, "sill": 0.32},
 	Vehicle.BodyType.BEATER: {"front": [Vector2(0.905, 0.850), Vector2(0.900, 0.60), Vector2(0.895, 0.30), Vector2(0.890, 0.24)], "rear": -0.180, "sill": 0.24},
+	Vehicle.BodyType.WAGON: {"front": [Vector2(0.835, 0.95), Vector2(0.828, 0.70), Vector2(0.820, 0.40), Vector2(0.815, 0.27)], "rear": -0.352, "sill": 0.27},
+	Vehicle.BodyType.LUX_SUV: {"front": [Vector2(0.995, 1.28), Vector2(0.985, 1.00), Vector2(0.975, 0.70), Vector2(0.970, 0.44)], "rear": -0.425, "sill": 0.44},
+	Vehicle.BodyType.CLASSIC: {"front": [Vector2(0.936, 0.850), Vector2(0.931, 0.60), Vector2(0.925, 0.30), Vector2(0.919, 0.24)], "rear": -0.285, "sill": 0.24},
 	Vehicle.BodyType.VAN: {"van": true},
 	Vehicle.BodyType.DELIVERY_VAN: {"van": true},
 }

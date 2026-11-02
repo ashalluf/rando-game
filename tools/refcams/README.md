@@ -19,6 +19,10 @@ number, not by someone happening to look.
 | macarthur | MacArthur Park from the south, 120 m up | 11:00 | clear |
 | pier_night | the pier and its wheel from the beach | 21:00 | clear |
 
+Wave 5's new cameras are in `cameras_w5.json` (same format; run with
+`REFCAMS_JSON=tools/refcams/cameras_w5.json`): `la_river` (the LA River bed at the 6th St ribbon
+bridge, 15:30 clear).
+
 The table is `cameras.json` (eye = TRUE world x, y, z, yaw, pitch; `agl` = y over the plan's
 ground). **Change a camera only on purpose**: the runs before stop being comparable for it.
 
