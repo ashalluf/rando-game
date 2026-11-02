@@ -404,7 +404,7 @@ static func build_lod(ch: CityChunk, z0: float, z1: float) -> void:
 		var at: Vector2 = ring.at
 		var y := BeachLife.sand_y(ch, at.x, at.y) + 0.08
 		var xf := Transform3D(Basis(Vector3.RIGHT, -PI * 0.5) * Basis.from_scale(Vector3(LOD_POOL_SIZE, LOD_POOL_SIZE, 1.0)), Vector3(at.x, y, at.y))
-		ch._batch.add("bonfire_lod_pool", pool_mesh(), xf)
+		ch._batch.add("bonfire_lod_pool", pool_mesh(false), xf)
 		count += 1
 	if count > 0:
 		ch._batch.set_no_shadow("bonfire_lod_pool")
@@ -414,7 +414,11 @@ static func build_lod(ch: CityChunk, z0: float, z1: float) -> void:
 # --- Meshes ------------------------------------------------------------------------------------
 
 ## The firelight's additive pool on the sand (light_pool.gdshader, lamp_factor-gated).
-static func pool_mesh() -> Mesh:
+static func pool_mesh(near: bool = true) -> Mesh:
+	# The bonfire_night refcam: a fire's light falls off fast; the soft 1.7 floodlit the sand
+	# orange for metres past the group.
+	if rc4 and near:
+		return PropFactory.light_pool(POOL_TINT, POOL_STRENGTH * 0.8, 2.8)
 	return PropFactory.light_pool(POOL_TINT, POOL_STRENGTH, 1.7)
 
 

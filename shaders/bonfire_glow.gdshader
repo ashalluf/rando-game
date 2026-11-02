@@ -16,7 +16,7 @@ global uniform float night_factor;
 uniform vec3 core_color = vec3(1.0, 0.62, 0.22);
 uniform vec3 halo_color = vec3(1.0, 0.36, 0.08);
 uniform float core_gain = 2.2;
-uniform float halo_gain = 0.22;
+uniform float halo_gain = 0.16;
 uniform float core_share = 0.16;
 // Smallest size the quad is drawn at, as an angle (radians) at its distance.
 uniform float min_angle = 0.02;
@@ -25,6 +25,8 @@ uniform float flicker = 0.18;
 
 varying float v_phase;
 varying float v_shrink;
+// 0 near (the real flames carry the fire there), 1 from a few tens of metres.
+varying float v_far;
 
 void vertex() {
 	vec3 centre = MODEL_MATRIX[3].xyz;
@@ -33,6 +35,7 @@ void vertex() {
 	float grow = max(size, dist * min_angle) / max(size, 1e-3);
 	// The core keeps its share of a quad grown only for the far view (a point of light, not a disc).
 	v_shrink = 1.0 / grow;
+	v_far = smoothstep(10.0, 45.0, dist);
 	v_phase = fract(sin(dot(floor(centre.xz + 0.5), vec2(12.9898, 78.233))) * 43758.5453) * 6.2831;
 	mat4 world = mat4(normalize(INV_VIEW_MATRIX[0]), normalize(INV_VIEW_MATRIX[1]), normalize(INV_VIEW_MATRIX[2]), MODEL_MATRIX[3]);
 	MODELVIEW_MATRIX = VIEW_MATRIX * world * mat4(vec4(size * grow, 0.0, 0.0, 0.0), vec4(0.0, size * grow, 0.0, 0.0), vec4(0.0, 0.0, 1.0, 0.0), vec4(0.0, 0.0, 0.0, 1.0));
@@ -50,6 +53,6 @@ void fragment() {
 	float t = TIME + v_phase;
 	float f = 1.0 - flicker + flicker * (0.55 + 0.3 * sin(t * 7.3) + 0.15 * sin(t * 17.9 + 1.3));
 	float on = smoothstep(0.3, 0.9, night_factor);
-	vec3 col = (core_color * core * core_gain + halo_color * halo * halo_gain) * f * on;
+	vec3 col = (core_color * core * core_gain * mix(0.12, 1.0, v_far) + halo_color * halo * halo_gain * mix(0.45, 1.0, v_far)) * f * on;
 	ALBEDO = cs_out(col);
 }

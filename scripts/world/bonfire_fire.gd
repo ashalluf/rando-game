@@ -241,19 +241,19 @@ func _build() -> void:
 		# the rim and the tongues lick a metre over it.
 		_flames.position = base + Vector3(0.0, 0.2, 0.0)
 		_flames.initial_velocity_min = 0.8
-		_flames.initial_velocity_max = 1.45
+		_flames.initial_velocity_max = 1.25
 		_flames.lifetime = 1.0
 		_flames.scale_amount_min = 0.62
 		_flames.scale_amount_max = 0.95
 		_licks.initial_velocity_min = 0.9
-		_licks.initial_velocity_max = 1.6
+		_licks.initial_velocity_max = 1.4
 		_licks.scale_amount_min = 0.9
 		_licks.scale_amount_max = 1.35
 		# Taller flames rise longer: with the car fire's ramp their cooled tops hung on as a brown
 		# puff floating over the fire. Gone while still orange.
 		for p: CPUParticles3D in [_flames, _licks]:
 			p.color_ramp = WeaponFX._ramp([Color(1.25, 0.64, 0.07, 0.0), Color(1.3, 0.68, 0.08, 0.95),
-				Color(1.15, 0.52, 0.06, 0.75), Color(0.9, 0.34, 0.04, 0.25), Color(0.5, 0.15, 0.02, 0.0)])
+				Color(1.15, 0.52, 0.06, 0.7), Color(0.95, 0.38, 0.05, 0.28), Color(0.7, 0.24, 0.03, 0.05), Color(0.5, 0.15, 0.02, 0.0)])
 	# Embers riding the heat up and off down the breeze.
 	_embers = CPUParticles3D.new()
 	_embers.name = "Embers"
@@ -327,7 +327,7 @@ func _build() -> void:
 		_light.light_color = LIGHT_COLOR
 		_light.light_energy = LIGHT_ENERGY
 		_light.omni_range = LIGHT_RANGE
-		_light.omni_attenuation = 1.3
+		_light.omni_attenuation = 2.0 if Bonfires.rc4 else 1.3
 		_light.shadow_enabled = false
 		# A fire is a big soft source, not a bulb: soft shadow edges.
 		_light.shadow_blur = 2.5
