@@ -148,6 +148,29 @@ vec3 bunker_morning(vec3 sc, vec2 wp, vec2 across, float bunker_d, float px) {
 	return sc;
 }
 
+// The native areas as bunchgrass (golf_morning), not flat tan ground: clumps a hand or two across,
+// their tops straw-bright and leaning down the wind, green at the base and dark between them; past
+// a few pixels a clump field's average (darker and greener than the bare tan it was), patchier at
+// the scale of metres where the clumps thin out.
+vec3 native_grass(vec2 wp, float mid, float px) {
+	vec2 g = wp / 0.42;
+	vec2 gi = floor(g);
+	vec2 f = fract(g) - 0.5 - (vec2(hash12(gi + 2.7), hash12(gi + 7.3)) - 0.5) * 0.5;
+	float r = 0.26 + 0.14 * hash12(gi + 4.1);
+	// The blades lean along +x: a clump is longer that way, its tips at the lee end.
+	vec2 e = vec2(f.x * 0.75, f.y);
+	float clump = 1.0 - smoothstep(r * 0.55, r, length(e));
+	float tip = clump * smoothstep(-0.1, 0.25, f.x);
+	float thin = smoothstep(0.35, 0.7, vnoise(wp * 0.21 + 3.0));
+	clump *= 0.55 + 0.45 * thin;
+	vec3 base_c = mix(native_color * vec3(0.55, 0.62, 0.55), rough_color * 0.9, 0.45);
+	vec3 sharp = mix(base_c * 0.5, native_color * (0.8 + 0.25 * hash12(gi + 9.9)), clump);
+	sharp = mix(sharp, native_color * 1.1, tip * 0.5);
+	vec3 avg = mix(base_c * 0.5, native_color * 0.85, 0.42 * (0.55 + 0.45 * thin));
+	vec3 c = mix(sharp, avg, smoothstep(0.06, 0.2, px));
+	return c * (0.82 + 0.36 * mid);
+}
+
 // How much dew lies on the course at this hour (golf_morning): on the grass all night and at dawn,
 // burnt off by mid-morning.
 float dew_amount(float h) {
@@ -184,10 +207,10 @@ vec3 dew_turf(vec3 col, vec2 wp, vec2 mow, vec3 v_world, float fw_d, float green
 	float graze = 1.0 - abs(to_eye.y);
 	vec2 sun_xz = normalize(sun_direction.xz + vec2(1e-4, 0.0));
 	float fwd = clamp(dot(-to_eye.xz, sun_xz), -1.0, 1.0);
-	float k = dew * cover * (0.10 + 0.30 * graze * graze * graze) * (0.55 + 0.75 * max(fwd, 0.0));
+	float k = dew * cover * (0.08 + 0.22 * graze * graze * graze) * (0.6 + 0.5 * max(fwd, 0.0));
 	float lum = dot(col, vec3(0.2126, 0.7152, 0.0722));
 	vec3 silver = mix(col, vec3(lum), 0.6) * 1.32 + vec3(0.002, 0.003, 0.005);
-	col = mix(col, silver, clamp(k, 0.0, 0.5));
+	col = mix(col, silver, clamp(k, 0.0, 0.32));
 	// The beads' own gloss: the renderer's sky and sun reflection off a wet film (smoother, more
 	// specular), which is what reads silver at a grazing look; the trails stay matte.
 	wet_k = dew * cover;
@@ -240,7 +263,11 @@ void fragment() {
 	// Rough, with native grass taking over far from play (the fields saturate at 8 m).
 	vec3 col = rough_color * (0.82 + 0.36 * mid) * mix(vec3(1.0), vec3(1.10, 1.02, 0.86), big);
 	float nativ = smoothstep(6.5, 7.9, min(min(fw_d, green_d), min(tee_d, water_d + 4.0))) * smoothstep(0.56, 0.72, fbm(wp * 0.018 + 41.0)) * 0.85;
-	col = mix(col, native_color * (0.78 + 0.44 * mid), nativ);
+	vec3 native_c = native_color * (0.78 + 0.44 * mid);
+	if (golf_morning > 0.5) {
+		native_c = native_grass(wp, mid, px);
+	}
+	col = mix(col, native_c, nativ);
 	if (golf_morning > 0.5) {
 		// golf_morning: no two patches of turf the same green - the warm-season grass of an LA
 		// course going off-colour in the rough in patches (yellower, toward dormant straw), wetter
@@ -399,6 +426,8 @@ void fragment() {
 	SPECULAR = 0.3;
 	// golf_morning's dew: the turf (not the sand, path or water) glossier and more specular.
 	float dew_turf_k = dew_k * (1.0 - sand) * (1.0 - path) * (1.0 - wet);
-	ROUGHNESS = mix(ROUGHNESS, 0.62, dew_turf_k * 0.75);
-	SPECULAR = mix(SPECULAR, 0.42, dew_turf_k);
+	// (Gentle: on Forward+ a 0.7 roughness lit a warm sun hot spot over the whole rough toward the
+	// low sun, read as dry straw.)
+	ROUGHNESS = mix(ROUGHNESS, 0.8, dew_turf_k * 0.6);
+	SPECULAR = mix(SPECULAR, 0.34, dew_turf_k);
 }

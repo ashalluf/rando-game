@@ -524,7 +524,10 @@ static func _props(ch: CityChunk, st: Dictionary) -> void:
 			for sgn: float in [-1.0, 1.0]:
 				var q := c + u * (half.y - 1.2) + side * sgn * 2.6
 				var y := ground(ch, st, q)
-				ParkKit.post(w, Vector3(q.x, y - 0.02, q.y), 0.06, 0.13, ParkKit.K_PLASTIC, t.color, 8)
+				if GolfMorning.enabled:
+					GolfMorning.tee_ball(w, Vector3(q.x, y - 0.015, q.y), t.color)
+				else:
+					ParkKit.post(w, Vector3(q.x, y - 0.02, q.y), 0.06, 0.13, ParkKit.K_PLASTIC, t.color, 8)
 	# Signs, washers, benches, yardage posts.
 	for b: Array in lay.bins:
 		var p: Vector2 = b[1]
