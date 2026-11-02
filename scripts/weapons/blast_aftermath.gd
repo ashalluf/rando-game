@@ -430,6 +430,8 @@ static func _dust_wave(node: Node, at: Vector3, radius: float, ground: Dictionar
 	if ground.is_empty():
 		return
 	var parent := WeaponFX.fx_parent(node)
+	if Blast4.dust_roll(parent, (ground.position as Vector3), ground.normal, radius * dust_wave_reach):
+		return
 	var ramp := WeaponFX._ramp([Color(0.46, 0.42, 0.37, 0.0), Color(0.42, 0.39, 0.35, 0.34),
 		Color(0.38, 0.36, 0.32, 0.22), Color(0.33, 0.31, 0.29, 0.0)])
 	var reach := radius * dust_wave_reach
