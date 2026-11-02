@@ -295,6 +295,11 @@ already mapped so milestone 2 is script-only.
 
 ## Decisions log
 
+- **2026-11-02 The chase camera's street (rc2-chase-cam, HANDOFF "The chase camera's street").** A
+  driving view is a reference camera too: a camera row may stage the player's own car (`drive`) and
+  shoot his DriveCam. The carriageway's wear is per lane in the road shader (wheel tracks, oil band,
+  kerb grit) rather than more stamps: it follows every street for free and costs no geometry.
+  CHASE_CAM_REVIEW=0 the A/B.
 - **2026-10-31 Gunplay at arm's length (gunplay-feel, HANDOFF "Gunplay at arm's length").** The flash
   is a volume of crossed flame cards in a shader, not a sprite (a sprite seen from the side is a
   ball); the tracer a streak in flight, not a line; the marks per surface painted in code from a

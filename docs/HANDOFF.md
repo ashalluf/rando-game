@@ -25155,3 +25155,59 @@ Probes: `tools/rc_beach/sand_roads_probe.gd` (headless: every coast street stret
 beach; `LOOK=swim|wade|surf` saves a close look at the first one). Checks `tests/rc_beach_checks.gd`.
 Stills on `shots/rc-beach`.
 
+
+## 9d?. The chase camera's street (wave 5, refcam2 `chase_cam`, branch wt/rc2-chase-cam)
+
+**The camera.** A new reference view, `chase_cam` in `tools/refcams/cameras_w5.json`: what the player
+sees most while driving - his own car from his chase camera (DriveCam), 40 km/h up Grand Ave (x
+2610.8) between 9th and 8th, 16:00 clear, traffic placed round him (two cars ahead in each lane, a
+box truck, oncoming cars and a bus). The row's `drive` key is staged by `tools/refcams/chase_stage.gd`
+(loaded by path from `refcams_shot.gd` once the autoloads exist): the car is put on the road by a
+ray, the player enters it, the player's camera is made current, the placed traffic
+(`TrafficManager.place_car()`, `staged` on) starts `lead` seconds back so everyone is where the row
+says at the shot, the car's velocity is set every tick (it rides its wheels), and after the shot
+everything is put back (the free eye current again, police and staging as they were). Run:
+`REFCAMS_JSON=tools/refcams/cameras_w5.json python3 tools/refcams/refcams.py run <dir> --only chase_cam`.
+
+**What read fake first, in order.**
+1. **Sparks streaming off the car** while it cruised. That was the staging (and the same staging in
+   `tools/driving_camera/drive_strip_run.gd`, whose stills on `shots/driving-camera` show it too): the
+   car was dropped from `plan.height_at()`, which is the relief, not the street slab's top (0.1 m
+   higher here), so its body box met the road and DrivingFX threw sparks the whole drive. The stage
+   now finds the road's top with a ray. (drive_strip_run.gd still uses the old drop.)
+2. **The carriageway was one even sheet.** Half the frame from a chase camera, and in the towers'
+   shadow at 16:00 it was flat navy plastic. `ChaseCamReview` (`scripts/world/chase_cam_review.gd`)
+   gives the street asphalt materials (`asphalt`, `asphalt_aerial`, no joints, full wear: never
+   pavements, plazas, car parks or yards) road.gdshader's new `lane_wear`
+   (`shaders/road_lane_wear.gdshaderinc`, called once in road.gdshader after the stains): per travel
+   lane (CityPlan.lane_center()'s, found from the slab's UV like the wet drying's) two tyre-polished
+   wheel tracks (smoother, a little darker; they catch the sky's sheen at a grazing view, which is
+   what makes them visible in shadow) that wander and come and go in stretches, the oil and drip band
+   between them (blotchy, heavier over the last `lw_queue_run` metres before the block's end where
+   cars queue), and dust and a dirt line in the parking lane and gutter pan. Junction squares,
+   skirts and replica pieces get nothing; the web (ground_detail 0) gets nothing. Knobs: the `lw_*`
+   uniforms in the include. ALU only: no triangle or draw moves.
+3. **Open: a pale translucent rectangle round the car's rear bumper.** It is there in main's own
+   drive-strip stills (shots/driving-camera 06_after_frame_30kmh.jpg), so it is not the staging. What
+   it is NOT, each tested by hiding it in the frame (`CHASE_AB`): any child of the car (body, far and
+   shadow twins, NightLights, CarDetail, wheels), the street slab and every batch under the car,
+   ContactShadows (also with CONTACT_SHADOWS=0), DrivingFX, every particle system within 40 m, every
+   light and VisualInstance near it, every CanvasLayer, the player's own nodes. It survives
+   `Viewport.DEBUG_DRAW_UNSHADED` (so it is translucent geometry, not lighting), the overdraw view
+   shows an extra layer over the car's footprint, and a bisection over all ~10,700 drawables found
+   no single node (`CHASE_BISECT=1`). It does not show in car_shot.gd with OCCUPANT=player. Next
+   step for whoever picks it up: bisect with two nodes at a time, or check what Player.enter_vehicle
+   / CarInteriors.driver_changed add for the player's own car only.
+
+**Not changed (other sessions own them):** the towers' shadow on the street is a saturated sky blue
+on opengl3 (no GI there; Forward+ was not measured: lavapipe was set up and lost with a container
+restart) - shadows-review / camera-lens; the Botts' dots read as scattered white specks at this
+distance (they are LA's real dots-only lane lines).
+
+**Numbers.** chase_cam: 7.33 M triangles, 3,471 draws before and after (the lane wear is shader
+work only). The ten original cameras `CHASE_CAM_REVIEW=0` vs on: see the compare below.
+
+**A/B, checks, probes.** `CHASE_CAM_REVIEW=0` turns the lane wear off. `tests/rc2_chase_cam_checks.gd`
+(one line in smoke_test.gd's city_files): street asphalt gets lane wear and pavements / car parks do
+not, the shader applies it and 0 is the old road, the switch, the camera row and its staging
+script. Stills on `shots/rc2-chase-cam`.
