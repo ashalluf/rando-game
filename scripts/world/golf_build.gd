@@ -170,6 +170,7 @@ static func _pavement(ch: CityChunk, st: Dictionary) -> void:
 static func turf_material() -> ShaderMaterial:
 	if _turf_mat != null:
 		return _turf_mat
+	GolfMorning.install()
 	var m := ShaderMaterial.new()
 	m.shader = load("res://shaders/golf_turf.gdshader")
 	m.set_shader_parameter("grass_tex", PropFactory.texture("grass", "Color"))
@@ -814,6 +815,14 @@ static func _planting(ch: CityChunk, st: Dictionary) -> void:
 			2:
 				var s := PropFactory.city_tree_scale(4, lerpf(9.0, 12.0, float(t[2])))
 				ch._batch.add("tree_4", PropFactory.model_tree(4), Transform3D(Basis(Vector3.UP, yaw).scaled(Vector3(s, s, s)), at), tint, variety)
+			4 when GolfMorning.enabled and LaTrees.enabled:
+				# golf_morning: the fir stands were mountain conifers on a valley course (they read as
+				# grey skeletons from the tee); LA's courses are lined with sycamores and eucalyptus.
+				# The same spots and rolls, a hash picks which (after every roll).
+				var sp := LaTrees.Species.SYCAMORE if GolfCourse.h01([ps, "golf_la", int(p.x * 10.0), int(p.y * 10.0)]) < 0.55 else LaTrees.Species.EUCALYPTUS
+				var s := LaTrees.scale_for(sp, LaTrees.height_at(sp, float(t[2])))
+				LaTrees._add(ch, sp, absi(hash([ps, "golf_la_v", int(p.x), int(p.y)])) % LaTrees.VARIANTS,
+					Transform3D(Basis(Vector3.UP, yaw).scaled(Vector3(s, s, s)), at), Color(1, 1, 1))
 			4:
 				var s := PropFactory.hill_tree_scale(0, lerpf(11.0, 15.0, float(t[2])))
 				ch._batch.add("hill_tree_0", PropFactory.model_hill_tree(0), Transform3D(Basis(Vector3.UP, yaw).scaled(Vector3(s, s, s)), at), tint, variety)
