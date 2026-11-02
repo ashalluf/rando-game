@@ -25789,5 +25789,16 @@ Quality's reach and blur, the far planting shadowless). Hooks: `Quality._apply_r
 Not done / left: the far city (Skyline) still casts nothing past the LOD ring, so from 300 m up the
 city beyond ~1 km is flat-lit (a far-box "canyon shade" in building_lod.gdshader would be the next
 step); LOD chunks plant no trees, so between the FULL ring and the far city no street tree casts;
-Pedestrian.shadow_range (45 m) is unchanged. GPU cost: see the numbers below (refcams'
-shadow_tris / draws).
+Pedestrian.shadow_range (45 m) is unchanged. Not measured: gpu_profile on lavapipe (the city does
+not fit it here); the cost below is the renderer's counters.
+
+Cost (refcams on opengl3, main vs the branch; the four main missed in its first run were shot with
+SHADOW_TUNING=0, which is main): street_noon, street_night, sunset, beach, pier_night unchanged (the
+pixel differences there are the live traffic); downtown_aerial 3.72 -> 3.78 M triangles; hills 1.86
+-> 1.91 M; freeway 5.98 -> 6.10 M; macarthur 5.60 -> 6.49 M (draws 3,218 -> 3,981); golden_aerial
+5.12 -> 6.46 M (shadow passes 1.88 -> 3.09 M, draws 3,028 -> 4,202). Luminance p5 / p50 / p95 moved
+by at most 1-2 levels on every camera. Gate: 5,221 checks, all pass (SHARDS=3, peak 3.75 GB).
+Tooling trap: an `override.cfg` with `[threading] worker_pool/max_threads=1` (fwd-review-f's
+lavapipe fix) also applies to the opengl3 refcam runs, where it deadlocked two of five runs at 0 %
+CPU after loading; delete it before a refcams run. And `refcams.py run` stops at its 3600 s
+`--timeout`: on this 4-core box a full ten is ~70 minutes, pass `--timeout 7000`.
