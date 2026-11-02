@@ -416,8 +416,8 @@ class Hydraulics extends Node:
 	## Holds the pose where it is (stills: a hop at its peak).
 	var frozen: bool = false
 	## How far a three-wheel's lifted front wheel leaves the road (m past the stroke; a show car's
-	## lifts 0.4-0.9 m).
-	var three_lift: float = 0.55
+	## lifts 0.3-0.9 m).
+	var three_lift: float = 0.45
 	## A PARKED car's display stance (LowriderMeetLook.Stance) and, standing on three, its side.
 	var stance: int = 0
 	var stance_side: float = 1.0

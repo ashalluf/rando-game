@@ -167,3 +167,12 @@ terminal at 22:00 clear from the quay's apron. Its optional `port_t` key holds P
 (seconds) for the shot, so the cranes and tractors are where the row was framed (`_port_clock()` in
 refcams_shot.gd; rows without it leave the clock alone). `OCCLUSION=0` turns occlusion culling off
 for a run.
+
+## Wave 7's cameras (`cameras_w7.json`)
+
+`lowrider_meet` (rc4-lowrider-meet): the Saturday lowrider meet on Z#4 (x 810-900, seed 1337) at
+19:30 clear, eye level in the road beside the row. Its optional `lowrider_meet` key
+(`{"on": 1, "pose": "i:routine:seconds[:side],..."}`) holds every meet on (LOWRIDER_MEET=1) and
+freezes row cars mid-routine (LOWRIDER_POSE), set before the city loads (`_lowrider_meet()` in
+refcams_shot.gd). `tools/rc4_lowrider_meet_probe.gd` prints the row (stances, lamps, routines)
+and the crowd headless.

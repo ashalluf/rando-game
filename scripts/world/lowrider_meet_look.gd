@@ -71,8 +71,9 @@ static func people_spots(m: Dictionary, spots: Array, want: int) -> Array:
 	var side := float(m.side)
 	var kerb := float(m.centre) + side * float(m.width) * 0.5
 	var shows := []
+	var posed := _posed()
 	for j in spots.size():
-		if bool(spots[j][4]):
+		if bool(spots[j][4]) or j in posed:
 			shows.append(j)
 	for i in want:
 		var s := hash([int(m.seed), i, "person"])
@@ -94,6 +95,14 @@ static func people_spots(m: Dictionary, spots: Array, want: int) -> Array:
 		var to := car_p - p
 		var yaw := atan2(-to.x, -to.y) + (_h01([s, "y"]) - 0.5) * (0.5 if gather else 0.9)
 		out.append([p, yaw, s])
+	return out
+
+
+## The row cars a still holds mid-routine (LOWRIDER_POSE=i:routine:s,...): they draw a crowd too.
+static func _posed() -> Array:
+	var out := []
+	for entry in OS.get_environment("LOWRIDER_POSE").split(",", false):
+		out.append(entry.get_slice(":", 0).to_int())
 	return out
 
 
