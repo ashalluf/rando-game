@@ -4281,3 +4281,10 @@ none of either.
   them out with the camera's clearance over whatever is under it (a roof counts), the reach capped
   at 600 m at HIGH (1000 m doubled an aerial's shadow passes). The bias stays (lower values brought acne at golden hour in the lab), the fade is
   20 %, and far landmark planting casts within 450 m. SHADOW_TUNING=0 is the A/B.
+- **2026-11-02 The camera lens: measure the meter before touching the clamps (camera-lens, HANDOFF
+  "The camera lens").** Godot's auto exposure meters every frame of this city under the camera's
+  dark limit, so the player camera never adapted (a constant 1.6x gain). Lowering the limit would
+  have re-exposed every day frame the grade was tuned on, so the clamps stay and the lens adds an
+  exposure compensation from an enclosure probe (slow to open up, fast to close down); the sun gets
+  a flare in the lens pass occluded by one screen tap, the grain follows the exposure, the bloom a
+  wider spread. CAMERA_LENS=0 the A/B.
