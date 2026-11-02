@@ -10,3 +10,4 @@ New reference camera `crowd_plaza`: STARLIGHT PLAZA (the arena district) at 12:3
 - 06_midway_plaza_south_twins_and_candy_colours.jpg - after the plaza fix only: the same green-tee man three times (twelve recolours for the whole city, half the looks the rig's own outfit).
 - 07_after_dress_plaza_south.jpg - outfits rolled per rig (before the saturation was muted).
 - 08_standing_clips_before_top_after_bottom.jpg - crowd lab: the library idles before (top, knee-bent ready stance) and after STAND_SETTLE 0.88 (bottom).
+- 09_ten_refcams_main_vs_branch.jpg - the ten original refcams, main's behaviour over the branch: two flags (street_night, freeway), both live traffic (a bus in frame, other freeway cars).
