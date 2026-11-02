@@ -26111,12 +26111,16 @@ into a running gate (check files are `load()`ed lazily, mid-run).
 | 4101 | gate_speed_2 "the full reset puts the weather back (state 0, forced false)" | the reset put back its SNAPSHOT's weather; the check compared against the weather at its own start, which Weather's auto roll had changed since (the hour check already used the snapshot's) | it expects the snapshot's state and forcing |
 | 5101 | crowd_look "a performer ahead and to the right is watched (5 degrees, wanted -40)" | a busker the city put near home (or one a file left) is in `crowd_look_magnet` too and won the head | the staged performer is the only magnet while it is watched; the message gives the kind that won |
 | 5101, the lead's batch 38 | pedestrian_flow "somebody comes out of a shop door (still inside after 10 s; overdue 1.7 s, door alive, in tree, processing)" | `CrowdFlow._pass_door()` had no `_lives()` test: a valet, a diner, a night-goer (any Pedestrian subclass walking through `avoid()`) could be sent in at a shop door, where it stayed hidden for good because its own tick never runs an errand; `door_tick()` then borrowed it from the pool (`StreetErrands._from_pool()`, no `_lives()` test either) and it "never came out" | both take the plain crowd only; the message names the walker's script |
-| 6101 | traffic_behaviour_2 "a car behind a wreck asks for the other lane" / car_panic "with no clear kerb ... swerves instead" / distance "from 600 m up no block is drawn by two tiers at once (1)" | **not found** (seen once each, in one heavy run); the first two print where the car got to and its panic kind now | - |
+| 6101, 10404 | traffic_behaviour_2 "a car behind a wreck asks for the other lane (82 m short, v 0, keys ... dp_at)" | the staged car (TrafficAI on) rolled a double park of its own (2.5 % a block) right away | `no_dp` on it, as traffic_ai_checks does |
+| 6101, 10404 | distance "from 600 m up / street level no block is drawn by two tiers at once (1)" | the vantage waited `fade_time` after `update_streaming(true)`, but builds pending from before kept finishing; a chunk installed late was still dissolving the far city | the vantage also waits until nothing is pending or fading (30 s at most) |
+| 6101 | car_panic "with no clear kerb ... swerves instead" | the race below: start() looked at the kerb ticks after the test did | see the 8101 / batch 37 row |
 | 1303, 6101 | pedestrian_flow "a follower walks beside its leader (mean 2.1 m, leader 6.9 m)" | **not found**: the strip sits at the camera's x and may meet pavement furniture the follower dodges; moving the strip off furniture was tried and made the pair walk off east to one spot every time (7101, 8101, 9101: the same end point to the millimetre), so it was taken back out | - |
 | 1202 + the lead's batch 37 | pedestrian_flow "two walkers ... (closest 0.04 m, passed true; camera 24.3 m off, strides 1, flow on)" | **not found**: no sidestep at all with every precondition met; the message now also prints what each saw of the other in CrowdFlow's grid, their group ids, layers and visibility | - |
+| 11101 | weather_la "rain: a splash lands on a car's roof (6142.71 m against 6143.56 m)" | the first upright car in the group was one an earlier file had sent flying, 6 km up and falling between the splash and the read | a car at rest within 400 m of the player |
 | (8101) | - | `CrowdFlow._pass_door()` sent walkers in at shop doors without sparing `no_trim` (the staging meta the flake rules promise every system leaves alone) | spares them now |
 | 8101 | service_vehicle "a tow truck is sent (physics budget full)" | PhysicsBudget at its 500-body cap in a busy city | the check gives the truck room in the cap for the send |
-| 8101 | car_panic "a driver mounts the clear kerb ..." (up false) | **not found** (the lead hardened its staging on main, batch 35; still seen once) | - |
+| 8101, the lead's batches 35 / 37 | car_panic "a driver mounts the clear kerb ..." (up false, never a KERB panic) | the test found the kerb clear, then placed the follower and waited two ticks before `CarPanic.start()`, which looks again: a walker of a busy shard had stepped onto the kerb and the driver rightly swerved | the follower is placed and the panic started in the same frame the kerb was found clear (also in the retry loop) |
+| batches 35-37 (the lead) | street_furniture "the furniture moves nothing in a downtown block" (rebuild signature) | trash cans and parked cars roll only while `PhysicsBudget.can_spawn()`, and a busy shard's city sits at the 500-body cap, so builds of one block differed | the check's builds run with the cap lifted |
 
 **Runs** (each `SHARDS=3`, ~30 min, a shard peaking at ~3.4-3.5 GB): see the table at the end of
 this section.
@@ -26693,6 +26697,53 @@ chips that bounce and skid, BlastDebris' burning pieces with trails), the glass 
 (SHATTER records plus shards timed by the wave's travel at 343 m/s) and the refracting pressure
 wave stay as the second and third passes made them.
 
+**Round 5: the lead's five-case strips** (rocket at noon from 60 m, a car at golden hour from 20 m,
+a car at night, a petrol pump at noon, a chain of three cars: `CHAIN=1` on blast_room_shot.gd parks
+two more cars beside the first). Worst first, as judged frame by frame:
+1. **The flat beige dust band.** Bisected with A/Bs: three particle layers stacked into one wall
+   (BlastFX's ground kick puffs, BlastAftermath's dust wave, WeaponFX's skirt); the volume's own
+   dust ring rolls fine. `Blast4.dust_roll()` replaces the first two (the kick keeps its grit) with
+   a lit rolling front: fast low creepers, rollers that start 0.12 s later and lift and curl, and a
+   low hanging haze, on BlastFX's lit smoke with the variety tint. `BLAST_DUST_ROLL=0` the old layers.
+2. **The cap a uniform mid grey at 4-8 s by day.** `value4` (blast_volume.gdshader, set by
+   `dress_volume()`): the cooled plume's albedo rises with age (pale where the sun reaches it), its
+   ambient is pulled down and its sun term steepened, so the folds read dark and the tops pale.
+   Never on fire or dust. `BLAST_VALUE=0` the old grey.
+3. **The chain's flare caught as a white disc.** It grew to 4.2 radii over 0.13 s: now 3 radii over
+   0.1 s (`flare_grow_radii`, `flare_fade_seconds`; off with EXPLOSIONS_4=0).
+4. **Debris read as dots.** Every third burning piece is a bent sheet of panel (`panel_mesh()`, two
+   quads, drawn both sides), the rest 1.2-1.9x bigger, the trails nearly twice as dense.
+   `BLAST_CHUNKS=0` the old pieces.
+Still open: the night cap fades to a faint maroon blob (lit from below too weakly by its fires), the
+stem thins away by 8 s, the burning fuel on the road and up the wreck's sides, the crater at 5 m.
+Stills from 24 on, on `shots/explosions-4`.
+
+**Round 6: night, stem, wreck fire, crater** (the lead's next list, in order):
+1. **The night cap faded to a faint maroon blob.** The fires reached it only by a 3D falloff over
+   their reach, and that was multiplied into soot's near-black albedo. `under4` (blast_volume
+   .gdshader, set by `dress_volume()`, `Blast4.underlight_gain` 0.5): each fire lights the smoke
+   above it with a broad falloff along the ground and a long one upward, shaded by the smoke
+   between (two taps down), on an albedo floor (lit soot reads by what it throws back), in an
+   orange held near half green for AgX; a quarter of it by day. The night cap is now a
+   mushroom glowing from below. `BLAST_UNDERLIGHT=0` the A/B.
+2. **The stem thinned away by 8 s.** `stem_hold`: the stem stays to the end of the volume's life
+   (gate from 0.82 to 1.05 of it), denser and narrower toward the cap. `BLAST_STEM=0`.
+3. **No burning fuel on the road; flames only on the roof.** A car blast throws two tongues of fuel
+   (`fuel_trail()`: stretched BlastPools, yaw a hash of the spot, flames along their length, no
+   light of their own, capped on their own list) and flames climb the wreck's sides
+   (`side_flames()`: a CPUParticles3D on the car emitting from 40 points round its sills from
+   `_dims()`, dying down over `side_flame_seconds` 14). The pool's flame light is held at green
+   half of red (it drew salmon), its outline kept inside the quad (the clip cut a straight edge
+   along every trail). `BLAST_WRECK_FIRE=0`.
+4. **The crater at 5 m: stair steps along every finger and crack** (texel-sized at ~5 cm a texel).
+   The fingers read their reach from the nearest of 720 angle bins and the specks and cracks were
+   thresholds of value noise: now the bins are interpolated, fingers never thinner than a few
+   texels, specks from a smooth noise with a soft edge, cracks a soft profile fading to their tip
+   (in the height too, so the normal map has no terraces). `BLAST_CRATER=0`.
+Checks: `_round5()` in tests/explosions_4_checks.gd.
+Still open: the pit itself is a flat dark disc at 5 m (no rubble in it, no depth); the burning
+pieces' fire reads as round puffs.
+
 ## 9lb. The camera lens (wave 5, `camera-lens`)
 
 **What.** The camera itself: exposure adaptation, the sun's flare, grain, the bloom's spread.
@@ -27034,6 +27085,256 @@ truck in one run, a red car in the other; the deck is freeway_deck.gdshader, not
 (one line in smoke_test.gd's city_files): street asphalt gets lane wear and pavements / car parks do
 not, the shader applies it and 0 is the old road, the switch, the camera row and its staging
 script. Stills on `shots/rc2-chase-cam`.
+## 9lg. The pale box round the player's car (wave 5, `chase-box-bug`, branch `wt/chase-box-bug`)
+
+This closes the open item 3 of the chase_cam refcam section (rc2-chase-cam).
+
+**The bug.** Every chase-camera still (shots/rc2-chase-cam 02_after_chase_cam.jpg, shots/driving-camera
+06_after_frame_30kmh.jpg) had a pale translucent "rectangle" across the rear of the player's car. Zoomed, it
+is TWO squares, each centred on a tail lamp, about 0.6 m across, in the haze colour.
+
+**The cause.** `car_lights.gdshader` parts 6 and 7 are the lamps' halos (NightAtmos). Their quads are
+collapsed in the vertex stage only when `night_atmos.z` (the halo gain) or the distance fade is ~0 - and
+the gain is 1 by day, so by day each halo is a live camera-facing square whose light is 0. The halo
+branch wrote only ALBEDO (the light can pass 1, so it stays out of the alpha), leaving ALPHA at 1. On an
+additive material both renderers still mix the fog colour in - albedo x (1 - fog) + fog colour x fog -
+and add it over the whole quad: a haze-grey square round each lamp of every car whose lamps run (a
+driver in), drawn ~0.3 m toward the camera so it lies over the bumper. The player's car was the only one
+close enough to notice. The street lamps' halos (night_halo.gdshader) never had it: they are
+`fog_disabled`.
+
+**Why the earlier search missed it.** It IS a child of the car (NightLights), but
+`Vehicle._refresh_lights()` sets `_night_lights.visible` back to "lamps running" whenever it differs, every
+tick - so hiding the node (CHASE_AB, the bisection) was undone before the frame was drawn. Toggle render
+`layers`, or swap the material, to take a scripted node out of a frame. The probe
+(`tools/chase_box_bug/probe.gd`) proves it in one load: the same paused frame with the fixed shader and
+with main's shader code swapped in at run time (`car_lights_old.txt`); `MODE=classes` / `MODE=bisect`
+toggle drawables by their layers.
+
+**The fix.** `shaders/additive_fog.gdshaderinc`: `af_cover(light)` returns the light with its coverage
+(max channel x 64, clamped) in the alpha and the colour divided by it, so ALBEDO x ALPHA is the light
+exactly, the fog still dims it, and the fog colour is added only where there is light - nothing where
+there is none. Used by car_lights' halo branch and the four other additive shaders that left ALPHA at 1
+(`fw_flare` - road flares burn by day too -, `muzzle_flash`, `tracer_streak`, `ballpark_glow`). Rule: an
+additive shader is `fog_disabled` or writes a coverage alpha.
+
+**Checks.** `tests/chase_box_bug_checks.gd`: every `blend_add` shader in shaders/ is fog_disabled or writes
+ALPHA; car_lights' halo branch uses af_cover; a GDScript copy of af_cover gives the light back exactly and
+no alpha for no light (its gain is the include's); a car's lamps still wear car_lights.gdshader.
+
+**Stills** on `shots/chase-box-bug` (01 before, 02 after, 03 the crop). Frame cost: unchanged (shader-only,
+no geometry or draws). Not verified on Forward+ (the same fog mix applies there; the fix is the alpha, which
+both renderers blend the same way).
+
+## 9lh. The web build after wave 4, 2026-11-01 (fleet wave 5 session `web-build-5`, branch `wt/web-build-5`; VISUAL_ROADMAP "?")
+
+**What was asked.** Export the web build after wave 4, load every bookmark one tab at a time, fix
+shader / WebGL / memory errors, check the pck budget, the wasm heap, the sampler limit and the
+uniform blocks, extend `tests/web_build_checks.gd`.
+
+**How.** main `bb03d731` (build 402+, batch 32), the 4.7.2 `web_nothreads_release` template,
+`--export-release "Web"` (43 s), `tools/webshot/bookmarks.sh` (headless Chromium 1243, SwiftShader,
+960x540, 7 minutes of streaming, `KEY=k`, `PROBE=1`).
+
+**Result.** All eight bookmarks load with a clean console (only the template's occlusion warning
+and Chrome's autoplay notice). Downtown noon, night street, golden hour, storm, hills and the beach
+match wave 4's stills. Size: `index.pck` 609.3 MB (+8.5 since batch 25; budget 650), `index.wasm`
+39.5 MB. The wasm heap is 720 MB after load and takes ONE growth step to 821-823 MB while
+streaming (Emscripten's step is capped near 96 MB; 9jz's runs stopped at 723) - a fifth of the
+browser's 4 GB. JS heap at the end 0.73-0.76 GB. Web Audio buffers climb as in 9jz (the loop
+restarts copying their buffer).
+
+**Fixed: MacArthur Park drowned in glare in the browser.** At the `macarthur` bookmark a wall of
+green / white / red / blue glare grew over the park within minutes and lit the hero cyan or green
+(`01_` / `02_` stills); natively (opengl3, same spawn, and with every frame forced to 15 s) nothing.
+Bisected in the browser with an autoload probe of the REAL main build (`tools/web_probe/`, below):
+the glare goes the frame the park fountain's particle plume (`FountainPlume`, 420 lit billboard
+particles, `LandmarkMacArthurPark._build_fountain()`) is hidden, and stays through each of
+fixed_fps 30, a restart, no damping, no scale curve, unshaded, local coords. The same builder in a
+small web room (`tools/web_probe/fx_room.tscn fountain=1 slow=20000`) does NOT reproduce it, so
+the root (something about this long-lived system in the city at 20-60 s a frame) is not found.
+Decision: on the web the plume is left out (`LandmarkMacArthurPark.plume_allowed()`,
+`?fountain_plume=1` brings it back); the jet column and the boil carry the fountain. wave 4's
+small green dot at the fountain was the same thing. The golf course's 70-particle copy
+(`GolfFountainPlume`) is unchanged and unverified.
+
+**Fixed: `Emergency._scan()` script error** (`is` on a freed CarDamage) under long frames - main
+fixed the same line meanwhile; the merge keeps main's.
+
+**Not fixed: the hero reads blue in the rain again** (`04_`, top and hair ~(25, 46, 100) in the
+browser at the rain bookmark). Not the stale radiance of 9ja: with the sky held at QUALITY,
+reflections off (`REFLECTION_SOURCE_DISABLED`) or the whole Weather node hidden he stays blue, and
+`?sky_settle=0` changes nothing. Natively, and in 9ja's small `hero_rain.tscn` with the web's sky
+settings (`WEBQ=1`), he is neutral (52, 48, 45). Lead for the hero's owner: the velour's custom
+`light()` lobe and Forward+ gain from wave 4's hero close-up pass came after 9ja's fix; next step
+is `glob:wet_world=0` and swapping hero_cloth for a flat material in the city (the probe's
+`ap_hide` steps). The pale straight-edged wedges in the same rain sky are not the rain emitter
+either (hidden with Weather, they stay).
+
+**Checks** (`tests/web_build_checks.gd`): every shader's source with its includes under 200 KB
+(the most: building, 186 KB after the merge with main - close to the budget) and its constant arrays under 1,600 items (building's vinyl glyphs,
+1,240), the counter proven on a planted source; the fountain plume gated on the web and built
+everywhere else. CI (`godot-check.yml`) prints the pck and site size after the web export, warns
+over 650 MB and fails over GitHub Pages' 1 GB.
+
+**Tools.**
+- `tools/webshot/web_budget.gd`: every web budget per shader in seconds, headless (samplers, uniform
+  block, varyings, source KB, constant items; top N).
+- `tools/webshot/webshot.js` `MORE=n MORE_GAP=ms`: more shots after the first.
+- `tools/web_probe/export_probe.sh`: the real main build with `web_autoprobe.gd` as an autoload
+  (`MAIN=` another main scene, `AUTOPROBE=0`, `OUTDIR=`). The probe (query string): `ap_settle`,
+  `ap_every`, `ap_n` reports of exposure / glow / fog / camera / lights / particles near the camera
+  and the frame as `PROBE_IMG` (decode the base64 PNGs out of the LOG); `ap_hide=a,b,...` one step a
+  report: a node-path substring to hide, `plume:<fixed|restart|nodamp|nocurve|unshaded|local>`,
+  `env:<refl|amb|fog|glow|skyq>`, `glob:<name>=<v>`; `ap_stage=fire|hose|medic` (Emergency's
+  staging); `ap_slow=ms` / `ap_out=` natively. NOTE each frame read is the PREVIOUS frame: a hide
+  shows one report later.
+- `tools/web_probe/fx_room.tscn`: effects side by side under the city's Environment (FireSmoke,
+  a fire puff, spray, the hose water, a lit puff; `fountain=1` the real MacArthur fountain,
+  `plume=unshaded`, `slow=ms`), native and web, prints FX means.
+- `tools/web_hero_rain/hero_probe.gd`: `full=1`, steps `aerial`, `quality`, `scan`, `hidescreen`.
+- Harness traps found: `tools/webshot` holds a `.gdignore` (scripts there are not exported); a
+  `pgrep -f` / `pkill -f` on a pattern in your own command line matches the shell itself; a tab left
+  over from a run holds port 8123 (`EADDRINUSE`); probe.js's "gl uploads" counter adds the whole
+  wasm heap on every call (it reads terabytes; ignore it).
+
+Stills on `shots/web-build-5`.
+
+
+## 9li. The night game from the hill (refcam3 `stadium_night`, 2026-11-02, agent branch `wt/rc3-stadium-night`)
+
+Number is provisional (the lead renumbers on merge).
+
+**The camera.** A new wave-6 reference view, one row in `tools/refcams/cameras_w6.json`:
+`stadium_night`, eye (1965.6, 235, -3155.6), yaw -173.6, pitch -14, fov 48, 21:00 clear - on the
+bank 98 m over the north lot, 380 m out past centre field (Ballpark frame u 0, v 380), looking back
+over the outfield pavilions into the floodlit bowl with downtown's towers glowing beyond it: the
+famous view of the hillside ballpark. Run it with `REFCAMS_JSON=tools/refcams/cameras_w6.json
+python3 tools/refcams/refcams.py run build/refcams/<label> --only stadium_night`. **From this eye the
+city draws the ballpark's FAR copy** (the landmark's chunk is not FULL 380 m out), so every fix had
+to land in the far copy too.
+
+**What gave it away** (the before, `shots/rc3-stadium-night/01_before_stadium_night.jpg`), in the
+order the eye lands on it:
+1. The lot - two thirds of the frame - was stickers: past the 3D cars' 120 m (and everywhere in the
+   far copy) each car was a flat rectangle painted into its stall, blown white under the pools.
+2. The stands were four flat pastel stripes: no crowd at the hills' distance, the per-seat crowd
+   averaged away into the tier colour.
+3. The light banks were small dots that lit no air: no bloom, no haze shafts, the glow dome only
+   from 450 m.
+4. The field was empty: a night game with nobody on it.
+5. The planted medians and the planted slope were flat bright-green rectangles; the far copy had no
+   palms at all (CLAUDE.md's far-landmark rule: planting stays in the far copy).
+
+**The fixes** (`StadiumNight`, `scripts/world/stadium_night.gd`; one hook line in
+`BallparkBuild.build()` after the glow, one in `_bank()`; `STADIUM_NIGHT=0` is the A/B and every new
+shader uniform defaults to the old look):
+- **Box cars in every filled stall** (`far_cars()`): the stalls `Ballpark.stall_car()` fills (4,435
+  on the default seed) each get a 22-triangle box car (body with tumblehome, glasshouse) in both
+  copies, in 160 m tiles drawn to `FAR_DRAW` 560 m; in the detailed copy the tiles over the 3D cars
+  (q < CAR_REACH) are on BallparkBuild's 80 m grid and start at CAR_DRAW 120, where the 3D ones
+  stop. Shadowless. `shaders/stadium_car.gdshader` lights them with the lot's own pole pools (the
+  pole grid copied from ballpark_lot, Ballpark's numbers checked), tops more than flanks, glass
+  dark with a sheen, the rocker band dark. Within `box_reach` (440 m: inside every tile's range) the
+  lot shader paints a painted car as its box's soft contact shadow instead.
+- **Bank blooms and shafts** (`bank_mesh()`, `shaders/stadium_bank_glow.gdshader`): BallparkBuild
+  notes each of the ten banks (`note_bank()`); one mesh a copy, a camera-facing bloom per bank
+  (2.2x the bank's size, never under `min_angle`, a hot core and a soft skirt reaching zero inside
+  the quad, 0.15 from behind, 1 head-on) and a ribbon of lit haze from the bank toward the field,
+  turned to the eye and faded out for an eye inside the bowl (it veiled the top deck from the
+  field). Additive, unshaded, `bp_flood()` (nothing by day). The glow dome starts showing from 60 m
+  (`away_from`; its strength unchanged: at 1.8x the ground haze read as a disc on Forward+).
+- **The crowd from the hills** (ballpark_seats `night2`): a section between two aisles is fuller or
+  emptier than its tier, now and then a five-row block thin; where the per-seat detail is under a
+  pixel the average is a MOSAIC of 3-seat x 2-row groups (their own shirts, skin, occupancy) instead
+  of one tint; the hand-over to the average starts sooner (half-resolved rows beat into rings round
+  the bowl on the near copy); the rows under each deck's overhang (and the top deck's roof) take a
+  fifth of the flood plus a warm concourse light (the tiers are told apart by their fills, checked).
+- **Players on the field** (`players_mesh()`, `shaders/stadium_player.gdshader`): nine fielders in
+  home whites, the batter side-on with his bat, the umpire, two base coaches and a runner, ~60
+  triangles each, one mesh, lit by the flood after dark, to 1.4 km.
+- **Planting** (ballpark_lot `planting2`): medians and the planted slope are shrub clumps with ice
+  plant flowers over bark mulch, not a lawn; the far copy plants the lot's 398 palms
+  (`BallparkBuild._palms`, shadowless by `ArenaGrounds._far_shadows`, drawn to `PALM_DRAW` 900 m).
+
+**Look fast:** `tools/stadium_night/park_shot.tscn` builds the park alone (the city's Environment
+and DayNight, a dark ground plane, no terrain or city) at its real world place in a minute
+(opengl3) or ~3 minutes (lavapipe Forward+): `OUT`, `HOUR`, `EYE`, `FOV`, `FAR=1` the far copy,
+`SHOTS=` more views from one build.
+
+**Proof.** opengl3 refcam before/after (`01_before` / `02_after`), Forward+ (lavapipe) far copy A/B of
+the refcam eye on park_shot (`03`/`04`), and closer views. Numbers in the final message / the
+shots README. Frame cost at the refcam (opengl3 GEO): see the shots README.
+
+**Not done.** The box cars carry no headlights (a night game's lot is parked); the outfield pavilions'
+backs and the scoreboards' backs are still plain dark boxes; the near copy's 3D cars are unchanged;
+no ramp towers; no traffic on Stadium Way / Sunridge Dr (HillRoads are not driven); the players
+stand still (no pitch, no swing). The hills right of the bowl (terrain, not the park) still show
+faceted crags.
+
+## 9lj. The pier by day from the deck (fleet wave 6, `rc3-pier-day`, refcam pier_day)
+
+**The camera.** A new reference view, `pier_day` in `tools/refcams/cameras_w6.json`: Gullwing Park on
+Rando Pier at 15:00 clear, from the promenade at eye height (true world (-1020, 8.1, -352), yaw 115,
+pitch 6: park frame (-80, -2)), toward the wheel, the coaster's lift, the carousel and the KELP
+CRACKER station, the booths on the right and the sea at the pier's end. Framings from the sea end
+(the ocean over the rail, the park behind) were tried (`-1165,8.1,-347,-118,2`): they show more
+water but nobody is out there; the brief asked for the deck among the crowd.
+
+**What gave it away** (main 484a7897, the before on `shots/rc3-pier-day`), in the order the eye
+lands on it:
+1. **The deck** - 40 % of the frame - was one tiled plank photo (`PropFactory.pbr("planks")`): a
+   smooth tan sheet at a grazing angle, no boards, no gaps, no wear. A real pier deck is
+   transverse boards, grey-weathered, dark gaps, a polished path down the middle, grime at the rail.
+2. **Nobody there**: 48 PierGoers for 16,000 m2 of deck, eight people in the frame at 15:00.
+3. **Showroom-clean paint**: the white coaster steel, the stands, the canopies and rails as if
+   painted that morning; nothing salted, faded or rust-run.
+4. **Cut blocks**: the food stands and booths' boxes with knife-edge corners.
+
+**The fixes** (`PierDay`, `scripts/world/pier_day.gd`; `PIER_DAY=0` the A/B - the pier exactly as
+on main):
+- `shaders/pier_deck.gdshader` (the deck slot of `PierPark._static_mesh()`): worked out per pixel
+  from the mesh's own vertex coordinates, which ARE the park frame (no anchor uniform needed):
+  boards `BOARD_W` 0.145 m across the pier with an 11 mm gap, butt joints every 4.9 m staggered per
+  board, each board's tone by hash (silver-grey, a darker one, 7 % newer reddish replacements),
+  grain along the board, patches of silvered open grain, nail pairs over 0.61 m joists, a cup and a
+  tilt per board (into NORMAL, faded under a pixel), a polished wear path down the promenade, grime
+  within 1.6 m of the rail (the shader takes `PierPark.OUTLINE` as a uniform array of 12),
+  stains, gum. Gaps and joints are box-filtered by the pixel (`line_cover()`), so the far deck
+  goes to its mean, not moire. The deck's side faces are dark timber with seams. Linear on both
+  renderers (color_space.gdshaderinc); wet with `road_wetness`.
+- `pier_park.gdshader` gains `weathered` (0 by default; `PierMesh.material()` sets
+  `PierDay.weathered()`): on paint, steel, canvas, signs and boards - sun fade (16 % toward grey),
+  a blotchy tone over metres, salt grime within half a metre of the deck, rust runs and mottle on
+  the light paint and galvanised steel; each term to its mean under a pixel. Uses the REST
+  position (the rides' animation happens after), so the pattern turns with the wheel.
+- The crowd: `PierPark.people_steps()` adds `PierDay.extra_people(hour, weather)` after the 48's
+  rolls (own stream `pier_day_people`): up to `EXTRA_PEOPLE` 110 at the busiest hours
+  (`density()`: 12:00-19:00 full, thinning to 0.15 by 23:30, 0.08 overnight; rain 5 %), 70 % on
+  the promenade's nodes (`PROMENADE`), 45 % in twos and threes. All in the crowd cap.
+  `PierDay.rail_spots()` (65) join the chunk's `vendor_queue`: people stop at the open rails and
+  the sea end facing out, clear of benches, lamps and stands.
+- Stands and booths chamfered (`PierDay.bevel()`, PierMesh.box's vertical-edge bevel).
+
+**Numbers** (refcams, opengl3 1280x720, pier_day): before p5/p50/p95 53/146/208 sat 0.351, 1.15 M
+triangles / 414 draws (shadows 0.37 M); after 40/155/208 sat 0.316, 1.46 M / 565 (shadows 0.48 M).
+The rise is the crowd (~25 more people in view; each near person is ~12 k triangles); the deck
+shader is no geometry. `PIER_DAY=0` gives the before.
+
+**The ten cameras** (refcams.py on cameras.json, PIER_DAY=0 then on, same tree, compare): eight ok;
+`freeway` flagged by traffic placement (a semi and a taxi in one run only; the pier is 3 km off -
+traffic noise, as in 9iz); `pier_night` draws +18 % (460 -> 543), tris +5 %, the picture the same:
+the extra people at 21:00 are each a draw even as a dot on the pier. The evening curve was then
+eased (full to 19:00, half by ~21:15), which takes about half of that back; not re-measured.
+
+**Tools.** `PIER_DEBUG=1` prints the people count (and a lost crowd-room) from people_steps;
+`tools/pier/compile.gd` still builds the park; checks `tests/rc3_pier_day_checks.gd` (one line in
+smoke_test.gd's city_files).
+
+**Not done / not verified.** The Mac (Forward+) - see the lavapipe note below. Nobody rides (the
+gondolas, coaster and carousel are empty: 9ca's gap). No anglers with rods at the sea end. The
+coaster station's grey gate blocks and the stands are still simple boxes. The sea under the pier
+is not in this view.
 
 ## 9d?. Palm crowns without the flecks (fleet wave 6, `palm-shimmer`, branch `wt/palm-shimmer`)
 

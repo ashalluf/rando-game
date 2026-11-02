@@ -14,6 +14,7 @@ render_mode unshaded, blend_add, depth_draw_never, cull_disabled, shadows_disabl
 // Colours linear, handed over with cs_out(); the profile reaches zero at the quad's edge.
 
 #include "res://shaders/color_space.gdshaderinc"
+#include "res://shaders/additive_fog.gdshaderinc"
 
 // Length of the quad, metres.
 uniform float length_m = 10.0;
@@ -69,5 +70,8 @@ void fragment() {
 	col *= v_px_scale * heat;
 	// Never right at the muzzle (the flash is there).
 	col *= smoothstep(0.15, 0.9, s);
-	ALBEDO = cs_out(col);
+	// Coverage in the alpha, or the fog colour is added over the whole quad (additive_fog).
+	vec4 af = af_cover(cs_out(col));
+	ALBEDO = af.rgb;
+	ALPHA = af.a;
 }
