@@ -26124,6 +26124,7 @@ into a running gate (check files are `load()`ed lazily, mid-run).
 | the lead's batch 45 | traffic_ai "a car with an exit leaves the freeway down the off-ramp (left false, still a freeway car)" | a real traffic bug: `TrafficAI.freeway_think()` let a car already in the outer lane with its exit coming up pull out to pass a slower car, so it was out of the lane at its off-ramp and missed it (the lead's empty deck, 20855e18, hid it by removing the slow car) | within a kilometre of its exit a car keeps out of passing (`EXIT_HOLD=0` the A/B; gate_flakes_2_checks proves both ways) |
 | 15303 (again) | emergency stretcher | the body had landed 0.57 m up on something standing on the pavement (what stands there goes with the hour and day); the cot pusher steps up only 0.34 m | the down call chooses a spot with nothing on the pavement (a box query) |
 | batches 35-37 | crowd_anim_2 "a walker banks into a bend and straightens after it" | CrowdFlow's sidesteps on the straight are turns too | judged with CrowdFlow off for the bend |
+| 17101 | explosions_4 "the pool's fire lights the smoke" | `Blast3.fire_list()` hands the smoke shader four fires and took the FIRST four registered: older glows and burning cars across town filled them and the fire in front of the camera was left out | the four nearest the camera |
 | (8101) | - | `CrowdFlow._pass_door()` sent walkers in at shop doors without sparing `no_trim` (the staging meta the flake rules promise every system leaves alone) | spares them now |
 | 8101 | service_vehicle "a tow truck is sent (physics budget full)" | PhysicsBudget at its 500-body cap in a busy city | the check gives the truck room in the cap for the send |
 | 8101, the lead's batches 35 / 37 | car_panic "a driver mounts the clear kerb ..." (up false, never a KERB panic) | the test found the kerb clear, then placed the follower and waited two ticks before `CarPanic.start()`, which looks again: a walker of a busy shard had stepped onto the kerb and the driver rightly swerved | the follower is placed and the panic started in the same frame the kerb was found clear (also in the retry loop) |
@@ -28401,3 +28402,215 @@ of them anyway; not timed separately). The far copy of the sign (far_canopy's ri
 plane from past the LOD ring) is built from the same ribbons but drawn in that material's one colour:
 no panels or dust from the basin (under a pixel there anyway). HillScatter's clumps (between
 the shrubs) are RcHills' field, not this one.
+
+## 9ly. The pier at night from the beach, second pass (fleet wave 7, `rc4-pier-night-2`, refcam pier_night)
+
+The pier_night reference camera (eye (-945, 1.8, -235), 21:00 clear) after the first pass (9iz)
+still measured p50 22 and read as a black frame with a few lit dots: the sand, the sea and the sky
+in the bottom tenth of the range, the pier a black slab with its lights on it, nobody about.
+What was fixed, in the order the eye reads the frame:
+
+1. **The exposure on a dark coast** (`CoastExposure`, `scripts/world/coast_exposure.gd`, one factor
+   on DayNight's `tonemap_exposure` line). The night exposure is set for lit streets; on the open
+   sand there is nothing a street has. A camera on the coast opens up `COAST_GAIN` 1.75x, weighted
+   by `coast_weight()` (1 on the sand and over the sea - MacroMap.coast_x + beach_width_at - to 0
+   `COAST_REACH` 160 m inland) and by DayNight's moonlight (`DARK_FROM` 0.6 .. `DARK_TO` 0.95, so
+   the sunset at 17:51-18:36 and the golden hour keep their exposure). No easing: the weight is a
+   smooth function of the camera's place. Untyped (no MacroMap) and kept out of RcPierNight's
+   Landmarks graph, because the sky tools load DayNight without a city.
+2. **The pier lit by its own lamps** (`RcPierNight.dress_material()`, one hook at the end of
+   `PierMesh.material()`; pier_park.gdshader `wash`, `park_wash()`): the real OmniLights fade at
+   90 m and Compatibility has none from the beach, so the steel, stands and rails were black shapes
+   between the points. Every pier_park surface emits its albedo times the light of the two lamp
+   rows (line sources, 1/r with their ends), the midway's `GLOWS` (carousel, arcade, bumper hall,
+   wheel base, stands, the coaster station; points, 1/r^2) and a `WASH_FLOOR`, after dark; under
+   the deck a row of downlights (`WASH_UNDER`) lights the piles and bracing.
+3. **The pier's light on the sand and the sea** (`shaders/pier_wash.gdshaderinc` in beach_sand and
+   ocean; `RcPierNight.push()` from `Weather._push_pier_lights()`): every pier's lamp rows
+   (Weather.pier_light_lines(), the rows the ocean mirrors) as continuous line sources on the
+   horizontal surface, E = I/s * H/r^2 * [u/sqrt(u^2+r^2)] over the row's ends, the deck shading its
+   own side (`deck_side()`: toward the nearest other row), plus RANDO PIER's glows as points. pw_gain
+   0 (the default) adds nothing.
+4. **People** (`RcPierNight.night_strollers()`, one hook at the end of `BeachLife.build()`): clothed
+   `BeachWalker`s (`clothed` -> BonfireFigure.clothe()) on the wet sand, up to `STROLLERS` 7 a
+   chunk within `PIER_REACH` 420 m of a pier, 19:18-23:30, none in rain, in the crowd cap, hashes of
+   seed + chunk. `RC4_DEBUG=1` prints how many a chunk got.
+
+**Numbers** (refcams, opengl3, ten cameras, `RC4_PIER_NIGHT=0` vs on, same tree): see the
+compare table below. pier_night p50 22 -> 39, p95 45 -> 72, crush 3.9 % -> 1.6 %.
+
+**Checks**: `tests/rc4_pier_night_2_checks.gd` (exposure by place and hour, the wash and its glows,
+the sand / sea rows and deck sides, the strollers by hour, place and weather, the A/B).
+
+**Not done / not verified**: Forward+ on the Mac (the wash and spill are emitted in renderer
+space like the rest of pier_park / beach_sand / ocean; auto exposure on Forward+ stacks on the coast
+gain as on every other camera); the pier's root and its sand pools are off this camera's frame; the
+bonfire rings belong to rc4-bonfire-night.
+
+## 9lz. The beach bonfires at night (2026-11-02, wave 7, branch `wt/rc4-bonfire-night`)
+
+The task: a new reference view `bonfire_night` - the beach at 21:00 clear at eye level among the
+bonfire rings with groups round them, the surf and the pier's lights beyond - judge it, fix the
+worst three to five things.
+
+**The camera** (`tools/refcams/cameras_w7.json`, created here in cameras_w6.json's format): eye
+(-862.6, 1.6 agl, -56.7), yaw 44, pitch -5, fov 55, 21:00 clear, behind the group round ring -3
+toward Rando Pier's wheel, ring -5's fire 50 m down the beach in front of the pier. Its
+`bonfire_lit: 1` key (refcams_shot.gd `_bonfire_lit()` / `_bonfire_lit_for()`) sets BONFIRE_LIT
+before the city loads (a ring's group is planned when its chunk builds) and `Bonfires.force_lit`
+per camera (the key, or -1 for a camera without it, once a run has set it). Run:
+`REFCAMS_JSON=tools/refcams/cameras_w7.json python3 tools/refcams/refcams.py run <dir> --only bonfire_night`.
+
+**What read fake, in the order the eye found it, and the fixes** (`RC4_BONFIRE=0` puts all back):
+1. **There were no rings.** On main the view was empty tan sand: `Bonfires.build()` dropped a
+   ring outright when a palm (0.8 m), the lifeguard tower or a BeachAmenities station (the
+   restroom: 8.8 m, added after the bonfire pass) stood within its group's room - all three rings
+   by this eye, about two in five along a palm beach. Now `Bonfires.slide_clear()` slides it along
+   the shore (`SLIDES` 3, 6, 9, 12 m either way, the across fraction kept, still clear of the bike
+   path and the kept-off stretches) to the first clear spot, and the rings built keep 2 x
+   GROUP_CLEAR from each other. The plan (`rings_in()`) stays pure; only the build moves a ring.
+   LOD pools still use the planned spot (a few metres off, invisible from the air).
+2. **The fire was a brown puff.** The flames were emitted under the 0.62 m rim, so a camera on
+   the sand saw only their cooled tops. Under rc4 the body starts at the rim, rises a little
+   faster and the tongues are bigger, on their own ramp that fades out while still orange (the car
+   fire's ramp left the tops as brown blobs floating over the fire).
+3. **A fire did not read from down the beach.** `shaders/bonfire_glow.gdshader`: one shared
+   camera-facing additive quad over every lit ring (`BonfireFire` `Glow`, GLOW_SIZE 3.4 m, drawn to
+   2.4 km), fog-free and zero at its edge (the additive-fog rule), never under `min_angle` 0.02 rad
+   of the view, its hot core coming in only from 10-45 m (close up the real flames carry it: with
+   the core near, the fire blew into a ball with a halo disc), flicker on a phase hashed from where
+   it stands. Linear on both renderers (cs_out).
+4. **The firelight floodlit the sand.** The near pool is 0.8x as strong with falloff 2.8 (was 1.7)
+   and the omni's attenuation 2.0 (was 1.3): the warm light now dies within a few metres of the
+   group, as a fire's does. The LOD pools are unchanged (`pool_mesh(false)`).
+5. **The sand at 21:00 was dusk tan.** beach_sand.gdshader `night_look` (set by
+   `PropFactory.beach_sand_material()`): the dry sand's albedo moves 45 % to a cool grey and 0.82x
+   brightness, full from 19:48 to 04:12 by `city_hour` (sun_direction is the MOON's at night, so a
+   sun-elevation gate never fired). Dusk (the sunset camera at 18:36) and dawn are untouched.
+
+**Numbers** (refcams, opengl3, before = RC4_BONFIRE=0, which is main): p50 52 -> 43, p95 69 ->
+107, p99 82 -> 182, CCT 5336 -> 3764 K. Frame cost 1,535,914 tris / 2,251 draws -> 1,874,669 /
+2,341; +322k of it is shadow triangles: the ring now exists, so the nearest fire's omni shadow
+cubemap (the bonfire pass's own SHADOW_REACH design) draws; the glow is one quad a fire.
+
+**Not done / unverified.** Nothing seen on Forward+ (the Mac): the glow's additive core and the
+cooler sand need a look there (the glow is linear-on-both, the sand's change is a mix inside its
+albedo). The blankets read as flat pale sheets under firelight; the fire ring's outside is a
+plain grey at this range; the beach restroom block still reads as a box; the group's poses do not
+move (baked figures). Other cameras (`compare`, RC4_BONFIRE=0 vs on): sunset and beach unchanged (pixel 0.01);
+pier_night FLAGGED by design: its sand is the moonlit grey now (p50 22 -> 19, -16 mired, sat
++0.055; the first, stronger night look read navy there and was toned down to 0.45 / 0.82).
+
+## 9ma. Broadway's theatre district at night: the broadway_night refcam, 2026-11-02 (agent branch `wt/rc3-broadway-night`)
+
+**The camera.** A new wave-6 reference view, `broadway_night` in `tools/refcams/cameras_w6.json`:
+eye level in the middle of Broadway at the 6th St crossing (`eye` 2991, 1.7, 199, yaw 188, pitch 7,
+FOV 55), 22:00, clear, looking south down the theatre district - the Empress (east, left) and La
+Paloma (west, right) with their blade signs and marquees in front, the street receding past the
+other palaces, the 6th St signals overhead. Seven street cars are staged on Broadway itself by the
+row's `street_cars` key (`axis` "x", at 2991). Run:
+`REFCAMS_JSON=tools/refcams/cameras_w6.json python3 tools/refcams/refcams.py run build/refcams/<label> --only broadway_night`
+(~12 min on this box, 6.6 GB peak).
+
+**What read as a game (in the order the eye found it) and what was done** (`BroadwayNight`,
+`scripts/world/broadway_night.gd`, every hook one line, `BROADWAY_NIGHT=0` the old look bit for bit):
+1. **The premiere searchlights were six solid white rods** - the brightest thing in the frame,
+   converging over the street. From the street the cone's alpha ran past 1 down most of its length.
+   `nightlife_beam.gdshader` `look3`: a soft knee (`street_knee`), `street_gain` 0.3, brighter near
+   the lamp; from the air (NightFlight / NightAerial's branches) nothing changes. Set by
+   `BroadwayNight.beam()` in `SkyBeam._ready()`.
+2. **The blade signs were half spelt or dark** in most stills: the old sequence spent 4.2 of every
+   9 s spelling the name row by row, 2.2 flashing and 0.6 dark. `broadway_sign.gdshader` `look3`:
+   spell in 1.6 s, hold 11 s, three quick flashes, a breath of dark (lit ~75 % of the cycle).
+3. **A street tree hid the Empress' marquee** from up the street. `BroadwayNight.keeps_tree_off()`
+   (asked by `CityChunk._add_tree()` after every roll it makes, so nothing else moves): no street
+   tree on Broadway's pavement along a palace's frontage, `TREE_CLEAR` 4 m past it.
+4. **The auditoriums were pale glowing boxes**: the brick's tint (0.86, 0.74, 0.66) over the
+   brick texture's own mean drew a pale pink plaster, and where a low neighbour exposed the side wall
+   (the Empress' north wall at 6th St: x 3008-3046, z 216) it was a 24-33 m blank slab lit blue-white
+   by the lanterns. Now `BRICK_TINT` (0.56, 0.34, 0.26) and `side_dress()` (from
+   `BroadwayTheatre.build()` after `_auditorium()`): pilasters on the bents, a plinth course and a
+   coping, the palace's name painted high in faded cream with PICTURES under it, two steel exit doors
+   under caged lamps, a switchback fire stair of thin stringers and rails (~980 triangles a wall,
+   on the palace's own surfaces: no draw added). Seen in the `broadway_side` still (the same load,
+   `EYE=2999,1.7,190,200,5`).
+5. **The marquees** burn brighter at night (`SIGN_NIGHT`: bulbs 8, soffit 6, board 2.6, letters 4.2),
+   the warm pool under each is 1.25x wider and 1.45x stronger, and the light under the marquee reaches
+   17 m at 2.2x the lamps' level (meta `lamp_gain`).
+
+**Numbers** (refcams, opengl3, 1280x720): before p5/p50/p95 4/30/171, after 5/33/189 (the beams'
+glare out of the sky, the lit sign and the marquee in); triangles 6.07 M -> 6.03 M, draws 3,018 ->
+3,036 (no new node: the side dress is on the palace's own surfaces). The ten original cameras
+against main: 3 flagged (street_noon, street_night, freeway), each by traffic alone (a bus or a
+truck elsewhere in the frame); street_night's searchlights are fainter too.
+
+**Known flaw.** In the painted name some curved letters (the R of EMPRESS, the U of PICTURES) drop
+out or draw faint - not z-fighting (7 cm off the wall changed nothing), something in
+`ShopfrontKit._text_geo()`'s outlines when lit (the blade sign's emissive letters hide it). It reads
+as worn paint; a real fix would bake the ghost sign into a texture or decal.
+
+**Traps found.** `tools/broadway_probe.gd` prints no palaces: under `--script` the autoloads do not
+exist, Broadway's dependencies fail to compile and `palaces()` returns nothing (a misleading empty
+list, not a regression; the game and the checks see all eleven). `ShopfrontKit._text_geo()` dropped
+the A of "THEATRE" in a painted line (see the known flaw), so the ghost sign says PICTURES. The `build/` folder needs a `.gdignore` before `--import`, or Godot imports every
+refcam PNG. `pkill -f <pattern>` from the tool shell kills the shell itself when the pattern is in
+its own command line: kill by PID. A Forward+ small scene of the Broadway blocks
+(`fwd_block_shot.tscn`, BLOCKS=home + two EXTRA blocks, 800x450, one worker thread) was OOM-killed
+at 13.4 GB on this 15 GB box three times, so the night levels are NOT verified on Forward+ - Mac
+eyes needed (the bulbs at 8 and the soffit at 6 go through AgX to warm white, the beams only got
+fainter, the brick is a plain source_color tint like every landmark wall).
+
+**A/B, checks, probes.** `BROADWAY_NIGHT=0`. `tests/rc3_broadway_night_checks.gd` (one line in
+smoke_test.gd's city_files): the camera row and its staging, the sign material's pass and the A/B,
+the held sequence, the brick tint, the side dressing on both walls (none with the pass off), the
+beam's and the marquee light's pass, the trees kept off a frontage. `tools/rc3_broadway_night/pick.gd`
+loads the city headless and prints what a grid of camera rays from an EYE lands on (which node is
+that wall?). Stills on `shots/rc3-broadway-night`.
+
+## 9mb. The canals by day from a footbridge (wave 7, refcam `canals_day`, branch `wt/rc4-canals-day`)
+
+**The view.** A new reference camera in `tools/refcams/cameras_w7.json` (created here, the
+cameras_w6.json format): Marisol Canals at 11:00 clear, standing on Heron Canal's southern
+footbridge (bridge at (-773.9, -55.9); eye (-772.3, 3.4 agl, -56.3), yaw 2, pitch -6, fov 55)
+looking north down the canal, the bridge's railing across the bottom of the frame, the houses on
+the water, docks and boats, the next footbridges and the front range beyond. The first eye stood
+on the arch's crown, where the crown newel filled the frame: moved 1.6 m off the crown, 0.9 m
+back from the rail.
+
+**What gave it away, in the order the eye found it, and the fixes** (`Rc4Canals`,
+`scripts/world/rc4_canals.gd`; `RC4_CANALS=0` is the A/B, the canals exactly as before):
+- **A dark strip down both sides of every canal.** Not paint: a slot. The coping's water face
+  stopped 5 cm under the bank's top (`BANK_TOP_Y - 0.05`) while the bank's top row, between
+  COPE_IN - 0.4 and COPE_IN, drops 27 cm, so between the coping and the grass you looked through to
+  the void (dark navy in the city, sky grey in block_shot). Found by tinting the coping top red and
+  its face magenta: the strip was neither. The face now runs down past that row
+  (`Rc4Canals.cope_foot()`). The face and the canal end walls also take the ground lift
+  (`Rc4Canals.lift()`): they were built at plain WALK_Y / COPE_Y, which is right where the relief is
+  0 and half a metre off where it is not (0.3 m at z -20, the site's south edge).
+- **The water was a cyan swimming pool.** On Compatibility the engine reflects the sky radiance
+  itself (shot `06_debug...`: the shader's emission off, the water still bright cyan with clouds
+  in it), and the shader's emitted mirror - the sky, the house fronts, the sun - was added on top,
+  so every mirrored house was washed out by a doubled sky. canal_water.gdshader's `rc4`: on
+  Compatibility SPECULAR 0 and the mirror at full gain (the shader carries the sun's glint); the
+  ruffle at 0.45 (still water, a faint breeze); the body a murky green-brown with mottling. Forward+
+  keeps SPECULAR 0.5 and SSR under its `mirror_forward` (not verified on lavapipe this session).
+- **The banks** were a clean lawn strip with a wide stripe of bare mud: the mud is a narrow wet
+  margin now, the grass less acid and clumpier (canal_bank.gdshader `rc4`), and the banks carry
+  more reed clumps, shrubs in drifts and a flowering ground cover under the coping
+  (`Rc4Canals.bank_planting()`, its own stream after the old rolls, existing batch keys plus one
+  flower batch).
+- **Boats**: one lot in eight had a boat tied to its bank; now 42 % (`BANK_BOAT_ODDS`; the same
+  hash, a higher threshold, so the old boats stay where they were).
+- **The railing** in the foreground was flat vertex white with no surface: the bridge mesh's paint
+  surface wears `Rc4Canals.rail_material()` (WhitePlaster02's grain, warm off-white).
+
+**Numbers** (refcams, opengl3, 1280x720): before (`RC4_CANALS=0`, same eye) p5/p50/p95 58/149/224,
+3.91 M tris, 3,021 draws; after 59/147/199, 4.07 M tris (+4 %), 3,058 draws (+1.2 %). The p95 drop
+is the water no longer near-white.
+
+**Not done / seen.** The water still mirrors made-up house fronts (the shader's planes), not the
+real houses across the canal (no planar reflection on Compatibility); the stucco boxes on the
+right of the view are plain; no people on the walks at that moment; the front range behind is the
+hills' look (not this area). Forward+ (the Mac) not shot. Checks: `tests/rc4_canals_day_checks.gd`.
+Stills on `shots/rc4-canals-day`.
+

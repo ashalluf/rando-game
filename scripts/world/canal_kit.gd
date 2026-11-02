@@ -324,7 +324,10 @@ static func bridge_mesh() -> Mesh:
 		_lamp_post(iron, glow, Vector3(corner.x, deck_y(corner.x) - 0.02, corner.y))
 	var mesh := ArrayMesh.new()
 	var mats := []
-	for pair: Array in [[stucco, "stucco"], [deck, "cope"], [paint, "paint"], [iron, "iron"], [glow, "glow"]]:
+	# The railings' paint: a painted-metal finish under Rc4Canals (flat vertex white filled the
+	# foreground of every view from a bridge).
+	var rail_mat := "rail_paint" if Rc4Canals.enabled else "paint"
+	for pair: Array in [[stucco, "stucco"], [deck, "cope"], [paint, rail_mat], [iron, "iron"], [glow, "glow"]]:
 		var s: SurfaceTool = pair[0]
 		if pair[1] != "glow":
 			s.generate_tangents()
