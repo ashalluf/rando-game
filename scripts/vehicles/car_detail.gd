@@ -306,6 +306,7 @@ static func _paint_grime(car: Vehicle, g: Array) -> void:
 		m.set_shader_parameter("grime", float(g[0]))
 		m.set_shader_parameter("mud", float(g[1]))
 		m.set_shader_parameter("scratches", float(g[2]))
+		m.set_shader_parameter("grime_look", 1.0 if CarCloseup.enabled else 0.0)
 		m.set_shader_parameter("grime_arch", Vector4(fa, ra, f.y, arch_r))
 		# y of the body's bottom in mesh units, metres per mesh unit, which way the tail is.
 		m.set_shader_parameter("grime_frame", Vector3(bottom.y, scale, signf(ra - fa) if ra != fa else 1.0))

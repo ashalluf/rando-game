@@ -16,6 +16,10 @@ extends RefCounted
 
 static var enabled: bool = OS.get_environment("CAR_CLOSEUP") != "0"
 
+## Metres the tyre's lower half is grown and cut flat on the road (the wheel shader's `squash`):
+## a ~20 cm contact patch on a 0.34 m tyre, the sidewall bowed out over it.
+const TYRE_SQUASH := 0.014
+
 ## A trim piece is a bumper piece when its top is under this share of the body's height ...
 const ZONE_TOP := 0.45
 ## ... and it lies within this share of the length from one end.
