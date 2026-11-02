@@ -27036,6 +27036,8 @@ not, the shader applies it and 0 is the old road, the switch, the camera row and
 script. Stills on `shots/rc2-chase-cam`.
 ## 9d?. The pale box round the player's car (wave 5, `chase-box-bug`, branch `wt/chase-box-bug`)
 
+This closes the open item 3 of the chase_cam refcam section (rc2-chase-cam).
+
 **The bug.** Every chase-camera still (shots/rc2-chase-cam 02_after_chase_cam.jpg, shots/driving-camera
 06_after_frame_30kmh.jpg) had a pale translucent "rectangle" across the rear of the player's car. Zoomed, it
 is TWO squares, each centred on a tail lamp, about 0.6 m across, in the haze colour.
