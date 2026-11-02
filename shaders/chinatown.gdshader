@@ -45,6 +45,14 @@ uniform float shop_night = 2.4;
 uniform float ink_night = 2.2;
 uniform float sway = 0.035;
 
+// The Chinatown refcam (rc3, Rc3Chinatown): 0 = the look as it was, bit for bit. 1 = the shop glass
+// traces a room behind it (shelves of goods, a counter, the ceiling's lights; true parallax), the
+// lanterns' silk takes a ribbed bulge and a hot core, the eaves' rafters catch the lantern light.
+uniform float rc3 = 0.0;
+// How deep the traced shop is (metres behind the glass) and how wide one bay of it.
+uniform float shop_depth = 4.2;
+uniform float shop_bay = 3.0;
+
 varying flat float v_kind;
 varying vec3 v_paint;
 varying vec3 v_world;
@@ -78,6 +86,78 @@ float noise2(vec2 p) {
 // 1 inside [a, b] along x, antialiased by w.
 float band(float x, float a, float b, float w) {
 	return smoothstep(a - w, a + w, x) - smoothstep(b - w, b + w, x);
+}
+
+// A shop behind the glass, traced (rc3): p = the glass point (u metres along the face, v metres
+// over the pavement), d = the view ray in (u, v, out-of-the-wall) with d.z < 0 going in. Rooms are
+// `shop_bay` wide along u; shelves line the back and side walls, a counter stands across the
+// front third, a ceiling of light panels. Returns the room's colour (light already in it: emitted)
+// in .rgb and how far in the ray went (0..1 of the depth) in .a.
+vec4 shop_room(vec2 p, vec3 d, float seed, float lit, float px) {
+	float depth = shop_depth;
+	float bay = shop_bay;
+	float floor_v = 0.05;
+	float ceil_v = 3.35;
+	float cell = floor(p.x / bay);
+	float x0 = cell * bay;
+	float x1 = x0 + bay;
+	vec3 o = vec3(p, 0.0);
+	vec3 dd = vec3(abs(d.x) < 1e-4 ? 1e-4 : d.x, abs(d.y) < 1e-4 ? 1e-4 : d.y, min(d.z, -1e-3));
+	d = dd;
+	vec3 id = 1.0 / dd;
+	float tx = d.x > 0.0 ? (x1 - o.x) * id.x : (x0 - o.x) * id.x;
+	float ty = d.y > 0.0 ? (ceil_v - o.y) * id.y : (floor_v - o.y) * id.y;
+	float tz = (-depth - o.z) * id.z;
+	float t = min(tx, min(ty, tz));
+	vec3 h = o + d * t;
+	float rh = hash21(vec2(cell, seed));
+	vec3 wall = mix(vec3(0.42, 0.36, 0.28), vec3(0.50, 0.44, 0.40), rh);
+	vec3 lightc = mix(vec3(1.0, 0.78, 0.52), vec3(0.92, 0.95, 1.0), step(0.72, rh));
+	vec3 c;
+	float avg = smoothstep(0.25, 0.8, px * (1.0 + t * 0.4));
+	if (t == ty && d.y > 0.0) {
+		// The ceiling: rows of light panels (a lit shop's whole look from the street).
+		vec2 g = vec2(h.x / 1.2, h.z / 1.1);
+		vec2 f = abs(fract(g) - 0.5);
+		float panel = (1.0 - smoothstep(0.30, 0.34, f.x)) * (1.0 - smoothstep(0.18, 0.22, f.y));
+		panel = mix(panel, 0.18, avg);
+		c = vec3(0.30, 0.28, 0.26) * 0.6 + lightc * panel * (1.6 + 2.4 * lit);
+	} else if (t == ty) {
+		// The floor: tiles, darker toward the back.
+		vec2 g = vec2(h.x, h.z) / 0.45;
+		vec2 f = abs(fract(g) - 0.5);
+		float joint = max(1.0 - smoothstep(0.44, 0.48, f.x), 0.0) * max(1.0 - smoothstep(0.44, 0.48, f.y), 0.0);
+		c = mix(vec3(0.20, 0.19, 0.17), vec3(0.36, 0.33, 0.28), mix(joint, 0.85, avg)) * (0.5 + 0.5 * hash21(floor(g) + seed));
+		c *= 1.0 - 0.35 * clamp(-h.z / depth, 0.0, 1.0);
+	} else {
+		// A wall lined with shelves of goods (back wall or the bay's sides).
+		float along = t == tz ? h.x : -h.z;
+		float shelf = fract(h.y / 0.42);
+		vec2 gc = floor(vec2(along / 0.24, h.y / 0.42));
+		float g1 = hash21(gc + seed * 1.7);
+		vec3 goods = mix(vec3(0.62, 0.10, 0.06), vec3(0.80, 0.60, 0.20), g1);
+		goods = mix(goods, vec3(0.12, 0.40, 0.22), step(0.72, hash21(gc * 1.3 + 2.0)));
+		goods = mix(goods, vec3(0.75, 0.74, 0.70), step(0.88, hash21(gc * 0.7 + 5.0)));
+		float item = step(0.22, shelf) * step(shelf, 0.86) * step(0.16, g1) * step(h.y, 2.3) * step(0.35, h.y);
+		float board = 1.0 - smoothstep(0.0, 0.07, shelf);
+		c = mix(wall, goods, mix(item, 0.4 * step(h.y, 2.3), avg));
+		c = mix(c, vec3(0.09, 0.07, 0.06), board * step(h.y, 2.4) * (1.0 - avg));
+		// The sides darker than the back (no light falls on them straight).
+		c *= t == tz ? 1.0 : 0.72;
+		// Light falling from the ceiling panels, brighter high up.
+		c *= 0.55 + 0.45 * smoothstep(0.0, 3.0, h.y);
+	}
+	// A counter across the front third of some bays, its lit front toward the glass.
+	float cz = -1.3;
+	float tc = (cz - o.z) * id.z;
+	vec3 hc = o + d * tc;
+	if (tc > 0.0 && tc < t && hc.y < 1.0 && hash21(vec2(cell, seed + 3.1)) < 0.6
+			&& hc.x > x0 + 0.5 && hc.x < x1 - 0.9) {
+		c = mix(vec3(0.30, 0.10, 0.06), vec3(0.55, 0.42, 0.20), step(0.5, rh)) * (0.6 + 0.4 * smoothstep(0.0, 1.0, hc.y));
+		c = mix(c, vec3(0.86, 0.66, 0.30), band(hc.y, 0.88, 0.96, 0.01));
+		t = tc;
+	}
+	return vec4(c, clamp(t * -d.z / depth, 0.0, 1.0));
 }
 
 void fragment() {
@@ -248,6 +328,16 @@ void fragment() {
 		float fres = pow(1.0 - clamp(dot(NORMAL, VIEW), 0.0, 1.0), 4.0);
 		col = vec3(0.02);
 		emit = inside * (0.18 + shop_night * night * open_) + cs_srgb_to_linear(sky_tint.rgb) * (0.05 + 0.4 * fres) * (1.0 - night * 0.7);
+		if (rc3 > 0.5) {
+			vec3 ray = -VIEW;
+			vec3 d3 = vec3(dot(ray, TANGENT), dot(ray, BINORMAL), dot(ray, NORMAL));
+			float pxs = max(fwidth(uv.x), fwidth(uv.y)) / 0.24;
+			float sd = floor(hash21(floor(v_world.xz * 0.12)) * 97.0);
+			vec4 room = shop_room(uv, d3, sd, night * open_, pxs);
+			// Glass: the room through it (dimmed by Fresnel), the street's sky mirrored on top.
+			emit = room.rgb * (0.16 + shop_night * night * open_) * (1.0 - 0.6 * fres)
+				+ cs_srgb_to_linear(sky_tint.rgb) * (0.04 + 0.45 * fres) * (1.0 - night * 0.6);
+		}
 		rough = 0.05;
 		spec = 0.6;
 	} else if (k == 9) {
