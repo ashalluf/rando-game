@@ -31,6 +31,11 @@ var _done := false
 var _age := 0.0
 ## Pieces flying or burning (not yet out).
 var _live := 0
+## Blast4 round 7: a smoke ribbon behind each burning piece (Blast4.debris_ribbons).
+var _ribbon: MeshInstance3D
+var _rib_mesh: ImmediateMesh
+var _rib_hist: Array = [] # per piece: Array of [world position, age]
+const RIB_LIFE := 1.6
 
 
 ## Throws up to `count` pieces (fewer when `BlastFX.max_debris` are already flying); returns how
@@ -98,7 +103,7 @@ func _throw(radius: float, push: float, count: int) -> void:
 		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		add_child(mi)
 		_pieces.append({"node": mi, "pos": Vector3.ZERO, "vel": vel, "landed": false, "t": 0.0,
-			"burn": randf_range(BURN.x, BURN.y), "axis": Vector3(randf_range(-1, 1), randf_range(-1, 1), randf_range(-1, 1)).normalized(),
+			"burn": randf_range(BURN.x, BURN.y) * (1.6 if Blast4.enabled and Blast4.debris_ribbons else 1.0), "axis": Vector3(randf_range(-1, 1), randf_range(-1, 1), randf_range(-1, 1)).normalized(),
 			"spin": randf_range(6.0, 16.0), "out": false})
 		if own != null:
 			_pieces[-1]["mat"] = own
@@ -130,6 +135,20 @@ func _throw(radius: float, push: float, count: int) -> void:
 		Color(0.09, 0.085, 0.08, 0.4), Color(0.11, 0.11, 0.11, 0.0)])
 	_grow(_trail, 4.0)
 	var reach := radius * 2.6 * push * MAX_FLIGHT + 20.0
+	if Blast4.enabled and Blast4.debris_ribbons:
+		_rib_mesh = ImmediateMesh.new()
+		_ribbon = MeshInstance3D.new()
+		_ribbon.name = "DebrisRibbons"
+		_ribbon.mesh = _rib_mesh
+		_ribbon.top_level = true
+		_ribbon.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		_ribbon.material_override = Blast4.ribbon_material()
+		_ribbon.custom_aabb = AABB(Vector3(-reach, -reach, -reach) * 2.0, Vector3(reach, reach, reach) * 4.0)
+		add_child(_ribbon)
+		# At the blast (its box is round its node): vertices relative to it.
+		_ribbon.global_transform = Transform3D(Basis(), global_position)
+		for i in _pieces.size():
+			_rib_hist.append([])
 	for e: CPUParticles3D in [_flames, _trail]:
 		e.custom_aabb = AABB(Vector3(-reach, -reach, -reach), Vector3(reach, reach, reach) * 2.0)
 		e.emission_points = PackedVector3Array([Vector3.ZERO])
@@ -233,6 +252,8 @@ func _physics_process(dt: float) -> void:
 		burning += 1
 	if burning == 0:
 		_done = true
+		if _ribbon != null:
+			_ribbon.visible = false
 		_flames.emitting = false
 		_trail.emitting = false
 		var t := create_tween()
@@ -241,6 +262,8 @@ func _physics_process(dt: float) -> void:
 		return
 	_flames.emission_points = points
 	_trail.emission_points = points
+	if _ribbon != null:
+		_ribbons(dt)
 
 
 ## A landed piece sliding to a stop (Blast3): friction off its speed, held on the ground under
@@ -290,3 +313,56 @@ static func alive() -> int:
 			n += (d as BlastDebris)._live
 	_all = keep
 	return n
+
+
+## The smoke ribbons: each burning piece leaves its world positions (a point a tick, aging), and
+## the strip through them is rebuilt facing the camera, widening and fading as it ages - one
+## continuous streak behind a flying piece (dropped puffs beaded), a thin wisp off a landed one.
+func _ribbons(dt: float) -> void:
+	var cam := get_viewport().get_camera_3d() if is_inside_tree() else null
+	_rib_mesh.clear_surfaces()
+	if cam == null:
+		return
+	var eye := cam.global_position
+	var org := _ribbon.global_position
+	var any := false
+	for k in _pieces.size():
+		var p: Dictionary = _pieces[k]
+		var h: Array = _rib_hist[k]
+		for e: Array in h:
+			e[1] = float(e[1]) + dt
+		while h.size() > 0 and float(h[0][1]) > RIB_LIFE:
+			h.pop_front()
+		if not p.out and is_instance_valid(p.node):
+			# Thick behind a piece flying fast, a thin wisp off one lying burning.
+			var fast := clampf((p.vel as Vector3).length() / 12.0, 0.0, 1.0) if not p.landed else 0.0
+			h.append([(p.node as Node3D).global_position, 0.0, 0.25 + 0.75 * fast])
+		if h.size() < 2:
+			continue
+		if not any:
+			_rib_mesh.surface_begin(Mesh.PRIMITIVE_TRIANGLE_STRIP)
+			any = true
+		else:
+			# A degenerate join between strips.
+			_rib_mesh.surface_add_vertex((h[0][0] as Vector3) - org)
+			_rib_mesh.surface_add_vertex((h[0][0] as Vector3) - org)
+		for j in h.size():
+			var pos: Vector3 = h[j][0]
+			var age: float = h[j][1]
+			var nxt: Vector3 = h[mini(j + 1, h.size() - 1)][0]
+			var prv: Vector3 = h[maxi(j - 1, 0)][0]
+			var along := (nxt - prv)
+			if along.length() < 1e-4:
+				along = Vector3.UP
+			var side := along.cross(eye - pos).normalized()
+			var w := 0.07 + age * 0.45
+			var a := pow(clampf(1.0 - age / RIB_LIFE, 0.0, 1.0), 1.4) * 0.42 * clampf(float(j) / 2.0, 0.0, 1.0) * float(h[j][2])
+			var c := Color(0.11, 0.1, 0.095, a)
+			_rib_mesh.surface_set_normal((eye - pos).normalized())
+			_rib_mesh.surface_set_color(c)
+			_rib_mesh.surface_add_vertex(pos - side * w - org)
+			_rib_mesh.surface_set_normal((eye - pos).normalized())
+			_rib_mesh.surface_set_color(c)
+			_rib_mesh.surface_add_vertex(pos + side * w - org)
+	if any:
+		_rib_mesh.surface_end()

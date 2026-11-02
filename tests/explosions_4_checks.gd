@@ -46,6 +46,7 @@ func run(t: Node, city: Node3D) -> void:
 	_round4(parent)
 	await _round5(parent)
 	_round6(parent)
+	_round7(parent)
 	for c in parent.get_children():
 		if not before.has(c) and c != _deck and not (c is BlastBits):
 			c.queue_free()
@@ -297,3 +298,21 @@ func _round6(parent: Node) -> void:
 	_t._check(float(qm.get_shader_parameter("quiet4")) == (Blast4.quiet_jitter if Blast4.quiet_enabled else 0.0)
 		and FileAccess.get_file_as_string("res://shaders/blast_volume.gdshader").contains("jit = 0.5 + (jit - 0.5) * quiet4;"),
 		"explosions_4: the march's jitter is narrowed (TAA does not clear it)")
+
+
+## Round 7: the violent first half second, smoke ribbons behind debris, the shop fronts answer.
+func _round7(parent: Node) -> void:
+	var vs := FileAccess.get_file_as_string("res://shaders/blast_volume.gdshader")
+	var m := ShaderMaterial.new()
+	m.shader = load("res://shaders/blast_volume.gdshader")
+	Blast4.dress_volume(m, true, false)
+	_t._check(vs.contains("uniform float core4 = 0.0;") and vs.contains("vec3 blackbody4(float k)")
+		and float(m.get_shader_parameter("core4")) == (1.0 if Blast4.core_enabled else 0.0),
+		"explosions_4: the young ball's heat follows its depth (core4, off by default)")
+	var r := Blast4.ribbon_material()
+	_t._check(r != null and r.transparency == BaseMaterial3D.TRANSPARENCY_ALPHA, "explosions_4: the debris smoke ribbons have their material")
+	var bs := FileAccess.get_file_as_string("res://scripts/weapons/blast_debris.gd")
+	_t._check(bs.contains("_ribbon.global_transform = Transform3D(Basis(), global_position)"),
+		"explosions_4: the ribbons' box sits at the blast (at the world origin they were culled)")
+	var got: Array = Blast4.facade_response(_city, _top + Vector3(0.0, 1.0, -120.0), 9.0)
+	_t._check(got.size() == 2 and int(got[0]) >= 0, "explosions_4: the shop fronts' response runs (%d awnings, %d signs)" % [int(got[0]), int(got[1])])
