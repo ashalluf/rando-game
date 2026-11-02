@@ -16,11 +16,18 @@ render_mode cull_back;
 #include "res://shaders/color_space.gdshaderinc"
 
 global uniform float lamp_factor;
+// Working dirt (AirportApron): road grime up the lower body from the tyres, the paint mottled and
+// chalky where the sun has had it for years. 0 (AIRPORT_APRON=0) is the old clean finish.
+uniform float grime = 0.0;
 
 varying vec3 v_col;
 varying float v_kind;
+varying vec3 v_model;
+varying vec3 v_world;
 
 void vertex() {
+	v_model = VERTEX;
+	v_world = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
 	v_col = COLOR.rgb;
 	v_kind = COLOR.a;
 	// MultiMeshBatch's default custom is opaque black: only a colour that is set counts.
@@ -47,6 +54,20 @@ void fragment() {
 	} else if (v_kind > 0.15) {
 		rough = 0.92;
 		metal = 0.0;
+	}
+	if (grime > 0.0 && (v_kind < 0.4 || v_kind > 0.9)) {
+		// Metres over the ground the vehicle stands on (every kit mesh has its ground at y 0).
+		float low = 1.0 - smoothstep(0.12, 1.15, v_model.y);
+		vec2 q = v_world.xz * 1.7 + v_world.y * 0.9;
+		float n = fract(sin(dot(floor(q), vec2(12.9898, 78.233))) * 43758.5453);
+		float n2 = fract(sin(dot(floor(q * 3.1 + 5.0), vec2(39.3468, 11.135))) * 24634.6345);
+		float mottle = mix(n, n2, 0.5);
+		col *= 1.0 - grime * (0.34 * low + 0.08 * mottle);
+		// Chalky sun-faded paint on the tops.
+		if (v_kind > 0.9) {
+			col = mix(col, vec3(dot(col, vec3(0.3, 0.55, 0.15))) * 1.05, grime * 0.12 * (1.0 - low));
+			rough = mix(rough, 0.68, grime * (0.4 * low + 0.25 * mottle));
+		}
 	}
 	ALBEDO = cs_out(col);
 	ROUGHNESS = rough;

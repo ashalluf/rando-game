@@ -21,6 +21,9 @@ render_mode cull_back;
 
 global uniform float road_wetness;
 global uniform float ground_detail;
+global uniform vec3 sun_direction;
+global uniform float night_factor;
+global uniform float river_look;
 
 #include "res://shaders/color_space.gdshaderinc"
 
@@ -90,11 +93,77 @@ float joint(float x, float pitch, float w, float px) {
 	return a * (1.0 - smoothstep(0.08, 0.3, px));
 }
 
+// rc2-river (river_look 1): a joint line box-filtered by the footprint of its OWN axis (`fw`), never
+// faded out: seen down the channel the lines along the river converge as they do in a photo, and
+// the ones across it fade to their average darkening rather than vanishing (the bed read as clay).
+float joint2(float x, float pitch, float w, float fw) {
+	float d = abs(fract(x / pitch + 0.5) - 0.5) * pitch;
+	float f = max(fw, 1e-4);
+	float a = (1.0 - smoothstep(w, w + f, d)) * min(1.0, 2.0 * w / f);
+	return mix(a, 2.0 * w / pitch, smoothstep(0.25 * pitch, pitch, f));
+}
+
+float axis_fw(float x) {
+	return abs(dFdx(x)) + abs(dFdy(x));
+}
+
+// The bounce of the sunlit channel onto what the sun does not reach (a pale concrete canyon: the
+// shaded bank takes the sunlit bank's and the bed's light), linear irradiance.
+uniform vec3 bounce_light = vec3(0.62, 0.56, 0.46);
+
 const vec3 PAINTS[10] = vec3[](
 	vec3(0.70, 0.70, 0.66), vec3(0.04, 0.04, 0.045), vec3(0.62, 0.08, 0.05), vec3(0.06, 0.18, 0.55),
 	vec3(0.75, 0.55, 0.06), vec3(0.08, 0.40, 0.18), vec3(0.55, 0.12, 0.45), vec3(0.85, 0.30, 0.05),
 	vec3(0.30, 0.62, 0.78), vec3(0.62, 0.62, 0.62)
 );
+
+// Graffiti: one piece slot every `pitch` metres along u (`uv.x`), taken at `odds`, sized to the
+// face (big pieces low and long; handstyles small and high), the piece's height up v from `v_lo`
+// to `v_hi`. `salt` keeps two layers apart. Returns the colour with the piece painted on.
+vec3 graffiti(vec3 col, vec2 uv, float side, float detail, float pitch, float odds, uint salt, float hmin, float hmax, float v_lo, float v_hi) {
+	float slot = floor(uv.x / pitch);
+	uint tk = uint(slot + 4096.0) * 2u + uint(side + 0.5) + salt;
+	if (ihash01(tk) >= odds) {
+		return col;
+	}
+	// Mostly throw-ups and roller letters (cells 8-15): the river's walls carry big pieces.
+	uint cell = ihash(tk + 1u) % 16u;
+	if (ihash01(tk + 8u) < 0.7) {
+		cell = 8u + cell % 8u;
+	}
+	float h = mix(hmin, hmax, ihash01(tk + 2u));
+	if (cell < 8u) {
+		h *= 0.55;
+	}
+	float w = h * 2.0;
+	float s0 = slot * pitch + ihash01(tk + 3u) * max(pitch - w, 0.5);
+	float v0 = mix(v_lo, max(v_lo + 0.1, v_hi - h), ihash01(tk + 4u));
+	vec2 local = vec2((uv.x - s0) / w, (uv.y - v0) / h);
+	if (local.x > 0.0 && local.x < 1.0 && local.y > 0.0 && local.y < 1.0) {
+		vec2 cxy = vec2(float(cell % 4u), float(cell / 4u));
+		// The atlas reads left to right as the piece reads looking at the bank; the west
+		// bank's s runs the other way under the viewer.
+		float lx = side < 0.5 ? 1.0 - local.x : local.x;
+		vec2 auv = (cxy + vec2(lx, local.y)) / vec2(4.0, 4.0);
+		vec3 m = texture(tag_atlas, auv).rgb;
+		vec3 fill = PAINTS[ihash(tk + 5u) % 10u];
+		vec3 outline = PAINTS[ihash(tk + 6u) % 10u];
+		// Old pieces fade and flake; a few are buffed out in a grey that never matches.
+		float age = ihash01(tk + 7u);
+		float wear = smoothstep(0.35, 0.75, rc_noise(uv * 2.5) + age * 0.45);
+		float a = tag_strength * (1.0 - wear * 0.6);
+		if (age > 0.86) {
+			vec2 bl = abs(local - 0.5);
+			float buff = 1.0 - smoothstep(0.42, 0.5, max(bl.x * 0.9, bl.y));
+			col = mix(col, vec3(0.33, 0.32, 0.31) * (0.9 + 0.2 * detail), buff * 0.9);
+		} else {
+			col = mix(col, outline * (0.8 + 0.3 * detail), m.g * a);
+			col = mix(col, fill * (0.8 + 0.3 * detail), m.r * a);
+			col = mix(col, vec3(0.9), m.b * a * 0.8);
+		}
+	}
+	return col;
+}
 
 void vertex() {
 	v_kind = COLOR;
@@ -127,10 +196,18 @@ void fragment() {
 	vec3 col = base * detail;
 	float rough = 0.86;
 	float dark = 0.0;
+	float wet_band = 0.0;
 
 	if (kind == 0) {
 		// Form panels along the river and lifts down the bank.
 		float j = max(joint(uv.x, panel_pitch, 0.012, px), joint(uv.y, lift_pitch, 0.01, px) * 0.8);
+		if (river_look > 0.5) {
+			j = max(joint2(uv.x, panel_pitch, 0.018, axis_fw(uv.x)), joint2(uv.y, lift_pitch, 0.014, axis_fw(uv.y)) * 0.8);
+			// Long dark weathering runs from the coping down, wider and darker than the old
+			// streaks, and a sun-bleached upper band.
+			float run = rc_fbm(vec2(uv.x * 0.45 + side * 5.0, uv.y * 0.035));
+			col *= 1.0 - 0.3 * smoothstep(0.5, 0.8, run) * (1.0 - smoothstep(6.0, 9.5, uv.y));
+		}
 		col *= 1.0 - 0.28 * j;
 		// Efflorescence weeping out of the lift joints, a little way down the slope.
 		float lj = fract(uv.y / lift_pitch);
@@ -150,6 +227,20 @@ void fragment() {
 		col = mix(col, algae_color * (0.8 + 0.6 * detail), low * 0.75);
 	} else if (kind == 1) {
 		float j = max(joint(uv.x, panel_pitch, 0.015, px), joint(uv.y + 0.5, 6.0, 0.012, px) * 0.6);
+		if (river_look > 0.5) {
+			// Tar-sealed joints with dirt in them: darker and a little wider.
+			j = max(joint2(uv.x, panel_pitch, 0.03, axis_fw(uv.x)), joint2(uv.y + 0.5, 6.0, 0.025, axis_fw(uv.y)) * 0.85);
+			col *= 1.0 - 0.25 * j;
+			// Lanes of old flow down the current: dark algae-stained runs and pale dried silt
+			// between them, long along the river and a few metres across.
+			float lane = rc_fbm(vec2(uv.x * 0.012, lateral * 0.32 + 3.0));
+			col *= 1.0 - 0.32 * smoothstep(0.52, 0.78, lane) * (1.0 - smoothstep(16.0, 21.0, lateral));
+			float crust = rc_fbm(vec2(uv.x * 0.03, lateral * 0.18 + 9.0));
+			col = mix(col, vec3(0.24, 0.225, 0.20) * detail, smoothstep(0.58, 0.82, crust) * 0.45);
+			// Grit and small debris specks where the pixel can hold them.
+			float grit = smoothstep(0.62, 0.8, rc_noise(uv * 26.0) * rc_noise(uv * 11.0 + 4.0) * 2.0) * (1.0 - smoothstep(0.01, 0.03, px));
+			col *= 1.0 - 0.18 * grit;
+		}
 		col *= 1.0 - 0.22 * j;
 		// Old water stains in broad blotches, silt washed into fans, the dark wet margin by the
 		// low-flow notch with algae in long streaks down the current.
@@ -160,8 +251,14 @@ void fragment() {
 		float reach = 1.8 + 3.5 * rc_noise(vec2(uv.x * 0.03, 3.0));
 		float wet = 1.0 - smoothstep(0.2, reach, lateral - 4.0 + 0.8 * rc_noise(uv * 0.4));
 		float strand = smoothstep(0.45, 0.8, rc_noise(vec2(uv.x * 0.08, uv.y * 2.2)));
-		col = mix(col, algae_color * (0.8 + 0.6 * detail), wet * (0.55 + 0.35 * strand));
+		vec3 alg = algae_color;
+		if (river_look > 0.5) {
+			// Dark silt with the algae in strands down the current, not a painted green stripe.
+			alg = mix(vec3(0.05, 0.047, 0.034), vec3(0.04, 0.048, 0.024), strand * (0.4 + 0.6 * rc_noise(uv * vec2(0.5, 1.5) + 7.0)));
+		}
+		col = mix(col, alg * (0.8 + 0.6 * detail), wet * (0.55 + 0.35 * strand));
 		dark = max(dark, wet * 0.3);
+		wet_band = wet;
 		// Tyre tracks: the channel is a road for the maintenance trucks (and for chases).
 		float track = rc_noise(vec2(uv.x * 0.04, uv.y * 1.6)) * smoothstep(0.3, 0.0, abs(fract(lateral / 9.0) - 0.5) - 0.35);
 		col *= 1.0 - 0.15 * track;
@@ -171,6 +268,13 @@ void fragment() {
 		col = mix(col * 0.4, algae_color * (0.5 + 0.5 * detail), 0.9);
 		rough = 0.3;
 		dark = 0.45;
+		if (river_look > 0.5) {
+			// Slime and silt, not a polished mirror: brown-green, matte where it is dry.
+			float slime = rc_noise(vec2(uv.x * 0.6, uv.y * 3.0));
+			col = mix(vec3(0.045, 0.042, 0.028), vec3(0.04, 0.048, 0.024), slime) * (0.8 + 0.4 * detail);
+			rough = mix(0.75, 0.45, smoothstep(0.1, -0.35, height));
+			dark = 0.25;
+		}
 	} else if (kind == 3) {
 		col *= 1.0 - 0.3 * joint(uv.x, 3.05, 0.01, px);
 	} else if (kind == 4) {
@@ -215,48 +319,17 @@ void fragment() {
 	}
 
 	if (kind == 0) {
-		// Graffiti on the bank: a piece slot every tag_pitch, a piece in half of them, in its own
-		// two colours, sized to the bank (big pieces low and long; handstyles small and high).
-		float slot = floor(uv.x / tag_pitch);
-		uint tk = uint(slot + 4096.0) * 2u + uint(side + 0.5) + 104729u;
-		if (ihash01(tk) < tag_odds) {
-			// Mostly throw-ups and roller letters (cells 8-15): the river's walls carry big pieces.
-			uint cell = ihash(tk + 1u) % 16u;
-			if (ihash01(tk + 8u) < 0.7) {
-				cell = 8u + cell % 8u;
-			}
-			float h = mix(3.0, 5.5, ihash01(tk + 2u));
-			if (cell < 8u) {
-				h *= 0.55;
-			}
-			float w = h * 2.0;
-			float s0 = slot * tag_pitch + ihash01(tk + 3u) * max(tag_pitch - w, 0.5);
-			float v0 = mix(0.4, max(0.5, 9.0 - h), ihash01(tk + 4u));
-			vec2 local = vec2((uv.x - s0) / w, (uv.y - v0) / h);
-			if (local.x > 0.0 && local.x < 1.0 && local.y > 0.0 && local.y < 1.0) {
-				vec2 cxy = vec2(float(cell % 4u), float(cell / 4u));
-				// The atlas reads left to right as the piece reads looking at the bank; the west
-				// bank's s runs the other way under the viewer.
-				float lx = side < 0.5 ? 1.0 - local.x : local.x;
-				vec2 auv = (cxy + vec2(lx, local.y)) / vec2(4.0, 4.0);
-				vec3 m = texture(tag_atlas, auv).rgb;
-				vec3 fill = PAINTS[ihash(tk + 5u) % 10u];
-				vec3 outline = PAINTS[ihash(tk + 6u) % 10u];
-				// Old pieces fade and flake; a few are buffed out in a grey that never matches.
-				float age = ihash01(tk + 7u);
-				float wear = smoothstep(0.35, 0.75, rc_noise(uv * 2.5) + age * 0.45);
-				float a = tag_strength * (1.0 - wear * 0.6);
-				if (age > 0.86) {
-					vec2 bl = abs(local - 0.5);
-					float buff = 1.0 - smoothstep(0.42, 0.5, max(bl.x * 0.9, bl.y));
-					col = mix(col, vec3(0.33, 0.32, 0.31) * (0.9 + 0.2 * detail), buff * 0.9);
-				} else {
-					col = mix(col, outline * (0.8 + 0.3 * detail), m.g * a);
-					col = mix(col, fill * (0.8 + 0.3 * detail), m.r * a);
-					col = mix(col, vec3(0.9), m.b * a * 0.8);
-				}
-			}
+		// Graffiti on the bank: a piece slot every tag_pitch, a piece in most of them, in its own
+		// two colours.
+		col = graffiti(col, uv, side, detail, tag_pitch, tag_odds, 104729u, 3.0, 5.5, 0.4, 9.0);
+		if (river_look > 0.5) {
+			// rc2-river: the real channel is covered - a second, offset layer of pieces between
+			// and over the first, smaller and higher up the bank.
+			col = graffiti(col, uv + vec2(tag_pitch * 0.5, 0.0), side, detail, tag_pitch * 0.8, 0.6, 270001u, 1.8, 3.6, 2.5, 9.5);
 		}
+	} else if (kind == 4 && river_look > 0.5) {
+		// The ramps' walls and the headwalls are the best canvas in the channel.
+		col = graffiti(col, uv, side, detail, 9.0, 0.75, 31337u, 1.6, 3.0, 1.6, 7.6);
 	}
 
 	// Rain: the concrete darkens and its sheen comes up.
@@ -265,8 +338,26 @@ void fragment() {
 	rough = mix(rough, 0.3, wet * 0.7);
 	col *= 1.0 - dark;
 	ALBEDO = cs_out(col);
+	if (river_look > 0.5 && kind <= 2) {
+		vec3 wn = normalize((INV_VIEW_MATRIX * vec4(NORMAL, 0.0)).xyz);
+		vec3 sn = normalize(sun_direction);
+		float day = smoothstep(0.0, 0.15, sn.y) * (1.0 - night_factor);
+		float shade = 1.0 - smoothstep(-0.05, 0.35, dot(wn, sn));
+		// Forward+ has its own indirect light (SSIL / SDFGI): half of it there.
+#if CURRENT_RENDERER == RENDERER_COMPATIBILITY
+		float gain = 1.0;
+#else
+		float gain = 0.5;
+#endif
+		EMISSION = cs_out(col * bounce_light * shade * day * gain * (kind == 0 ? 1.0 : 0.45));
+	}
 	ROUGHNESS = rough;
 	SPECULAR = 0.4;
+	if (river_look > 0.5) {
+		// The dark algae and slime took the renderer's grazing sky sheen at full strength and
+		// read pale mint; damp silt is not a mirror.
+		SPECULAR = kind == 2 ? 0.12 : mix(0.35, 0.12, wet_band);
+	}
 	if (ground_detail > 0.5 && kind != 7) {
 		NORMAL_MAP = texture(concrete_nrm, uv * 0.3).rgb;
 		NORMAL_MAP_DEPTH = 0.6;
