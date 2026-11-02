@@ -28419,7 +28419,8 @@ on Forward+ is not checked (the city does not fit lavapipe).
 **Frame cost** (opengl3 GEO, port_night): 929,401 tris / 566 draws / 326k shadow -> 947,433 / 591 /
 326k (+1.9 % triangles; the extra draws are each port chunk's halo and apron-pool batches).
 
-**Gate** (SHARDS=3, merged with main 20855e18): 5,665 checks, 1 failed - crowd_look_checks "a
+**Gate** (SHARDS=3, merged with main 0584ebdf): 5,710 checks passed, 0 failed, peak RSS 3.8 GB a
+shard. An earlier run (merged with 20855e18): 5,665 checks, 1 failed - crowd_look_checks "a
 performer ahead and to the right is watched", which passes alone (`SMOKE_PARTS=crowd_look_checks,
 rc4_port_night_checks`: 56 / 56); peak RSS 3.8 GB a shard.
 
