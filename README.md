@@ -10,3 +10,4 @@ city to wreck.
 **Play it:** install Godot 4.7.2, clone this repo, open Godot, Import `project.godot`, press Play.
 
 **Check it headless:** `GODOT=/path/to/godot tests/headless_check.sh`
+- 08_refcams_main_vs_lens_opengl3.jpg - the ten reference cameras (opengl3: no auto exposure there), main (CAMERA_LENS=0) beside this branch: p5/p50/p95 within one level on every camera whose traffic matches; the freeway's difference is traffic (and a stray contact shadow in the before frame).
