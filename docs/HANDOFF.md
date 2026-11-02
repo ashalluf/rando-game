@@ -25778,9 +25778,13 @@ installed by DayNight; `NIGHT_AERIAL=0` is the A/B, every shader exactly as it w
   was. nightlife_beam.gdshader, for a camera in the air over the lamp: the same knee, then down to
   `beam_far_gain` 0.3 from 300 to 1400 m away (not seen in this camera: no club beam is in frame).
 
-**Numbers** (refcams, night_aerial): before p5/p50/p95 4/31/116, crushed 7.9 %, 3.00 M triangles,
-844 draws; after: see the final run in the session's report on `shots/rc2-night-aerial`. Triangles
-and draws are the same to noise: shader-only changes (two hashes and a smoothstep a far lane pixel).
+**Numbers** (refcams, night_aerial, opengl3): main p5/p50/p95/p99 4/31/116/200, 3.00 M triangles, 844
+draws; the branch 4/26/98/173, 3.00 M, 844 (the dark is the cream slabs and ember boxes gone; the
+mean colour cooler, 5880 -> 6730 K). Shader-only changes: triangles and draws equal to the count at
+this camera. The eleven cameras (the ten + this) shot as an A/B (`NIGHT_AERIAL=0` / on, one load each,
+`refcams.py compare`): only night_aerial and freeway flagged, the freeway by its moving traffic (the
+diff map is the cars alone); street_night and pier_night within noise. The helicopter-shaft range was
+tightened after that run and only night_aerial was shot again.
 
 **Not verified.** Forward+ (the Mac): tuned on opengl3. The lane mean is emitted light; under AgX and
 bloom the knots may read hotter - knobs `FT_NEAR_BLOOM`, `FT_CELLS_*` (with their copies in
