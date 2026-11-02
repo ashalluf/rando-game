@@ -25801,7 +25801,20 @@ for the volume to free itself (it lives longer now).
 `blast_room_shot.gd` also takes `GOLDEN=1` (a low warm sun) now, and `NIGHT=1` sets
 `DayNight.lamp_now`.
 
-**Not done / not verified**: the web strip (`WEB=1`) was not rendered; frame cost not measured
-with geo_count (a static city frame never holds a blast: one volume draw a blast, at most four,
-and a pool's handful of nodes); debris bounce is the third pass's BlastBits; the night
-mushroom against the city's real light dome was not shot (the room's night sky is black).
+**Round 3**: the screen door the Forward+ stills showed was mostly the march, not lavapipe's TAA:
+with a fixed step the first sample in dense smoke took nearly all the opacity, so the surface
+snapped to the step grid. The march now BACKS UP one step there and goes on in thirds for 12
+samples (`n + 16` at most); what is left is the per-frame rotated jitter TAA resolves. Debris,
+glass and the pressure wave are the second and third passes' (BlastDebris trails, BlastBits
+chips tumbling and skidding, BuildingDamage SHATTER with the wave, blast_wave.gdshader, roof dust
+now delayed to the wave). Shot in the city at night: `fx_shot.gd FX_CAR=1 FX_TIMES=0.3,2,6
+--spawn=650,300,0,-4 --hour=22` (still 19). `blast_room_shot.gd` prints `GEO` per still.
+
+**Frame cost with the blast in view** (blast_room_shot GEO, opengl3, 1280 x 720, fourth pass vs
+`EXPLOSIONS_4=0`): 0.3 s 409 / 411 draws, 505k / 506k triangles; 2 s 402 / 406, 504.5k / 504.7k;
+5 s 378 / 380, 502.0k / 502.0k - no more draws than the third pass. The volume costs ALU per
+covered pixel instead. The web keeps the cards (still 21).
+
+**Not done / not verified**: the dither at 60 fps was not seen (lavapipe runs at ~1 fps); the
+night mushroom against the light dome only in the opengl3 city still; no GPU timing of the
+volume (lavapipe's numbers are not a GPU's).
