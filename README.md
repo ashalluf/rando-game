@@ -19,3 +19,11 @@ Batch 2 (Forward+, lavapipe - the Mac's renderer - and a car in daylight):
 - `11_after_rocket_60m_strip.jpg` - the same from 60 m: ball, roll-up, the mushroom standing.
 - `12_after_wreck_smoke_4_9_16s.jpg` - a car blast's wreck at 4 / 9 / 16 s with the continuous
   smoke column (high up it still beads in stills: the harness emits in ~1 s bursts).
+
+## Batch 4 (the lead's notes on batch 3)
+- `13_mushroom_light_old2s_new2s_new4s.jpg` - opengl3, 60 m, zoomed: the old flat grey cap, then
+  the new one lit like a cloud (sunlit shoulders, dark underside, sooty core, turreted edges).
+- `14_mushroom_forward_2s_5s.jpg` - the same on Forward+ (lavapipe). The grain is the march's
+  jitter, which TAA can't resolve at the harness's ~1 frame a second.
+- `15_gas_first_frames_0.05_0.1_0.15_0.5.jpg` - the pump's gas ball: structure from ~0.1 s.
+- `16_rocket_60m_new_0.5_2_4_8_old_2_6.jpg` - top and bottom-left new, bottom middle / right old.
