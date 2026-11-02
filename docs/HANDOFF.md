@@ -27034,3 +27034,77 @@ truck in one run, a red car in the other; the deck is freeway_deck.gdshader, not
 (one line in smoke_test.gd's city_files): street asphalt gets lane wear and pavements / car parks do
 not, the shader applies it and 0 is the old road, the switch, the camera row and its staging
 script. Stills on `shots/rc2-chase-cam`.
+
+## 9d?. The web build after wave 4, 2026-11-01 (fleet wave 5 session `web-build-5`, branch `wt/web-build-5`; VISUAL_ROADMAP "?")
+
+**What was asked.** Export the web build after wave 4, load every bookmark one tab at a time, fix
+shader / WebGL / memory errors, check the pck budget, the wasm heap, the sampler limit and the
+uniform blocks, extend `tests/web_build_checks.gd`.
+
+**How.** main `bb03d731` (build 402+, batch 32), the 4.7.2 `web_nothreads_release` template,
+`--export-release "Web"` (43 s), `tools/webshot/bookmarks.sh` (headless Chromium 1243, SwiftShader,
+960x540, 7 minutes of streaming, `KEY=k`, `PROBE=1`).
+
+**Result.** All eight bookmarks load with a clean console (only the template's occlusion warning
+and Chrome's autoplay notice). Downtown noon, night street, golden hour, storm, hills and the beach
+match wave 4's stills. Size: `index.pck` 609.3 MB (+8.5 since batch 25; budget 650), `index.wasm`
+39.5 MB. The wasm heap is 720 MB after load and takes ONE growth step to 821-823 MB while
+streaming (Emscripten's step is capped near 96 MB; 9jz's runs stopped at 723) - a fifth of the
+browser's 4 GB. JS heap at the end 0.73-0.76 GB. Web Audio buffers climb as in 9jz (the loop
+restarts copying their buffer).
+
+**Fixed: MacArthur Park drowned in glare in the browser.** At the `macarthur` bookmark a wall of
+green / white / red / blue glare grew over the park within minutes and lit the hero cyan or green
+(`01_` / `02_` stills); natively (opengl3, same spawn, and with every frame forced to 15 s) nothing.
+Bisected in the browser with an autoload probe of the REAL main build (`tools/web_probe/`, below):
+the glare goes the frame the park fountain's particle plume (`FountainPlume`, 420 lit billboard
+particles, `LandmarkMacArthurPark._build_fountain()`) is hidden, and stays through each of
+fixed_fps 30, a restart, no damping, no scale curve, unshaded, local coords. The same builder in a
+small web room (`tools/web_probe/fx_room.tscn fountain=1 slow=20000`) does NOT reproduce it, so
+the root (something about this long-lived system in the city at 20-60 s a frame) is not found.
+Decision: on the web the plume is left out (`LandmarkMacArthurPark.plume_allowed()`,
+`?fountain_plume=1` brings it back); the jet column and the boil carry the fountain. wave 4's
+small green dot at the fountain was the same thing. The golf course's 70-particle copy
+(`GolfFountainPlume`) is unchanged and unverified.
+
+**Fixed: `Emergency._scan()` script error** (`is` on a freed CarDamage) under long frames - main
+fixed the same line meanwhile; the merge keeps main's.
+
+**Not fixed: the hero reads blue in the rain again** (`04_`, top and hair ~(25, 46, 100) in the
+browser at the rain bookmark). Not the stale radiance of 9ja: with the sky held at QUALITY,
+reflections off (`REFLECTION_SOURCE_DISABLED`) or the whole Weather node hidden he stays blue, and
+`?sky_settle=0` changes nothing. Natively, and in 9ja's small `hero_rain.tscn` with the web's sky
+settings (`WEBQ=1`), he is neutral (52, 48, 45). Lead for the hero's owner: the velour's custom
+`light()` lobe and Forward+ gain from wave 4's hero close-up pass came after 9ja's fix; next step
+is `glob:wet_world=0` and swapping hero_cloth for a flat material in the city (the probe's
+`ap_hide` steps). The pale straight-edged wedges in the same rain sky are not the rain emitter
+either (hidden with Weather, they stay).
+
+**Checks** (`tests/web_build_checks.gd`): every shader's source with its includes under 200 KB
+(the most: building, 160 KB) and its constant arrays under 1,600 items (building's vinyl glyphs,
+1,240), the counter proven on a planted source; the fountain plume gated on the web and built
+everywhere else. CI (`godot-check.yml`) prints the pck and site size after the web export, warns
+over 650 MB and fails over GitHub Pages' 1 GB.
+
+**Tools.**
+- `tools/webshot/web_budget.gd`: every web budget per shader in seconds, headless (samplers, uniform
+  block, varyings, source KB, constant items; top N).
+- `tools/webshot/webshot.js` `MORE=n MORE_GAP=ms`: more shots after the first.
+- `tools/web_probe/export_probe.sh`: the real main build with `web_autoprobe.gd` as an autoload
+  (`MAIN=` another main scene, `AUTOPROBE=0`, `OUTDIR=`). The probe (query string): `ap_settle`,
+  `ap_every`, `ap_n` reports of exposure / glow / fog / camera / lights / particles near the camera
+  and the frame as `PROBE_IMG` (decode the base64 PNGs out of the LOG); `ap_hide=a,b,...` one step a
+  report: a node-path substring to hide, `plume:<fixed|restart|nodamp|nocurve|unshaded|local>`,
+  `env:<refl|amb|fog|glow|skyq>`, `glob:<name>=<v>`; `ap_stage=fire|hose|medic` (Emergency's
+  staging); `ap_slow=ms` / `ap_out=` natively. NOTE each frame read is the PREVIOUS frame: a hide
+  shows one report later.
+- `tools/web_probe/fx_room.tscn`: effects side by side under the city's Environment (FireSmoke,
+  a fire puff, spray, the hose water, a lit puff; `fountain=1` the real MacArthur fountain,
+  `plume=unshaded`, `slow=ms`), native and web, prints FX means.
+- `tools/web_hero_rain/hero_probe.gd`: `full=1`, steps `aerial`, `quality`, `scan`, `hidescreen`.
+- Harness traps found: `tools/webshot` holds a `.gdignore` (scripts there are not exported); a
+  `pgrep -f` / `pkill -f` on a pattern in your own command line matches the shell itself; a tab left
+  over from a run holds port 8123 (`EADDRINUSE`); probe.js's "gl uploads" counter adds the whole
+  wasm heap on every call (it reads terabytes; ignore it).
+
+Stills on `shots/web-build-5`.
