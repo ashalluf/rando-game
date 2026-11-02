@@ -1,0 +1,7 @@
+{
+	"_doc": "Wave 7 reference cameras (tools/refcams/README.md), the same format as cameras.json and cameras_w6.json. One row a camera, each on its own line. Run with REFCAMS_JSON=tools/refcams/cameras_w7.json.",
+	"resolution": [1280, 720],
+	"cameras": [
+		{"name": "bonfire_night", "label": "The beach at 21:00 clear among the bonfire rings, groups round the fires, the surf and the pier's lights beyond", "eye": [-862.6, 1.6, -56.7, 44.0, -5.0], "agl": true, "hour": 21.0, "weather": "clear", "fov": 55, "bonfire_lit": 1}
+	]
+}

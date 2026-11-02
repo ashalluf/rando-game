@@ -26,6 +26,7 @@ global uniform vec3 origin_shift;
 global uniform vec4 sky_tint;
 global uniform vec3 sun_direction;
 global uniform float night_factor;
+global uniform float city_hour;
 global uniform float ground_detail;
 // Rain darkens the sand the way it darkens the streets (PropFactory.set_wetness()).
 global uniform float road_wetness;
@@ -64,6 +65,15 @@ uniform float band_roughness = 0.32;
 uniform float band_mirror = 0.16;
 uniform float pool_mirror = 0.95;
 uniform float sun_glow = 0.6;
+// The sand by moonlight (the bonfire_night refcam; 0 = the old look): once the sun is well down
+// the dry sand loses most of its colour and some of its brightness, toward a cool grey - the eye's
+// night vision - so the fires' warm pools and the pier's lights read against it instead of a sand
+// lit tan as at dusk. Gated on the clock (sun_direction is the moon's at night): full from 19:48
+// to 04:12, nothing before 19:00 or after 05:00, so dusk and dawn are untouched.
+uniform float night_look = 0.0;
+uniform float night_desat = 0.45;
+uniform float night_dim = 0.82;
+uniform vec3 night_tint = vec3(0.92, 0.96, 1.0);
 
 varying vec3 wpos;
 
@@ -77,6 +87,12 @@ void fragment() {
 	vec2 tw = wpos.xz + origin_shift.xz;
 	vec2 uv = tw / tile_m;
 	vec3 alb = texture(albedo_tex, uv).rgb * tint * COLOR.rgb;
+	if (night_look > 0.0) {
+		float moon = night_look * max(smoothstep(19.0, 19.8, city_hour), 1.0 - smoothstep(4.2, 5.0, city_hour));
+		float lum = dot(alb, vec3(0.2126, 0.7152, 0.0722));
+		vec3 grey = vec3(lum) * night_tint;
+		alb = mix(alb, mix(alb, grey, night_desat) * night_dim, moon);
+	}
 	float rough = texture(rough_tex, uv).r;
 	vec3 nm = texture(normal_tex, uv).rgb;
 	vec3 eye = INV_VIEW_MATRIX[3].xyz;

@@ -28416,3 +28416,57 @@ the sand / sea rows and deck sides, the strollers by hour, place and weather, th
 space like the rest of pier_park / beach_sand / ocean; auto exposure on Forward+ stacks on the coast
 gain as on every other camera); the pier's root and its sand pools are off this camera's frame; the
 bonfire rings belong to rc4-bonfire-night.
+
+## 9lz. The beach bonfires at night (2026-11-02, wave 7, branch `wt/rc4-bonfire-night`)
+
+The task: a new reference view `bonfire_night` - the beach at 21:00 clear at eye level among the
+bonfire rings with groups round them, the surf and the pier's lights beyond - judge it, fix the
+worst three to five things.
+
+**The camera** (`tools/refcams/cameras_w7.json`, created here in cameras_w6.json's format): eye
+(-862.6, 1.6 agl, -56.7), yaw 44, pitch -5, fov 55, 21:00 clear, behind the group round ring -3
+toward Rando Pier's wheel, ring -5's fire 50 m down the beach in front of the pier. Its
+`bonfire_lit: 1` key (refcams_shot.gd `_bonfire_lit()` / `_bonfire_lit_for()`) sets BONFIRE_LIT
+before the city loads (a ring's group is planned when its chunk builds) and `Bonfires.force_lit`
+per camera (the key, or -1 for a camera without it, once a run has set it). Run:
+`REFCAMS_JSON=tools/refcams/cameras_w7.json python3 tools/refcams/refcams.py run <dir> --only bonfire_night`.
+
+**What read fake, in the order the eye found it, and the fixes** (`RC4_BONFIRE=0` puts all back):
+1. **There were no rings.** On main the view was empty tan sand: `Bonfires.build()` dropped a
+   ring outright when a palm (0.8 m), the lifeguard tower or a BeachAmenities station (the
+   restroom: 8.8 m, added after the bonfire pass) stood within its group's room - all three rings
+   by this eye, about two in five along a palm beach. Now `Bonfires.slide_clear()` slides it along
+   the shore (`SLIDES` 3, 6, 9, 12 m either way, the across fraction kept, still clear of the bike
+   path and the kept-off stretches) to the first clear spot, and the rings built keep 2 x
+   GROUP_CLEAR from each other. The plan (`rings_in()`) stays pure; only the build moves a ring.
+   LOD pools still use the planned spot (a few metres off, invisible from the air).
+2. **The fire was a brown puff.** The flames were emitted under the 0.62 m rim, so a camera on
+   the sand saw only their cooled tops. Under rc4 the body starts at the rim, rises a little
+   faster and the tongues are bigger, on their own ramp that fades out while still orange (the car
+   fire's ramp left the tops as brown blobs floating over the fire).
+3. **A fire did not read from down the beach.** `shaders/bonfire_glow.gdshader`: one shared
+   camera-facing additive quad over every lit ring (`BonfireFire` `Glow`, GLOW_SIZE 3.4 m, drawn to
+   2.4 km), fog-free and zero at its edge (the additive-fog rule), never under `min_angle` 0.02 rad
+   of the view, its hot core coming in only from 10-45 m (close up the real flames carry it: with
+   the core near, the fire blew into a ball with a halo disc), flicker on a phase hashed from where
+   it stands. Linear on both renderers (cs_out).
+4. **The firelight floodlit the sand.** The near pool is 0.8x as strong with falloff 2.8 (was 1.7)
+   and the omni's attenuation 2.0 (was 1.3): the warm light now dies within a few metres of the
+   group, as a fire's does. The LOD pools are unchanged (`pool_mesh(false)`).
+5. **The sand at 21:00 was dusk tan.** beach_sand.gdshader `night_look` (set by
+   `PropFactory.beach_sand_material()`): the dry sand's albedo moves 45 % to a cool grey and 0.82x
+   brightness, full from 19:48 to 04:12 by `city_hour` (sun_direction is the MOON's at night, so a
+   sun-elevation gate never fired). Dusk (the sunset camera at 18:36) and dawn are untouched.
+
+**Numbers** (refcams, opengl3, before = RC4_BONFIRE=0, which is main): p50 52 -> 43, p95 69 ->
+107, p99 82 -> 182, CCT 5336 -> 3764 K. Frame cost 1,535,914 tris / 2,251 draws -> 1,874,669 /
+2,341; +322k of it is shadow triangles: the ring now exists, so the nearest fire's omni shadow
+cubemap (the bonfire pass's own SHADOW_REACH design) draws; the glow is one quad a fire.
+
+**Not done / unverified.** Nothing seen on Forward+ (the Mac): the glow's additive core and the
+cooler sand need a look there (the glow is linear-on-both, the sand's change is a mix inside its
+albedo). The blankets read as flat pale sheets under firelight; the fire ring's outside is a
+plain grey at this range; the beach restroom block still reads as a box; the group's poses do not
+move (baked figures). Other cameras (`compare`, RC4_BONFIRE=0 vs on): sunset and beach unchanged (pixel 0.01);
+pier_night FLAGGED by design: its sand is the moonlit grey now (p50 22 -> 19, -16 mired, sat
++0.055; the first, stronger night look read navy there and was toned down to 0.45 / 0.82).
