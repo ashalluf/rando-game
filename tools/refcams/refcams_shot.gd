@@ -90,22 +90,33 @@ func _run() -> void:
 			day.set("hour", float(cam.hour))
 			day.call("_apply")
 		Engine.time_scale = 1.0
-		_place(player, fov)
-		# The marine layer's morning damp (MarineMorning) wants the hour and the eye: soaked at once.
-		if weather and weather.has_method("settle_wet"):
-			var keys: Array = weather.get_script().get_script_constant_map().get("STATE_KEYS", [])
-			weather.call("settle_wet", keys.find(String(cam.get("weather", "clear"))), float(cam.hour),
-				Vector3(float(eye[0]), y, float(eye[2])))
-		if scene.has_method("update_streaming"):
-			scene.call("update_streaming", true)
+		# A "drive" row (cameras_w5.json, chase_cam): the player drives his own car and the shot is
+		# his chase camera (tools/refcams/chase_stage.gd), not the free eye.
+		var drive: RefCounted = null
+		if cam.has("drive"):
+			OS.set_environment("EYE", "")
+			drive = load("res://tools/refcams/chase_stage.gd").new()
+			await drive.call("run", self, cam, player)
+			fov = player.get("camera").fov
+		else:
+			_place(player, fov)
+			# The marine layer's morning damp (MarineMorning) wants the hour and the eye: soaked at once.
+			if weather and weather.has_method("settle_wet"):
+				var keys: Array = weather.get_script().get_script_constant_map().get("STATE_KEYS", [])
+				weather.call("settle_wet", keys.find(String(cam.get("weather", "clear"))), float(cam.hour),
+					Vector3(float(eye[0]), y, float(eye[2])))
+			if scene.has_method("update_streaming"):
+				scene.call("update_streaming", true)
 		# A row may ask for more frames (cameras_w5.json "shot_frames": a view over big chunks that
 		# the FULL ring has not finished building after the default). What it stages is staged
 		# the default count before the shot, so it is where the row says whatever the wait.
-		var frames := maxi(_env_int("SHOT_FRAMES", 30), int(cam.get("shot_frames", 0)))
+		var frames := 0 if drive else maxi(_env_int("SHOT_FRAMES", 30), int(cam.get("shot_frames", 0)))
 		var stage_at := frames - _env_int("SHOT_FRAMES", 30)
+		var traffic_staged := false
 		for i in frames:
 			if i == stage_at:
 				_stage_air(scene, cam)
+				traffic_staged = _stage_street_cars(cam, scene, plan)
 			await process_frame
 			_place(player, fov)
 			if day:
@@ -126,11 +137,17 @@ func _run() -> void:
 		Engine.time_scale = 0.0005
 		for i in _env_int("SETTLE", 6):
 			await process_frame
-			_place(player, fov)
-		_clear_lens(cam.name)
+			if drive:
+				drive.call("hold")
+			else:
+				_place(player, fov)
+		if not drive:
+			_clear_lens(cam.name)
 		await process_frame
 		if not _hero.is_empty():
 			_hero_report(player, cam.name)
+		if traffic_staged:
+			scene.get_node("Traffic").set("staged", false)
 		var png := _out_dir.path_join("%s.png" % cam.name)
 		get_root().get_texture().get_image().save_png(png)
 		var c: Array = await _geo_report("GEO_%s" % cam.name)
@@ -146,12 +163,48 @@ func _run() -> void:
 				"shadow_tris": c[4], "camera_draws": c[5], "shadow_draws": c[6]},
 			"shot_ms": Time.get_ticks_msec() - t0,
 		})
+		if drive:
+			await drive.call("debug", _out_dir)
+			drive.call("finish")
+			Engine.time_scale = 1.0
+			if _eye_cam:
+				_eye_cam.make_current()
 		_write_frames(load_ms, shots)
 		if _stager != null:
 			_unstage(scene, player)
 		print("REFCAM %s saved %s eye %s hour %.2f %s" % [cam.name, png, eye_text, float(cam.hour), cam.get("weather", "clear")])
 	print("REFCAMS done, %d shots in %d ms" % [shots.size(), Time.get_ticks_msec() - started])
 	quit()
+
+
+## A camera row's optional `street_cars` (wave 5, rain_day): {"axis": "z" (a road of constant z) or
+## "x", "at": the road's coordinate (the nearest road there is taken), "cars": [[along, dir, lane,
+## speed], ...]} - street traffic placed through TrafficManager.place_car() as the camera starts
+## (along = the TRUE world coordinate down the road; dir +1 runs toward +along), with the upkeep
+## held (`staged`) until the shot is taken, so the view always has its traffic (and its tyre spray)
+## whatever the load's own traffic did. Rows without the key place nothing.
+func _stage_street_cars(cam: Dictionary, scene: Node, plan: Variant) -> bool:
+	var spec: Variant = cam.get("street_cars")
+	var traffic := scene.get_node_or_null("Traffic")
+	if not spec is Dictionary or traffic == null or plan == null:
+		return false
+	var axis := 1 if String(spec.get("axis", "z")) == "z" else 0  # CityPlan.AXIS_Z / AXIS_X
+	var at := float(spec.get("at", 0.0))
+	var probe := Vector2(0.0, at) if axis == 1 else Vector2(at, 0.0)
+	var start: Vector2i = plan.block_index_at(probe)
+	var i0 := start.y if axis == 1 else start.x
+	var best := i0
+	for i in range(i0 - 1, i0 + 3):
+		if absf(float(plan.road_pos(axis, i)) - at) < absf(float(plan.road_pos(axis, best)) - at):
+			best = i
+	traffic.set("staged", true)
+	var placed := 0
+	for c: Array in spec.get("cars", []):
+		var car: Variant = traffic.call("place_car", axis, best, int(c[1]), int(c[2]), float(c[0]), float(c[3]))
+		if car != null:
+			placed += 1
+	print("REFCAM %s: placed %d street cars on road %d (axis %d at %.1f)" % [cam.name, placed, best, axis, float(plan.road_pos(axis, best))])
+	return true
 
 
 ## A camera row's optional "air" key (cameras_w5.json): AirTraffic.stage() of that kind with
@@ -271,6 +324,8 @@ func _set_weather(weather: Node, key: String) -> void:
 
 ## still_shot's _geo_split re-poses the player before its base count: here that is the free camera.
 func _pose(player: Node3D, _anchor: Vector3, _hold: Vector3, _boost: bool, fov: float) -> void:
+	if player.get("vehicle") != null:
+		return
 	_place(player, fov)
 
 

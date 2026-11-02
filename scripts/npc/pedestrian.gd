@@ -1874,6 +1874,8 @@ func _update_lod() -> void:
 		if kinematic:
 			velocity = Vector3.ZERO
 	var tier := 0 if d < shadow_range else (3 if d >= lod_far else (2 if d >= mid_body_range else 1))
+	if tier != _draw_tier and _draw_tier >= 0 and LodFade.enabled:
+		tier = LodFade.tier_band(_draw_tier, tier, d, [shadow_range, mid_body_range, lod_far])
 	# Past shadow_full_range (still inside shadow_range) the shadow comes from the welded middle
 	# body, a skinned SHADOWS_ONLY twin (_lite_shadow()): tier 0 drawn, the shadow lighter.
 	var lite := tier == 0 and shadow_lite and d >= shadow_full_range

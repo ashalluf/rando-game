@@ -2855,6 +2855,20 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	# The on-foot camera refcam (tests/rc2_hero_foot_checks.gd, CameraFade, ShopCrowd): no tree in
 	# the lens, busier shopping pavements near the camera, the hero_foot row.
 	load("res://tests/rc2_hero_foot_checks.gd").new().run(self, city)
+	# The camera lens (tests/camera_lens_checks.gd, CameraLens): exposure range and speed, flare, grain, bloom.
+	await load("res://tests/camera_lens_checks.gd").new().run(self, city)
+	# Popping while driving and flying (tests/lod_pops_checks.gd, LodFade).
+	await load("res://tests/lod_pops_checks.gd").new().run(self, city)
+	# The rainy day (tests/rc2_rain_day_checks.gd, RainDay): the overcast light, the wet road's day
+	# mirror, soaked lawns, no searchlights by day, nights and clear days untouched, the A/B.
+	await load("res://tests/rc2_rain_day_checks.gd").new().run(self, city)
+	# The night aerial refcam (tests/rc2_night_aerial_checks.gd, NightAerial): fewer floodlit boxes,
+	# the freeway's pools from the air, the far searchlights, the A/B.
+	load("res://tests/rc2_night_aerial_checks.gd").new().run(self, city)
+	# The chase_cam review (tests/rc2_chase_cam_checks.gd, ChaseCamReview): lane wear on the asphalt.
+	load("res://tests/rc2_chase_cam_checks.gd").new().run(self, city)
+	# The pale box round the player's car (tests/chase_box_bug_checks.gd): additive shaders and the fog.
+	load("res://tests/chase_box_bug_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()

@@ -85,6 +85,8 @@ func _live(city: Node3D) -> void:
 	day.set("santa_ana", 0.0)
 	if sun:
 		sun.set_meta("weather_flash", 0.0)
+	var held_st: float = day.get("storm")
+	day.set("storm", 0.0)
 	day.set("hour", 12.5)
 	day.call("_apply")
 	var noon_gain := float(mat.get_shader_parameter("sun_gain"))
@@ -107,4 +109,5 @@ func _live(city: Node3D) -> void:
 	day.set("santa_ana", held_sa)
 	if sun:
 		sun.set_meta("weather_flash", held_flash)
+	day.set("storm", held_st)
 	day.call("_apply")

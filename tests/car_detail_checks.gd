@@ -125,7 +125,8 @@ func _car_build() -> void:
 	for m in mats:
 		set_ok = set_ok and is_equal_approx(float(m.get_shader_parameter("grime")), float(g[0])) \
 				and is_equal_approx(float(m.get_shader_parameter("mud")), float(g[1]))
-	_check(set_ok and mats.size() == 1, "the car's own paint material carries its grime (%d paint material)" % mats.size())
+	# (Two with CarLodBlend: the far twin wears its own copy of the paint, LodFade/lod-pops.)
+	_check(set_ok and mats.size() == (2 if car.has_meta("lod_blend") else 1), "the car's own paint material carries its grime (%d paint material)" % mats.size())
 	CarDetail.lamps(car, true)
 	var lit := mi.material_override == CarDetail.material(true)
 	CarDetail.lamps(car, false)

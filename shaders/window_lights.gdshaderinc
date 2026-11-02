@@ -23,6 +23,11 @@ global uniform float city_hour;
 #define NIGHT_SKYLINE_DECLARED
 global uniform float night_skyline;
 #endif
+// The night aerial review (NightAerial, scripts/world/night_aerial.gd): 0 is the A/B.
+#ifndef NIGHT_AERIAL_DECLARED
+#define NIGHT_AERIAL_DECLARED
+global uniform float night_aerial;
+#endif
 
 
 // How many of the offices that light up at all are still lit at this hour (DayNight's clock,
@@ -175,11 +180,14 @@ vec3 tower_wash(float b_seed, float part_h, float up, float u, bool masonry, flo
 		float k = exp(-d / h) * (0.35 + 0.65 * smoothstep(0.0, 1.2, d));
 		e += wash_color(wl_roll(sd, 67u)) * (2.4 * tall * k * wash_scallop(u, 3.2, fade));
 	}
-	if (masonry && wl_roll(sd, 68u) < 0.6) {
+	// The night aerial review keeps a third of these (salt 113): uplit masonry on most of the city's
+	// brick read as glowing embers from the air. The kept ones are lit cooler and a little less.
+	bool na = night_aerial > 0.5;
+	if (masonry && wl_roll(sd, 68u) < 0.6 && (!na || wl_roll(sd, 113u) < 0.33)) {
 		float h = clamp(part_h * 0.3, 9.0, 30.0);
 		float k = exp(-max(up - 4.0, 0.0) / h) * smoothstep(3.0, 5.0, up);
-		vec3 col = wl_roll(sd, 69u) < 0.6 ? vec3(1.0, 0.78, 0.52) : vec3(0.92, 0.95, 1.0);
-		e += col * (1.5 * k * wash_scallop(u, 4.6, fade));
+		vec3 col = wl_roll(sd, 69u) < 0.6 ? (na ? vec3(1.0, 0.88, 0.72) : vec3(1.0, 0.78, 0.52)) : vec3(0.92, 0.95, 1.0);
+		e += col * ((na ? 1.1 : 1.5) * k * wash_scallop(u, 4.6, fade));
 	}
 	return e * night;
 }
