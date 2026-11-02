@@ -2906,6 +2906,16 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	load("res://tests/palm_shimmer_checks.gd").new().run(self, city)
 	# The ridge sign refcam (tests/rc3_ridge_sign_checks.gd, RcRidgeSign): letters, shrubs, bake, plazas.
 	load("res://tests/rc3_ridge_sign_checks.gd").new().run(self, city)
+	# The pier at night, second pass (tests/rc4_pier_night_2_checks.gd, RcPierNight / CoastExposure):
+	# the coast's exposure, the park's wash, the light on the sand and the sea, the night strollers.
+	load("res://tests/rc4_pier_night_2_checks.gd").new().run(self, city)
+	# The bonfire_night refcam (tests/rc4_bonfire_night_checks.gd): rings slid clear of palms, the glow, the moonlit sand.
+	load("res://tests/rc4_bonfire_night_checks.gd").new().run(self, city)
+	# The broadway_night refcam (tests/rc3_broadway_night_checks.gd, BroadwayNight): signs held lit,
+	# blazing marquees, brick auditorium sides, soft searchlight shafts, the camera row, the A/B.
+	load("res://tests/rc3_broadway_night_checks.gd").new().run(self, city)
+	# The canals_day refcam (tests/rc4_canals_day_checks.gd, Rc4Canals): the water, the coping, the banks.
+	load("res://tests/rc4_canals_day_checks.gd").new().run(self)
 	# The film lot refcam (tests/rc4_film_lot_checks.gd, Rc4FilmLot): the camera row, the
 	# basecamp's dressing, the studio asphalt, the batched trailers.
 	load("res://tests/rc4_film_lot_checks.gd").new().run(self, city)

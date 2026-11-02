@@ -156,6 +156,8 @@ range. Its optional `golf_group` key ("hole:stage[:tee[:count]]") stages a group
 
 ## Wave 7's cameras (`cameras_w7.json`)
 
-Run with `REFCAMS_JSON=tools/refcams/cameras_w7.json`. `film_lot` (rc4-film-lot): inside the
+Run with `REFCAMS_JSON=tools/refcams/cameras_w7.json` (the file is new in wave 7, the cameras_w6.json
+format). `canals_day`: Marisol Canals at 11:00 clear, on Heron Canal's southern footbridge looking
+north down the canal (no staging). `film_lot` (rc4-film-lot): inside the
 SUNSPIRE PICTURES studio lot at 14:00 clear, eye level in the middle of the studio street between
 stages 5-7 and the basecamp, looking north to the water tower. No staging key.

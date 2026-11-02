@@ -346,6 +346,9 @@ func _push_pier_lights() -> void:
 	_ocean.set_shader_parameter("pier_lines", a)
 	_ocean.set_shader_parameter("pier_info", b)
 	_ocean.set_shader_parameter("pier_count", mini(lines.size(), 10))
+	# The same rows lighting the water and the sand round each pier (rc4-pier-night-2).
+	RcPierNight.push(_ocean)
+	RcPierNight.push(PropFactory.beach_sand_material())
 
 
 ## [[Vector4(ax, az, bx, bz), Vector4(lamp height, spacing, deck height, warmth)], ...].

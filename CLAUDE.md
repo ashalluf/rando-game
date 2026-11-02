@@ -1630,7 +1630,7 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   the wave; later rounds: a rolling lit dust front, the plume's value range, panel debris, the fires'
   underlight on the cap, a held stem, fuel trails and flames up the wreck's sides, a soft crater.
   `EXPLOSIONS_4=0` is the A/B (`BLAST_DUST_ROLL`, `BLAST_VALUE`, `BLAST_CHUNKS`, `BLAST_UNDERLIGHT`,
-  `BLAST_STEM`, `BLAST_WRECK_FIRE`, `BLAST_CRATER`, `BLAST_FLAMES`, `BLAST_PIT`, `BLAST_QUIET`, `BLAST_CORE`, `BLAST_RIBBONS`, `BLAST_FACADES` =0 each part; flame tongues `shaders/flame_tongue.gdshader`, the traced pit `shaders/blast_pit.gdshader`); strips blast_room_shot.gd (`GAS=1`,
+  `BLAST_STEM`, `BLAST_WRECK_FIRE`, `BLAST_CRATER`, `BLAST_FLAMES`, `BLAST_PIT`, `BLAST_QUIET`, `BLAST_CORE`, `BLAST_RIBBONS`, `BLAST_FACADES`, `BLAST_DUST_DARK` =0 each part; flame tongues `shaders/flame_tongue.gdshader`, the traced pit `shaders/blast_pit.gdshader`); strips blast_room_shot.gd (`GAS=1`,
   `WEB=1`, `CAR=1 CHAIN=1`); checks `tests/explosions_4_checks.gd`.
 - The mayhem refcam (2026-11-01, docs/HANDOFF.md "The mayhem refcam"): `mayhem` in
   `tools/refcams/cameras_w5.json` is STAGED (`"stage": "mayhem"` -> `tools/refcams/mayhem_stage.gd`:
@@ -4689,6 +4689,16 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   `PIER_NIGHT=0` / `NIGHT_CLOUDS=0` are the A/B; the pier alone in a minute:
   `tools/pier_night/pier_shot.tscn` (`EYE`, `T`, `FAR=1`, either renderer); checks
   `tests/rc_pier_night_checks.gd`.
+- The pier at night, second pass (wave 7, docs/HANDOFF.md "The pier at night from the beach, second
+  pass"): `CoastExposure` (`scripts/world/coast_exposure.gd`, one hook in DayNight's exposure line):
+  a camera on the sand or over the sea opens up `COAST_GAIN` 1.75x deep into the night only (gone
+  160 m inland and above moonlight 0.6: the 18:36 sunset untouched). `RcPierNight`
+  (`scripts/world/rc4_pier_night.gd`): pier_park.gdshader's `wash` (the lamp rows as line sources,
+  the midway's `GLOWS`, downlights under the deck on the piles; set in `PierMesh.material()`), the
+  piers' rows lighting the sand and the sea (`shaders/pier_wash.gdshaderinc`, pushed by Weather
+  with the ocean's own `pier_lines`; the deck shades its own side), clothed `BeachWalker`
+  strollers on the wet sand by a pier after dark. `RC4_PIER_NIGHT=0` is the A/B; checks
+  `tests/rc4_pier_night_2_checks.gd`.
 - Downtown skyline (owner, 2026-09-24: "a 1:1 match of DTLA skyline ... It needs more
   buildings"): `LandmarkDowntown` (`scripts/world/landmark_downtown.gd`) builds nineteen `dt_*`
   landmarks, listed in ONE contiguous block at the end of `Landmarks.all()` (other branches add
@@ -4860,6 +4870,14 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   `SHOP_NAMES`, Broadway's appended after the first `BASE_SHOP_NAMES`; nothing else's roll moves).
   `BROADWAY=0` is the A/B; `tools/broadway_probe.gd` lists the palaces with EYEs; checks
   `tests/broadway_checks.gd`.
+- Broadway at night (wave 6 refcam `broadway_night` in `tools/refcams/cameras_w6.json`, docs/HANDOFF.md
+  "Broadway's theatre district at night"): `BroadwayNight` (`scripts/world/broadway_night.gd`, hooks
+  in BroadwayTheatre, SkyBeam and one in `CityChunk._add_tree()` after its rolls): blade signs hold
+  their names lit (broadway_sign `look3`), brighter marquees and their light, red-brown auditorium
+  brick with dressed side walls (pilasters, a painted name, exit doors, a fire stair), soft searchlight
+  shafts from the street (nightlife_beam `look3`), no street tree on a palace's frontage.
+  `BROADWAY_NIGHT=0` is the A/B; pick probe `tools/rc3_broadway_night/pick.gd`; checks
+  `tests/rc3_broadway_night_checks.gd`.
 - Fashion district (2026-10-06, HANDOFF "The fashion district"): `FashionDistrict`
   (`scripts/world/fashion_district.gd`) overlays the DOWNTOWN building blocks east of Main St from
   7th St to Pico Blvd (`stretch()`, `EAST_REACH` past Alameda; `block_info()` is pure, cached per
@@ -5069,6 +5087,12 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   Every roll is a hash of the seed and the lot. `CANALS=0` in the environment is the A/B (no site,
   the blocks are ordinary beach town). Probe: `tools/canals/probe.gd` (layout, styles, bridges,
   road closures). Checks: `tests/canals_checks.gd`.
+- The canals by day (wave 7, refcam `canals_day` in `tools/refcams/cameras_w7.json`, docs/HANDOFF.md
+  "The canals by day from a footbridge"): `Rc4Canals` (`scripts/world/rc4_canals.gd`): canal_water's
+  `rc4` turns the engine's specular off on Compatibility (the shader's emitted mirror carries the sky;
+  doubled it was a cyan pool), calmer and murkier; the coping's water face runs past the bank's top
+  row (`cope_foot()`: a slot showed the void as a dark strip) and takes the ground lift; banks planted,
+  more boats, a painted railing. `RC4_CANALS=0` is the A/B; checks `tests/rc4_canals_day_checks.gd`.
 - The golf course (VISUAL_ROADMAP #98, 2026-10-05; docs/HANDOFF.md, golf section): Valley Oaks
   Golf Club (invented), nine holes, a range, a clubhouse, on the valley floor (x -389..298,
   z -3131..-2544, default seed). A landmark AREA like MacArthur Park (`GolfCourse.entry()`'s
@@ -6389,6 +6413,13 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   (`BonfireFigure`, BeachFigure bakes in STREET CLOTHES: `BeachGoer.clothed`). None in rain,
   storms or a Santa Ana. LOD chunks lay the pools. `BONFIRES=0` the A/B, `BONFIRE_LIT=1` lights
   every ring; probe `tools/bonfires/probe.gd`; checks `tests/bonfires_checks.gd`.
+- The beach bonfires at night (wave 7, refcam `bonfire_night` in `tools/refcams/cameras_w7.json`,
+  its `bonfire_lit` key = BONFIRE_LIT; docs/HANDOFF.md "The beach bonfires at night"): a ring whose
+  spot a palm, the tower or a beach station takes slides along the shore (`Bonfires.slide_clear()`,
+  `SLIDES`) instead of being dropped; the flames rise from the rim and fade out still orange; a
+  fog-free additive glow (`shaders/bonfire_glow.gdshader`, core only from afar); the pool and omni
+  fall off fast; beach_sand `night_look` (19:48-04:12 by `city_hour`: sun_direction is the moon's at
+  night) greys the dry sand. `RC4_BONFIRE=0` is the A/B; checks `tests/rc4_bonfire_night_checks.gd`.
 - The hero (owner, 2026-09-24: "Blender with real fingers from scratch AAA studio level"):
   `assets/models/hero.glb`, built by **`tools/hero/`** in Blender 4.2 with MPFB2 from CC0
   MakeHuman assets plus our own tracksuit, rib tank, rope chain, watch, ring, laced sneakers and
