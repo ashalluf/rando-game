@@ -2895,6 +2895,9 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	# The golf course at 08:30 (tests/rc3_golf_morning_checks.gd, GolfMorning): the staged group,
 	# the turf's morning passes behind their switch, the course's sycamores and eucalyptus.
 	load("res://tests/rc3_golf_morning_checks.gd").new().run(self, city)
+	# The four-level stack from the air (tests/rc4_stack_aerial_checks.gd, RcStack): the shade under
+	# the high connectors, the right of way's groves, the thicker columns, the rush hour.
+	load("res://tests/rc4_stack_aerial_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()
