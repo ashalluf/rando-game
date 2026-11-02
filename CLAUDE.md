@@ -4791,6 +4791,13 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   and lantern strings hung between the street lamps; ONE mesh a block on `shaders/chinatown.gdshader`
   (kind in COLOR.a) plus a shadowless twin (`ChinatownGeo.fine`); LOD/far are lod_boxes.
   `CHINATOWN=0` is the A/B; probe `tools/chinatown/probe.tscn`; checks `tests/chinatown_checks.gd`.
+- The Chinatown plaza at dusk (wave 6, refcam `chinatown_dusk` in `tools/refcams/cameras_w6.json`,
+  docs/HANDOFF.md "The Chinatown plaza at dusk"): `Rc3Chinatown` (`scripts/world/rc3_chinatown.gd`,
+  chinatown.gdshader's `rc3`, 0 = bit-identical): shop glass traces a room (`shop_room()`), lantern
+  silk held deep red-orange under AgX (red-heavy and bright went pale pink), the hall's screens lit
+  from inside (UV2 `LIT_FLAG`), lit flats with lamp pools and curtains, less street wash on lacquer,
+  12-sided lanterns, round plaza masts. `RC3_CHINATOWN=0` is the A/B; checks
+  `tests/rc3_chinatown_checks.gd`.
 - The ballpark in the ravine (2026-10-05, docs/HANDOFF.md "The ballpark in the ravine"): the FORM of LA's
   famous hillside ballpark, in its real place - home plate's real point through
   `DowntownReal.game_xz()`, 2.9 km grid-north of Pershing Square on the embayed hills above the
