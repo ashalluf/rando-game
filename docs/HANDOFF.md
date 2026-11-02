@@ -27225,3 +27225,20 @@ which puts every number back):
 the deck, the pool on the deck, none under the stack; the pool material's numbers and the A/B; the
 shader branch off by default; a FULL deck on DECK_LAYER and the lights' mask; a placed freeway car's
 reach and the street cars'). Compile and the heads round the camera: `tools/freeway_night/compile.tscn`.
+
+**Measured** (refcams, opengl3 1280x720, staged traffic): the camera on main 6.35 M triangles /
+3,278 draws (p5/p50/p95 4/41/116); this pass 6.39 M / 3,324 (5/49/114): the +46 draws are the
+freeway cars' lamps past 160 m. The ten original cameras, `FREEWAY_NIGHT=0` against on in one tree:
+seven identical (pixel |d| 0.01-1.3), street_noon / street_night / freeway flagged by the traffic
+moving between runs (a bus in street_night; the noon street flags too, where this change does
+nothing). The opengl3 city load peaked at 10.7 GB on this box (refcams, ~12 min to load).
+Gate (`SHARDS=3`, merged with origin/main 0c5f221a): 5,465 checks, all passed; shard peaks
+3,404 / 3,769 / 3,692 MB, 2,046 s.
+
+**Not done / not verified.** Forward+ (the Mac) not rendered: lavapipe climbed past the box's 15 GB
+compiling pipelines even for one block (`fwd_block_shot BLOCKS=home`), so the cobra pool's
+display-space add and the lights' strength on Forward+ are reasoned (the pool path is the old
+display_add one, the lights are ordinary `lamp_light`s), not seen. The pools' rhythm is clearer from
+the air than at the driver's grazing angle. Seen and left: the right-of-way eucalyptus's pale limbs
+on opengl3, the gantry lettering's softness, no headlights of the viewer's own car (the camera has
+no car). Stills on `shots/rc3-freeway-night`.
