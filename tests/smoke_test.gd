@@ -2855,6 +2855,8 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	# The on-foot camera refcam (tests/rc2_hero_foot_checks.gd, CameraFade, ShopCrowd): no tree in
 	# the lens, busier shopping pavements near the camera, the hero_foot row.
 	load("res://tests/rc2_hero_foot_checks.gd").new().run(self, city)
+	# The pale box round the player's car (tests/chase_box_bug_checks.gd): additive shaders and the fog.
+	load("res://tests/chase_box_bug_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()
