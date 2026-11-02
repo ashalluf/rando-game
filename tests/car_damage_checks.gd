@@ -208,6 +208,17 @@ func _rocket_to_wreck() -> void:
 
 
 func _rocket_to_wreck_run() -> void:
+	# A clear deck: the toss spins the wreck over 10-20 m, and coming down on an earlier section's
+	# car or a torn wheel it rested 2.70 m over the deck (shuffled gate 1202). Every earlier car
+	# goes, and any loose body on the deck.
+	for c in _cars:
+		if is_instance_valid(c):
+			c.queue_free()
+	_cars.clear()
+	for n in _tree.get_nodes_in_group("physics_prop"):
+		if n is RigidBody3D and is_instance_valid(n) and (n as Node3D).global_position.distance_to(_top) < 90.0:
+			(n as Node).queue_free()
+	await _ticks(2)
 	var r := _car(14.0)
 	await _ticks(40)
 	var blasts := Explosion.blast_count
@@ -250,9 +261,16 @@ func _rocket_to_wreck_run() -> void:
 		else:
 			still = 0
 	var over := r.global_position.y - _top.y
+	# What it rests on, when that is not the deck.
+	var under := ""
+	if over >= 2.6:
+		var q := PhysicsRayQueryParameters3D.create(r.global_position, r.global_position - Vector3(0.0, 6.0, 0.0))
+		q.exclude = [r.get_rid()]
+		var hit := r.get_world_3d().direct_space_state.intersect_ray(q)
+		under = ", on %s" % (hit.collider.name if hit and hit.collider else "nothing")
 	# On its rims, its side or its roof (the toss spins it).
 	_check(r.global_position.is_finite() and over > -0.2 and over < 2.6 and r.linear_velocity.length() < 1.0,
-			"the wreck comes down and rests on the deck (%.2f m over it, %d ticks)" % [over, landed])
+			"the wreck comes down and rests on the deck (%.2f m over it, %d ticks%s)" % [over, landed, under])
 	var hp_before := dmg.health
 	r.take_hit(-1, 10.0, Vector3.DOWN, r.global_position + Vector3.UP, Vehicle.HIT_BULLET)
 	_check(dmg.health == hp_before and r.is_wreck(), "a wreck takes no more damage")

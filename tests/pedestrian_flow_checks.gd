@@ -154,12 +154,18 @@ func _walker(chunk: Node3D, rect: Rect2, at: Vector2, seed_value: int) -> Pedest
 
 
 ## The north pavement of the spawn block nearest the camera, and a run along it.
-func _strip(city: Node3D, chunk: Node3D) -> Array:
+func _strip(city: Node3D, chunk: Node3D, nearer: bool = false) -> Array:
 	var rect: Rect2 = city.plan.block(0, 0).rect
 	var cam := _tree.root.get_viewport().get_camera_3d()
 	var cw := WorldState.to_world(cam.global_position) if cam else Vector3(rect.get_center().x, 0.0, rect.position.y)
 	var x0 := clampf(cw.x, rect.position.x + 12.0, rect.end.x - 26.0)
-	return [rect, Vector2(x0, rect.position.y + 2.0)]
+	# The north or the south pavement, whichever the camera is nearer: avoidance only runs within
+	# CrowdFlow.RANGE (35 m) of it, and the north one alone was 24 m off at the usual look and over
+	# 35 at another (shuffled gate 1202: the pair walked through each other).
+	var z := rect.position.y + 2.0
+	if nearer and absf(cw.z - (rect.end.y - 2.0)) < absf(cw.z - z):
+		z = rect.end.y - 2.0
+	return [rect, Vector2(x0, z)]
 
 
 func _follower(city: Node3D, chunk: Node3D) -> void:
@@ -194,7 +200,7 @@ func _follower(city: Node3D, chunk: Node3D) -> void:
 
 
 func _passing(city: Node3D, chunk: Node3D) -> void:
-	var s := _strip(city, chunk)
+	var s := _strip(city, chunk, true)
 	var rect: Rect2 = s[0]
 	var at: Vector2 = s[1]
 	var a := _walker(chunk, rect, at, 90201)
@@ -204,6 +210,11 @@ func _passing(city: Node3D, chunk: Node3D) -> void:
 	b._go_to(at + Vector2(-3.0, 0.0))
 	var closest := INF
 	var passed := false
+	# What avoidance needs: a camera within CrowdFlow.RANGE and both walkers ticking every frame
+	# (run 1202: the pair walked straight through each other, kinematic false - one of these was off).
+	var cam := _tree.root.get_viewport().get_camera_3d()
+	var cam_d := cam.global_position.distance_to(a.global_position) if cam else -1.0
+	var strides := Vector2i(a._lod_stride, b._lod_stride)
 	# 25 s: in CI 400's shard the pair stepped round each other (0.64 m) but had not passed by 14 s.
 	for i in 60 * 25:
 		await _tree.physics_frame
@@ -216,7 +227,7 @@ func _passing(city: Node3D, chunk: Node3D) -> void:
 	var pa_end := Vector2(a.position.x, a.position.z) - at if is_instance_valid(a) else Vector2.INF
 	var pb_end := Vector2(b.position.x, b.position.z) - at if is_instance_valid(b) else Vector2.INF
 	_check(passed and closest > 0.45,
-		"two walkers on one line step round each other instead of through (closest %.2f m, passed %s, kinematic %s, ended at %s and %s from the start)" % [closest, passed, a._kinematic, pa_end, pb_end])
+		"two walkers on one line step round each other instead of through (closest %.2f m, passed %s, kinematic %s, ended at %s and %s from the start; camera %.1f m off, strides %s, flow %s)" % [closest, passed, a._kinematic, pa_end, pb_end, cam_d, strides, CrowdFlow.enabled])
 	a.queue_free()
 	b.queue_free()
 

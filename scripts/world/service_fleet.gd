@@ -644,24 +644,32 @@ func _send_roaming(kind: int, work: String, p: Vector2, speed: float) -> void:
 ## world), going `speed`: null when the spot is off the city, closed, too near the player or not
 ## clear.
 func _place(kind: int, axis: int, index: int, dir: int, along: float, speed: float) -> Vehicle:
+	last_refusal = "place"
 	var width := plan.road_width(axis, index)
 	var lanes := 2 if width > plan.street_width + 1.0 else 1
 	var lane := StreetRoute.lane_side(axis, dir) * CityPlan.lane_center(width, lanes, lanes - 1)
 	var pos2 := Vector2(plan.road_pos(axis, index) + lane, along) if axis == CityPlan.AXIS_X else Vector2(along, plan.road_pos(axis, index) + lane)
 	if plan.zone_at(pos2) != MacroMap.Zone.CITY or not plan.road_open(axis, index, along) or not plan.road_open(axis, index, along + dir * 20.0):
+		last_refusal = "not an open city road"
 		return null
 	if traffic._replica_blocks(pos2, 8.0):
+		last_refusal = "replica"
 		return null
 	var pw := _player_world()
 	if pos2.distance_to(Vector2(pw.x, pw.z)) < spawn_clear:
+		last_refusal = "too near the player"
 		return null
 	if not traffic._lane_clear(axis, index, dir, lane, along, 22.0):
+		last_refusal = "lane not clear"
 		return null
 	if not PhysicsBudget.can_spawn():
+		last_refusal = "physics budget full"
 		return null
 	var car := traffic.place_car(axis, index, dir, lanes - 1, along, speed, false, kind)
 	if car == null:
+		last_refusal = "place_car refused"
 		return null
+	last_refusal = ""
 	var g := ServiceVehicles.gear_of(car)
 	if g:
 		g.reset()
@@ -697,6 +705,10 @@ func _scan_wrecks() -> void:
 
 
 ## Sends a tow truck for `wreck` (tests call it directly). True when one is on its way.
+## Why the last _place() / send_tow() said no ("" when it placed one): the checks print it.
+var last_refusal := ""
+
+
 func send_tow(wreck: Vehicle) -> bool:
 	for e: Dictionary in _tows:
 		if e.wreck == wreck:
@@ -704,9 +716,11 @@ func send_tow(wreck: Vehicle) -> bool:
 	var wp := WorldState.to_world(wreck.global_position)
 	var ks := StreetRoute.kerb_stop(plan, Vector2(wp.x, wp.z), 0.0)
 	if ks.is_empty():
+		last_refusal = "no kerb stop"
 		return false
 	var stop: Vector2 = ks.stop
 	if stop.distance_to(Vector2(wp.x, wp.z)) > tow_max_reach:
+		last_refusal = "wreck %.1f m from its kerb stop" % stop.distance_to(Vector2(wp.x, wp.z))
 		return false
 	var axis: int = ks.axis
 	var index: int = ks.index

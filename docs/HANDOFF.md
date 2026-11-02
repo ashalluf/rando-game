@@ -26015,3 +26015,98 @@ asset rebuild: `git checkout origin/main -- assets/models/crowd_life` is the bef
 `tests/rc2_crowd_plaza_checks.gd`. Not done: the plaza's own paving (a regular 5 m joint grid at eye
 level), the plaza's café chairs are not life seats (the plaza is built in a turned landmark frame),
 and a plaza's extra walkers spend the city's crowd cap (650 at HIGH) before blocks built after it.
+
+## 9kt. Traffic order, turns across a lane, ramp merges (fleet wave 4, `traffic-order-fix`, 2026-10-31)
+
+Gate-flakes' open traffic failures (section 9kd), fixed at the cause:
+
+1. **Lane groups are ordered by the noses, not the centres** (`TrafficAI.nose_ahead()`, used by
+   `_drive_streets()`' sort; `TrafficAI.ahead_in()` and `gap_ok()` decide ahead / behind the same
+   way). By the centres a short car beside the front half of a long bus dwelling at its stop (a
+   lane change's ghost in the bus's lane) sorted AHEAD of the bus, so neither had the other as its
+   leader and the car drove on into it (run 5757, -4.35 m). By the noses the bus is ahead of it,
+   with a negative gap, and the car stands. Same cost (one sort a group, O(1) a car).
+   `traffic_ai_checks` "a car beside a dwelling bus's front half has the bus ahead of it" holds it.
+2. **A turn from the wrong lane commits or goes on** (`TrafficAI.turn_cross_key()`,
+   `TURN_COMMIT` 24 m, `tx_key` / `tx_seen` in `traffic`). Reproduced on the first live run of
+   traffic_ai_checks: a car that never found a gap into its turn lane turned right from the inner
+   lane and its drawn fillet (TrafficMotion) swept into a car going straight in the kerb lane
+   (-1.57 m). Before the fillet starts it now looks once: room beside it (gap_ok) -> it commits
+   and is a ghost in the lane it cuts across until it has turned (followers there brake for it;
+   it follows that lane's leader too); no room -> it goes straight on (a forced turn waits at the
+   line instead).
+3. **The outer lane lets a waiting ramp car in** (`TrafficAI.merge_yielders()`,
+   `TrafficManager._fw_follow_at()`; `MERGE_YIELD=0` the A/B). Since FreewayFill fills each lane
+   ~42 m apart (jittered 13-71 m), the ~70 m a standing-start merge needs (`fw_gap_ok`) hardly ever
+   came: CI 399 / run 7373's ramp car stood at its merge point the whole window. A ramp car
+   waiting there sets `ramp_wait`; the nearest car coming up the lane that can stop at 2.6 m/s2
+   `MERGE_YIELD_ROOM` 12 m short of the follow distance (sticky: `yield_t`) slows for it. The
+   check now runs a car every 40 m up the outer lane past the merge point: with the yield it gets
+   in after ~5.5 s, with `MERGE_YIELD=0` it waits the whole 20 s (both A/B runs).
+4. **Check staging, not game bugs**: "a fast freeway car moves over and passes" ran on a freeway
+   FreewayFill refills even while staged (16 cars a tick), where a 28 m/s car rightly finds no 70 m
+   gap: the stretch round its two cars is kept clear of unplaced cars (`_keep_freeway_clear()`).
+   "a car swerves round the player" failed once here because the staged car rolled a double park
+   (2.5 % a block, `dp_at`) 4 m in: traffic honours `no_dp`, the check sets it.
+
+5. **Spawns see a car half out of their lane** (`TrafficManager._lane_clear()`). The second gate
+   run here read -4.76 m: a car moving inner -> kerb for its turn stood in a queue 64 % across, and a
+   car was spawned on top of it in the inner lane at 10 m/s - the spawn test only looked at cars
+   whose CURRENT lane was the spawn lane. It now counts a lane change's ghost (`lc_key`, under
+   `GHOST_UNTIL`) and a committed cross-lane turn (`tx_key`) too.
+
+Valets "the valet walks back to the podium" failed once more here (gate run 2, shard 1) and passed
+in every other run, alone and with the files before it; the check now prints the valet's distance,
+stage, act, job, panic and errand when it fails, for whoever sees it next. Also seen once (gate run
+1): speedboats "flat out she stays on the water (highest 2.82 m)", passing alone (0.5 m) - not
+traffic, left open.
+
+Gate: three SHARDS=3 runs on this branch: run 1 one FAIL (the boat), run 2 two (the -4.76 m spawn,
+fixed above, and the valet), run 3 (the branch merged with origin/main `bb03d731`) green, 5,079
+checks.
+
+## 9ks. The gate's intermittent failures, wave 5 (fleet wave 5, `gate-flakes-2`, branch `wt/gate-flakes-2`)
+
+The task: section 9kd's "Still open" list, then shuffled `SHARDS=3` runs (`SMOKE_SHUFFLE=<seed>`,
+one at a time, logs per run in `SMOKE_LOG_DIR`) with every failure fixed at its cause. The gate loop
+ran from a separate `git worktree` with a copy of `.godot`, so edits in the main tree never leaked
+into a running gate (check files are `load()`ed lazily, mid-run).
+
+**9kd's open items:**
+- traffic_ai "tightest -4.35 m" and "the on-ramp merge (merged false)": fixed by wave 4's
+  `traffic-order-fix` (section 9kt: lane groups ordered by noses, a turn across a lane commits or
+  goes on, the outer lane lets a waiting ramp car in, spawns see cars half out of their lane). That
+  branch was done but not merged; this branch MERGES it, and every run below includes it.
+- golden aerial "the noon far ground is unchanged (gain 0.90)": the far ground's painted sun is the
+  sun's energy over noon's, and an earlier file had left Weather on MARINE: under the deck DayNight
+  cuts the sun by `marine_sun_cut` (0.74 x 0.135 here). The live check now holds `marine`,
+  `santa_ana` and the lightning flash at 0 with `weather_darken`, and prints them.
+- **The spawn block's chunk REPLACED while a file uses it: found.** `CityStreamer.update_streaming()`
+  only looked at blocks whose standing chunk was the WRONG level. A build started at the other level
+  while the window was elsewhere (a file teleported the player away: the home block became LOD-wanted
+  and a LOD build began; stage_home brought him back) stayed pending once the FULL chunk stood at the
+  wanted level again - and `_advance_builds()` finished it a few frames later and `_install_chunk()`
+  put it OVER the FULL chunk (then the next update rebuilt it FULL: two swaps mid-file). In play it is
+  the same thing: drive off and come straight back, and the block you are on goes LOD and back. Now a
+  pending build whose block already stands at the wanted level is cancelled
+  (`CityStreamer.stale_builds_cancelled` counts them; `STALE_BUILD_CANCEL=0` is the A/B).
+  `tests/gate_flakes_2_checks.gd` stages exactly that and holds the chunk for 20 ticks.
+- street_errands / pedestrian_flow "somebody comes out of a shop door near the player (errand step
+  inside)": the walker sent in by `CrowdFlow.door_tick()` holds a door whose chunk was replaced (the
+  previous item); `StreetErrands._do_inside()` then let them out only once the player had gone. Now a
+  dead door is looked up again on the chunk standing there (`_revived_door()`: same key, same spot;
+  `REVIVE_DOORS=0` the A/B).
+
+**Found by the shuffled runs:**
+
+| run | check | cause | fix |
+|---|---|---|---|
+| 1202 | pedestrian_flow "two walkers on one line step round each other (closest 0.04 m)" | CrowdFlow's avoidance runs only within `RANGE` 35 m of the CURRENT camera; the staged pair walked the block's north pavement, 24 m from the camera at the usual look and past 35 at another | the pair walks whichever of the north / south pavements is nearer the camera; the message prints the camera's distance and both LOD strides; the gate reset also makes the setup's camera current again if a file left another (or none) |
+| 1202 | car_damage "the wreck comes down and rests on the deck (2.70 m over it)" | the toss spins the wreck 10-20 m; it came down on an earlier section's car or the crash wall still on the deck | the rocket run frees every earlier car and loose body on the deck first; a wreck over 2.6 m says what it rests on |
+| 1303 | pedestrian_flow "a follower walks beside its leader (mean 2.11 m)" | this branch's own first fix: the follower pair was moved to the south pavement too | only the passing pair takes the nearer pavement |
+| 1707 | service_vehicle "a tow truck is sent for a burnt-out wreck" (and its winch) | `ServiceFleet._place()` refused the truck with no reason given; the likeliest is `_lane_clear()` against a car a live system put in that lane during the earlier sections | the check clears the street's traffic right before `send_tow()`; `ServiceFleet.last_refusal` names why it said no and the check prints it |
+| 2303 | ground_contact "ground_drop() finds the ground a metre under a point a metre up (0.81, 0.00)" | the player's feet stood 0.19 m under the pavement top his ray hit (half on a kerb, or still settling); `ground_drop()` clamps that to 0, so the probe a metre over his ORIGIN was 0.81 m over the ground | the probe stands a metre over the surface the ray hits |
+| 2303 | sunset_clouds "18:00 hands the sky its weight (0.200, weather darken 0.00)" | the golden aerial one again: Weather's auto roll had a MARINE deck over the camera, which takes the sunset weight away | the check holds `marine` at 0 for the read |
+
+**Runs** (each `SHARDS=3`, ~30 min, a shard peaking at ~3.4-3.5 GB): see the table at the end of
+this section.

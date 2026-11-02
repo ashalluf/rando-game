@@ -452,7 +452,14 @@ func _lane_clear(axis: int, index: int, dir: int, lane: float, along: float, cle
 		if not is_instance_valid(other) or not other.is_traffic() or not other.is_inside_tree():
 			continue
 		var t: Dictionary = other.traffic
-		if not t.has("axis") or lane_key(int(t.axis), int(t.index), int(t.dir), float(t.lane)) != key:
+		if not t.has("axis"):
+			continue
+		# A car still part way out of this lane (its lane change's ghost, or committed to a turn
+		# across it) is in it too: a car was spawned on top of one standing in a queue, half across
+		# (gate run with the live traffic: -4.76 m).
+		if lane_key(int(t.axis), int(t.index), int(t.dir), float(t.lane)) != key \
+				and not (int(t.get("lc_key", -1)) == key and not t.has("lc_noghost") and float(t.get("lc_p", 1.0)) < TrafficAI.GHOST_UNTIL) \
+				and int(t.get("tx_key", -1)) != key:
 			continue
 		var wp := WorldState.to_world(other.global_position)
 		if absf((wp.z if axis == CityPlan.AXIS_X else wp.x) - along) < clear + float(t.get("rear", 2.4)) - 2.4:
@@ -543,6 +550,9 @@ func _drive_streets(delta: float) -> void:
 		# mostly across, so the car behind it there keeps its gap (TrafficAI.start_move()).
 		if t.has("lc_key") and not t.has("lc_noghost") and float(t.get("lc_p", 1.0)) < TrafficAI.GHOST_UNTIL:
 			_join_group(groups, int(t.lc_key), car)
+		# A car committed to a turn across the lane beside it is a ghost there until it turns.
+		if t.has("tx_key"):
+			_join_group(groups, int(t.tx_key), car)
 	_sirens = _siren_list()
 	_player_block = _player_in_lanes()
 	TrafficBehaviour.begin_tick(self, delta) # obstacles in the lanes, drivers' heads
@@ -559,7 +569,8 @@ func _drive_streets(delta: float) -> void:
 			continue
 		var dir := float(group[0].traffic.dir)
 		if group.size() > 1:
-			group.sort_custom(func(a: Vehicle, b: Vehicle) -> bool: return float(a.traffic.along) * dir < float(b.traffic.along) * dir)
+			# By the noses, not the centres (TrafficAI.nose_ahead()): a car beside a long bus.
+			group.sort_custom(func(a: Vehicle, b: Vehicle) -> bool: return TrafficAI.nose_ahead(a, b, dir))
 		for k in group.size():
 			var c: Vehicle = group[k]
 			var ct: Dictionary = c.traffic
@@ -602,6 +613,8 @@ func _drive_street(car: Vehicle, leader: Vehicle, delta: float, groups: Dictiona
 		# A new intersection coming up: roll the turn once, forget the last one's lights.
 		t.node = node
 		t.turn = 0
+		t.erase("tx_key")
+		t.erase("tx_seen")
 		# Where the road ahead is closed (a landmark's site, CityPlan.road_open) the car has to
 		# turn, onto an arm that is open, or come back the way it came (turn 2). Each arm is
 		# looked at just past the other road's carriageway: inside the crossing it always reads open.
@@ -638,6 +651,24 @@ func _drive_street(car: Vehicle, leader: Vehicle, delta: float, groups: Dictiona
 	# What holds the car this tick (TrafficAI reads the leader's): 0 nothing, 1 a line (light,
 	# sign, crosswalk, crossing), 2 the player, 3 a bus stop, 4 double-parked.
 	var why := 0
+	# A turn from the wrong lane (its move into the turn lane never found a gap) cuts across the
+	# lane beside it, and its drawn fillet swept into a car going straight on there (run with
+	# the gate's live traffic: -1.57 m). Before the fillet starts it looks once: with room beside
+	# it, it commits and is a ghost in that lane until it has turned (what comes up there brakes
+	# for it); without, it goes straight on - or, with the road ahead closed, waits at the line.
+	var cross_hold := false
+	if ai and (int(t.turn) == 1 or int(t.turn) == -1) and to_centre > 0.0 and to_centre < TrafficAI.TURN_COMMIT and not t.has("tx_key") and not t.has("tx_seen"):
+		var tx := TrafficAI.turn_cross_key(self, t, axis, index, dir)
+		if tx < 0:
+			t.tx_seen = true
+		elif TrafficAI.gap_ok(self, groups, tx, car, along, dir, v, true):
+			t.tx_key = tx
+			_join_group(groups, tx, car)
+		elif not t.get("forced", false):
+			t.turn = 0
+			t.tx_seen = true
+		else:
+			cross_hold = true
 	# Slow for the turn: never faster than a turn_speed arrival at the centre allows.
 	if int(t.turn) != 0 and to_centre > 0.0:
 		v0 = minf(v0, sqrt(turn_speed * turn_speed + 2.0 * brake_comfort * to_centre))
@@ -669,7 +700,17 @@ func _drive_street(car: Vehicle, leader: Vehicle, delta: float, groups: Dictiona
 			room = minf(room, ogap - 0.4)
 			if ov < 0.3:
 				still = minf(still, ogap - min_gap * 0.6)
-	var line_hold := to_line > -0.6 and (_must_stop(t, node, axis, to_line, v, delta) or Pedestrian.crosswalk_busy(node, axis, -dir) or LightRail.crossing_closed(node, axis) or FreightRail.crossing_closed(node, axis))
+	# Committed across a lane: what is ahead of it in that lane is ahead of it too.
+	if t.has("tx_key"):
+		var xa := TrafficAI.ahead_in(groups, int(t.tx_key), along, dir, half, car)
+		if not xa.is_empty():
+			var xgap: float = xa[1]
+			var xv := float((xa[0] as Vehicle).traffic.get("v", 0.0))
+			acc = minf(acc, _idm(v, v0, xgap, xv, min_gap * 0.6, tg, bk))
+			room = minf(room, xgap - 0.4)
+			if xv < 0.3:
+				still = minf(still, xgap - min_gap * 0.6)
+	var line_hold := to_line > -0.6 and (cross_hold or _must_stop(t, node, axis, to_line, v, delta) or Pedestrian.crosswalk_busy(node, axis, -dir) or LightRail.crossing_closed(node, axis) or FreightRail.crossing_closed(node, axis))
 	if line_hold:
 		acc = minf(acc, _idm(v, v0, to_line, 0.0, 0.3))
 		room = minf(room, to_line + 0.3)
@@ -881,6 +922,7 @@ func _drive_street(car: Vehicle, leader: Vehicle, delta: float, groups: Dictiona
 			t.dir = new_dir
 			t.lane = lane
 			t.turn = 0
+			t.erase("tx_key")
 			# The junction it just turned through is the "next" one on the new road too (the car's
 			# along is its old lane, short of the centre): marked as seen, or a second turn was rolled
 			# there and the car snapped back onto the road it came from (CI 397).
@@ -903,6 +945,7 @@ func _drive_street(car: Vehicle, leader: Vehicle, delta: float, groups: Dictiona
 			car.traffic_speed = 0.0
 		else:
 			t.turn = 0
+			t.erase("tx_key")
 	# Across the road: its lane, or part way through a lane change (TrafficAI.move_tick()).
 	var lane_now := float(t.lane)
 	var lat_rate := 0.0
@@ -1469,12 +1512,24 @@ func _drive_freeway(delta: float) -> void:
 			(groups[gk] as Array).append(car)
 	_drive_serial += 1
 	var tick := _drive_serial
+	# Ramp cars waiting at their merge point, by the outer lane they join (TrafficAI.ramp_tick sets
+	# `ramp_wait`): one car coming up that lane lets each in.
+	var waiting := {}
+	if ai:
+		for rc in on_ramps:
+			var rt: Dictionary = rc.traffic
+			if rt.get("ramp_wait", false):
+				var wk := Vector3(float(rt.fw), -1.0, float(Freeway.LANES - 1))
+				if not waiting.has(wk):
+					waiting[wk] = []
+				(waiting[wk] as Array).append(float((rt.ramp as Dictionary).t))
 	for key in groups:
 		var group: Array = groups[key]
 		var dir: int = int((key as Vector3).y)
 		# Sort by how far along each car is in its own direction of travel.
 		group.sort_custom(func(a: Vehicle, b: Vehicle) -> bool:
 			return (a.traffic.t < b.traffic.t) if dir > 0 else (a.traffic.t > b.traffic.t))
+		var yielders := TrafficAI.merge_yielders(self, group, waiting.get(key, []), dir) if waiting.has(key) else {}
 		for k in group.size():
 			var car: Vehicle = group[k]
 			var tt: Dictionary = car.traffic
@@ -1487,6 +1542,11 @@ func _drive_freeway(delta: float) -> void:
 			var leader: Vehicle = group[k + 1] if k + 1 < group.size() else null
 			if leader != null:
 				speed = minf(speed, _fw_follow(car, leader))
+			if yielders.has(car):
+				tt.yield_t = float(yielders[car])
+				speed = minf(speed, _fw_follow_at(car, float(yielders[car])))
+			elif tt.has("yield_t"):
+				tt.erase("yield_t")
 			if ai and tt.has("lc_src") and float(tt.get("lc_p", 1.0)) < TrafficAI.GHOST_UNTIL:
 				var oa := TrafficAI.fw_ahead(groups, Vector3(float(tt.fw), float(dir), float(tt.lc_src)), float(tt.t), dir, car)
 				if not oa.is_empty():
@@ -1515,6 +1575,15 @@ func _drive_freeway(delta: float) -> void:
 
 ## The speed a freeway car may do behind `ahead` in its lane: closing up to freeway_gap * 0.6
 ## plus the lengths past a car's own (a semi in front is 18 m of trailer behind its origin).
+## The speed a freeway car may keep behind a car standing at `t_at` (a ramp car it lets in).
+## It stops TrafficAI.MERGE_YIELD_ROOM further back than the follow rule would (the merge's own
+## test wants at least the follow distance behind it, and a car stopped exactly there never let it
+## in), braking at TrafficAI.MERGE_YIELD_BRAKE.
+func _fw_follow_at(car: Vehicle, t_at: float) -> float:
+	var room: float = absf(t_at - float(car.traffic.t)) - freeway_gap * 0.6 - float(car.traffic.get("half", 2.4)) - TrafficAI.MERGE_YIELD_ROOM
+	return sqrt(2.0 * TrafficAI.MERGE_YIELD_BRAKE * maxf(room, 0.0))
+
+
 func _fw_follow(car: Vehicle, ahead: Vehicle) -> float:
 	var gap: float = absf(float(ahead.traffic.t) - float(car.traffic.t))
 	var extra := float(car.traffic.get("half", 2.4)) + float(ahead.traffic.get("rear", 2.4)) - 4.8

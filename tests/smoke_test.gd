@@ -2835,6 +2835,8 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	# The crowd plaza refcam (tests/rc2_crowd_plaza_checks.gd, PlazaCrowd, CrowdDress): plazas by the
 	# hour and crossed, rigs dealt, outfits per rig, the A/Bs.
 	load("res://tests/rc2_crowd_plaza_checks.gd").new().run(self, city)
+	# The gate's intermittent failures, wave 5 (tests/gate_flakes_2_checks.gd): a stale pending build.
+	await load("res://tests/gate_flakes_2_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()

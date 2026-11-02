@@ -4217,3 +4217,9 @@ none of either.
   the rig's own outfit, and recolours are muted (CrowdDress); on a plaza rigs and looks are dealt,
   not rolled. The library's standing clips keep their legs near the rig's own stance (0.88).
   PLAZA_CROWD=0 / CROWD_DRESS=0 the A/B.
+- **2026-11-01 A build that is no longer wanted is dropped, even half done (HANDOFF "The gate's
+  intermittent failures, wave 5"):** the "spawn chunk replaced mid-file" flake was a real streaming
+  bug - a build started at the other level while the player was elsewhere finished after he came
+  back and replaced the chunk standing there. CityStreamer now cancels a pending build once the
+  block stands at the wanted level (STALE_BUILD_CANCEL=0 the A/B); a hidden shopper whose door was
+  rebuilt finds it again (REVIVE_DOORS=0). Gate loops run from their own worktree.

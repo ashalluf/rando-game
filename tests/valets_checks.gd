@@ -226,7 +226,14 @@ func _live(city: Node3D, plan: CityPlan, k: Vector2i) -> void:
 			if gone_valet.free_for_job():
 				at_podium = true
 				break
-		_t._check(at_podium, "valets: the valet walks back to the podium")
+		var vs := "freed"
+		if is_instance_valid(gone_valet):
+			var gv: Valet = gone_valet
+			vs = "%.1f m from home, hidden %s, down %s, job %d/%d, stage %s, act %s, panic %.1f, errand %s, in tree %s" % [
+				Vector2(gv.position.x, gv.position.z).distance_to(gv.home), gv.hidden, gv.get("_down"),
+				int(gv.get("_job_k")), (gv.get("_job") as Array).size(), gv.get("_stage"), gv.get("_act"),
+				float(gv.get("_panic_left")), not gv.errand.is_empty(), gv.is_inside_tree()]
+		_t._check(at_podium, "valets: the valet walks back to the podium" + ("" if at_podium else " (%s)" % vs))
 		_t._check(is_instance_valid(back) and not back.traffic.has("valet") and back._npc_driver, "valets: the car brought back drives off with its guest")
 	_end_live(city, traffic, player, home, chunk)
 
