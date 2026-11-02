@@ -2,5 +2,6 @@
 	"_doc": "Wave 6 reference cameras (tools/refcams/README.md), the same format as cameras.json and cameras_w5.json. One row a camera, each on its own line. Run with REFCAMS_JSON=tools/refcams/cameras_w6.json.",
 	"resolution": [1280, 720],
 	"cameras": [
+		{"name": "broadway_night", "label": "Broadway's theatre district at 22:00 clear, eye level looking south from 6th St", "eye": [2991.0, 1.7, 182.0, 180.0, 5.0], "agl": true, "hour": 22.0, "weather": "clear", "fov": 55, "street_cars": {"axis": "x", "at": 2991.0, "cars": [[214, 1, 1, 9], [236, 1, 0, 10], [285, 1, 1, 11], [228, -1, 0, 8], [262, -1, 1, 10], [320, -1, 0, 11], [372, -1, 1, 10]]}}
 	]
 }

@@ -85,6 +85,7 @@ func _ready() -> void:
 	_beam_mat = ShaderMaterial.new()
 	_beam_mat.shader = _beam_shader
 	_beam_mat.set_shader_parameter("strength", strength)
+	BroadwayNight.beam(_beam_mat)
 	_beam.material_override = _beam_mat
 	_beam.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	_beam.gi_mode = GeometryInstance3D.GI_MODE_DISABLED
