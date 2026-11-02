@@ -11,3 +11,11 @@ Batch 2 (Forward+, lavapipe - the Mac's renderer - and a car in daylight):
 - `06_wip_car_night_forward_overlit.jpg` - the first pass on Forward+: the fires lit the whole mushroom orange-tan (fixed).
 - `07_after_car_night_forward_strip.jpg` - t = 0.4, 1, 2, 4, 8 s: fireball with soot creases and secondary pops at its foot, then a dark mushroom silhouette lit from below by the burning fuel pool.
 - `08_after_car_day_strip.jpg` - opengl3, t = 0.3 .. 5 s: fuel fireball, two secondary pops at the foot (1.0, 1.5 s), the car tossed through it, the mushroom, the pool burning on the road.
+
+## Batch 3 (opengl3, noon)
+- `09_after_gas_pump_strip.jpg` - a petrol pump's vapour blast (GAS=1) at 0.1 / 0.5 / 2 / 5 s.
+- `10_after_rocket_5m_strip.jpg` - a rocket from 5 m (DIST=5) at 0.1 / 0.5 / 2 / 6 s: inside the
+  fireball, then the stem's foot; the cap is above the frame.
+- `11_after_rocket_60m_strip.jpg` - the same from 60 m: ball, roll-up, the mushroom standing.
+- `12_after_wreck_smoke_4_9_16s.jpg` - a car blast's wreck at 4 / 9 / 16 s with the continuous
+  smoke column (high up it still beads in stills: the harness emits in ~1 s bursts).
