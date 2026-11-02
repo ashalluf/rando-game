@@ -3,7 +3,6 @@ extends RefCounted
 ## checks for tests/smoke_test.gd. CPU and source only (no pixel is read headless):
 ##   * the camera row exists in tools/refcams/cameras_w5.json with its stage, and the stage script
 ##     and refcams_shot's hook are there (default off for every other camera);
-##   * the fireball volume has the depth-heat / soot look behind `rc_look`, and Blast3 hands it on;
 ##   * the police pool's soft falloff is gated and every cruiser glow takes it;
 ##   * the muzzle flash's light reaches a few metres, falling off steeply;
 ##   * a burning car's light falls off by the inverse square, a little stronger close in;
@@ -20,7 +19,6 @@ func run(t: Node, _city: Node3D) -> void:
 	if not RcMayhem.enabled:
 		_t._check(true, "rc2-mayhem: off (RC_MAYHEM=0)")
 		return
-	_volume()
 	_police()
 	_muzzle()
 	_fire_light()
@@ -46,16 +44,6 @@ func _camera() -> void:
 				staged += 1
 	_t._check(staged == 0, "rc2-mayhem: none of the ten original cameras is staged")
 
-
-func _volume() -> void:
-	var src := FileAccess.get_file_as_string("res://shaders/blast_volume.gdshader")
-	_t._check(src.contains("uniform float rc_look = 0.0;") and src.contains("if (rc_look > 0.0)") and src.contains("ds_m *= 0.5;"),
-		"rc2-mayhem: the fireball volume's new look is gated (rc_look 0 = the old field)")
-	var m := Blast3.volume_material()
-	RcMayhem.dress_volume(m)
-	_t._check(float(m.get_shader_parameter("rc_look")) == 1.0, "rc2-mayhem: Blast3's volume takes the depth-heat and soot look")
-	var b3 := FileAccess.get_file_as_string("res://scripts/weapons/blast_3.gd")
-	_t._check(b3.contains("RcMayhem.dress_volume(mat)"), "rc2-mayhem: Blast3.spawn_volume dresses every volume")
 
 
 func _police() -> void:

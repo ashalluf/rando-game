@@ -4179,5 +4179,5 @@ none of either.
 - **2026-11-01 The mayhem refcam: a staged combat moment is judged like the other cameras
   (rc2-mayhem, HANDOFF "The mayhem refcam").** The eleventh view lives in cameras_w5.json and is
   staged by a script the row names, so effects, police and crowd are judged where a player sees
-  them. The fuel fireball burns by depth with a sooty shell, a muzzle flash lights a few metres,
-  the police pool falls off softly. RC_MAYHEM=0 is the A/B.
+  them. A muzzle flash lights a few metres, a burning car's light falls off by the inverse square,
+  the police pool falls off softly; the fireball's look belongs to explosions-4. RC_MAYHEM=0 is the A/B.
