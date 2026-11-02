@@ -26521,3 +26521,78 @@ under the fire. The officers stand stiff in the standoff; traffic differs run to
 launched in one run), and any car or truck whose body comes within 10 m of the eye is hidden for the shot.
 
 Stills on `shots/rc2-mayhem`. Checks `tests/rc2_mayhem_checks.gd`.
+
+## 9kz. Shadows across the game (fleet wave 5, `shadows-review`, 2026-11-01)
+
+Task: cascade splits and fade, acne / peter-panning, contact hardening, every common caster at
+noon and golden hour, cascade seams, AO where shadows fail. What was found, fixed and left:
+
+**How Godot's sun shadow works here** (read from the 4.x source, `renderer_scene_cull.cpp`
+`_light_instance_setup_directional_shadow`, `light_storage.cpp`): each of the four cascades is a
+sphere fitted round the camera's view frustum between two DEPTHS (with blend_splits on, cascade i
+is fitted from cascade i-1's near end; the blend itself is the last 10 % of each), snapped to its
+texels (stable, no swimming). The depth bias in metres is `shadow_bias / 100 x the cascade's light-
+space depth range x shadow_blur`, the normal bias `shadow_normal_bias x the cascade's texel`, so
+the same 0.1 / 2.0 is ~8 cm in the first cascade and ~70 cm in the last; PCSS (angular distance
+0.9) widens each cascade's rect by tan(0.9 deg) x its depth range. At HIGH (500 m, splits 0.055 /
+0.16 / 0.42): texels ~3.3 / 9 / 24 / 57 cm, each cascade starting at ~3.4 screen pixels a texel.
+
+**The lab** (`tools/shadows_review/shadow_lab.tscn`): the city's WorldEnvironment, Sun and DayNight
+over a small set (asphalt, a kerbed pavement, three building blocks, two cars, two people, a street
+tree, a palm, a lamp, 30 posts and cubes every 10 m) - Forward+ on lavapipe in ~5 minutes at
+4.6 GB, where fwd_block_shot / gi_shot with one block were OOM-killed at 11.8-13.6 GB on this box.
+VARIANTS of `sun.<prop>=`, `env.<prop>=`, `Q=`, `ST=0|1`, `CS=0`, `SUN_YAW=` from one load.
+
+What the lab showed: near the camera the shadows are right - feet, a car's sill, a lamp pole all
+attach (the 15 cm "peter-panning" under the posts was the lab's own posts standing on the kerb
+height over the road). Lowering the bias does not help and hurts: bias 0.02 / normal 0.6 drew acne
+stripes down a sunlit wall at 16:48 (`05_lab_bias_variants_golden.jpg` on shots/shadows-review);
+0.03 / 1.0 and an angular distance of 0.55 were indistinguishable from the game's. The game's
+0.1 / 2.0 / 0.9 stay.
+
+What was wrong was in the city, from the air (refcams golden_aerial, downtown_aerial, macarthur,
+hills):
+1. **The cascades were wasted in the air.** They are fitted by view DEPTH, so 140 m up the first
+   three (0-210 m) held sky and the city got the last one alone, and past 500 m of depth nothing
+   cast at all: the far half of a golden-hour aerial was a lit city with a ring of shadow at its
+   feet. `ShadowTuning` (`scripts/world/shadow_tuning.gd`) follows the camera's CLEARANCE (a world-
+   layer ray straight down four times a second: over a roof it is the roof, so the hero on a tower
+   keeps the street's cascades) and slides every cascade's far end out by `AIR_GAIN` (0.55 / 1.2 /
+   2.2 / 3.0 m per metre over `AIR_FROM` 12 m, stepped by `AIR_STEP` 8 m so a hovering camera does
+   not re-fit the texels every frame; it rises at 60 m/s and falls at once). The reach is capped by
+   level (`AIR_CAP`: HIGH 600 m; MEDIUM and below never follow); under the cap the near
+   ends keep their slide while each cascade stays `MIN_RATIO` (1.75) times the one before. 140 m
+   up at HIGH: 98 / 196 / 343 / 600 m (was 27.5 / 80 / 210 / 500: three cascades of sky). The cap
+   was 1000 m (the LOD ring) and then 750 m first: the golden aerial's shadow passes doubled
+   (1.9 M -> 3.6 M triangles, +1,660 draws: every LOD chunk's batches in the last cascades), too
+   much for a Quality stepper that never steps back up. At 600 m it is still +1.2 M shadow
+   triangles and +1,174 draws on that view (frame 5.1 M -> 6.5 M): every cascade now holds
+   ground. HIGH only, so a machine that steps down pays nothing.
+2. **The fade drew a line**: the last 8 % (460-500 m) is now the last 20 %.
+3. **A far landmark copy's trees and palms cast nothing** (`ArenaGrounds._far_shadows()`, "they
+   fall past the cascades anyway"): the far copy is drawn from ~240 m out, inside the 500 m reach
+   and well inside the aerial one, so a civic park from above was a lawn of shadowless cut-outs.
+   They cast now from their lighter twin within `FAR_PLANT_REACH` (450 m) of the camera (parked
+   cars still cast nothing). tests/far_landmarks_checks.gd's rule follows.
+
+`SHADOW_TUNING=0` is the A/B for all three (the old numbers exactly: city.tscn's splits and fade,
+Quality's reach and blur, the far planting shadowless). Hooks: `Quality._apply_render()`
+(`apply_level()`), `DayNight._apply()` (`follow()`), `ArenaGrounds._far_shadows()`. Checks:
+`tests/shadows_review_checks.gd`.
+
+Not done / left: the far city (Skyline) still casts nothing past the LOD ring, so from 300 m up the
+city beyond ~1 km is flat-lit (a far-box "canyon shade" in building_lod.gdshader would be the next
+step); LOD chunks plant no trees, so between the FULL ring and the far city no street tree casts;
+Pedestrian.shadow_range (45 m) is unchanged. Not measured: gpu_profile on lavapipe (the city does
+not fit it here); the cost below is the renderer's counters.
+
+Cost (refcams on opengl3, main vs the branch; the four main missed in its first run were shot with
+SHADOW_TUNING=0, which is main): street_noon, street_night, sunset, beach, pier_night unchanged (the
+pixel differences there are the live traffic); downtown_aerial 3.72 -> 3.78 M triangles; hills 1.86
+-> 1.91 M; freeway 5.98 -> 6.10 M; macarthur 5.60 -> 6.49 M (draws 3,218 -> 3,981); golden_aerial
+5.12 -> 6.46 M (shadow passes 1.88 -> 3.09 M, draws 3,028 -> 4,202). Luminance p5 / p50 / p95 moved
+by at most 1-2 levels on every camera. Gate: 5,221 checks, all pass (SHARDS=3, peak 3.75 GB).
+Tooling trap: an `override.cfg` with `[threading] worker_pool/max_threads=1` (fwd-review-f's
+lavapipe fix) also applies to the opengl3 refcam runs, where it deadlocked two of five runs at 0 %
+CPU after loading; delete it before a refcams run. And `refcams.py run` stops at its 3600 s
+`--timeout`: on this 4-core box a full ten is ~70 minutes, pass `--timeout 7000`.

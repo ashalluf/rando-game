@@ -2849,6 +2849,9 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	load("res://tests/rc2_canyon_road_checks.gd").new().run(self, city)
 	# The mayhem refcam (tests/rc2_mayhem_checks.gd, RcMayhem): the staged camera, the fireball's look.
 	load("res://tests/rc2_mayhem_checks.gd").new().run(self, city)
+	# The shadows review (tests/shadows_review_checks.gd, ShadowTuning): the cascades on the ground
+	# and in the air, the fade, the A/B, the clearance follow.
+	await load("res://tests/shadows_review_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()
