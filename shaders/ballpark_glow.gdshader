@@ -14,6 +14,10 @@ uniform vec3 radii = vec3(170.0, 90.0, 170.0);
 uniform float density = 0.0006;
 uniform float scale_height = 26.0;
 uniform vec3 glow_color = vec3(1.0, 0.93, 0.8);
+// Where the haze starts to show with the eye's distance from the bowl, and how strong it gets
+// (StadiumNight: the dome over the night game from the hills; 150 / 1 the old look).
+uniform float away_from = 150.0;
+uniform float away_gain = 1.0;
 
 varying vec3 centre;
 
@@ -67,7 +71,7 @@ void fragment() {
 	}
 	// A haze is what the bowl wears seen from the hills; from inside it, it would only veil
 	// the game, so it fades in with the eye's distance from the bowl.
-	float away = smoothstep(150.0, 450.0, length(cam - centre));
+	float away = smoothstep(away_from, 450.0, length(cam - centre)) * away_gain;
 	float glow = acc * 0.25 * (t1 - t0) * density * level * away;
 	// Coverage in the alpha, or the fog colour is added over the whole quad (additive_fog).
 	vec4 af = af_cover(cs_out(glow_color * min(glow, 1.5)));

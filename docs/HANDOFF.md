@@ -27222,3 +27222,139 @@ over 650 MB and fails over GitHub Pages' 1 GB.
   wasm heap on every call (it reads terabytes; ignore it).
 
 Stills on `shots/web-build-5`.
+
+
+## 9li. The night game from the hill (refcam3 `stadium_night`, 2026-11-02, agent branch `wt/rc3-stadium-night`)
+
+Number is provisional (the lead renumbers on merge).
+
+**The camera.** A new wave-6 reference view, one row in `tools/refcams/cameras_w6.json`:
+`stadium_night`, eye (1965.6, 235, -3155.6), yaw -173.6, pitch -14, fov 48, 21:00 clear - on the
+bank 98 m over the north lot, 380 m out past centre field (Ballpark frame u 0, v 380), looking back
+over the outfield pavilions into the floodlit bowl with downtown's towers glowing beyond it: the
+famous view of the hillside ballpark. Run it with `REFCAMS_JSON=tools/refcams/cameras_w6.json
+python3 tools/refcams/refcams.py run build/refcams/<label> --only stadium_night`. **From this eye the
+city draws the ballpark's FAR copy** (the landmark's chunk is not FULL 380 m out), so every fix had
+to land in the far copy too.
+
+**What gave it away** (the before, `shots/rc3-stadium-night/01_before_stadium_night.jpg`), in the
+order the eye lands on it:
+1. The lot - two thirds of the frame - was stickers: past the 3D cars' 120 m (and everywhere in the
+   far copy) each car was a flat rectangle painted into its stall, blown white under the pools.
+2. The stands were four flat pastel stripes: no crowd at the hills' distance, the per-seat crowd
+   averaged away into the tier colour.
+3. The light banks were small dots that lit no air: no bloom, no haze shafts, the glow dome only
+   from 450 m.
+4. The field was empty: a night game with nobody on it.
+5. The planted medians and the planted slope were flat bright-green rectangles; the far copy had no
+   palms at all (CLAUDE.md's far-landmark rule: planting stays in the far copy).
+
+**The fixes** (`StadiumNight`, `scripts/world/stadium_night.gd`; one hook line in
+`BallparkBuild.build()` after the glow, one in `_bank()`; `STADIUM_NIGHT=0` is the A/B and every new
+shader uniform defaults to the old look):
+- **Box cars in every filled stall** (`far_cars()`): the stalls `Ballpark.stall_car()` fills (4,435
+  on the default seed) each get a 22-triangle box car (body with tumblehome, glasshouse) in both
+  copies, in 160 m tiles drawn to `FAR_DRAW` 560 m; in the detailed copy the tiles over the 3D cars
+  (q < CAR_REACH) are on BallparkBuild's 80 m grid and start at CAR_DRAW 120, where the 3D ones
+  stop. Shadowless. `shaders/stadium_car.gdshader` lights them with the lot's own pole pools (the
+  pole grid copied from ballpark_lot, Ballpark's numbers checked), tops more than flanks, glass
+  dark with a sheen, the rocker band dark. Within `box_reach` (440 m: inside every tile's range) the
+  lot shader paints a painted car as its box's soft contact shadow instead.
+- **Bank blooms and shafts** (`bank_mesh()`, `shaders/stadium_bank_glow.gdshader`): BallparkBuild
+  notes each of the ten banks (`note_bank()`); one mesh a copy, a camera-facing bloom per bank
+  (2.2x the bank's size, never under `min_angle`, a hot core and a soft skirt reaching zero inside
+  the quad, 0.15 from behind, 1 head-on) and a ribbon of lit haze from the bank toward the field,
+  turned to the eye and faded out for an eye inside the bowl (it veiled the top deck from the
+  field). Additive, unshaded, `bp_flood()` (nothing by day). The glow dome starts showing from 60 m
+  (`away_from`; its strength unchanged: at 1.8x the ground haze read as a disc on Forward+).
+- **The crowd from the hills** (ballpark_seats `night2`): a section between two aisles is fuller or
+  emptier than its tier, now and then a five-row block thin; where the per-seat detail is under a
+  pixel the average is a MOSAIC of 3-seat x 2-row groups (their own shirts, skin, occupancy) instead
+  of one tint; the hand-over to the average starts sooner (half-resolved rows beat into rings round
+  the bowl on the near copy); the rows under each deck's overhang (and the top deck's roof) take a
+  fifth of the flood plus a warm concourse light (the tiers are told apart by their fills, checked).
+- **Players on the field** (`players_mesh()`, `shaders/stadium_player.gdshader`): nine fielders in
+  home whites, the batter side-on with his bat, the umpire, two base coaches and a runner, ~60
+  triangles each, one mesh, lit by the flood after dark, to 1.4 km.
+- **Planting** (ballpark_lot `planting2`): medians and the planted slope are shrub clumps with ice
+  plant flowers over bark mulch, not a lawn; the far copy plants the lot's 398 palms
+  (`BallparkBuild._palms`, shadowless by `ArenaGrounds._far_shadows`, drawn to `PALM_DRAW` 900 m).
+
+**Look fast:** `tools/stadium_night/park_shot.tscn` builds the park alone (the city's Environment
+and DayNight, a dark ground plane, no terrain or city) at its real world place in a minute
+(opengl3) or ~3 minutes (lavapipe Forward+): `OUT`, `HOUR`, `EYE`, `FOV`, `FAR=1` the far copy,
+`SHOTS=` more views from one build.
+
+**Proof.** opengl3 refcam before/after (`01_before` / `02_after`), Forward+ (lavapipe) far copy A/B of
+the refcam eye on park_shot (`03`/`04`), and closer views. Numbers in the final message / the
+shots README. Frame cost at the refcam (opengl3 GEO): see the shots README.
+
+**Not done.** The box cars carry no headlights (a night game's lot is parked); the outfield pavilions'
+backs and the scoreboards' backs are still plain dark boxes; the near copy's 3D cars are unchanged;
+no ramp towers; no traffic on Stadium Way / Sunridge Dr (HillRoads are not driven); the players
+stand still (no pitch, no swing). The hills right of the bowl (terrain, not the park) still show
+faceted crags.
+
+## 9lj. The pier by day from the deck (fleet wave 6, `rc3-pier-day`, refcam pier_day)
+
+**The camera.** A new reference view, `pier_day` in `tools/refcams/cameras_w6.json`: Gullwing Park on
+Rando Pier at 15:00 clear, from the promenade at eye height (true world (-1020, 8.1, -352), yaw 115,
+pitch 6: park frame (-80, -2)), toward the wheel, the coaster's lift, the carousel and the KELP
+CRACKER station, the booths on the right and the sea at the pier's end. Framings from the sea end
+(the ocean over the rail, the park behind) were tried (`-1165,8.1,-347,-118,2`): they show more
+water but nobody is out there; the brief asked for the deck among the crowd.
+
+**What gave it away** (main 484a7897, the before on `shots/rc3-pier-day`), in the order the eye
+lands on it:
+1. **The deck** - 40 % of the frame - was one tiled plank photo (`PropFactory.pbr("planks")`): a
+   smooth tan sheet at a grazing angle, no boards, no gaps, no wear. A real pier deck is
+   transverse boards, grey-weathered, dark gaps, a polished path down the middle, grime at the rail.
+2. **Nobody there**: 48 PierGoers for 16,000 m2 of deck, eight people in the frame at 15:00.
+3. **Showroom-clean paint**: the white coaster steel, the stands, the canopies and rails as if
+   painted that morning; nothing salted, faded or rust-run.
+4. **Cut blocks**: the food stands and booths' boxes with knife-edge corners.
+
+**The fixes** (`PierDay`, `scripts/world/pier_day.gd`; `PIER_DAY=0` the A/B - the pier exactly as
+on main):
+- `shaders/pier_deck.gdshader` (the deck slot of `PierPark._static_mesh()`): worked out per pixel
+  from the mesh's own vertex coordinates, which ARE the park frame (no anchor uniform needed):
+  boards `BOARD_W` 0.145 m across the pier with an 11 mm gap, butt joints every 4.9 m staggered per
+  board, each board's tone by hash (silver-grey, a darker one, 7 % newer reddish replacements),
+  grain along the board, patches of silvered open grain, nail pairs over 0.61 m joists, a cup and a
+  tilt per board (into NORMAL, faded under a pixel), a polished wear path down the promenade, grime
+  within 1.6 m of the rail (the shader takes `PierPark.OUTLINE` as a uniform array of 12),
+  stains, gum. Gaps and joints are box-filtered by the pixel (`line_cover()`), so the far deck
+  goes to its mean, not moire. The deck's side faces are dark timber with seams. Linear on both
+  renderers (color_space.gdshaderinc); wet with `road_wetness`.
+- `pier_park.gdshader` gains `weathered` (0 by default; `PierMesh.material()` sets
+  `PierDay.weathered()`): on paint, steel, canvas, signs and boards - sun fade (16 % toward grey),
+  a blotchy tone over metres, salt grime within half a metre of the deck, rust runs and mottle on
+  the light paint and galvanised steel; each term to its mean under a pixel. Uses the REST
+  position (the rides' animation happens after), so the pattern turns with the wheel.
+- The crowd: `PierPark.people_steps()` adds `PierDay.extra_people(hour, weather)` after the 48's
+  rolls (own stream `pier_day_people`): up to `EXTRA_PEOPLE` 110 at the busiest hours
+  (`density()`: 12:00-19:00 full, thinning to 0.15 by 23:30, 0.08 overnight; rain 5 %), 70 % on
+  the promenade's nodes (`PROMENADE`), 45 % in twos and threes. All in the crowd cap.
+  `PierDay.rail_spots()` (65) join the chunk's `vendor_queue`: people stop at the open rails and
+  the sea end facing out, clear of benches, lamps and stands.
+- Stands and booths chamfered (`PierDay.bevel()`, PierMesh.box's vertical-edge bevel).
+
+**Numbers** (refcams, opengl3 1280x720, pier_day): before p5/p50/p95 53/146/208 sat 0.351, 1.15 M
+triangles / 414 draws (shadows 0.37 M); after 40/155/208 sat 0.316, 1.46 M / 565 (shadows 0.48 M).
+The rise is the crowd (~25 more people in view; each near person is ~12 k triangles); the deck
+shader is no geometry. `PIER_DAY=0` gives the before.
+
+**The ten cameras** (refcams.py on cameras.json, PIER_DAY=0 then on, same tree, compare): eight ok;
+`freeway` flagged by traffic placement (a semi and a taxi in one run only; the pier is 3 km off -
+traffic noise, as in 9iz); `pier_night` draws +18 % (460 -> 543), tris +5 %, the picture the same:
+the extra people at 21:00 are each a draw even as a dot on the pier. The evening curve was then
+eased (full to 19:00, half by ~21:15), which takes about half of that back; not re-measured.
+
+**Tools.** `PIER_DEBUG=1` prints the people count (and a lost crowd-room) from people_steps;
+`tools/pier/compile.gd` still builds the park; checks `tests/rc3_pier_day_checks.gd` (one line in
+smoke_test.gd's city_files).
+
+**Not done / not verified.** The Mac (Forward+) - see the lavapipe note below. Nobody rides (the
+gondolas, coaster and carousel are empty: 9ca's gap). No anglers with rods at the sea end. The
+coaster station's grey gate blocks and the stands are still simple boxes. The sea under the pier
+is not in this view.

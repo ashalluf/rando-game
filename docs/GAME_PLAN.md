@@ -295,6 +295,11 @@ already mapped so milestone 2 is script-only.
 
 ## Decisions log
 
+- **2026-11-02 The pier by day (rc3-pier-day, HANDOFF "The pier by day from the deck").** A deck
+  the camera stands on is worked out per board in its own shader (transverse boards, gaps,
+  weathering, wear) rather than a tiled plank photo, which smooths into a brown sheet at grazing
+  angles; a summer-afternoon pier is packed, so its crowd follows the hour (up to 110 more people)
+  and people stop at the rail. PIER_DAY=0 the A/B.
 - **2026-11-02 The chase camera's street (rc2-chase-cam, HANDOFF "The chase camera's street").** A
   driving view is a reference camera too: a camera row may stage the player's own car (`drive`) and
   shoot his DriveCam. The carriageway's wear is per lane in the road shader (wheel tracks, oil band,
@@ -4323,3 +4328,12 @@ none of either.
 - 2026-11-02 (chase-box-bug): an additive (blend_add) shader must be `fog_disabled` or write a coverage
   alpha (`af_cover()`, shaders/additive_fog.gdshaderinc): with ALPHA left at 1 the renderer adds the fog
   colour over the whole quad, which drew a grey square round each tail lamp of the player's car.
+
+
+- **2026-11-02 The night game from the hill (rc3-stadium-night, HANDOFF "The night game from the
+  hill").** A new reference camera (`stadium_night`, wave 6's table) judged the ravine ballpark from
+  the bank above the north lot at 21:00. Decisions: a car park seen from the hills holds real (box)
+  cars in every stall it fills, never painted ones; a floodlight bank is the air round it (bloom,
+  shafts), not only its lenses; a crowd past the seat detail is a mosaic of groups, not the tier's
+  tint; a night game has players on the field; the ballpark's far copy keeps its planting.
+  STADIUM_NIGHT=0 is the A/B.
