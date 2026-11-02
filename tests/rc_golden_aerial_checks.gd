@@ -75,6 +75,17 @@ func _live(city: Node3D) -> void:
 	var held: float = day.get("hour")
 	var held_w: float = day.get("weather_darken")
 	day.set("weather_darken", 0.0)
+	# A clear day's light: this file is not awaited, so the gate puts back only the statics before
+	# it. A lightning flash left on the sun by an earlier file (storm_drama_checks' forced strikes:
+	# the `weather_flash` meta DayNight adds to the sun) or a weather hook (a Santa Ana, a marine
+	# cut) was read as the golden hour's light (rc2-rain-day's shard deal: gain 0.95-1.0, not 0.65).
+	var held_la := [day.get("marine"), day.get("santa_ana"), day.get("storm")]
+	for k in ["marine", "santa_ana", "storm"]:
+		day.set(k, 0.0)
+	var sun_node: Node = day.get("_sun")
+	var held_flash: float = float(sun_node.get_meta("weather_flash", 0.0)) if sun_node else 0.0
+	if sun_node:
+		sun_node.set_meta("weather_flash", 0.0)
 	day.set("hour", 12.5)
 	day.call("_apply")
 	var noon_gain := float(mat.get_shader_parameter("sun_gain"))
@@ -93,4 +104,9 @@ func _live(city: Node3D) -> void:
 		"golden aerial: live, the sky draws its mid deck as cloudlets")
 	day.set("hour", held)
 	day.set("weather_darken", held_w)
+	day.set("marine", held_la[0])
+	day.set("santa_ana", held_la[1])
+	day.set("storm", held_la[2])
+	if sun_node:
+		sun_node.set_meta("weather_flash", held_flash)
 	day.call("_apply")

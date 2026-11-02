@@ -25448,6 +25448,15 @@ untouched).
 Checks: `tests/rc2_rain_day_checks.gd` (22: the pure numbers, the switch, nights and clear days
 untouched, the shaders' gates and defaults, the live city at 14:00 in rain and at 23:00).
 
+**Gate flake fixed on the way** (`tests/rc_golden_aerial_checks.gd`): that file is not awaited, so
+the gate puts back only the statics before it; in this branch's shard deal it ran after
+storm_drama_checks, whose forced strikes leave the `weather_flash` meta on the sun, which DayNight
+adds to the sun's energy and colour - the 17:12 reading came out at gain 0.95-1.0 instead of 0.65
+(with RAIN_DAY=0 too). It now holds the flash and the weather hooks (marine, Santa Ana, storm) at 0
+while it reads and puts them back. Still seen, not fixed (outside this area): traffic_ai_checks'
+"never drives into another car" / the on-ramp merge failed twice under three parallel shards and
+passed every time with two processes or alone, RAIN_DAY on and off alike.
+
 **Not done / not seen**: the facades' wetness by day (wet-world's ws_wall) reads faintly at this
 range on opengl3, untouched; the pink-brown pavement stain in the foreground is a StreetWear stain,
 not rain; the rain curtain by day is thin against a pale sky (left as is); Forward+'s SSR adds the
