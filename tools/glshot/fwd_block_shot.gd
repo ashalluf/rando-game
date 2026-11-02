@@ -166,6 +166,22 @@ func _ready() -> void:
 		var file := out if k == 0 else out.get_basename() + "_%d.png" % k
 		get_viewport().get_texture().get_image().save_png(file)
 		print("saved ", file)
+		# FLASH=<k> (fwd-review-g): then GunplayFeel's real muzzle lights (k the charge: 1 the AK,
+		# 2.4 the shotgun) fired FLASH_AT metres ahead of the camera and held (the clock stopped),
+		# saved again as <file>_flash.png: the brief light in this weather's volumetric fog.
+		if _env("FLASH", "") != "":
+			var fwd := -cam.global_transform.basis.z
+			var at_f := cam.global_position + fwd * float(_env("FLASH_AT", "1.2")) + Vector3.DOWN * 0.25
+			Engine.time_scale = 0.0
+			GunplayFeel._lights(cam, self, at_f, fwd, float(_env("FLASH", "1")))
+			for i in 4:
+				await get_tree().process_frame
+			var ff := file.get_basename() + "_flash.png"
+			get_viewport().get_texture().get_image().save_png(ff)
+			print("saved ", ff)
+			for l in find_children("*", "OmniLight3D", false, false):
+				l.queue_free()
+			Engine.time_scale = 1.0
 		if _env("GLOBALS", "") == "1":
 			var dn2: Node = get_node_or_null("DayNight")
 			var wx2: Node = get_node_or_null("Weather")
