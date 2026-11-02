@@ -4247,3 +4247,13 @@ none of either.
   two to four secondary pops, and a chain fuse to the cars beside it (depth-limited). The bang
   arrives at the speed of sound and the shake with the wave. All behind EXPLOSIONS_4=0; the web
   keeps the cards.
+
+- **2026-11-02 The canyon road refcam: hill roads read as roads (rc2-canyon-road, HANDOFF "The
+  canyon road refcam").** A new reference view on a front-range switchback (cameras_w5.json,
+  `canyon_road`). Decisions: every drawn hill road at least 5 m wide is a marked two-lane canyon
+  road with a gravel shoulder (one shader, the lateral metres in the strip's UVs; everything else
+  off true world XZ, so chunks meet); a fill side whose ground falls 1.6 m within 4.5 m of the edge
+  gets a W-beam guardrail on timber posts with buried ends (pure, off the plan's ground; off
+  driveways and junctions); the hill boulders are gathered and bedded after their rolls, so no
+  seed's layout moves. CANYON_ROAD=0 the A/B. Occlusion culling hangs the opengl3 stills on this
+  box (an engine lost wakeup in RaycastOcclusionCull); shots are taken with it off.

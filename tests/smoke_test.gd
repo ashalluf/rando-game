@@ -2845,6 +2845,8 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	# The alley at night (tests/rc_alley_night_checks.gd, AlleyNight): water mirroring the lamps,
 	# halos, steam, tags on the back walls.
 	load("res://tests/rc_alley_night_checks.gd").new().run(self, city)
+	# The canyon road refcam (tests/rc2_canyon_road_checks.gd, CanyonRoad): markings, shoulder, guardrail, boulders.
+	load("res://tests/rc2_canyon_road_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()
