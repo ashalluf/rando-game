@@ -9,3 +9,4 @@ the sand behind a fire group, toward Rando Pier.
 - 04_rings_back_old_fire_tan_sand.jpg - rings slid back in, still the old fire (a brown puff behind the rim) and dusk-tan sand.
 - 05_after_fire_closeup.jpg - a lit ring from 5 m (still_shot): flames, smoke, the group in firelight.
 - 06_after_still_shot_framing.jpg - the final framing from still_shot (another frame of the same scene).
+- 07_pier_night_before.jpg / 08_pier_night_after_moonlit_sand.jpg - the original pier_night refcam: the only other camera that changes (the sand by moonlight).
