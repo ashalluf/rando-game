@@ -1171,6 +1171,11 @@ var bake_height: Image
 ##
 ## `span` is how many metres across the image covers, centred on `centre` in world XZ; `size` is
 ## what the caller thinks it wants, and BAKE_UPSCALE is how much finer it actually gets.
+## Set by CityStreamer before a bake (RcRidgeSign): world XZ -> the zone of the block there as
+## CityChunk builds it (its centre's). Unset, the bake paints by the point's own zone, as before.
+var bake_block_zone: Callable
+
+
 func bake(centre: Vector2, span: float, size: int) -> Image:
 	var res := size if OS.has_feature("web") else mini(size * BAKE_UPSCALE, BAKE_MAX_SIZE)
 	var img := Image.create(res, res, false, Image.FORMAT_RGBA8)
@@ -1214,6 +1219,10 @@ func bake(centre: Vector2, span: float, size: int) -> Image:
 					col = BAKE_GRASS.lerp(BAKE_SCRUB, smoothstep(0.03, 0.14, t))
 					col = col.lerp(BAKE_ROCK, smoothstep(0.45, 0.85, t))
 					col = col.lerp(BAKE_SNOW, smoothstep(0.84, 1.0, t))
+				_ when bake_block_zone.is_valid() and int(bake_block_zone.call(pos)) == Zone.HILLS:
+					# City ground in a block that is built as a hill chunk (RcRidgeSign): the chunk
+					# lays hill terrain there, so the plane paints the hill's foot, not a street grid.
+					col = BAKE_GRASS
 				_:
 					match district_at(pos):
 						CityPlan.District.DOWNTOWN:

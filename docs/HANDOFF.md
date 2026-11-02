@@ -26121,6 +26121,9 @@ into a running gate (check files are `load()`ed lazily, mid-run).
 | 14202 | explosions_2 "debris lands on the deck, none through it (0 landed, 0 under)" | the landings were counted once, after 120 ticks, by when a busy run had freed or emptied the debris | counted tick by tick as they happen |
 | 15202 | ragdoll_feel "the doll knows it is rolling down the steps" / "it ends at the foot of the flight (hips 1.89 m up)" | **not found**: the knocked doll stayed on the top step; the message now says when it froze and how fast its hips went | - |
 | 15303 | emergency "the other brings the stretcher and they take the body" / "the ambulance leaves" | **not found** (wave 4's 2222 had the same lines: a car in the kerb lane; that fix holds parked cars and errands off, so this is something else) | - |
+| the lead's batch 45 | traffic_ai "a car with an exit leaves the freeway down the off-ramp (left false, still a freeway car)" | a real traffic bug: `TrafficAI.freeway_think()` let a car already in the outer lane with its exit coming up pull out to pass a slower car, so it was out of the lane at its off-ramp and missed it (the lead's empty deck, 20855e18, hid it by removing the slow car) | within a kilometre of its exit a car keeps out of passing (`EXIT_HOLD=0` the A/B; gate_flakes_2_checks proves both ways) |
+| 15303 (again) | emergency stretcher | the body had landed 0.57 m up on something standing on the pavement (what stands there goes with the hour and day); the cot pusher steps up only 0.34 m | the down call chooses a spot with nothing on the pavement (a box query) |
+| batches 35-37 | crowd_anim_2 "a walker banks into a bend and straightens after it" | CrowdFlow's sidesteps on the straight are turns too | judged with CrowdFlow off for the bend |
 | (8101) | - | `CrowdFlow._pass_door()` sent walkers in at shop doors without sparing `no_trim` (the staging meta the flake rules promise every system leaves alone) | spares them now |
 | 8101 | service_vehicle "a tow truck is sent (physics budget full)" | PhysicsBudget at its 500-body cap in a busy city | the check gives the truck room in the cap for the send |
 | 8101, the lead's batches 35 / 37 | car_panic "a driver mounts the clear kerb ..." (up false, never a KERB panic) | the test found the kerb clear, then placed the follower and waited two ticks before `CarPanic.start()`, which looks again: a walker of a busy shard had stepped onto the kerb and the driver rightly swerved | the follower is placed and the panic started in the same frame the kerb was found clear (also in the retry loop) |
@@ -26140,7 +26143,7 @@ Final gate on the branch merged with main (`afac849b`, batch 38+), unshuffled `S
 5,624 checks, shards peaking at 3.1 / 3.7 / 3.8 GB RSS.
 
 **Still open** (seen once or twice, diagnostics added, not fixed): the follower lagging its
-leader (1303, 6101), ragdoll_feel's stair roll (15202), emergency's stretcher (15303), crowd_anim_2's bank (the lead, batch 35-37),
+leader (1303, 6101), ragdoll_feel's stair roll (15202),
 and whether CrowdFlow's camera was the passing pair's cause (12202: the next failure's message
 says CrowdFlow's own camera distance and grid size). `CHUNK_SWAP_LOG=1` prints any chunk swap
 near the player with the stack, should a spawn-chunk replacement come back.
@@ -28213,3 +28216,176 @@ their fronts); the follow-me car's roof sign is a blank glowing slab; the head h
 glows a saturated orange; the jet on final is ~55 px long at this distance (the approach is behind the
 hangars from anywhere closer on the apron); the concrete's slab grid still reads as tiles in the
 moonlit foreground.
+
+## 9lw. Palm crowns without the flecks (fleet wave 6, `palm-shimmer`, branch `wt/palm-shimmer`)
+
+The task: palm crowns flicker, dither and show dark blocky holes (the rain_day and suburb_morning
+refcams on opengl3; specular-aliasing's "not done"). Find the cause and make palms solid, softly
+lit crowns at every distance on both renderers, proved with strips of a slow pan.
+
+**The cause, first and biggest: every second leaflet was black.** A frond's two ranks of leaflets
+are built as mirror images (`_palm_frond()` runs `dir` +1 / -1), so their blades wind opposite
+ways: from any side one rank is front-facing and the other back-facing. foliage.gdshader is
+`cull_disabled` and the leaflets' normals lean hard UP (so a crown lights as one mass); Godot turns
+a back face's normal toward the camera, so for the back-facing rank it pointed at the ground, took
+no sun and drew near-black. Seen whole, the crown was lit / black / lit / black leaflet by leaflet:
+the dark flecks and "holes", and since those blades are 3-8 cm (under a pixel from ~40 m) the
+pattern crawled with any camera move. Close up it read as a striped paper fan (stills 07 / 08). la_tree
+and foliage_tex had already been given this fix (tree-light-2); the palms never were.
+
+**What changed** (all behind `PALM_SHIMMER=0`, `PalmShimmer`, `scripts/world/palm_shimmer.gd`):
+1. **Back faces keep the mesh's normal** in foliage.gdshader's fragment (`!FRONT_FACING` ->
+   `NORMAL = -NORMAL`), and the crown's underside is shaded from the NORMAL against the VIEW
+   (`leaf_under_shade` 0.24), never from FRONT_FACING - so both ranks agree and a crown shades as a
+   mass, lit over the top and deeper under it.
+2. **Sub-pixel leaflets widened by coverage.** Every leaflet vertex carries its offset from the
+   leaflet's centre line across the blade in CUSTOM0 (RGBA float, w 1; 0 on everything else;
+   `PropFactory._palm_leaf_vertex()`, every ladder level - a merged blade's offset is its group's
+   width). The vertex shader (at rest, before the wind) measures the blade's width square to the view
+   ray in pixels and widens one under `MIN_PX` (1.5) to it, at most `MAX_WIDEN` (4) times, handing the
+   fragment its true coverage `1 / k`: a per-frame dither on Forward+ (TAA resolves it to the share,
+   foliage_tex's rule), kept whole on Compatibility (a fixed dither crawls: specular-aliasing's
+   finding) - there a far crown is a touch denser instead. Never in an orthographic (shadow) pass.
+   The pixel uses `VIEWPORT_SIZE.y` with a 1080 fallback (the trap where it reads 0/1 in a vertex
+   stage) and `abs(PROJECTION_MATRIX[1][1])` (negative on Compatibility).
+3. **The palm's vertex colours decoded on Forward+** (`cs_as_uniform(COLOR.rgb)`): they are display
+   numbers tuned on Compatibility, and Forward+ reads a vertex colour as linear - on the Mac the whole
+   tree (fronds and the rope-grey trunk) drew about twice as bright and chalky. The black half of the
+   crown had hidden it; with it gone the crowns went milky on lavapipe Forward+ (still 12).
+4. **Frond specular 0.34 -> 0.18** (`LEAF_SPECULAR`): with every leaflet's normal now up, every one
+   caught the sky's grazing reflection; a low sun ahead (suburb_morning, 09:30 looking east) veiled
+   the crowns in a pale sheen (still 11: golden backlit A/B).
+5. The boots' undersides (sawn frond stubs on the trunk) faced into the trunk (-nt) and drew as black
+   triangles; they lean outward-down now (`BOOT_UNDER_OUT`).
+
+**The measure.** `tools/palm_shimmer/palm_strip.gd`: a street lined with the six variants on both
+kerbs to 300 m, built through MultiMeshBatch (the palm ladder's LOD bias and shadow twin as in a
+chunk), the city sun's four cascades, LIGHT=noon | golden | rain, VIEW=street | mid | up | far, a
+slow pan (0.02 degrees a frame) with SS=4 rotated-grid jitter, frames named for
+`tools/specular_aliasing/strip.py measure / compare`; seconds a frame on opengl3, Forward+ with
+`--rendering-driver vulkan` (lavapipe; RUN_TIME=1 TAA=1 WIND=0 for the dither). PARAMS="name=v,..."
+sets palm-shader uniforms, PALM_MIN_PX / PALM_MAX_WIDEN the floor for A/Bs.
+
+Strip numbers (opengl3, `--ss 4`, 8 frames, MEAN of |d2| /255 and FLICKER share; A = PALM_SHIMMER=0):
+
+| view | light | before (MEAN, FLICKER) | after | MEAN change |
+|---|---|---|---|---|
+| street | noon | 4.00, 18.8 % | 2.79, 16.6 % | -30 % |
+| street | rain | 3.15, 16.3 % | 2.33, 14.0 % | -26 % |
+| mid | noon | 5.57, 24.5 % | 3.96, 22.5 % | -29 % |
+| mid | rain | 4.40, 21.1 % | 3.21, 18.8 % | -27 % |
+| up | noon | 3.21, 16.4 % | 2.23, 13.0 % | -31 % |
+| up | rain | 2.90, 15.7 % | 2.32, 14.4 % | -20 % |
+| far | noon | 3.42, 11.9 % | 2.24, 11.3 % | -34 % |
+| far | rain | 2.65, 10.9 % | 1.66, 9.7 % | -38 % |
+
+Crowns only (cropped to a crown cluster): mid noon 12.47 -> 7.51 (-40 %, FLICKER 42.9 -> 38.1 %),
+street noon's near crown 8.10 -> 5.51 (-32 %, 40.5 -> 33.5 %), from under a crown 4.50 -> 3.00 (-33 %,
+25.5 -> 19.9 %); P99 down a third in each.
+
+The table is the whole frame, so the walls, road and sky (which do not change) dilute it; the crowns' own pixels
+fall more (the heat maps, stills 09 / 10). FLICKER (pixels over 6/255) moves less than MEAN: the
+crown silhouette against the sky still crosses that line at 4 samples; what goes is the leaflet-by-
+leaflet black / lit alternation inside the crown. The look: still 07 (street), 13 (from under a
+crown), 11 (golden, backlit), 12 (Forward+ on lavapipe: main's chalky trunks and milky crowns vs
+after).
+
+**Refcams.** rain_day and suburb_morning (cameras_w5.json), before (PALM_SHIMMER=0) / after (stills
+01-06): the near rain_day palms lose their striped lit / black fronds; the suburb's backlit crowns at
+09:30 go from black-flecked to solid green (their greenish pixels' mean 114/119/77 -> 122/132/78:
+lighter by the black half they lost, no paler - the specular cut holds the saturation). Frame cost:
+rain_day 4.716 -> 4.728 M triangles, 3,044 -> 3,050 draws; suburb 5.747 -> 5.766 M, 2,898 -> 2,901
+(traffic noise; the palm meshes are the same triangles, with 16 bytes more a vertex). The ten
+original cameras (cameras.json, before = PALM_SHIMMER=0 in the same build): 7 ok; street_noon,
+street_night and freeway flagged on pixel diffs, all from traffic standing differently (a bus, the
+freeway's cars) - street_noon's centre palm now a solid crown; triangles and draws within +-2 %.
+
+**Not done / not verified:** the remaining flicker in the strips is the crowns' silhouettes against
+the sky and the trunks' edges at 1-3 pixels, which four jittered samples do not fully resolve (the
+Mac's TAA integrates more). Forward+ was checked on lavapipe stills of the palm street (TAA on, the
+dither resolving), not in motion. The ten original refcams: see the compare line above.
+
+## 9lx. The ridge sign refcam (fleet wave 6, `rc3-ridge-sign`, branch `wt/rc3-ridge-sign`)
+
+**The camera.** A new reference view, `ridge_sign` in `tools/refcams/cameras_w6.json`: the big sign
+on the front range from the west end of its row, ~110-130 m from the S (eye (-262, 388, -1030) true
+world, yaw -68, pitch -11, FOV 55), 16:30 clear - the letters receding along the slope, the hill
+falling away under them, the basin, downtown and the back ranges beyond. Run:
+`REFCAMS_JSON=tools/refcams/cameras_w6.json python3 tools/refcams/refcams.py run <dir> --only ridge_sign`.
+Everything below is behind **`RC3_SIGN=0`** (`RcRidgeSign`, `scripts/world/rc_ridge_sign.gd`: the switch
+and every number), which is main's look exactly.
+
+**What read fake, in the order the eye found it** (pinned with `tools/aerial_review/layer_probe.gd`,
+and two probes of this branch: `tools/rc3_ridge_sign/cover_probe.gd` - who draws the blocks in a box,
+the far city's cover and a tor's claim; `tools/rc3_ridge_sign/spot_probe.gd` / `tor_probe.tscn`):
+
+1. **The letters were boxes.** HillSignLetters (rc-hills) laid each stroke segment as its own box:
+   the S, U, O, D and R were polygons of boxes with their square corners poking out of every bend,
+   and the strokes of a letter overlapped with their front faces in one plane (z-fighting at
+   distance), all one flat cream. Now every stroke is ONE mitred ribbon (`_letters_v2()` /
+   `_ribbon()`: a mitre at each joint, square ends, the returns smooth round a curve and hard at a
+   corner), the strokes of a letter 4.5 cm apart in depth, on `shaders/ridge_sign.gdshader`: 4 x 8 ft
+   painted sheets (each its own age), seams and laps box-filtered by the pixel's footprint, rust and
+   grime streaks hanging under the fixings, dust blown up the foot of each letter (5 m), greyer
+   returns, a galvanised back. Linear on both renderers (color_space). Same span, level line and
+   collision as before.
+2. **An empty grey street grid at the foot of the hill**, 800 m out (four blocks, x 500-800, z
+   -1076..-790). Those blocks' centres are on the slope, so their chunk is a HILLS chunk (terrain
+   only) and the far city captures nothing city there - but their south half is flat basin, which
+   `MacroMap.bake()` painted by its own zone as a midtown district, and the horizon plane drew it as a
+   paved grid with nothing standing on it. The bake now asks `bake_block_zone` (set by CityStreamer
+   only around the bake: `RcRidgeSign.block_zone_fn()`, the zone of the block's centre, cached per
+   block) and paints such pixels as the hill's foot (`BAKE_GRASS`), which is what the LOD and FULL
+   hill chunks draw there. LoadCache's key already covers it (the switch is read by a script).
+3. **Polka dots.** The code-built HillShrubs (hill-ground-3) were an even jittered grid of identical
+   round mounds over every stand: from the sign the slope was spotted like a dalmatian. Now
+   `shrub_gather()` (RcHills' cluster field, its own phase, 0.7x the frequency) leaves a shrub out
+   under `SHRUB_GAP` (+ a share of its own size roll) and scales the rest 0.7-1.55x by the field, so
+   the mounds of a thicket close up and straw shows between thickets. After every roll (the row's
+   stream is unchanged; only `hill_planting.chaparral` counts fewer).
+4. **A pale slab floating in the sky** over the ridge west of the sign (top-left of the frame). That
+   was a summit tor (RcHills' broad, low crag, 46 m across) on a front-range spike: its far end
+   overhung the falling ground. And every tor a chunk claims stood at the TRUE ground, which a LOD
+   tile's ~14 m lattice cuts lower on a sharp crest. Now a claiming chunk hands RockFar the drop to
+   the terrain it really draws (`RcRidgeSign.tor_drops()` from `RockBuild._claim()`, kept in
+   `RockFar._drops`, written into the instance transforms of the tor's near and far cells, forgotten
+   on release), and a summit crag is lowered until the lowest 30 % of its height meets the drawn
+   ground at eight points round its footprint (`_overhang()`); never up, at most `TOR_DROP_MAX` 40 m.
+5. **The legs.** Under letters held up off the falling slope the posts ran down bare: a comb of
+   lines under the name. `_legs_braced()` adds a tie every 4.5 m down each bay and a diagonal across
+   it, alternating, to where the ground meets the posts.
+6. (Off this camera's frame but found with it.) A PLAZA block past the FULL ring was one bare tan
+   slab (`_build_plaza()` returned before any furnishing at LOD and in the far capture). It now lays
+   the four lawn beds the FULL build furnishes (`plaza_far_beds()`, the same rects, no roll).
+
+**Looked at and left.** The back ranges' pale plaster grey (the plane's painted band on opengl3, as
+rc-hills noted; not judgeable on lavapipe at city scale). The hill's smooth draped shading between
+the stands (hill-ground-3's domain). A bird or the blimp in frame now and then (their own clocks).
+
+**Proved on Forward+** (lavapipe, the small scene `tools/glshot/hill_ground_shot.tscn CENTRE=0,-1180
+BLOCKS=1 DAYNIGHT=1 GROUND=1 EYE=-200,200,-1080,-62,-8 -- --hour=16.5`, RC3_SIGN=0 against on): main's S
+is the notched polygon there too; the new letters are smooth, the same brightness as main's (no
+colour-space slip: the paint is a linear 0.70), the sheets read as a faint vertical banding (at the
+first seam strength, 0.45, they read as tiled walls - now 0.16 / 0.08), the braced legs a lattice
+down the slope. Kill Godot by its PID once the still is saved (it can hang on exit; `pkill -f` with
+the scene's name in the pattern kills your own shell).
+
+**Measured** (refcam ridge_sign, opengl3 1280x720): main 3,015,870 tris / 814 draws / 347,030 shadow
+tris; after 3,052,110 / 814 / 373,238 (+1.2 %: the braced legs, which cast, and the larger shrubs).
+**Ten-camera compare** (`cameras.json`, RC3_SIGN=0 against on, one load each): eight within 0-1
+levels and 0-1.4 % of their cost; street_night and freeway flagged for live traffic only (a bus /
+different cars in the lane; the diff maps are the vehicles). Peak RSS of a ten-camera run on this box
+12.1 GB (the first run after an edit rebuilds the bake and the far city: load 545 s).
+
+**Gate** on the merge of main `378dc685` + this branch: `SHARDS=3`, 5,591 checks, all passed; peak
+RSS 3.76 GB a shard. (A run before the merge had one shard-order flake outside this work,
+pedestrian_flow_checks' "somebody comes out of a shop door", which passes alone.) Checks:
+`tests/rc3_ridge_sign_checks.gd` (letters one ribbon mesh on the shader, every front facing out,
+strokes at their own depths, the bake's block zone, the shrub field, tor drops and release, the row).
+
+**Not done / not verified.** Never seen on the Mac. The bake's block-zone pass costs one
+`CityPlan.block()` per block of the 16 km bake on a cold LoadCache (the far city asks for every one
+of them anyway; not timed separately). The far copy of the sign (far_canopy's rigid material, seated on the
+plane from past the LOD ring) is built from the same ribbons but drawn in that material's one colour:
+no panels or dust from the basin (under a pixel there anyway). HillScatter's clumps (between
+the shrubs) are RcHills' field, not this one.

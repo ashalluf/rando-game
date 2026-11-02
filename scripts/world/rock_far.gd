@@ -50,6 +50,8 @@ var _shown: Dictionary = {}
 ## Seed -> {tor id -> how many chunks claim it}. Static: the chunks the loading screen builds can
 ## claim before this node exists, and it reads them when it does.
 static var _claims: Dictionary = {}
+## Seed -> {tor id -> metres it is lowered to the claiming chunk's drawn ground} (claim()).
+static var _drops: Dictionary = {}
 var _clock := 0.0
 var _materials: Array[ShaderMaterial] = []
 
@@ -133,7 +135,9 @@ func _cell(list: Array, kind: int, far: bool, label: String) -> MultiMeshInstanc
 	var b: AABB = RockKit.bounds(kind)
 	for i in list.size():
 		var t: Dictionary = list[i]
-		var xf := Transform3D(t.basis, Vector3(t.pos.x, t.y, t.pos.y))
+		var claimed := is_claimed(_plan.seed, int(t.id))
+		var drop := float((_drops.get(_plan.seed, {}) as Dictionary).get(int(t.id), 0.0)) if claimed else 0.0
+		var xf := Transform3D(t.basis, Vector3(t.pos.x, float(t.y) + drop, t.pos.y))
 		mm.set_instance_transform(i, xf)
 		mm.set_instance_custom_data(i, Color(1.0 if is_claimed(_plan.seed, int(t.id)) else 0.0, float(t.tone), float(t.sink) / 100.0, 1.0))
 		var wb := xf * b
@@ -232,6 +236,12 @@ func _write(id: int) -> void:
 	var nk: Vector3i = s[0]
 	var shown := _shown.has(Vector2i(nk.x, nk.y))
 	var data := Color(real, float(t.tone), float(t.sink) / 100.0, 1.0)
+	var drop := float((_drops.get(_plan.seed, {}) as Dictionary).get(id, 0.0)) if real > 0.5 else 0.0
+	var xf := Transform3D(t.basis, Vector3(t.pos.x, float(t.y) + drop, t.pos.y))
+	if _near.has(nk):
+		((_near[nk] as MultiMeshInstance3D).multimesh).set_instance_transform(int(s[1]), xf)
+		((_near_shadow[nk] as MultiMeshInstance3D).multimesh).set_instance_transform(int(s[1]), xf)
+	((_far[s[2]] as MultiMeshInstance3D).multimesh).set_instance_transform(int(s[3]), xf)
 	if _near.has(nk):
 		((_near[nk] as MultiMeshInstance3D).multimesh).set_instance_custom_data(int(s[1]), data)
 		((_near_shadow[nk] as MultiMeshInstance3D).multimesh).set_instance_custom_data(int(s[1]), data)
@@ -241,13 +251,23 @@ func _write(id: int) -> void:
 
 ## A chunk drew the real terrain under these tors of seed `seed` (CityChunk FULL or LOD): they
 ## stand on it.
-static func claim(seed: int, ids: Array) -> void:
+## `drops` (optional, RcRidgeSign): tor id -> metres from the planned ground to the ground the
+## claiming chunk really draws there (a LOD tile's 14 m lattice cuts a sharp summit tens of metres
+## low, and a crag left at the true height floated in the sky over it).
+static func claim(seed: int, ids: Array, drops: Dictionary = {}) -> void:
 	if not _claims.has(seed):
 		_claims[seed] = {}
 	var c: Dictionary = _claims[seed]
+	if not _drops.has(seed):
+		_drops[seed] = {}
+	var dd: Dictionary = _drops[seed]
 	for id: int in ids:
 		c[id] = int(c.get(id, 0)) + 1
-		if int(c[id]) == 1:
+		var moved := false
+		if drops.has(id) and not is_equal_approx(float(dd.get(id, 0.0)), float(drops[id])):
+			dd[id] = float(drops[id])
+			moved = true
+		if int(c[id]) == 1 or moved:
 			_rewrite(seed, id)
 
 
@@ -257,6 +277,7 @@ static func release(seed: int, ids: Array) -> void:
 		var n := int(c.get(id, 0)) - 1
 		if n <= 0:
 			c.erase(id)
+			(_drops.get(seed, {}) as Dictionary).erase(id)
 			_rewrite(seed, id)
 		else:
 			c[id] = n
