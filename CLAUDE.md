@@ -3980,6 +3980,13 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   out). Far: `RefineryFar` (one hook in `CityStreamer._build_far_landmarks()`), a far piece a block,
   hidden while a FULL chunk's `RefineryCover` is shown; LOD chunks lay ground only. `REFINERY=0` the
   A/B; probe `tools/refinery/probe.tscn`; checks `tests/refinery_checks.gd`.
+- The refinery at night (wave 6, refcam `refinery_night` in `tools/refcams/cameras_w6.json`,
+  docs/HANDOFF.md "The refinery at night"): `RefineryNight` (`scripts/world/refinery_night.gd`,
+  applied by RefineryFar / `ensure()` from site_steps): refinery.gdshader lights the plant round
+  each flame from `flare_tips` (TRUE world via `origin_shift`; `flare_light()` is the GDScript copy,
+  checked) - FULL and far alike, no OmniLight -; a haze sprite a flare (flame mesh UV2.x 3); steam
+  lit from luminance; dirt berms; the masts' omnis shorter. `REFINERY_NIGHT=0` is the A/B (every
+  shader block behind `night_look`); checks `tests/rc3_refinery_night_checks.gd`.
 - The oil islands (2026-10-30, docs/HANDOFF.md "The oil islands"): three decorated drilling
   islands in San Pedro Bay 600-700 m off the Long Beach sand (the FORM of the real ones; names and
   the operator invented). A DATA TABLE (`OilIslands`, `scripts/world/oil_islands.gd`: anchors,

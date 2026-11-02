@@ -32,7 +32,7 @@ uniform float night_look = 0.0;
 uniform vec4 flare_tips[8];
 uniform int flare_count = 0;
 uniform float flare_reach = 160.0;
-uniform float flare_gain = 1.15;
+uniform float flare_gain = 0.9;
 uniform float flare_half = 24.0;
 
 global uniform float road_wetness;
@@ -374,7 +374,7 @@ void fragment() {
 				fl += fall * facing * flick;
 			}
 		}
-		emit += to_lit(vec3(1.0, 0.48, 0.16) * albedo) * fl * flare_gain * (0.3 + 0.7 * night_factor);
+		emit += to_lit(vec3(1.0, 0.56, 0.22) * albedo) * fl * flare_gain * (0.3 + 0.7 * night_factor);
 	}
 	// After dark the steel round the platform lamps is lit warm (two cells in three have one).
 	emit += to_lit(sodium * albedo) * flood * lit_steel * lamp_cell * lamp_factor * (bottom ? 1.6 : 1.0);

@@ -20,7 +20,7 @@ static var enabled: bool = OS.get_environment("REFINERY_NIGHT") != "0"
 
 ## How far a flare's light reaches (metres) and how bright it is on the steel next to it.
 const FLARE_REACH := 160.0
-const FLARE_GAIN := 1.15
+const FLARE_GAIN := 0.9
 ## The distance at which a flare's light has fallen to half (metres).
 const FLARE_HALF := 24.0
 ## The haze dome round a flame: its width (metres) and strength.
