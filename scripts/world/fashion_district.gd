@@ -246,6 +246,8 @@ static func _state(ch: CityChunk) -> Dictionary:
 ## mouth. Fills `sellers` with the people to stand by them.
 static func build_pavement(ch: CityChunk, block: Dictionary, sellers: Array) -> void:
 	var info := block_info(ch.plan, ch.ix, ch.iz)
+	if OS.get_environment("FASHION_DEBUG") == "1":
+		print("FASHION pavement block %d,%d faces %s open %s hour %.2f" % [ch.ix, ch.iz, info.get("faces", []), _open(ch, OPEN_HOURS), StreetVendors.hour_now(ch)])
 	if info.is_empty() or not _open(ch, OPEN_HOURS):
 		return
 	var plan := ch.plan
@@ -313,6 +315,8 @@ static func build_pavement(ch: CityChunk, block: Dictionary, sellers: Array) -> 
 			t += len + DOOR_GAP
 	st.stats.sets = int(st.stats.sets) + laid
 	sets_laid += laid
+	if OS.get_environment("FASHION_DEBUG") == "1":
+		print("FASHION laid %d sets in block %d,%d %s" % [laid, ch.ix, ch.iz, st.stats])
 	for key: String in (st.get("set_keys", {}) as Dictionary):
 		ch._batch.set_draw_distance(key, GOODS_DRAW)
 		ch._batch.set_no_shadow(key)
