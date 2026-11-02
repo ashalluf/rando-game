@@ -6714,6 +6714,14 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   wear `grime`; RoadWear drops (after its rolls) oil under a bike lane. `STREET_NOON=0` is the
   A/B; probe `tools/rc_street_noon/road_probe.tscn` (the real road materials on either renderer,
   prints sRGB); checks `tests/rc_street_noon_checks.gd`.
+- The chase camera's street (wave 5, refcam2 `chase_cam` in `tools/refcams/cameras_w5.json`, docs/HANDOFF.md
+  "The chase camera's street"): a camera row's `drive` key stages the player's own car with placed
+  traffic and shoots his DriveCam (`tools/refcams/chase_stage.gd`; car put on the road by a ray,
+  never `plan.height_at()`; CHASE_DEBUG / CHASE_AB / CHASE_BISECT probes). `ChaseCamReview`
+  (`scripts/world/chase_cam_review.gd`) gives street asphalt `lane_wear`
+  (`shaders/road_lane_wear.gdshaderinc`: tyre-polished wheel tracks, the oil band, queue oil at the
+  block's end, kerb grit; dry or wet, 0 = old road). `CHASE_CAM_REVIEW=0` is the A/B; checks
+  `tests/rc2_chase_cam_checks.gd`.
 - Patterned ground (2026-10-31, docs/HANDOFF.md "Patterned ground without moire"): an integer
   carried through a varying is ROUNDED before `int()` / `floor()` (an interpolated 3.0 reads 2.9999
   on some rows: the forecourts' red / grey row stripes); repeating ground lines are box-filtered by

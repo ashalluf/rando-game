@@ -22,6 +22,19 @@ number, not by someone happening to look.
 The table is `cameras.json` (eye = TRUE world x, y, z, yaw, pitch; `agl` = y over the plan's
 ground). **Change a camera only on purpose**: the runs before stop being comparable for it.
 
+## Wave 5's cameras (`cameras_w5.json`)
+
+Each wave-5 refcam2 session adds ONE row to `cameras_w5.json` (same format; one row a line). Run
+them with `REFCAMS_JSON=tools/refcams/cameras_w5.json`. A row may carry staging keys, all optional
+and ignored by the ten originals:
+
+- `drive` (chase_cam): the player at the wheel of his own car on a street at a steady speed, a few
+  placed traffic cars round him, the shot from his chase camera (DriveCam) instead of the free eye.
+  Keys and their meaning in the header of `chase_stage.gd`. `CHASE_DEBUG=1` prints what is drawn
+  round the car and its contacts, `CHASE_AB=a,b,...` (names, `car:*`, `under:*`, `box:*`, `fx:*`,
+  `2d:*`, `dbg:unshaded`...) renders the frame again with each hidden, `CHASE_BISECT=1` halves the
+  drawables to find what draws a given pixel difference.
+
 ## Running
 
 ```
