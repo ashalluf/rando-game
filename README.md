@@ -8,3 +8,4 @@ The new refcam `stack_aerial` (tools/refcams/cameras_w7.json): the four-level st
 - 04_after_stack_aerial.jpg - after, the refcam: the right of way under the stack planted (fig / sycamore / eucalyptus groves where crowns clear the decks, ivy under the high connectors), thicker columns, the connectors full at 17:30
 - 05_before_over_after_stack_lower_half.jpg - the lower half of the frame, before (top) over after (bottom)
 - 06_after_under_stack_groves_noon_block.jpg - the FULL blocks under the stack alone (block_shot, noon light): groves, the mixed ground cover
+- 07_ten_refcams_off_vs_on_compare.jpg - the ten original refcams, RC4_STACK=0 over RC4_STACK=1 (compare: only street_noon flagged, by a live bus in another place; nothing of the stack is in those views)
