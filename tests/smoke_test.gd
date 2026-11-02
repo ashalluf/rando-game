@@ -2873,6 +2873,9 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	load("res://tests/rc3_stadium_night_checks.gd").new().run(self, city)
 	# The pier_day refcam (tests/rc3_pier_day_checks.gd, PierDay): the board deck, weathering, the crowd.
 	load("res://tests/rc3_pier_day_checks.gd").new().run(self)
+	# The person close-up refcam (tests/rc3_person_closeup_checks.gd, IdleRelax, PersonCloseup): the
+	# idle's stance, the bag from the fist, hair strands and lips, the A/B, the camera row.
+	await load("res://tests/rc3_person_closeup_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()

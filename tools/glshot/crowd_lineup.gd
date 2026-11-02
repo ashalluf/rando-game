@@ -112,9 +112,22 @@ func _initialize() -> void:
 			var life_path := "res://assets/models/crowd_life/%s_life.res" % String(rec[1]).get_file().get_basename()
 			if clip.begins_with("life/") and not ap.has_animation_library("life") and ResourceLoader.exists(life_path):
 				ap.add_animation_library("life", load(life_path))
-			if ap.has_animation(clip):
-				ap.play(clip)
-				ap.seek(ap.get_animation(clip).length * float(rec[3]), true)
+			# CLIPS=a,b,... one clip per person in turn (overrides CLIP); gait/<name> loads the
+			# rig's gait library (tools/crowd/gait_clips.gd) like life/<name>.
+			var each := OS.get_environment("CLIPS").split(",", false)
+			var c := clip if each.is_empty() else String(each[insts.find(rec) % each.size()]).strip_edges()
+			var gait_path := "res://assets/models/crowd_gait/%s_gait.res" % String(rec[1]).get_file().get_basename()
+			if c.begins_with("gait/") and not ap.has_animation_library("gait") and ResourceLoader.exists(gait_path):
+				ap.add_animation_library("gait", load(gait_path))
+			if c.begins_with("life/") and not ap.has_animation_library("life") and ResourceLoader.exists(life_path):
+				ap.add_animation_library("life", load(life_path))
+			if OS.get_environment("IDLE_RELAX") != "0":
+				var ir = load("res://scripts/npc/idle_relax.gd")
+				ir.relax(ap, "gait")
+				ir.relax(ap, "life")
+			if ap.has_animation(c):
+				ap.play(c)
+				ap.seek(ap.get_animation(c).length * float(rec[3]), true)
 				ap.pause()
 		# HATS=cap,beanie,bucket,police,none (one per person, in turn) puts the crowd's headwear on
 		# exactly as Pedestrian does (CrowdHat.dress), HAT_PICKS=n,... its colourway.

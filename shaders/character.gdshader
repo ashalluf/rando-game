@@ -229,6 +229,10 @@ uniform float face_blood = 0.55;
 uniform float face_cavity = 0.32;
 uniform float face_oil = 0.22;
 uniform float face_lips = 0.45;
+// person_closeup refcam (PersonCloseup): the photographed lips are a saturated salmon, and with the
+// gloss on top every face, men's too, read as lipstick at arm's length. 1 tones them toward the
+// skin round them (less saturated, a little darker) and keeps the sheen soft. 0: as before.
+uniform float lip_tame = 0.0;
 uniform float face_pores = 0.55;
 // Light through skin, on the crowd rigs with the pass on: everywhere but the thin parts (ears, nose
 // wings) it is held to this share - a lamp behind somebody lit the whole face orange.
@@ -799,6 +803,13 @@ void fragment() {
 			vec3 lip = mix(vec3(1.0), vec3(1.02, 0.84, 0.86), lips * face_lips);
 			vec3 k = flush * hollow * lip;
 			albedo *= value_is_linear > 0.5 ? k * k : k;
+			if (lip_tame > 0.0) {
+				float lum = dot(albedo, vec3(0.299, 0.587, 0.114));
+				float tl = lips * lip_tame;
+				// Toward a warm neutral of the same brightness (grey alone reads mauve and dead).
+				vec3 warm = lum * vec3(1.16, 0.93, 0.84);
+				albedo = mix(albedo, mix(warm, albedo, 0.45) * (value_is_linear > 0.5 ? 0.88 : 0.94), tl);
+			}
 			// Tone: a slow mottle in the skin's own metres, so a cheek is not one even paint.
 			float mot = stain_noise(vec3(UV2 * 55.0, v_face_seed * 7.0)) * 0.6 + stain_noise(vec3(UV2 * 160.0, 3.0)) * 0.4;
 			albedo *= 1.0 + (mot - 0.5) * 0.12 * face_near;
@@ -871,7 +882,7 @@ void fragment() {
 			// The face: oily T-zone, glossy lips, the pores breaking the sheen up; the painted lid
 			// is skin, the shaded top of the eyeball wet but in shadow.
 			float lips_r = smoothstep(0.75, 0.92, fz.a);
-			ROUGHNESS += (-fz.b * face_oil - lips_r * 0.1 + (det2.b - 0.5) * 0.7) * is_skin;
+			ROUGHNESS += (-fz.b * face_oil - lips_r * 0.1 * (1.0 - 0.6 * lip_tame) + (det2.b - 0.5) * 0.7) * is_skin;
 			ROUGHNESS = mix(ROUGHNESS, skin_roughness, eye_lid);
 			ROUGHNESS = clamp(ROUGHNESS, 0.05, 1.0);
 		}

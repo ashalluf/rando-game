@@ -51,6 +51,14 @@ and ignored by the ten originals:
   `2d:*`, `dbg:unshaded`...) renders the frame again with each hidden, `CHASE_BISECT=1` halves the
   drawables to find what draws a given pixel difference.
 
+## Wave 6's cameras (`cameras_w6.json`)
+
+- `person_closeup` - one pedestrian 1.6 m from the lens on a midtown pavement, 13:00 clear.
+  `"stage": "person"` with a `person` key (model, look, dist, turn, carry; all optional) runs
+  `person_stage.gd`: a seed found for that rig and look with no hat, placed and held standing, the
+  walkers in the line of sight hidden. Env `PERSON_MODEL`, `PERSON_LOOK`, `PERSON_DIST`,
+  `PERSON_TURN`, `PERSON_CARRY`, `PERSON_SEED` for framing work.
+
 ## Running
 
 ```
