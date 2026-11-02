@@ -26,6 +26,10 @@ extends RefCounted
 ## EXPLOSIONS_4=0 in the environment is the A/B (the third pass exactly).
 
 static var enabled: bool = OS.get_environment("EXPLOSIONS_4") != "0"
+## The daylight value range of the mushroom (blast_volume.gdshader `value4`): sunlit billows near
+## white, deep soot in the folds. BLAST_VALUE=0 is the A/B (the round-3 flat grey).
+static var value_enabled: bool = OS.get_environment("BLAST_VALUE") != "0"
+static var value_range: float = 1.0
 
 ## The volume's life (seconds) by kind, and the march's steps (the mushroom's box is taller).
 static var volume_life: float = 9.0
@@ -77,6 +81,7 @@ static func dress_volume(mat: ShaderMaterial, fuel: bool, gas: bool) -> Array:
 	mat.set_shader_parameter("gas", 1.0 if gas else 0.0)
 	mat.set_shader_parameter("life", life)
 	mat.set_shader_parameter("steps", volume_steps)
+	mat.set_shader_parameter("value4", value_range if value_enabled else 0.0)
 	return [Vector3(2.3, 2.1, 2.3) * big, Vector3(0.0, 2.0, 0.0) * big, life]
 
 
@@ -285,3 +290,84 @@ static func glow_height(t: float, base_time: float) -> float:
 		return 0.45 + 0.9 * t
 	# The light sits a little under the cap's centre (the fire is in its lower half).
 	return maxf(0.35, handover_height(t * base_time * glow_stretch()) * 0.85)
+
+
+## THE DUST ROLLS OUT: the shock's dust along the ground as a ROLLING front (BlastAftermath's
+## dust wave hands over to it): one layer of even unlit puffs grew into a flat beige wall of one
+## height. Here, fast low creepers that slow hard and bunch at the front, fewer lumpy rollers
+## thrown a beat later that climb and break the top line, and a faint wide haze that hangs low
+## and outlasts both - all lit smoke (the sun shapes them, night leaves them dark), each puff its
+## own tint. Returns false when off (the old wave). BLAST_DUST_ROLL=0 is the A/B.
+static var dust_roll_enabled: bool = OS.get_environment("BLAST_DUST_ROLL") != "0"
+static var _dust_ramps: Array = []
+
+
+static func dust_roll(parent: Node, ground: Vector3, normal: Vector3, reach: float) -> bool:
+	if not enabled or not dust_roll_enabled or parent == null:
+		return false
+	if _dust_ramps.is_empty():
+		# Linear albedo for the lit smoke material: street dust, alpha shaping each layer's life.
+		_dust_ramps = [
+			WeaponFX._ramp([Color(0.34, 0.31, 0.27, 0.0), Color(0.33, 0.30, 0.26, 0.62),
+				Color(0.30, 0.28, 0.25, 0.42), Color(0.27, 0.26, 0.24, 0.0)]),
+			WeaponFX._ramp([Color(0.30, 0.27, 0.24, 0.0), Color(0.29, 0.27, 0.24, 0.5),
+				Color(0.27, 0.25, 0.23, 0.3), Color(0.25, 0.24, 0.22, 0.0)]),
+			WeaponFX._ramp([Color(0.32, 0.30, 0.27, 0.0), Color(0.31, 0.29, 0.27, 0.2),
+				Color(0.30, 0.28, 0.26, 0.14), Color(0.29, 0.28, 0.26, 0.0)]),
+			# Per-puff tint: browner and paler lumps in one front.
+			WeaponFX._ramp([Color(0.78, 0.74, 0.70, 1.0), Color(1.0, 0.97, 0.92, 1.0), Color(1.18, 1.12, 1.02, 1.0)])]
+	var mat := BlastFX.smoke_material()
+	var gb := WeaponFX._basis_up(normal)
+	# The creepers: flat out along the ground, slowing hard so they bunch into a front.
+	WeaponFX._puff_layer(parent, ground + normal * 0.3, WeaponFX._count(40), reach * 0.09, 3.0,
+		reach * 0.5, reach * 0.95, 0.15, _dust_ramps[0], false, 180.0, 2.1, gb, 1.0, 0.45, 1.7, true,
+		_dust_ramps[3], mat)
+	# The rollers: a beat later, slower, bigger, rising - the front's lumpy top.
+	var tw := parent.create_tween()
+	tw.tween_interval(0.12)
+	tw.tween_callback(func():
+		if is_instance_valid(parent):
+			WeaponFX._puff_layer(parent, ground + normal * 0.6, WeaponFX._count(16), reach * 0.1, 4.2,
+				reach * 0.25, reach * 0.6, 0.9, _dust_ramps[1], false, 180.0, 2.5, gb, 1.0, 0.5, 1.2, true,
+				_dust_ramps[3], mat))
+	# The haze: wide, faint, low; what hangs over the street after the front has gone.
+	WeaponFX._puff_layer(parent, ground + normal * 0.25, WeaponFX._count(16), reach * 0.14, 5.5,
+		reach * 0.35, reach * 0.7, -0.05, _dust_ramps[2], false, 180.0, 1.6, gb, 1.0, 0.4, 1.4, true,
+		_dust_ramps[3], mat)
+	return true
+
+
+## The flare grows to this many radii (4.2 before) and fades over this long (0.13 s): on a fuel
+## blast it reached ~30 m and caught mid-frame it was a blown-out white disc over the street.
+static var flare_grow_radii: float = 3.0
+static var flare_fade_seconds: float = 0.1
+
+
+static func flare_grow() -> float:
+	return flare_grow_radii if enabled else 4.2
+
+
+static func flare_fade() -> float:
+	return flare_fade_seconds if enabled else 0.13
+
+
+## Burning debris as real chunks (BlastDebris): bigger wedges and torn thin panels, denser smoke
+## trails. BLAST_CHUNKS=0 is the A/B.
+static var debris_chunks: bool = OS.get_environment("BLAST_CHUNKS") != "0"
+static var _panel: Mesh
+
+
+## A torn panel: a thin bent sheet, one mesh for every piece (scaled per piece).
+static func panel_mesh() -> Mesh:
+	if _panel == null:
+		# One bent sheet, drawn double-sided by its piece's material (BlastDebris).
+		var pts := [Vector3(-0.5, 0.0, -0.4), Vector3(0.0, 0.12, -0.45), Vector3(0.48, -0.05, -0.32),
+			Vector3(-0.42, 0.04, 0.38), Vector3(0.05, 0.14, 0.4), Vector3(0.5, 0.02, 0.3)]
+		var st := SurfaceTool.new()
+		st.begin(Mesh.PRIMITIVE_TRIANGLES)
+		for q in [[0, 1, 4, 3], [1, 2, 5, 4]]:
+			for k in [0, 1, 2, 0, 2, 3]:
+				st.add_vertex(pts[q[k]])
+		st.generate_normals()
+		_panel = st.commit()
+	return _panel

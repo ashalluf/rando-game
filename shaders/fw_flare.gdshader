@@ -8,6 +8,7 @@ render_mode blend_add, unshaded, depth_draw_never, cull_disabled, shadows_disabl
 // written out through cs_out(): the red is held to a tenth green or AgX turns it salmon.
 
 #include "res://shaders/color_space.gdshaderinc"
+#include "res://shaders/additive_fog.gdshaderinc"
 
 global uniform float lamp_factor;
 
@@ -62,5 +63,8 @@ void fragment() {
 		float pool = exp(-r * r * 3.2) * (1.0 - smoothstep(0.8, 1.0, r));
 		col = halo_color * pool * pool_gain * mix(0.35, 1.0, clamp(lamp_factor, 0.0, 1.0));
 	}
-	ALBEDO = cs_out(col * gain);
+	// Coverage in the alpha, or the fog colour is added over the whole quad (additive_fog).
+	vec4 af = af_cover(cs_out(col * gain));
+	ALBEDO = af.rgb;
+	ALPHA = af.a;
 }
