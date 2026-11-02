@@ -54,8 +54,10 @@ static func install(parent: Node) -> void:
 
 
 ## True where Godot fades visibility ranges (Forward+ / Mobile, not Compatibility).
+## Never headless: the dummy renderer draws nothing, and it reports forward_plus.
 static func supported() -> bool:
-	return RenderingServer.get_current_rendering_method() != "gl_compatibility" and not OS.has_feature("web")
+	return RenderingServer.get_current_rendering_method() != "gl_compatibility" and not OS.has_feature("web") \
+		and DisplayServer.get_name() != "headless"
 
 
 func _enter_tree() -> void:

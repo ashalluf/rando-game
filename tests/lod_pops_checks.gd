@@ -12,10 +12,17 @@ var _t: Object
 
 func run(t: Object, city: Node3D) -> void:
 	_t = t
+	# The switch on for the checks whatever LOD_POPS says (the A/B is the game's, not the test's).
+	var was := LodFade.enabled
+	var was_car := CarLodBlend.enabled
+	LodFade.enabled = true
+	CarLodBlend.enabled = true
 	_margins()
 	_soften()
 	_bands()
 	await _watcher(city)
+	LodFade.enabled = was
+	CarLodBlend.enabled = was_car
 
 
 func _margins() -> void:

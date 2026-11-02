@@ -81,7 +81,8 @@ func _initialize() -> void:
 			await process_frame
 		var img := root.get_texture().get_image()
 		img.save_png("%s_%02d_%04.1fm.png" % [out, n, d])
-		print("CARPOP %.1f" % d)
+		print("CARPOP %.1f draws=%d tris=%d" % [d, Performance.get_monitor(Performance.RENDER_TOTAL_DRAW_CALLS_IN_FRAME),
+			Performance.get_monitor(Performance.RENDER_TOTAL_PRIMITIVES_IN_FRAME)])
 		d += step
 		n += 1
 	quit()

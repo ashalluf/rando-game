@@ -25175,7 +25175,7 @@ it shows the body through itself (underside, doubled wheels: `tools/lod_pops/car
 
 **Fixes.**
 - `LodFade` (`scripts/util/lod_fade.gd`, one hook in `CityStreamer._ready()`): on Forward+ desktop
-  it watches `SceneTree.node_added` and, a frame later, gives every hard range a margin of 12 % of
+  (a real display, never headless) it watches `SceneTree.node_added` and, a frame later, gives every hard range a margin of 12 % of
   its distance (2..40 m) and FADE_SELF. Vehicles (anything under a "vehicle" node), skinned
   meshes and the car parks' real far bodies are skipped; meta `lod_hard` opts out. Nothing on
   Compatibility.
@@ -25203,10 +25203,15 @@ and a car inside the 9 m overlap draws both bodies; the car paint and cabin glas
 `discard` (their depth pre-pass already ran their own vertex code). Not measured on a GPU - ask the
 owner for an F1 FULL screenshot of a busy street.
 
-**Gate trap found on the way:** headless reports `forward_plus`, so LodFade and CarLodBlend run in
-the gate; and a check file that built a real Vehicle in the city (even freed at once) made the
-NEXT file's "the same block built twice" check fail (`night_atmos_checks`, in shard 2 only). The
-checks here use free-standing meshes and a stand-in "vehicle" node instead.
+**Gate notes.** Headless reports `forward_plus`, so `LodFade.supported()` also asks for a real
+display (`DisplayServer.get_name() != "headless"`): with LodFade and CarLodBlend running in the
+gate, shard 2's `night_atmos_checks` "every prop keeps its id and place" failed three runs in a row
+and passed with them off (cause not found; nothing they touch is read by a chunk build). The
+checks force both on for themselves, on free-standing meshes and a stand-in "vehicle" node (a real
+Vehicle built in the city disturbed the next file's twice-built block). Shard 2 still shows
+intermittent failures that move from run to run - `street_clutter_2` / `night_atmos` "built twice",
+`traffic_motion` "costs little" (wall clock), valets, emergency "fire goes out", boats "stays on the
+water" - several of them also with `LOD_POPS=0`.
 
 **Not done.** The FULL chunk's arrival (its trees, props and cars appear at once while the LOD
 boxes dissolve; at the ring's 240 m it is a few pixels each); shadow twins still cut (a shadow
