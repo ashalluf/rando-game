@@ -10,3 +10,8 @@
 - 10_golden_aerial_before.jpg / _after.jpg - refcam golden_aerial (17:12, 140 m up), opengl3. After: the four cascades start where the ground is (98 / 196 / 343 / 600 m instead of 27 / 80 / 210 / 500), so the freeway decks, building bases and street canyons are grounded in shadow and the towers throw shadow across the convention halls' roofs.
 - 11_golden_aerial_crop_before.jpg / _after.jpg - the same, cropped to the middle distance.
 - 12_downtown_aerial_before.jpg / _after.jpg - refcam downtown_aerial (noon, 60 m up over a roof: the clearance is the roof's, so little changes - by design).
+- 13_hills_before.jpg / _after.jpg - refcam hills (15:00, 260 m up): the ridges' shadows reach further down the gullies.
+- 14_macarthur_before.jpg / _after.jpg - refcam macarthur (11:00, 120 m up).
+- 15_street_noon_before.jpg / _after.jpg - refcam street_noon: unchanged at street level (only the live traffic differs).
+
+Frame cost (refcams, opengl3; triangles incl. shadow passes, draws): street_noon / street_night / sunset / beach / pier_night unchanged; downtown_aerial +1.5 %; hills +2.6 %; freeway +2.0 %; macarthur +16 % (5.60 -> 6.49 M, draws 3218 -> 3981); golden_aerial +26 % (5.12 -> 6.46 M, draws 3028 -> 4202). HIGH only; MEDIUM and below unchanged.
