@@ -27083,7 +27083,8 @@ The run: `REFCAMS_JSON=tools/refcams/cameras_w6.json python3 tools/refcams/refca
   gestures stay), and each thigh turned 5.5 degrees in toward the other about the pelvis' forward
   axis, the foot turned back so the sole stays where it was. Measured on crowd_h's gait idle: feet
   0.44 -> 0.29 m apart sideways, hands 0.17 -> 0.13 m out from the hips, the head exactly where it
-  was, the feet 1 cm lower at most. **Trap:** the library tracks are COMPRESSED (Godot refuses to
+  was; the hips are raised per key by the mean amount the turn lowered the ankles (~1 cm), so the
+  feet stand where the clip had them. **Trap:** the library tracks are COMPRESSED (Godot refuses to
   set, insert or remove their keys), so each clip is resampled at 30 fps into a new Animation and
   put back under its name. Blending the legs toward the rig's Idle (tried first) pulled in that
   clip's 44-degree body turn and its staggered stance; the hips must keep the clip's own facing.
@@ -27115,6 +27116,12 @@ part's own): on a private copy of crowd_h and its gait library, the relaxed idle
 stay apart, the hands come in, the head and feet stay put, the clip keeps its tracks, a library is
 relaxed once; the bag's cords meet at the grip and the grip is in the fingers; the two uniforms are
 off by default and the hair material sets its one; the switch; the camera row and the seed search.
+
+**foot_ik_checks' kerb check changed.** "Both feet at the kerb stand on their own ground"
+compared BOTH kerb ankles to the LOWER of the flat-ground twin's ankles; the idle lifts one heel, so
+it measured the clip's heel lift (3.6 cm on main, 4.2 cm with the narrower stance, the limit 4).
+The foot IK itself was right (each kerb ankle within 2 mm of the twin's same ankle): it now compares
+foot to foot.
 
 ### Not done / not verified
 

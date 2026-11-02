@@ -78,6 +78,11 @@ static func blend_clip(a: Animation, own: Animation, arm_w: float, narrow_deg: f
 	var n := maxi(int(ceil(a.length * FPS)), 1)
 	# The legs' new thigh and foot rotations per sample, worked out first (they read the old keys).
 	var legs := {}
+	# How far the legs' turn moved the ankles down, per sample (skeleton units), summed over legs:
+	# the hips go up by the mean, so the feet stand where the clip had them.
+	var drop := PackedFloat32Array()
+	drop.resize(n + 1)
+	var legs_done := 0
 	if skel != null and narrow_deg > 0.0 and rot.has("Hips"):
 		for leg: Array in LEGS:
 			if not (rot.has(leg[0]) and rot.has(leg[1]) and rot.has(leg[2])):
@@ -106,10 +111,19 @@ static func blend_clip(a: Animation, own: Animation, arm_w: float, narrow_deg: f
 					r = Quaternion(fwd.normalized(), -ang)
 				var th2 := hips.inverse() * r * hips * th
 				var pg := hips * th * kn
+				var kb := skel.find_bone(leg[1])
+				var fb := skel.find_bone(leg[2])
+				if kb >= 0 and fb >= 0:
+					var o := skel.get_bone_rest(hb).origin
+					var shin := skel.get_bone_rest(kb).origin + kn * skel.get_bone_rest(fb).origin
+					var was := hips * (o + th * shin)
+					var now := hips * (o + th2 * shin)
+					drop[k] += was.y - now.y
 				thigh_q.append(th2)
 				foot_q.append(pg.inverse() * r.inverse() * pg * ft)
 			legs[leg[0]] = thigh_q
 			legs[leg[2]] = foot_q
+			legs_done += 1
 	var out := Animation.new()
 	out.length = a.length
 	out.loop_mode = a.loop_mode
@@ -133,7 +147,10 @@ static func blend_clip(a: Animation, own: Animation, arm_w: float, narrow_deg: f
 			Animation.TYPE_POSITION_3D:
 				for k in n + 1:
 					var t := minf(float(k) / FPS, a.length)
-					out.position_track_insert_key(nt, t, a.position_track_interpolate(i, t))
+					var p := a.position_track_interpolate(i, t)
+					if bone == "Hips" and legs_done > 0:
+						p.y += drop[k] / float(legs_done)
+					out.position_track_insert_key(nt, t, p)
 			Animation.TYPE_SCALE_3D:
 				for k in n + 1:
 					var t := minf(float(k) / FPS, a.length)
