@@ -72,6 +72,18 @@ func _ready() -> void:
 	plain.billboard_keep_scale = true
 	plain.vertex_color_use_as_albedo = true
 	_emit("lit", 6.0, plain, Color(1, 1, 1), WeaponFX._ramp([Color(1, 1, 1, 0.55), Color(1, 1, 1, 0.0)]), 3.6, 60, Vector3(0, 0.5, 0), fixed)
+	# fountain=1: MacArthur Park's real fountain (jet, plume, boil) 40 m behind the row;
+	# plume=unshaded draws the plume's particles unshaded (the web-build-5 A/B).
+	if _arg("fountain", "0") == "1":
+		var holder := Node3D.new()
+		add_child(holder)
+		LandmarkMacArthurPark._build_fountain(holder, {"fountain": Vector2(0.0, -40.0)}, true)
+		var pl := holder.get_node_or_null("FountainPlume") as CPUParticles3D
+		if pl and _arg("plume", "") == "unshaded":
+			var plm := (pl.mesh as QuadMesh).material as StandardMaterial3D
+			plm.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		cam.position = Vector3(0, 2.5, 30)
+		cam.look_at(Vector3(0, 8.0, -40))
 	_shoot.call_deferred()
 
 
@@ -119,8 +131,10 @@ func _shoot() -> void:
 		var b := cam.unproject_position(Vector3(c[1] + 1.2, 0.3, 0))
 		var s := Vector3.ZERO
 		var k := 0
-		for y in range(int(a.y), int(b.y), 2):
-			for x in range(int(a.x), int(b.x), 2):
+		var w := img.get_width()
+		var h := img.get_height()
+		for y in range(clampi(int(a.y), 0, h), clampi(int(b.y), 0, h), 2):
+			for x in range(clampi(int(a.x), 0, w), clampi(int(b.x), 0, w), 2):
 				if x >= 0 and y >= 0 and x < img.get_width() and y < img.get_height():
 					var cc := img.get_pixel(x, y)
 					s += Vector3(cc.r, cc.g, cc.b)
