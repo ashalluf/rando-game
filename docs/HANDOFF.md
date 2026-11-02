@@ -25206,3 +25206,10 @@ Checks: `tests/rc2_suburb_checks.gd` (rolls, districts, shader uniforms and mate
 block built with and without the residents keeps every car and never doubles a stall). Probe:
 `tools/rc2_suburb/yard_probe.tscn -- --spawn=x,z` (the front-garden kinds YardFill plans round a
 point).
+
+**Gate** (SHARDS=3 on `wt/rc2-suburb` = main bb03d731 + this): 5,090 of 5,091 checks passed (shards
+1,660 / 1,679 pass, 1 of 1,751 failed); the one failure was traffic_ai_checks' "a fast freeway car
+moves over and passes a slow one" (closest 22 m, the slow car not passed), which passed rerun alone
+(`SMOKE_PARTS=city_crowd`: moved, passed, 62 m) - intermittent, freeway traffic, not touched here.
+Peak RSS 3.69 GB a shard. The ten original refcams with RC2_SUBURB=0 vs on: nine ok, the freeway
+flagged by its traffic (a semi beside the lens in one run).
