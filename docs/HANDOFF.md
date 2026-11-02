@@ -26111,12 +26111,16 @@ into a running gate (check files are `load()`ed lazily, mid-run).
 | 4101 | gate_speed_2 "the full reset puts the weather back (state 0, forced false)" | the reset put back its SNAPSHOT's weather; the check compared against the weather at its own start, which Weather's auto roll had changed since (the hour check already used the snapshot's) | it expects the snapshot's state and forcing |
 | 5101 | crowd_look "a performer ahead and to the right is watched (5 degrees, wanted -40)" | a busker the city put near home (or one a file left) is in `crowd_look_magnet` too and won the head | the staged performer is the only magnet while it is watched; the message gives the kind that won |
 | 5101, the lead's batch 38 | pedestrian_flow "somebody comes out of a shop door (still inside after 10 s; overdue 1.7 s, door alive, in tree, processing)" | `CrowdFlow._pass_door()` had no `_lives()` test: a valet, a diner, a night-goer (any Pedestrian subclass walking through `avoid()`) could be sent in at a shop door, where it stayed hidden for good because its own tick never runs an errand; `door_tick()` then borrowed it from the pool (`StreetErrands._from_pool()`, no `_lives()` test either) and it "never came out" | both take the plain crowd only; the message names the walker's script |
-| 6101 | traffic_behaviour_2 "a car behind a wreck asks for the other lane" / car_panic "with no clear kerb ... swerves instead" / distance "from 600 m up no block is drawn by two tiers at once (1)" | **not found** (seen once each, in one heavy run); the first two print where the car got to and its panic kind now | - |
+| 6101, 10404 | traffic_behaviour_2 "a car behind a wreck asks for the other lane (82 m short, v 0, keys ... dp_at)" | the staged car (TrafficAI on) rolled a double park of its own (2.5 % a block) right away | `no_dp` on it, as traffic_ai_checks does |
+| 6101, 10404 | distance "from 600 m up / street level no block is drawn by two tiers at once (1)" | the vantage waited `fade_time` after `update_streaming(true)`, but builds pending from before kept finishing; a chunk installed late was still dissolving the far city | the vantage also waits until nothing is pending or fading (30 s at most) |
+| 6101 | car_panic "with no clear kerb ... swerves instead" | the race below: start() looked at the kerb ticks after the test did | see the 8101 / batch 37 row |
 | 1303, 6101 | pedestrian_flow "a follower walks beside its leader (mean 2.1 m, leader 6.9 m)" | **not found**: the strip sits at the camera's x and may meet pavement furniture the follower dodges; moving the strip off furniture was tried and made the pair walk off east to one spot every time (7101, 8101, 9101: the same end point to the millimetre), so it was taken back out | - |
 | 1202 + the lead's batch 37 | pedestrian_flow "two walkers ... (closest 0.04 m, passed true; camera 24.3 m off, strides 1, flow on)" | **not found**: no sidestep at all with every precondition met; the message now also prints what each saw of the other in CrowdFlow's grid, their group ids, layers and visibility | - |
+| 11101 | weather_la "rain: a splash lands on a car's roof (6142.71 m against 6143.56 m)" | the first upright car in the group was one an earlier file had sent flying, 6 km up and falling between the splash and the read | a car at rest within 400 m of the player |
 | (8101) | - | `CrowdFlow._pass_door()` sent walkers in at shop doors without sparing `no_trim` (the staging meta the flake rules promise every system leaves alone) | spares them now |
 | 8101 | service_vehicle "a tow truck is sent (physics budget full)" | PhysicsBudget at its 500-body cap in a busy city | the check gives the truck room in the cap for the send |
-| 8101 | car_panic "a driver mounts the clear kerb ..." (up false) | **not found** (the lead hardened its staging on main, batch 35; still seen once) | - |
+| 8101, the lead's batches 35 / 37 | car_panic "a driver mounts the clear kerb ..." (up false, never a KERB panic) | the test found the kerb clear, then placed the follower and waited two ticks before `CarPanic.start()`, which looks again: a walker of a busy shard had stepped onto the kerb and the driver rightly swerved | the follower is placed and the panic started in the same frame the kerb was found clear (also in the retry loop) |
+| batches 35-37 (the lead) | street_furniture "the furniture moves nothing in a downtown block" (rebuild signature) | trash cans and parked cars roll only while `PhysicsBudget.can_spawn()`, and a busy shard's city sits at the 500-body cap, so builds of one block differed | the check's builds run with the cap lifted |
 
 **Runs** (each `SHARDS=3`, ~30 min, a shard peaking at ~3.4-3.5 GB): see the table at the end of
 this section.
@@ -26693,6 +26697,27 @@ chips that bounce and skid, BlastDebris' burning pieces with trails), the glass 
 (SHATTER records plus shards timed by the wave's travel at 343 m/s) and the refracting pressure
 wave stay as the second and third passes made them.
 
+**Round 5: the lead's five-case strips** (rocket at noon from 60 m, a car at golden hour from 20 m,
+a car at night, a petrol pump at noon, a chain of three cars: `CHAIN=1` on blast_room_shot.gd parks
+two more cars beside the first). Worst first, as judged frame by frame:
+1. **The flat beige dust band.** Bisected with A/Bs: three particle layers stacked into one wall
+   (BlastFX's ground kick puffs, BlastAftermath's dust wave, WeaponFX's skirt); the volume's own
+   dust ring rolls fine. `Blast4.dust_roll()` replaces the first two (the kick keeps its grit) with
+   a lit rolling front: fast low creepers, rollers that start 0.12 s later and lift and curl, and a
+   low hanging haze, on BlastFX's lit smoke with the variety tint. `BLAST_DUST_ROLL=0` the old layers.
+2. **The cap a uniform mid grey at 4-8 s by day.** `value4` (blast_volume.gdshader, set by
+   `dress_volume()`): the cooled plume's albedo rises with age (pale where the sun reaches it), its
+   ambient is pulled down and its sun term steepened, so the folds read dark and the tops pale.
+   Never on fire or dust. `BLAST_VALUE=0` the old grey.
+3. **The chain's flare caught as a white disc.** It grew to 4.2 radii over 0.13 s: now 3 radii over
+   0.1 s (`flare_grow_radii`, `flare_fade_seconds`; off with EXPLOSIONS_4=0).
+4. **Debris read as dots.** Every third burning piece is a bent sheet of panel (`panel_mesh()`, two
+   quads, drawn both sides), the rest 1.2-1.9x bigger, the trails nearly twice as dense.
+   `BLAST_CHUNKS=0` the old pieces.
+Still open: the night cap fades to a faint maroon blob (lit from below too weakly by its fires), the
+stem thins away by 8 s, the burning fuel on the road and up the wreck's sides, the crater at 5 m.
+Stills from 24 on, on `shots/explosions-4`.
+
 ## 9lb. The camera lens (wave 5, `camera-lens`)
 
 **What.** The camera itself: exposure adaptation, the sun's flare, grain, the bloom's spread.
@@ -27034,6 +27059,120 @@ truck in one run, a red car in the other; the deck is freeway_deck.gdshader, not
 (one line in smoke_test.gd's city_files): street asphalt gets lane wear and pavements / car parks do
 not, the shader applies it and 0 is the old road, the switch, the camera row and its staging
 script. Stills on `shots/rc2-chase-cam`.
+## 9lg. The pale box round the player's car (wave 5, `chase-box-bug`, branch `wt/chase-box-bug`)
+
+This closes the open item 3 of the chase_cam refcam section (rc2-chase-cam).
+
+**The bug.** Every chase-camera still (shots/rc2-chase-cam 02_after_chase_cam.jpg, shots/driving-camera
+06_after_frame_30kmh.jpg) had a pale translucent "rectangle" across the rear of the player's car. Zoomed, it
+is TWO squares, each centred on a tail lamp, about 0.6 m across, in the haze colour.
+
+**The cause.** `car_lights.gdshader` parts 6 and 7 are the lamps' halos (NightAtmos). Their quads are
+collapsed in the vertex stage only when `night_atmos.z` (the halo gain) or the distance fade is ~0 - and
+the gain is 1 by day, so by day each halo is a live camera-facing square whose light is 0. The halo
+branch wrote only ALBEDO (the light can pass 1, so it stays out of the alpha), leaving ALPHA at 1. On an
+additive material both renderers still mix the fog colour in - albedo x (1 - fog) + fog colour x fog -
+and add it over the whole quad: a haze-grey square round each lamp of every car whose lamps run (a
+driver in), drawn ~0.3 m toward the camera so it lies over the bumper. The player's car was the only one
+close enough to notice. The street lamps' halos (night_halo.gdshader) never had it: they are
+`fog_disabled`.
+
+**Why the earlier search missed it.** It IS a child of the car (NightLights), but
+`Vehicle._refresh_lights()` sets `_night_lights.visible` back to "lamps running" whenever it differs, every
+tick - so hiding the node (CHASE_AB, the bisection) was undone before the frame was drawn. Toggle render
+`layers`, or swap the material, to take a scripted node out of a frame. The probe
+(`tools/chase_box_bug/probe.gd`) proves it in one load: the same paused frame with the fixed shader and
+with main's shader code swapped in at run time (`car_lights_old.txt`); `MODE=classes` / `MODE=bisect`
+toggle drawables by their layers.
+
+**The fix.** `shaders/additive_fog.gdshaderinc`: `af_cover(light)` returns the light with its coverage
+(max channel x 64, clamped) in the alpha and the colour divided by it, so ALBEDO x ALPHA is the light
+exactly, the fog still dims it, and the fog colour is added only where there is light - nothing where
+there is none. Used by car_lights' halo branch and the four other additive shaders that left ALPHA at 1
+(`fw_flare` - road flares burn by day too -, `muzzle_flash`, `tracer_streak`, `ballpark_glow`). Rule: an
+additive shader is `fog_disabled` or writes a coverage alpha.
+
+**Checks.** `tests/chase_box_bug_checks.gd`: every `blend_add` shader in shaders/ is fog_disabled or writes
+ALPHA; car_lights' halo branch uses af_cover; a GDScript copy of af_cover gives the light back exactly and
+no alpha for no light (its gain is the include's); a car's lamps still wear car_lights.gdshader.
+
+**Stills** on `shots/chase-box-bug` (01 before, 02 after, 03 the crop). Frame cost: unchanged (shader-only,
+no geometry or draws). Not verified on Forward+ (the same fog mix applies there; the fix is the alpha, which
+both renderers blend the same way).
+
+## 9lh. The web build after wave 4, 2026-11-01 (fleet wave 5 session `web-build-5`, branch `wt/web-build-5`; VISUAL_ROADMAP "?")
+
+**What was asked.** Export the web build after wave 4, load every bookmark one tab at a time, fix
+shader / WebGL / memory errors, check the pck budget, the wasm heap, the sampler limit and the
+uniform blocks, extend `tests/web_build_checks.gd`.
+
+**How.** main `bb03d731` (build 402+, batch 32), the 4.7.2 `web_nothreads_release` template,
+`--export-release "Web"` (43 s), `tools/webshot/bookmarks.sh` (headless Chromium 1243, SwiftShader,
+960x540, 7 minutes of streaming, `KEY=k`, `PROBE=1`).
+
+**Result.** All eight bookmarks load with a clean console (only the template's occlusion warning
+and Chrome's autoplay notice). Downtown noon, night street, golden hour, storm, hills and the beach
+match wave 4's stills. Size: `index.pck` 609.3 MB (+8.5 since batch 25; budget 650), `index.wasm`
+39.5 MB. The wasm heap is 720 MB after load and takes ONE growth step to 821-823 MB while
+streaming (Emscripten's step is capped near 96 MB; 9jz's runs stopped at 723) - a fifth of the
+browser's 4 GB. JS heap at the end 0.73-0.76 GB. Web Audio buffers climb as in 9jz (the loop
+restarts copying their buffer).
+
+**Fixed: MacArthur Park drowned in glare in the browser.** At the `macarthur` bookmark a wall of
+green / white / red / blue glare grew over the park within minutes and lit the hero cyan or green
+(`01_` / `02_` stills); natively (opengl3, same spawn, and with every frame forced to 15 s) nothing.
+Bisected in the browser with an autoload probe of the REAL main build (`tools/web_probe/`, below):
+the glare goes the frame the park fountain's particle plume (`FountainPlume`, 420 lit billboard
+particles, `LandmarkMacArthurPark._build_fountain()`) is hidden, and stays through each of
+fixed_fps 30, a restart, no damping, no scale curve, unshaded, local coords. The same builder in a
+small web room (`tools/web_probe/fx_room.tscn fountain=1 slow=20000`) does NOT reproduce it, so
+the root (something about this long-lived system in the city at 20-60 s a frame) is not found.
+Decision: on the web the plume is left out (`LandmarkMacArthurPark.plume_allowed()`,
+`?fountain_plume=1` brings it back); the jet column and the boil carry the fountain. wave 4's
+small green dot at the fountain was the same thing. The golf course's 70-particle copy
+(`GolfFountainPlume`) is unchanged and unverified.
+
+**Fixed: `Emergency._scan()` script error** (`is` on a freed CarDamage) under long frames - main
+fixed the same line meanwhile; the merge keeps main's.
+
+**Not fixed: the hero reads blue in the rain again** (`04_`, top and hair ~(25, 46, 100) in the
+browser at the rain bookmark). Not the stale radiance of 9ja: with the sky held at QUALITY,
+reflections off (`REFLECTION_SOURCE_DISABLED`) or the whole Weather node hidden he stays blue, and
+`?sky_settle=0` changes nothing. Natively, and in 9ja's small `hero_rain.tscn` with the web's sky
+settings (`WEBQ=1`), he is neutral (52, 48, 45). Lead for the hero's owner: the velour's custom
+`light()` lobe and Forward+ gain from wave 4's hero close-up pass came after 9ja's fix; next step
+is `glob:wet_world=0` and swapping hero_cloth for a flat material in the city (the probe's
+`ap_hide` steps). The pale straight-edged wedges in the same rain sky are not the rain emitter
+either (hidden with Weather, they stay).
+
+**Checks** (`tests/web_build_checks.gd`): every shader's source with its includes under 200 KB
+(the most: building, 186 KB after the merge with main - close to the budget) and its constant arrays under 1,600 items (building's vinyl glyphs,
+1,240), the counter proven on a planted source; the fountain plume gated on the web and built
+everywhere else. CI (`godot-check.yml`) prints the pck and site size after the web export, warns
+over 650 MB and fails over GitHub Pages' 1 GB.
+
+**Tools.**
+- `tools/webshot/web_budget.gd`: every web budget per shader in seconds, headless (samplers, uniform
+  block, varyings, source KB, constant items; top N).
+- `tools/webshot/webshot.js` `MORE=n MORE_GAP=ms`: more shots after the first.
+- `tools/web_probe/export_probe.sh`: the real main build with `web_autoprobe.gd` as an autoload
+  (`MAIN=` another main scene, `AUTOPROBE=0`, `OUTDIR=`). The probe (query string): `ap_settle`,
+  `ap_every`, `ap_n` reports of exposure / glow / fog / camera / lights / particles near the camera
+  and the frame as `PROBE_IMG` (decode the base64 PNGs out of the LOG); `ap_hide=a,b,...` one step a
+  report: a node-path substring to hide, `plume:<fixed|restart|nodamp|nocurve|unshaded|local>`,
+  `env:<refl|amb|fog|glow|skyq>`, `glob:<name>=<v>`; `ap_stage=fire|hose|medic` (Emergency's
+  staging); `ap_slow=ms` / `ap_out=` natively. NOTE each frame read is the PREVIOUS frame: a hide
+  shows one report later.
+- `tools/web_probe/fx_room.tscn`: effects side by side under the city's Environment (FireSmoke,
+  a fire puff, spray, the hose water, a lit puff; `fountain=1` the real MacArthur fountain,
+  `plume=unshaded`, `slow=ms`), native and web, prints FX means.
+- `tools/web_hero_rain/hero_probe.gd`: `full=1`, steps `aerial`, `quality`, `scan`, `hidescreen`.
+- Harness traps found: `tools/webshot` holds a `.gdignore` (scripts there are not exported); a
+  `pgrep -f` / `pkill -f` on a pattern in your own command line matches the shell itself; a tab left
+  over from a run holds port 8123 (`EADDRINUSE`); probe.js's "gl uploads" counter adds the whole
+  wasm heap on every call (it reads terabytes; ignore it).
+
+Stills on `shots/web-build-5`.
 
 ## 9d?. The oil field from its lease road (fleet wave 6, refcam3 `oil_field`, branch wt/rc3-oil-field)
 

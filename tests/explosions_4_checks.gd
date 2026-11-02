@@ -43,6 +43,7 @@ func run(t: Node, city: Node3D) -> void:
 	await _fuel(parent, at + Vector3(0.0, 0.0, 70.0))
 	_web_pop(parent)
 	await _chain()
+	_round4(parent)
 	for c in parent.get_children():
 		if not before.has(c) and c != _deck and not (c is BlastBits):
 			c.queue_free()
@@ -212,3 +213,23 @@ func _chain() -> void:
 		if is_instance_valid(car):
 			car.queue_free()
 	await _ticks(2)
+
+
+## Round 4: the rolling dust front, the plume's value range, the debris chunks, the smaller flare.
+func _round4(parent: Node) -> void:
+	var n0 := parent.get_child_count()
+	var rolled := Blast4.dust_roll(parent, _top, Vector3.UP, 28.0)
+	_t._check(rolled and parent.get_child_count() >= n0 + 2, "explosions_4: the dust rolls out as its own layers")
+	_t._check(FileAccess.get_file_as_string("res://scripts/weapons/blast_aftermath.gd").contains("Blast4.dust_roll("),
+		"explosions_4: the aftermath's dust wave hands over to the rolling front")
+	var vs := FileAccess.get_file_as_string("res://shaders/blast_volume.gdshader")
+	_t._check(vs.contains("uniform float value4 = 0.0;") and vs.contains("value4 * 0.9 * smoothstep(1.5, 6.0, t)"),
+		"explosions_4: the plume's value range is in the volume (off by default)")
+	var m := ShaderMaterial.new()
+	m.shader = load("res://shaders/blast_volume.gdshader")
+	Blast4.dress_volume(m, false, false)
+	_t._check(float(m.get_shader_parameter("value4")) == (Blast4.value_range if Blast4.value_enabled else 0.0),
+		"explosions_4: a volume is dressed with the value range")
+	var pm := Blast4.panel_mesh()
+	_t._check(pm != null and pm.get_surface_count() == 1 and pm.get_aabb().size.x > 0.9, "explosions_4: the torn panel chunk is built")
+	_t._check(Blast4.flare_grow() < 4.2 and Blast4.flare_fade() < 0.13, "explosions_4: the flare is smaller and shorter")

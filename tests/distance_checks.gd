@@ -197,7 +197,12 @@ func _vantage(streamer: CityStreamer, sky: Skyline, player: Node3D, cam: Camera3
 	# Real time, not frames: the dissolves run on the frame delta, and headless frames are short.
 	var until := Time.get_ticks_msec() + int((sky.fade_time + 0.3) * 1000.0)
 	var frames := 0
-	while Time.get_ticks_msec() < until or frames < 10:
+	# And until no build is left pending and nothing is dissolving: a build started before this
+	# vantage finished after the wait and its chunk was still dissolving the far city when the rays
+	# were walked (shuffled gates 6101, 10404: "drawn by two tiers at once (1)"). At most 30 s.
+	var cap := Time.get_ticks_msec() + 30000
+	while Time.get_ticks_msec() < until or frames < 10 \
+			or ((not (streamer.get("_pending") as Dictionary).is_empty() or not (sky.get("_fading") as Dictionary).is_empty()) and Time.get_ticks_msec() < cap):
 		await _tree.process_frame
 		frames += 1
 		player.global_position = ws.to_local(at)
