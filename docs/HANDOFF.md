@@ -27195,3 +27195,11 @@ bit-identical to main):
 alone, 45 frames - SDFGI not fully settled); the far / LOD copies are unchanged (boxes); the plaza
 paving is still one even grid; the shop rooms are one generic shop for every trade (a kitchen
 traces shelves of goods too).
+
+Numbers (refcams, opengl3, `chinatown_dusk`): luma p5/p50/p95 12/33/175 -> 11/31/157; 4.62 M ->
+4.71 M triangles, 2,391 -> 2,427 draws. The ten original cameras with `RC3_CHINATOWN=0` vs on: nine
+within tolerance, `freeway` flagged by live traffic only (a car near the lens; Chinatown is not in
+that view). Gate: SHARDS=3, 5,446 checks, one failure in `pedestrian_flow_checks` ("somebody comes
+out of a shop door", a valet picked) that passes alone with this file (`SMOKE_PARTS=pedestrian_flow_checks,rc3_chinatown_checks`, 43 checks).
+On opengl3 the lanterns at the Forward+ level (x 1.9) read a little peach; tuned for the Mac.
+Stills: branch `shots/rc3-chinatown`.
