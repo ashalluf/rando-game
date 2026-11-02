@@ -2918,6 +2918,8 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	load("res://tests/rc4_canals_day_checks.gd").new().run(self)
 	# The container terminal at night (tests/rc4_port_night_checks.gd, PortNight): floods, halos, windows.
 	load("res://tests/rc4_port_night_checks.gd").new().run(self, city)
+	# The heli_night refcam (tests/rc4_heli_night_checks.gd, RcHeliNight): crown lids, pad lamps, the unfinished towers.
+	load("res://tests/rc4_heli_night_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()
