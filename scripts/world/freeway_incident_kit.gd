@@ -130,7 +130,7 @@ static func rubber_material() -> StandardMaterial3D:
 		_rubber_mat = StandardMaterial3D.new()
 		_rubber_mat.vertex_color_use_as_albedo = true
 		_rubber_mat.roughness = 0.82
-		_rubber_mat.specular = 0.35
+		_rubber_mat.metallic_specular = 0.35
 		_rubber_mat.cull_mode = BaseMaterial3D.CULL_DISABLED
 	return _rubber_mat
 
