@@ -188,23 +188,23 @@ vec3 shape4(vec3 q) {
 	// It flattens as it rises (squashed in y, spread in xz) and rolls into a ring: the top's middle
 	// thins and the cap is a fat torus over its stem. A gas ball stays round longer.
 	float flat_ = 1.0 + (0.6 - 0.3 * gas) * smoothstep(0.25, 2.4, t);
-	float wide = 1.0 + 0.28 * smoothstep(0.6, 5.0, t);
+	float wide = 1.0 + 0.55 * smoothstep(0.6, 6.0, t);
 	vec3 e = d * vec3(1.0 / wide, flat_, 1.0 / wide);
 	float ball = 1.0 - length(e) / max(R, 0.02);
-	float rr = 0.48 * R * wide;
-	float tor = 1.0 - length(vec2(length(d.xz) - rr, d.y * flat_ * 1.15)) / max(0.62 * R, 0.02);
+	float rr = 0.52 * R * wide;
+	float tor = 1.0 - length(vec2(length(d.xz) - rr, d.y * flat_ * 1.05)) / max(0.7 * R, 0.02);
 	float ringk = smoothstep(0.5, 2.6, t) * (1.0 - 0.6 * gas);
 	ball = mix(ball, max(tor, ball - 0.3), ringk);
 	// The skirt of the first instant, and the dust ring that runs out along the ground after it.
 	float sk = mix(-1.0, 1.0 - length(q * vec3(1.0 / (1.25 * R + 0.05), 1.0 / (0.32 * R + 0.02), 1.0 / (1.25 * R + 0.05))), 1.0 - smoothstep(0.08, 0.45, t));
-	float rg = (0.95 * (1.0 - exp(-t / 0.35)) + 0.03 * t) * big;
-	float dth = 0.16 + 0.05 * t;
+	float rg = (1.05 * (1.0 - exp(-t / 0.35)) + 0.07 * t) * big;
+	float dth = 0.18 + 0.09 * min(t, 5.0);
 	float dring = 1.0 - length(vec2((length(q.xz) - rg * 0.75) / (rg * 0.55 + 0.1), (q.y - dth * 0.6) / dth));
-	dring = mix(-1.0, dring * 0.6, smoothstep(0.03, 0.15, t) * (1.0 - smoothstep(0.9, 3.2, t)));
+	dring = mix(-1.0, dring * 0.6, smoothstep(0.03, 0.15, t) * (1.0 - smoothstep(life * 0.3, life * 0.7, t)));
 	// The stem: a wavering column from the ground up into the cap, thinning as it ages.
 	vec2 sxz = q.xz + vec2(sin(q.y * 1.7 + t * 0.6 + seed.x), cos(q.y * 1.4 - t * 0.5 + seed.y)) * 0.06 * q.y;
-	float sr = (0.24 + 0.05 * sqrt(t)) * R * (1.0 + 0.35 * smoothstep(0.0, 0.5, q.y) * (1.0 - smoothstep(0.5, cy, q.y))) + 0.04;
-	float stem_on = step(0.0, q.y) * step(q.y, cy) * smoothstep(0.2, 0.55, t) * (1.0 - smoothstep(life * 0.45, life * 0.9, t));
+	float sr = (0.3 + 0.08 * sqrt(t)) * R * (1.0 + 0.35 * smoothstep(0.0, 0.5, q.y) * (1.0 - smoothstep(0.5, cy, q.y))) + 0.04;
+	float stem_on = step(0.0, q.y) * step(q.y, cy) * smoothstep(0.2, 0.55, t) * (1.0 - smoothstep(life * 0.6, life * 0.95, t));
 	float stem = mix(-1.0, (1.0 - length(sxz) / sr) * (0.85 - 0.35 * gas), stem_on);
 	float s = max(max(ball, sk), max(stem, dring));
 	float dusty = smoothstep(0.0, 0.2, dring - max(ball, stem));
@@ -220,7 +220,7 @@ vec3 advect4(vec3 q) {
 	float cy = cap_y4(t, big);
 	float rho = length(q.xz);
 	vec2 dir = q.xz / max(rho, 1e-3);
-	float rr = 0.48 * R * (1.0 + 0.28 * smoothstep(0.6, 5.0, t));
+	float rr = 0.52 * R * (1.0 + 0.55 * smoothstep(0.6, 6.0, t));
 	vec2 v = vec2(rho - rr, q.y - cy);
 	float spin = roll * (1.0 - exp(-t / 2.2)) * exp(-dot(v, v) / max(0.36 * R * R, 1e-3)) * smoothstep(0.0, 0.3 * R, rho);
 	float cs = cos(spin);
@@ -249,14 +249,20 @@ vec3 field4(vec3 q) {
 	float n1 = noise_at(p);
 	float n2 = noise_at(p * 2.6 + vec3(0.0, -t * 0.5, 0.0));
 	float age = smoothstep(1.5, life, t);
-	// Crisp cauliflower billows while it burns; soft, thinning smoke as it spreads.
-	float f = sh.x * 1.3 + (n1 - 0.5) * (1.7 - 0.5 * gas) + (n2 - 0.5) * (0.24 + 0.2 * age);
-	float crisp = mix(0.07, 0.42, smoothstep(0.4, 4.0, t));
-	float dens = smoothstep(0.0, crisp, f) * mix(1.0, 0.45, age) * mix(1.0, 0.16, sh.z);
+	// Crisp cauliflower billows while it burns; softer as it spreads, but never a blur: a third
+	// octave, curl-advected and sliding over time, cuts turrets into the silhouette only.
+	float f = sh.x * 1.3 + (n1 - 0.5) * (1.7 - 0.25 * gas) + (n2 - 0.5) * (0.32 + 0.12 * age);
+	float rim = 1.0 - smoothstep(0.05, 0.45, abs(f - 0.1));
+	if (rim > 0.01) {
+		float n3 = noise_at(p * 6.3 + vec3(t * 0.21, -t * 0.7, -t * 0.13));
+		f += (n3 - 0.5) * 0.34 * rim * smoothstep(0.15, 1.0, t);
+	}
+	float crisp = mix(0.07, 0.24, smoothstep(0.4, 4.0, t));
+	float dens = smoothstep(0.0, crisp, f) * mix(1.0, 0.45, age) * mix(1.0, 0.11, sh.z);
 	float heat = heat_at(t) * (1.0 + 0.35 * gas);
 	// A wide spread of temperature (white-hot crowns, orange, dull red, black soot in the creases):
 	// a fireball reads by its contrast. As it cools its skin goes first: the fire is seen deeper in.
-	float temp = clamp(heat * (0.5 + sh.y * 0.5 + (n1 - 0.5) * (2.2 - 0.8 * gas) + (n2 - 0.5) * 1.4), 0.0, 1.0);
+	float temp = clamp(heat * (0.5 + sh.y * 0.5 - 0.12 * gas + (n1 - 0.5) * (2.2 - 0.3 * gas) + (n2 - 0.5) * 1.4), 0.0, 1.0);
 	temp *= mix(1.0, 0.25 + 0.75 * smoothstep(0.0, 0.55 + 0.25 * fuel, f), smoothstep(0.1, 0.55, t) * (1.0 - 0.5 * gas));
 	// Fire still burning deep in the core while the cap rolls (a fuel ball's longer), seen in gaps.
 	float deep = clamp(sh.y * 1.6 - 0.35, 0.0, 1.0) * exp(-max(t - 0.6, 0.0) / (0.9 + 1.3 * fuel)) * (0.55 + 0.6 * n1);
@@ -275,7 +281,7 @@ float field4_lo(vec3 q) {
 	vec3 p = qa / grow * 0.62 + seed + vec3(0.0, -t * 0.32, 0.0);
 	float f = sh.x * 1.3 + (noise_at(p) - 0.5) * (1.7 - 0.5 * gas);
 	float age = smoothstep(1.5, life, t);
-	return smoothstep(0.0, mix(0.1, 0.45, smoothstep(0.4, 4.0, t)), f) * mix(1.0, 0.45, age);
+	return smoothstep(0.0, mix(0.1, 0.26, smoothstep(0.4, 4.0, t)), f) * mix(1.0, 0.45, age);
 }
 
 
@@ -334,6 +340,9 @@ void fragment() {
 			// belly, and the whole cap shading its stem.
 			float od = field4_lo(q + L * 0.12) * 0.12 + field4_lo(q + L * 0.36) * 0.26 + field4_lo(q + L * 0.85) * 0.5;
 			float t_sun4 = exp(-sigma * od * radius * 1.25);
+			// What hangs over this point shades it from the sky (the cap's underside, the stem's
+			// core): one tap straight up.
+			float occ4 = exp(-sigma * field4_lo(q + vec3(0.0, 0.45, 0.0)) * radius * 0.35);
 			// Multiple scattering: the shadowed side is not black, it is lit by the cloud itself.
 			float lift = ms_lift * (1.0 - t_sun4) * (1.0 - 0.5 * f4.x);
 			float up4 = clamp((q.y - 0.2) * 0.45 + 0.35, 0.0, 1.0);
@@ -342,9 +351,14 @@ void fragment() {
 			// Burnt fuel stays black (a car's smoke is the darkest there is); a rocket's greys out.
 			vec3 alb4 = mix(soot * (1.0 - 0.35 * fuel), smoke_grey * (1.0 - 0.45 * fuel), smoothstep(0.8, 5.0, t) + 0.5 * gas * smoothstep(0.4, 2.0, t));
 			alb4 = mix(alb4, dust, f4.z);
+			// A sooty dark core and paler thin edges; warm brown low down near the fire, cooler grey
+			// up in the cap.
+			alb4 *= mix(1.45, 0.62, smoothstep(0.15, 0.95, f4.x)) * mix(vec3(1.1, 0.97, 0.84), vec3(0.94, 0.98, 1.05), up4);
 			// The sky's light on smoke is mostly its brightness: the blue only tints the shadow side.
 			vec3 sky4 = mix(vec3(dot(sky, vec3(0.2126, 0.7152, 0.0722))), sky, 0.45);
-			vec3 amb4 = sky4 * sky_gain * mix(0.4, 1.0, up4) * mix(0.55, 1.0, t_sun4) + sky4 * 0.12 * (1.0 - up4);
+			// Sky from above (shaded by what hangs over it), the sunlit ground's bounce from below.
+			vec3 ground4 = vec3(0.30, 0.27, 0.23) * 0.22 * sun * clamp(L.y * 1.5, 0.0, 1.0);
+			vec3 amb4 = sky4 * sky_gain * mix(0.25, 1.0, up4) * mix(0.35, 1.0, occ4) * mix(0.6, 1.0, t_sun4) + (sky4 * 0.08 + ground4) * (1.0 - up4);
 			vec3 wp = (MODEL_MATRIX * vec4(o + dl * f, 1.0)).xyz;
 			vec3 fl = city_glow * lamp_factor * (1.0 - up4) / 6.0;
 			for (int k = 0; k < 4; k++) {
@@ -360,9 +374,9 @@ void fragment() {
 				fl += fire_col * fire_gain * mix(0.22, 1.0, night_factor) * fract(fr.w) * 2.0 * below / (1.0 + fd * fd / max(reach * reach * 0.3, 1.0));
 			}
 			fl = min(fl, vec3(2.4, 0.9, 0.25));
-			vec3 lit4 = alb4 * (fl + sun * sun_gain * (t_sun4 + lift + fwd_lobe * (1.0 - f4.x) * t_sun4) + amb4 + inner4) * (1.0 - 0.85 * smoothstep(0.15, 0.5, f4.y));
+			vec3 lit4 = alb4 * (fl + sun * sun_gain * 1.35 * (t_sun4 + lift * 0.6 + fwd_lobe * (1.0 - f4.x) * t_sun4) + amb4 + inner4) * (1.0 - 0.85 * smoothstep(0.15, 0.5, f4.y));
 			col += tr * a4 * lit4;
-			glow += tr * a4 * blackbody(f4.y) * heat_gain * (1.0 + 0.4 * gas);
+			glow += tr * a4 * blackbody(f4.y) * heat_gain * (1.0 + 0.4 * gas * smoothstep(0.04, 0.25, t));
 			tr *= 1.0 - a4;
 			if (tr < 0.01) {
 				break;

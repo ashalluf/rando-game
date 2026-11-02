@@ -70,7 +70,7 @@ static func dress_volume(mat: ShaderMaterial, fuel: bool, gas: bool) -> Array:
 	mat.set_shader_parameter("gas", 1.0 if gas else 0.0)
 	mat.set_shader_parameter("life", life)
 	mat.set_shader_parameter("steps", volume_steps)
-	return [Vector3(1.75, 2.1, 1.75) * big, Vector3(0.0, 2.0, 0.0) * big, life]
+	return [Vector3(2.3, 2.1, 2.3) * big, Vector3(0.0, 2.0, 0.0) * big, life]
 
 
 ## The mushroom cap's height (radii over the blast) at `t` seconds: where BlastFX's card smoke
