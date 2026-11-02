@@ -141,6 +141,9 @@ func _scan() -> void:
 	# Cars burning, or burnt out with the fire still going.
 	for list: Array in [CarDamage._burning, CarDamage._wrecks]:
 		for item in list:
+			# A wreck freed this frame (the wreck cap, a tow) is still in the list: `is` on it errors.
+			if not is_instance_valid(item):
+				continue
 			var car: Vehicle = (item as CarDamage).car if item is CarDamage else item as Vehicle
 			if car == null or not is_instance_valid(car) or not car.is_inside_tree() or car is EmergencyCar:
 				continue

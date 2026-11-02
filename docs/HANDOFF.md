@@ -25155,3 +25155,51 @@ Probes: `tools/rc_beach/sand_roads_probe.gd` (headless: every coast street stret
 beach; `LOOK=swim|wade|surf` saves a close look at the first one). Checks `tests/rc_beach_checks.gd`.
 Stills on `shots/rc-beach`.
 
+
+## 9d?. The mayhem refcam (fleet wave 5, rc2-mayhem, 2026-11-01)
+
+A NEW reference camera, `mayhem` in `tools/refcams/cameras_w5.json` (its own file, one row a line,
+same format as cameras.json): Wilshire in midtown at (760, 318) looking east down the boulevard
+toward downtown, 3 m up, 18:00 clear, FOV 60. It is STAGED (`"stage": "mayhem"`): refcams_shot.gd,
+once the chunks round the eye stand, loads `tools/refcams/mayhem_stage.gd`, which (all in the
+camera's frame, the cars seeded) puts the hero 4.6 m ahead with his rifle up and firing, blows up
+a wreck 34 m out (burning and smoking by the shot), puts ten civilians on both pavements 36-65 m
+out and panics them from 95 m (they run back past the hero), calls a three-star police standoff
+(Police.stage_for_shot), then blows up a car 18 m out and steps the effect clock to
+`MAYHEM_FX_TIME` (0.6 s) the way fx_shot.gd does; the settle frames hold it. No other camera is
+staged (checked); `_unstage()` puts the hero, the aim and the stars back. Knobs: MAYHEM_FX_TIME,
+MAYHEM_STARS, MAYHEM_NO_POLICE / _CAR / _WRECK, MAYHEM_DUMP=1 (every flat thing near the car
+printed, to name a surface in the still). Run it:
+
+```
+REFCAMS_JSON=tools/refcams/cameras_w5.json GODOT=... python3 tools/refcams/refcams.py run build/refcams/<label> --only mayhem
+```
+
+About 20 minutes on a 4-core box (the 45 load frames under llvmpipe are most of it).
+
+What read fake, worst first, and what changed (`RcMayhem`, `scripts/weapons/rc_mayhem.gd`;
+`RC_MAYHEM=0` is the A/B of all of it):
+1. **The fireball was a cream cotton ball.** On Forward+ (lavapipe, tools/explosions_2/
+   blast_room_shot.gd CAR=1) the explosions-3 volume was white-hot over its whole surface at
+   0.3 s: the temperature started at 0.57 x heat everywhere, so every billow was in the
+   blackbody's white stage. `blast_volume.gdshader` `rc_look`: heat follows the depth into the ball
+   (`sh.y`), the heart white-yellow, the crowns orange, the creases dark red, and a fuel ball's
+   outside rolls black soot from its first tenths of a second (`rc_soot`, `rc_soot_time`), which is
+   also made opaque. 0.8 s reads as a dark sooty mass with fire showing through its gaps, 3 s as
+   grey-black smoke (it was brown). On the Compatibility renderer (desktop stills only - the web
+   keeps the cards) the march's per-frame jitter stood as a crosshatch over the whole fireball (no
+   TAA there): it marches twice the steps with no jitter instead.
+2. **A flat salmon disc round the shooter.** GunplayFeel's main muzzle light (7 energy, 9 m,
+   attenuation 1.4) lit the road in a disc clipped at its range; frozen in a still (or photo mode)
+   it was a 9 m pink circle. `RcMayhem.dress_muzzle()`: 4.2 m, attenuation 2.2 - a muzzle flash is
+   a small source.
+3. **The police pool** (police_wash.gdshader `rc_soft`): a soft falloff at a third of the bank's
+   HDR red instead of `pow(1 - d, 2.2)` at full - from a chase camera it stood at saturation over
+   most of its 10 m.
+4. **A script error** under every staged blast: `Emergency._scan` ran `is` on a wreck the cap had
+   just freed. It skips freed entries now.
+
+Found and left alone: the dark board under the fireball in the opengl3 still is the tossed car's
+underside (MAYHEM_DUMP named it), not a decal; the officers stand stiff in the standoff.
+
+Stills on `shots/rc2-mayhem`. Checks `tests/rc2_mayhem_checks.gd`.

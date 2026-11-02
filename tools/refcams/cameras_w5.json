@@ -2,6 +2,6 @@
 	"_doc": "Wave 5's new reference cameras (tools/refcams/README.md); same format as cameras.json, one row per line. \"stage\" names a staging script in tools/refcams/ (default none).",
 	"resolution": [1280, 720],
 	"cameras": [
-		{"name": "mayhem", "label": "Mayhem on Wilshire, midtown 18:00 (staged: a car blast, police, panic)", "eye": [760.0, 3.0, 318.0, -90.0, -3.0], "agl": true, "hour": 18.0, "weather": "clear", "fov": 60, "stage": "mayhem"}
+		{"name": "mayhem", "label": "Mayhem on Wilshire, midtown 18:00 (staged: a car blast, police, panic)", "eye": [760.0, 3.0, 313.0, -90.0, -3.0], "agl": true, "hour": 18.0, "weather": "clear", "fov": 60, "stage": "mayhem"}
 	]
 }

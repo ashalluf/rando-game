@@ -13,19 +13,19 @@ extends RefCounted
 ## clock all but stopped for the settle frames.
 ##
 ## Env knobs for framing work (all optional): MAYHEM_FX_TIME (seconds into the fireball, default
-## 0.3), MAYHEM_STARS (3), MAYHEM_NO_POLICE=1, MAYHEM_NO_CAR=1, MAYHEM_NO_WRECK=1.
+## 0.6), MAYHEM_STARS (3), MAYHEM_NO_POLICE=1, MAYHEM_NO_CAR=1, MAYHEM_NO_WRECK=1.
 
 ## Where things stand, metres along the camera's forward (x) and to its right (y), from the eye.
 const HERO := Vector2(4.6, -1.3)
 const CAR := Vector2(18.0, 3.4)
 const WRECK := Vector2(34.0, -6.0)
 ## Civilians put on both pavements this far ahead (metres), who panic and run at the camera.
-const RUNNERS := [16.0, 19.0, 22.0, 25.0, 28.0, 31.0, 34.0, 38.0, 42.0, 46.0]
+const RUNNERS := [20.0, 22.5, 25.0, 27.5, 30.0, 32.5, 35.0, 38.0, 41.0, 44.0]
 static var _made: Array = []
 ## The panic: an alarm this far round the blast spot, before the police have even stopped.
-const PANIC_RADIUS := 90.0
+const PANIC_RADIUS := 110.0
 ## Where the panic starts (metres ahead): beyond the runners, so they run back at the camera.
-const PANIC_FROM := 75.0
+const PANIC_FROM := 95.0
 const MAYHEM_SEED := 4242
 
 ## The hero's spot (local), facing yaw; set by stage(), read by refcams_shot's _place() each frame.
@@ -56,9 +56,6 @@ static func stage(tree: SceneTree, scene: Node, cam: Camera3D, player: Node3D, p
 			await tree.process_frame
 			place.call()
 		wreck.call("damage_state").explode()
-	_runners(tree, scene, eye, fwd)
-	for i in 2:
-		await tree.physics_frame
 	# The street panics before the police arrive (gunfire up the street), so people are running.
 	Pedestrian.alarm(tree, eye + fwd * PANIC_FROM, PANIC_RADIUS, 6, true, "")
 	var police := scene.get_node_or_null("Police")
@@ -75,6 +72,12 @@ static func stage(tree: SceneTree, scene: Node, cam: Camera3D, player: Node3D, p
 			rig.call("set_look", rad_to_deg(hero_yaw), 0.0)
 		if i == 10:
 			Input.action_press("alt_fire")
+		# The runners join half way (a couple of seconds of running by the shot), panicked from up
+		# the street so they run back toward the camera along their own block.
+		if i == 15:
+			_runners(tree, scene, eye, fwd)
+		if i == 17:
+			Pedestrian.alarm(tree, eye + fwd * PANIC_FROM, PANIC_RADIUS, 6, true, "")
 	# The car in the foreground goes up, the clock slowed so the fireball is caught growing.
 	var car: Node3D = null
 	if OS.get_environment("MAYHEM_NO_CAR") != "1":
@@ -92,7 +95,7 @@ static func stage(tree: SceneTree, scene: Node, cam: Camera3D, player: Node3D, p
 				o.call("_shoot", target, (o as Node3D).global_position.distance_to(target))
 	# The hero answers: his rifle's flash and tracers in the frame.
 	Input.action_press("fire")
-	var want := _f("MAYHEM_FX_TIME", 0.3)
+	var want := _f("MAYHEM_FX_TIME", 0.6)
 	var elapsed := 0.0
 	while elapsed < want:
 		await tree.process_frame
@@ -100,7 +103,7 @@ static func stage(tree: SceneTree, scene: Node, cam: Camera3D, player: Node3D, p
 		place.call()
 		_tough(player)
 	Input.action_release("fire")
-	for w: Node3D in _made:
+	for w in _made:
 		if is_instance_valid(w):
 			print("MAYHEM runner %s at %s panic %.1f visible %s" % [w.name, WorldState.to_world(w.global_position), float(w.get("_panic_left")), w.is_visible_in_tree()])
 		else:
@@ -112,8 +115,8 @@ static func stage(tree: SceneTree, scene: Node, cam: Camera3D, player: Node3D, p
 		(police.get("cruisers") as Array).size() if police else 0, (police.get("officers") as Array).size() if police else 0, elapsed])
 
 
-## Walkers on the pavements either side of the street ahead (the block rings the camera's street
-## runs between), alternating sides, so the alarm sends them running back past the hero.
+## Walkers on the pavement to the left of the street ahead (the block ring the camera's street
+## runs beside), so the alarm sends them running back toward the camera.
 static func _runners(tree: SceneTree, scene: Node, eye: Vector3, fwd: Vector3) -> void:
 	var plan: CityPlan = scene.get("plan")
 	var chunks: Dictionary = scene.get("chunks")
@@ -122,8 +125,9 @@ static func _runners(tree: SceneTree, scene: Node, eye: Vector3, fwd: Vector3) -
 	var right := fwd.cross(Vector3.UP).normalized()
 	var k := 0
 	for d: float in RUNNERS:
-		var side := 1.0 if k % 2 == 0 else -1.0
-		var probe := WorldState.to_world(eye + fwd * d + right * side * 9.0)
+		# The left pavement: the right one is behind the fireball from this eye.
+		var side := -1.0
+		var probe := WorldState.to_world(eye + fwd * d + right * side * 16.0)
 		var at2 := Vector2(probe.x, probe.z)
 		var b := plan.block_index_at(at2)
 		var rect: Rect2 = plan.block(b.x, b.y).rect

@@ -48,7 +48,7 @@ uniform float pool_shift = 0.15;
 // under the bar instead of a 10 m disc of flat red - the bank's HDR red times a slow falloff stood
 // at saturation over most of it, and from a chase camera it read as paint on the road.
 uniform float rc_soft = 0.0;
-uniform float rc_pool_gain = 0.32;
+uniform float rc_pool_gain = 0.18;
 
 varying float v_kind;
 varying float v_bank;

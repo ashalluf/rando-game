@@ -186,6 +186,15 @@ void fragment() {
 	float ds_m = seg / float(n);
 	// Interleaved gradient noise on the start, so the steps' bands become grain (TAA resolves it).
 	float jit = fract(52.9829189 * fract(dot(FRAGCOORD.xy, vec2(0.06711056, 0.00583715)) + float(int(TIME * 60.0) % 64) * 0.618));
+#if CURRENT_RENDERER == RENDERER_COMPATIBILITY
+	// No TAA on the Compatibility renderer (only desktop stills draw the volume there: the web keeps
+	// the cards): the grain stood as a crosshatch over the whole fireball. Twice the steps, no grain.
+	if (rc_look > 0.0) {
+		jit = 0.5;
+		n *= 2;
+		ds_m *= 0.5;
+	}
+#endif
 	vec3 L = normalize(sun_direction);
 	float day = 1.0 - night_factor;
 	vec3 sun = mix(vec3(1.0, 0.55, 0.3), vec3(1.0, 0.95, 0.88), smoothstep(0.0, 0.35, L.y)) * smoothstep(-0.05, 0.08, L.y) * day;

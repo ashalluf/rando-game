@@ -14,6 +14,8 @@ var _t: Node
 func run(t: Node, _city: Node3D) -> void:
 	_t = t
 	_camera()
+	var em := FileAccess.get_file_as_string("res://scripts/npc/emergency.gd")
+	_t._check(em.contains("if not is_instance_valid(item):"), "rc2-mayhem: Emergency's scan skips a wreck freed this frame")
 	if not RcMayhem.enabled:
 		_t._check(true, "rc2-mayhem: off (RC_MAYHEM=0)")
 		return
@@ -45,7 +47,7 @@ func _camera() -> void:
 
 func _volume() -> void:
 	var src := FileAccess.get_file_as_string("res://shaders/blast_volume.gdshader")
-	_t._check(src.contains("uniform float rc_look = 0.0;") and src.contains("if (rc_look > 0.0)"),
+	_t._check(src.contains("uniform float rc_look = 0.0;") and src.contains("if (rc_look > 0.0)") and src.contains("ds_m *= 0.5;"),
 		"rc2-mayhem: the fireball volume's new look is gated (rc_look 0 = the old field)")
 	var m := Blast3.volume_material()
 	RcMayhem.dress_volume(m)
