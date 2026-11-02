@@ -65,6 +65,10 @@ static func build(anchor: Vector2, parent: Node3D, statics: StaticBody3D, plan: 
 		bases.append(maxf(g + 1.5, level - STEP_MAX * cap))
 	var st := SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	# The ridge-sign refcam (RcRidgeSign): mitred ribbons on a sheet-metal shader, not boxes.
+	var v2: bool = RcRidgeSign.on()
+	if v2:
+		_letters_v2(st, strokes, of, bases, x0, sx, z, pen)
 	for si in strokes.size():
 		var s: PackedVector2Array = strokes[si]
 		var li: int = of[si]
@@ -80,7 +84,8 @@ static func build(anchor: Vector2, parent: Node3D, statics: StaticBody3D, plan: 
 			var len := d.length() + pen
 			var c := (a + b) * 0.5
 			var xf := Transform3D(Basis(Vector3.BACK, d.angle()), Vector3(c.x, c.y, z))
-			_box(st, xf, Vector3(len, pen, DEPTH), Color(shade, shade, shade * 0.98))
+			if not v2:
+				_box(st, xf, Vector3(len, pen, DEPTH), Color(shade, shade, shade * 0.98))
 			if detailed and statics:
 				var cs := CollisionShape3D.new()
 				var bs := BoxShape3D.new()
@@ -91,7 +96,7 @@ static func build(anchor: Vector2, parent: Node3D, statics: StaticBody3D, plan: 
 	var mi := MeshInstance3D.new()
 	mi.name = "SignLetters"
 	mi.mesh = st.commit()
-	mi.material_override = _letters()
+	mi.material_override = _letters_v2_material() if v2 else _letters()
 	parent.add_child(mi)
 	_frame(anchor, parent, statics, plan, detailed, cap, spans, bases)
 
@@ -192,3 +197,124 @@ static func _frame_material() -> StandardMaterial3D:
 		_frame_mat.metallic = 0.5
 		_frame_mat.roughness = 0.55
 	return _frame_mat
+
+
+# --- The ridge-sign refcam's letters (RcRidgeSign) ------------------------------------------------
+
+static var _v2_mat: ShaderMaterial
+
+
+## Every stroke as a mitred ribbon of sheet metal: a front face, a back and the returns round its
+## edges, square ends. A stroke's joints are mitred (the bowls of S, U, D, O read as curves, not
+## as notched boxes); strokes that overlap in a letter stand a few centimetres apart in depth, so
+## no two front faces are coplanar. Colours: a per-letter tone (linear) and the part in alpha;
+## UV the surface in metres, UV2 the letter and the height over its foot (ridge_sign.gdshader).
+static func _letters_v2(st: SurfaceTool, strokes: Array, of: Array, bases: Array, x0: float, sx: float, z: float, pen: float) -> void:
+	var in_letter := {}
+	for si in strokes.size():
+		var s: PackedVector2Array = strokes[si]
+		var li: int = of[si]
+		var k: int = in_letter.get(li, 0)
+		in_letter[li] = k + 1
+		var base_y: float = bases[li]
+		var pts := PackedVector2Array()
+		for v in s:
+			var q := Vector2(x0 + v.x * sx, base_y + v.y)
+			if pts.is_empty() or pts[pts.size() - 1].distance_to(q) > 0.05:
+				pts.append(q)
+		if pts.size() < 2:
+			continue
+		# Each letter a slightly different age of paint (a hash of its index).
+		var r := fposmod(sin(float(li) * 12.9898 + 1.3) * 43758.5453, 1.0)
+		var tone := Color(0.95 + 0.06 * r, 0.95 + 0.05 * r, 0.93 + 0.05 * r)
+		var dz := 0.045 * float(k)
+		_ribbon(st, pts, pen * 0.5, z + DEPTH * 0.5 + dz, z - DEPTH * 0.5 - dz, tone, float(li), base_y)
+
+
+static func _ribbon(st: SurfaceTool, pts: PackedVector2Array, h: float, zf: float, zb: float, tone: Color, li: float, base_y: float) -> void:
+	var n := pts.size()
+	var closed := pts[0].distance_to(pts[n - 1]) < 0.1
+	if closed:
+		pts.remove_at(n - 1)
+		n -= 1
+	var segs := n if closed else n - 1
+	# Segment directions and left normals.
+	var dirs: Array = []
+	for i in segs:
+		dirs.append((pts[(i + 1) % n] - pts[i]).normalized())
+	var p := pts.duplicate()
+	if not closed:
+		# Square ends: the pen's half width past each end.
+		p[0] = p[0] - dirs[0] * h
+		p[n - 1] = p[n - 1] + dirs[segs - 1] * h
+	var off: Array = []      # per vertex: the left offset (mitre)
+	var smooth: Array = []   # per vertex: soft corner (a curve) or a hard one
+	for i in n:
+		var a: Vector2
+		var b: Vector2
+		if closed:
+			a = dirs[(i - 1 + segs) % segs]
+			b = dirs[i % segs]
+		else:
+			a = dirs[maxi(i - 1, 0)]
+			b = dirs[mini(i, segs - 1)]
+		var na := Vector2(-a.y, a.x)
+		var nb := Vector2(-b.y, b.x)
+		var m := (na + nb).normalized()
+		if m.length() < 0.5:
+			m = nb
+		var c := maxf(m.dot(nb), 0.35)
+		off.append(m * (h / c))
+		smooth.append(a.dot(b) > 0.86)
+	var L := PackedVector2Array()
+	var R := PackedVector2Array()
+	for i in n:
+		L.append(p[i] + off[i])
+		R.append(p[i] - off[i])
+	var fwd := Vector3(0, 0, 1)
+	for i in segs:
+		var j := (i + 1) % n
+		# Front and back.
+		_quad(st, Vector3(L[i].x, L[i].y, zf), Vector3(R[i].x, R[i].y, zf), Vector3(R[j].x, R[j].y, zf), Vector3(L[j].x, L[j].y, zf), [fwd, fwd, fwd, fwd], 1.0, tone, li, base_y)
+		_quad(st, Vector3(L[i].x, L[i].y, zb), Vector3(R[i].x, R[i].y, zb), Vector3(R[j].x, R[j].y, zb), Vector3(L[j].x, L[j].y, zb), [-fwd, -fwd, -fwd, -fwd], 0.33, tone, li, base_y)
+		# The returns along the left and right edges.
+		var d: Vector2 = dirs[i]
+		var nl := Vector2(-d.y, d.x)
+		var nli: Vector2 = (off[i] as Vector2).normalized() if smooth[i] else nl
+		var nlj: Vector2 = (off[j] as Vector2).normalized() if smooth[j] else nl
+		var a3 := Vector3(nli.x, nli.y, 0.0)
+		var b3 := Vector3(nlj.x, nlj.y, 0.0)
+		_quad(st, Vector3(L[i].x, L[i].y, zf), Vector3(L[j].x, L[j].y, zf), Vector3(L[j].x, L[j].y, zb), Vector3(L[i].x, L[i].y, zb), [a3, b3, b3, a3], 0.66, tone, li, base_y)
+		_quad(st, Vector3(R[i].x, R[i].y, zf), Vector3(R[j].x, R[j].y, zf), Vector3(R[j].x, R[j].y, zb), Vector3(R[i].x, R[i].y, zb), [-a3, -b3, -b3, -a3], 0.66, tone, li, base_y)
+	if not closed:
+		var d0: Vector2 = -(dirs[0] as Vector2)
+		var d1: Vector2 = dirs[segs - 1]
+		var e0 := Vector3(d0.x, d0.y, 0.0)
+		var e1 := Vector3(d1.x, d1.y, 0.0)
+		_quad(st, Vector3(L[0].x, L[0].y, zf), Vector3(R[0].x, R[0].y, zf), Vector3(R[0].x, R[0].y, zb), Vector3(L[0].x, L[0].y, zb), [e0, e0, e0, e0], 0.66, tone, li, base_y)
+		var k := n - 1
+		_quad(st, Vector3(L[k].x, L[k].y, zf), Vector3(R[k].x, R[k].y, zf), Vector3(R[k].x, R[k].y, zb), Vector3(L[k].x, L[k].y, zb), [e1, e1, e1, e1], 0.66, tone, li, base_y)
+
+
+## A quad a-b-c-d (two triangles), wound so it faces its normals (Godot's front faces are clockwise
+## seen from outside: the cross product of the edges points away from the normal).
+static func _quad(st: SurfaceTool, a: Vector3, b: Vector3, c: Vector3, d: Vector3, nrm: Array, part: float, tone: Color, li: float, base_y: float) -> void:
+	var avg: Vector3 = (nrm[0] as Vector3) + (nrm[1] as Vector3) + (nrm[2] as Vector3) + (nrm[3] as Vector3)
+	var ps := [a, b, c, d]
+	var order := [0, 1, 2, 0, 2, 3]
+	if (b - a).cross(c - a).dot(avg) > 0.0:
+		order = [0, 2, 1, 0, 3, 2]
+	for o: int in order:
+		var v: Vector3 = ps[o]
+		st.set_color(Color(tone.r, tone.g, tone.b, part))
+		st.set_normal(nrm[o])
+		st.set_uv(Vector2(v.x, v.y))
+		st.set_uv2(Vector2(li, v.y - base_y))
+		st.add_vertex(v)
+
+
+static func _letters_v2_material() -> ShaderMaterial:
+	if _v2_mat == null:
+		_v2_mat = ShaderMaterial.new()
+		_v2_mat.shader = load("res://shaders/ridge_sign.gdshader")
+	return _v2_mat

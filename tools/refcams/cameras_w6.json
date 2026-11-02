@@ -2,5 +2,6 @@
 	"_doc": "Wave 6 reference cameras (tools/refcams/README.md), the same format as cameras.json and cameras_w5.json. One row a camera, each on its own line. Run with REFCAMS_JSON=tools/refcams/cameras_w6.json.",
 	"resolution": [1280, 720],
 	"cameras": [
+		{"name": "ridge_sign", "label": "The ridge sign from 120 m at 16:30 clear: the letters, the hill, the basin behind", "eye": [-255.0, 388.0, -1035.0, -75.0, -11.0], "agl": false, "hour": 16.5, "weather": "clear", "fov": 55}
 	]
 }
