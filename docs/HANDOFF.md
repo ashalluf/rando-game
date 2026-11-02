@@ -27207,6 +27207,11 @@ already mirrored the boats as dark smears; with MarinaGolden the traced hulls an
 where they stand (the same colours as the opengl3 still - the trace is linear on both) and SSR keeps
 the rest. Stills 03 / 04 on the shots branch.
 
+**The ten original cameras** (`refcams.py run` with `MARINA_GOLDEN=0` against on, same commit;
+refcams' 3600 s cap stopped each full run after eight shots on this 4-core box, so macarthur and
+pier_night were shot again with `--only`): nine unchanged (|d| <= 2 levels), freeway flagged at 10.5
+mean |d| for traffic placement alone (a non-strict run); triangles within +-1 %.
+
 **Checks**: `tests/rc3_marina_golden_checks.gd` (the pick, the packing, the shader's array size and
 the mm_count 0 path, the wires' centre line and levels, the boat material's switches, the camera row).
 
