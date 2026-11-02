@@ -19,6 +19,9 @@ uniform vec3 grass_tint = vec3(0.62, 0.74, 0.46);
 uniform vec3 mud_tint = vec3(0.42, 0.40, 0.34);
 uniform vec3 algae = vec3(0.045, 0.060, 0.030);
 uniform vec3 wet_dark = vec3(0.10, 0.09, 0.07);
+// Rc4Canals (0 = the old look): the grass a little less acid, clumpier (darker tufts, paler dry
+// patches), and the bare mud a narrow wet margin at the waterline rather than a wide stripe.
+uniform float rc4 = 0.0;
 
 varying vec2 v_h;
 
@@ -51,6 +54,12 @@ void fragment() {
 	}
 	// Grass from a ragged line a little over the water; the bare silt under it.
 	float edge = 0.32 + (n - 0.5) * 0.35;
+	if (rc4 > 0.5) {
+		edge = 0.13 + (n - 0.5) * 0.18;
+		float tuft = bank_noise(p * 5.3);
+		grass *= mix(vec3(0.80, 0.84, 0.82), vec3(1.08, 1.02, 0.92), tuft) * vec3(0.92, 0.90, 0.92);
+		grass = mix(grass, vec3(dot(grass, vec3(0.3, 0.5, 0.2))), 0.18);
+	}
 	float g = smoothstep(edge, edge + 0.14, h);
 	vec3 col = mix(mud, grass, g);
 	// The wet band the lap of the water keeps dark, and the algae under the surface.

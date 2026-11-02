@@ -458,6 +458,8 @@ static func build(ch: CityChunk, z0: float, z1: float, obstacles: Array, tower: 
 		act.setup(ch, z0, z1, activity, stretch.court, tower, dens, hour)
 		ch.add_child(act)
 		return true)
+	# After dark, people still stroll the wet sand by a lit pier (rc4-pier-night-2).
+	RcPierNight.night_strollers(ch, z0, z1, hour, weather_factor(ch))
 
 
 ## The batches of props: towels, umbrellas, chairs, coolers, bags, boards.

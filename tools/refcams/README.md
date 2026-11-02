@@ -156,6 +156,9 @@ range. Its optional `golf_group` key ("hole:stage[:tee[:count]]") stages a group
 
 ## Wave 7's cameras (`cameras_w7.json`)
 
+Run with `REFCAMS_JSON=tools/refcams/cameras_w7.json` (the file is new in wave 7, the cameras_w6.json
+format). `canals_day`: Marisol Canals at 11:00 clear, on Heron Canal's southern footbridge looking
+north down the canal (no staging).
 Run with `REFCAMS_JSON=tools/refcams/cameras_w7.json`. `stack_aerial` (rc4-stack-aerial): the
 four-level stack from 150 m over the ground north-west of it, 17:30 clear, toward downtown;
 `shot_frames` 90 lets the connectors' traffic fill before the shot.

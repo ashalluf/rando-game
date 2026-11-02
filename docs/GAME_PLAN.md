@@ -3755,6 +3755,21 @@ already mapped so milestone 2 is script-only.
   valley reads as beige dunes at this hour: the brush is there (the stand rule says ~80 %), the
   morning's warm light and fog take its colour; left for a hills / atmosphere pass. GOLF_MORNING=0.
 
+- **2026-11-02 The pier at night from the beach, second pass (rc4-pier-night-2, HANDOFF "The pier
+  at night from the beach, second pass").** The pier_night refcam still read as a black frame (p50
+  22). Decisions: a camera on the open coast at night meters for the dark beach (x1.75, fading out
+  160 m inland and before 19:00, so the sunset and every night street keep their exposure) rather
+  than raising the night exposure or the moon everywhere; a lit place lights its own surroundings
+  in the shader (the pier's lamp rows as line sources on its steel, piles, sand and sea) where real
+  lights cannot reach on Compatibility or past their fade; after dark people stroll the wet sand by
+  a lit pier, clothed, in the crowd cap. RC4_PIER_NIGHT=0 (COAST_EXPOSURE=0 the exposure alone).
+- **2026-11-02 The canals by day (rc4-canals-day, HANDOFF "The canals by day from a footbridge").**
+  A new reference camera on a Heron Canal footbridge at 11:00. Decisions: a shader that emits its
+  own mirror (sky included) turns the engine's specular off on Compatibility rather than stacking
+  two skies; Forward+ keeps SSR. The canal's coping runs down past the bank's top row (a slot
+  between them showed the void as a dark strip). Banks planted to the waterline and more boats tied
+  up, every addition a hash after the old rolls. RC4_CANALS=0.
+
 ## Correction: what build 135 (0ce833f) actually contained
 
 That commit's subject says "denser grass, real palm fronds, finer ground". It also shipped a
@@ -4420,6 +4435,40 @@ none of either.
   show logo lights on their fins, a landing jet's lights flare and light the runway ahead, and a
   patrol helicopter's searchlight is faint in clear air (a pursuit keeps the full shaft).
   AIRPORT_NIGHT=0 is the A/B.
+
+- **2026-11-02 Palm crowns: a leaf keeps its own normal, and a leaf under a pixel keeps its share
+  (palm-shimmer, HANDOFF "Palm crowns without the flecks").** The palm's two leaflet ranks wind
+  opposite ways, so Godot's back-face flip turned every second leaflet's normal to the ground: half
+  of each crown drew near-black, and those sub-pixel dark blades between lit ones were the flecks,
+  holes and crawl. The shader keeps the mesh normal on both faces and shades the underside by the
+  view, never by the winding. A leaflet narrower than 1.5 px is widened to it (at most 4x) and kept
+  by its coverage - dithered for TAA on Forward+, whole on Compatibility, where a fixed dither
+  would crawl. The palm's vertex colours, display numbers, are decoded on Forward+ (they drew twice
+  as bright there once the black half was gone). PALM_SHIMMER=0 is the A/B.
+
+- **2026-11-02 The ridge sign refcam: the city's postcard reads built, not modelled (rc3-ridge-sign,
+  HANDOFF "The ridge sign refcam").** A new reference camera (`ridge_sign`, wave 6's table) judged the
+  big sign from ~120 m at 16:30. Decisions: the sign's letters are continuous mitred sheet-metal
+  ribbons with painted panels and weathering, never boxes per stroke; a hill's code-built shrubs are
+  gathered into thickets by a field, never an even scatter; whatever a chunk builds on a block, the
+  far tiers show the same kind of ground (a hill block's flat foot is hill on the horizon plane, a
+  plaza keeps its beds at LOD); a tor stands on the terrain its chunk draws, and a summit crag never
+  overhangs a spike. RC3_SIGN=0 is the A/B.
+- **2026-11-02 The bonfire_night refcam: a ring never silently vanishes, and night sand is moonlit
+  (rc4-bonfire-night, HANDOFF "The beach bonfires at night").** A new reference camera
+  (`bonfire_night`, wave 7's table) stood on the sand at 21:00 behind a fire group toward the pier.
+  Decisions: a planned ring that a palm or a beach station blocks is slid along the shore to the
+  nearest clear spot rather than dropped (the plan stays pure; only the build moves it); a fire is
+  judged from 10-100 m, so it carries a glow whose core only comes in with distance; firelight falls
+  off within a few metres; the dry sand loses its colour by moonlight, gated on the clock, never on
+  sun_direction (the moon's at night). RC4_BONFIRE=0 is the A/B.
+- **2026-11-02 Broadway at night: the signs are the subject (rc3-broadway-night, HANDOFF "Broadway's
+  theatre district at night").** A new reference camera (`broadway_night`, wave 6's table) judged the
+  theatre district at eye level at 22:00. Decisions: a palace's blade sign holds its name lit most of
+  the cycle (a sign caught half spelt reads broken in any still); nothing planted stands in front of a
+  palace's marquee; a blank party wall is never pale plaster at night - the auditoriums are dark brick
+  dressed like real ones; a searchlight seen from the street is a soft haze, never a solid white rod.
+  BROADWAY_NIGHT=0 is the A/B.
 - **2026-11-02 The four-level stack from the air (rc4-stack-aerial, HANDOFF "The four-level stack
   from the air").** A new reference camera (`stack_aerial`, wave 7's table) looks down on the stack
   from 150 m at 17:30. Decisions: a deck's shade on the ground depends on how high the deck is, not

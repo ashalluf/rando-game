@@ -59,6 +59,10 @@ global uniform float lamp_factor;
 // The water close up: capillary ripples, wind streaks, sparkles, ageing foam, the piles
 // (OceanCloseup; fragment only, faded out before the hand-over).
 #include "res://shaders/ocean_closeup.gdshaderinc"
+// The piers' lamps on the water round them at night (RcPierNight; pw_gain 0 = none).
+#include "res://shaders/pier_wash.gdshaderinc"
+// A little light scattered back out of the water itself where the lamps reach it.
+uniform float pw_water = 0.02;
 
 // --- Colour (LINEAR, not sRGB - see the hand-over note above) --------------------------------
 // The open sea, and the shelf. These two are MacroMap.BAKE_OCEAN_DEEP and BAKE_OCEAN_SHALLOW
@@ -1217,6 +1221,10 @@ void fragment() {
 	ALBEDO = body * dim * (1.0 - painted);
 	EMISSION = mirror * (1.0 - painted) + fb * dim * painted + night_em
 		+ foam_color * haze * (0.45 * contact * detail * dim);
+	if (pw_gain > 0.0 && lamp_factor > 0.01) {
+		// The piers' lamps on the water round them (RcPierNight): the body lit, foam brightest.
+		EMISSION += (ALBEDO + vec3(pw_water)) * cs_as_uniform(pier_wash(vec3(w.x, world_pos.y, w.y))) * lamp_factor;
+	}
 	float white_all = max(foam, ww);
 	ROUGHNESS = mix(mix(0.18, 0.72, white_all), far_roughness, painted);
 	METALLIC = 0.0;
