@@ -166,6 +166,8 @@ static func build(lm: Dictionary, parent: Node3D, statics: StaticBody3D, detaile
 	# A raised helipad on the flat roofs the real towers carry one on (Rooftops; "helipad" in TOWERS).
 	if TOWERS[id].has("helipad"):
 		Rooftops.landmark_helipad(parent, at, TOWERS[id].helipad, statics)
+	# Roof plant and louvred penthouses on the flat roofs (LandmarkRoofs; LANDMARK_ROOFS=0 the A/B).
+	LandmarkRoofs.dress(parent, at, id, statics)
 	if statics:
 		BuildingDamage.restore_tower(body, id)
 		# Window-washing gondolas on the flat faces, davits and parked machines on the roof (TowerGondolas).
@@ -282,6 +284,7 @@ static func tower(id: String) -> Dictionary:
 		"occluder": occluder,
 		"hulls": tm.hulls + detail.hulls,
 		"tiers": tm.tiers,
+		"boxes": tm.boxes + detail.boxes,
 		"extent": tm.extent,
 		"top": tm.top,
 		"tris": tm.triangle_count(mesh) + (detail.triangle_count(extra) if extra.get_surface_count() > 0 else 0),

@@ -51,6 +51,39 @@ and ignored by the ten originals:
   `2d:*`, `dbg:unshaded`...) renders the frame again with each hidden, `CHASE_BISECT=1` halves the
   drawables to find what draws a given pixel difference.
 
+## Wave 6's cameras (`cameras_w6.json`)
+
+- `person_closeup` - one pedestrian 1.6 m from the lens on a midtown pavement, 13:00 clear.
+  `"stage": "person"` with a `person` key (model, look, dist, turn, carry; all optional) runs
+  `person_stage.gd`: a seed found for that rig and look with no hat, placed and held standing, the
+  walkers in the line of sight hidden. Env `PERSON_MODEL`, `PERSON_LOOK`, `PERSON_DIST`,
+  `PERSON_TURN`, `PERSON_CARRY`, `PERSON_SEED` for framing work.
+
+## Wave 6's cameras (`cameras_w6.json`)
+
+Run them with `REFCAMS_JSON=tools/refcams/cameras_w6.json`. `car_closeup` (rc3-car-closeup) carries
+`park_car` (`tools/refcams/park_stage.gd`): a car of a body type (`random_car()` walked from `seed`
+until the type matches, no livery) parked on the kerb of the road nearest `at`, `along` the TRUE
+world coordinate, `side` which kerb; the parked cars round it freed; the eye and the point aimed at
+given in the car's own frame (x right, -z ahead of the nose), so the frame holds whatever the load
+rolled. `tools/refcams/kerb_probe.gd -- --spawn=x,z` lists kerbs round a point.
+
+## Wave 6's cameras (`cameras_w6.json`)
+
+Run with `REFCAMS_JSON=tools/refcams/cameras_w6.json`. `freeway_night`: the 110 northbound at 22:00
+clear, a driver's eye (1.2 m over the deck) in lane 2 toward the downtown skyline. Its optional
+`freeway_cars` key stages freeway traffic three frames before the shot: `{"route": r, "clear": m,
+"cars": [[ahead, lane, dir, speed, kind], ...]}` - cars `ahead` metres along route `r` from the eye
+in the direction it looks, lane 0 by the median, dir -1 toward the route's start (the 110 runs
+north to south), `kind` a Vehicle.BodyType name or "", and every other traffic car within `clear`
+metres of the eye hidden for the shot (the load's own traffic put a box truck on the lens). The log
+prints each staged car's distance at the shot.
+
+## Wave 6's cameras (`cameras_w6.json`)
+
+Run with `REFCAMS_JSON=tools/refcams/cameras_w6.json`. `rooftop_golden`: the black twins' north
+helipad (deck 215.55 m), 17:45 clear, looking SSW over the skyline to the basin and the sea.
+
 ## Running
 
 ```
@@ -111,3 +144,8 @@ change, they do not say what the Mac draws (CLAUDE.md, measurement trap 4).
 Run with `REFCAMS_JSON=tools/refcams/cameras_w6.json`. `pier_day` - Gullwing Park on Rando Pier at
 15:00 clear, from the promenade in the crowd toward the wheel and the sea end (PierDay,
 docs/HANDOFF.md "The pier by day from the deck").
+
+Wave 6's cameras are in `cameras_w6.json` (run with `REFCAMS_JSON=tools/refcams/cameras_w6.json`):
+`golf_morning` - the golf course at 08:30 from behind the 9th tee toward the clubhouse and the front
+range. Its optional `golf_group` key ("hole:stage[:tee[:count]]") stages a group of golfers there
+(GolfLife.force_group via the GOLF_GROUP environment variable, set before the city loads).

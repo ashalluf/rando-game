@@ -28,6 +28,10 @@ uniform vec2 crank = vec2(-7.4, 2.45);
 uniform float front = 3.9;
 uniform float tail = 3.5;
 uniform float crank_r = 1.15;
+// The oil field refcam's weathering (OilFieldPlanting, refcam3): a dust band thrown up the lower
+// metre and a half, oil and grime run down the faces from the bearings and the gearbox, sun-chalked
+// and dusty tops. false keeps the old look bit for bit.
+uniform bool weather_pass = false;
 uniform sampler2D concrete_tex : source_color, filter_linear_mipmap_anisotropic, repeat_enable;
 
 varying float kind;
@@ -35,6 +39,7 @@ varying vec3 local_p;
 varying float wear;
 varying vec3 paint_v;
 varying vec3 world_p;
+varying vec3 model_n;
 
 // OilKit.PAINTS, display numbers (tests/oil_field_checks.gd holds them equal).
 const vec3 PAINTS[7] = vec3[7](vec3(0.52, 0.55, 0.50), vec3(0.62, 0.57, 0.47), vec3(0.36, 0.45, 0.55), vec3(0.38, 0.46, 0.36), vec3(0.56, 0.24, 0.18), vec3(0.74, 0.71, 0.62), vec3(0.47, 0.49, 0.47));
@@ -101,6 +106,7 @@ void vertex() {
 		v.y += front * beam;
 	}
 	local_p = v;
+	model_n = n;
 	VERTEX = v;
 	NORMAL = n;
 	wear = INSTANCE_CUSTOM.b;
@@ -179,8 +185,29 @@ void fragment() {
 		rough = 0.6;
 		metal = 0.15;
 	}
+	// Outside any branch (llvmpipe gives 0 inside one).
+	float fw = length(fwidth(local_p));
 	// Dust thrown up from the pad on everything low.
 	albedo = mix(albedo, vec3(0.6, 0.53, 0.43), low * 0.35 * (0.5 + 0.5 * n1) * step(kind, 2.5));
+	if (weather_pass && (kind < 2.5 || kind > 7.5)) {
+		// Streaks in the unit's frame, stretched down its height, so they hang under the bearings
+		// whatever the face; faded to their mean once a streak is under a pixel.
+		float streak = vnoise(vec2((local_p.x + local_p.z) * 5.5, local_p.y * 0.35 + 4.0));
+		streak = smoothstep(0.55, 0.9, streak);
+		streak = mix(streak, 0.18, smoothstep(0.02, 0.08, fw));
+		// Oil and grime: heavier under the saddle bearing, the gearbox and the beam's tail.
+		float under_gear = 1.0 - smoothstep(0.0, 2.6, length(local_p.xy - crank));
+		float under_pivot = 1.0 - smoothstep(0.0, 2.2, length(local_p.xy - pivot));
+		float grime = streak * 0.45 + under_gear * 0.35 + under_pivot * 0.3;
+		albedo = mix(albedo, albedo * vec3(0.42, 0.38, 0.33), clamp(grime, 0.0, 0.75));
+		// The lower metre and a half wears the pad's dust, ragged at its top.
+		float band = 1.0 - smoothstep(0.4, 1.7 + 0.5 * n1, local_p.y);
+		albedo = mix(albedo, vec3(0.58, 0.51, 0.41) * (0.85 + 0.25 * n2), band * 0.5);
+		// Tops facing the sky: chalked by the sun and dusted.
+		float top = smoothstep(0.5, 0.9, normalize(model_n).y);
+		albedo = mix(albedo, vec3(0.66, 0.6, 0.5), top * 0.35);
+		rough = mix(rough, 0.92, max(band, top) * 0.6);
+	}
 	float wet = clamp(road_wetness, 0.0, 1.0) * 0.5;
 	albedo *= 1.0 - 0.25 * wet;
 	ALBEDO = to_lit(clamp(albedo, vec3(0.0), vec3(1.0)));

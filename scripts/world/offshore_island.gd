@@ -79,6 +79,7 @@ func setup(sky: ShaderMaterial, day: Node) -> void:
 	_sky.set_shader_parameter("island_town_out", t[1])
 	_sky.set_shader_parameter("island_land", Vector3(land_color.r, land_color.g, land_color.b))
 	_sky.set_shader_parameter("island_glare", sunset_glare)
+	_sky.set_shader_parameter("island_soft", RcRooftop.island_soft())
 	_push()
 
 

@@ -1680,6 +1680,15 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   shadowless surface on `shaders/car_underside.gdshader` (kind in COLOR.r / 16), drawn to 22 m, NOT
   one of `_body_meshes`; the body .glb and its far twin are untouched. `CAR_UNDERSIDE=0` the A/B;
   views `tail`, `liner`, `under` (last) on car_shot.gd; checks `tests/car_exterior_closeup_checks.gd`.
+- The parked car at arm's length (2026-11-02, refcam `car_closeup` in `tools/refcams/cameras_w6.json`,
+  staged by its `park_car` key, docs/HANDOFF.md "The parked car at arm's length"): `CarCloseup`
+  (`scripts/vehicles/car_closeup.gd`, one hook in `_add_body_model()`) draws the trim pieces lying
+  wholly in a low end zone (bumper bands, fog pockets: `pieces()`, pure) again 1.2 cm proud within
+  18 m - the loft poked through them; car_paint's `grime_look` makes grime a soft film; the car
+  wheel shader's `squash` (vertices tagged UV.y = 1 + tyre radius by car_wheel()) flattens the tyre
+  on a contact patch at world down, `rubber_look` a satin sidewall, `fake_env` (Compatibility only)
+  a sky-over-street mirror on the alloy. `CAR_CLOSEUP=0` is the A/B; checks
+  `tests/rc3_car_closeup_checks.gd`.
 - Car paint, second pass (2026-10-30, docs/HANDOFF.md "Car paint that reads as photographed"):
   `CarPaint2` (`scripts/vehicles/car_paint_2.gd`, two hooks in Vehicle) and the `paint2` block of
   car_paint.gdshaderinc (every uniform 0 by default: other materials and `CAR_PAINT_2=0` keep the
@@ -3228,6 +3237,14 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   `ALLEYS=0` in the environment is the A/B; `tools/alleys/probe.tscn` lists alleys (`WALLED=`
   walled-in ones, an EYE each) and builds one block (`BUILD=bx,bz`: props by kind, triangles;
   `ALLEY_TIME=1` the steps' times); checks `tests/alley_checks.gd`.
+- The Vernon industrial street (wave 6, refcam `vernon_industrial` in tools/refcams/cameras_w6.json,
+  docs/HANDOFF.md "The Vernon industrial street"): `RcVernon` (`scripts/world/rc3_vernon.gd`, the
+  `rc3` uniform on both industrial materials): more docks get a trailer (a second hash, `ind_trl2`),
+  trailers carry conspicuity tape and a fleet band, court asphalt is neutral with tyre tracks along
+  the axis a court piece carries in COLOR.b (`track_axis()`), office glass is framed and mirrors the
+  street by the reflected ray inside a tilt-up pop-out (`office_popout()`), painted steel rusts at
+  lips, feet and chips. ContactShadows skips a hidden body every frame. `RC3_VERNON=0` is the A/B;
+  checks `tests/rc3_vernon_industrial_checks.gd`.
 - The alley at night (2026-11-01, refcam `alley_night` in tools/refcams/cameras_w5.json,
   docs/HANDOFF.md "The alley at night"): `AlleyNight` (`scripts/world/alley_night.gd`, hook lines in
   AlleyKit and `Alleys.commit()`): standing water in alley_ground.gdshader (`wet_on`, the chunk's
@@ -3737,6 +3754,13 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   it beats into rings, the rumble strip is milled scoops, expansion joints dull steel with an
   antialiased seam, and deck / girder / barriers are mitred at segment ends (`mitre()`).
   `FREEWAY_FILL=0` / `FREEWAY_LOOK=0` are the A/Bs; checks `tests/rc_freeway_checks.gd`.
+- The freeway at night (wave 6, refcam `freeway_night` in `tools/refcams/cameras_w6.json`,
+  docs/HANDOFF.md "The freeway at night"): `FreewayNight` (`scripts/world/freeway_night.gd`): the
+  light standards' pools are point-source cobra pools (light_pool.gdshader `cobra_size`, the quad's
+  u shifted by 4); `budget()` OmniLights at the nearest heads (`heads_near()`, pure) light cars and
+  barriers, never the deck top (`DECK_LAYER`, out of their cull mask); freeway cars' lamps reach
+  `FAR_LIGHTS`. refcams' `freeway_cars` key stages freeway traffic. `FREEWAY_NIGHT=0` is the A/B;
+  checks `tests/rc3_freeway_night_checks.gd`.
 - Footbridges (2026-10-30, docs/HANDOFF.md "Footbridges"): `Footbridges` (pure placement: boulevards
   >= 22 m by schools / parks, one freeway slot of 36 segments at a time with caged stair towers on
   the corridor lots), `FootbridgeKit` (one mesh, `shaders/footbridge.gdshader`, kind in COLOR.a / 16),
@@ -3976,6 +4000,15 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   fenced rect to Industrial's / YardFill's block step as a footprint. The operator, BASIN CREST OIL
   CO., and the lease names are invented. `OIL_FIELD=0` is the A/B; `tools/oil_field/probe.tscn`
   prints the plan and EYEs; checks: `tests/oil_field_checks.gd`.
+- The oil field refcam (wave 6, `oil_field` in `tools/refcams/cameras_w6.json`, docs/HANDOFF.md
+  "The oil field from its lease road"): `OilFieldPlanting` (`scripts/world/oil_field_planting.gd`,
+  one step in `OilFieldBuild.site_steps()`, the shells in `_ground()`) plants the field's bare ground
+  like a hill: hill shells (COLOR.b from `shell_keep()`), HillShrub stands in 80 m batch cells (a
+  field chunk is ~390 m long: one batch a chunk was out of range with the camera in it), HillScatter
+  clumps, gully oaks, VacantKit's tufts / mustard / fennel on the verges, a real parked service pickup
+  on some pads; oil_dirt's edge crumbles in world space (`crumble_edge`), pumpjacks weather
+  (`weather_pass`). Hashes only. `OIL_PLANTING=0` is the A/B; probes `tools/rc3_oil_field/`; checks
+  `tests/rc3_oil_field_checks.gd`.
 - The oil refinery (2026-10-29, docs/HANDOFF.md "The oil refinery north of the port"): `Refinery`
   (`scripts/world/refinery.gd`), VELLARD REFINING CO.'s BAY WORKS (invented), an area site of 4 x 7
   INDUSTRIAL blocks north of the port (x 2739-3235, z 5167-5830 on seed 1337; CityPlan snaps and
@@ -3988,6 +4021,13 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   out). Far: `RefineryFar` (one hook in `CityStreamer._build_far_landmarks()`), a far piece a block,
   hidden while a FULL chunk's `RefineryCover` is shown; LOD chunks lay ground only. `REFINERY=0` the
   A/B; probe `tools/refinery/probe.tscn`; checks `tests/refinery_checks.gd`.
+- The refinery at night (wave 6, refcam `refinery_night` in `tools/refcams/cameras_w6.json`,
+  docs/HANDOFF.md "The refinery at night"): `RefineryNight` (`scripts/world/refinery_night.gd`,
+  applied by RefineryFar / `ensure()` from site_steps): refinery.gdshader lights the plant round
+  each flame from `flare_tips` (TRUE world via `origin_shift`; `flare_light()` is the GDScript copy,
+  checked) - FULL and far alike, no OmniLight -; a haze sprite a flare (flame mesh UV2.x 3); steam
+  lit from luminance; dirt berms; the masts' omnis shorter. `REFINERY_NIGHT=0` is the A/B (every
+  shader block behind `night_look`); checks `tests/rc3_refinery_night_checks.gd`.
 - The oil islands (2026-10-30, docs/HANDOFF.md "The oil islands"): three decorated drilling
   islands in San Pedro Bay 600-700 m off the Long Beach sand (the FORM of the real ones; names and
   the operator invented). A DATA TABLE (`OilIslands`, `scripts/world/oil_islands.gd`: anchors,
@@ -4806,6 +4846,13 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   and lantern strings hung between the street lamps; ONE mesh a block on `shaders/chinatown.gdshader`
   (kind in COLOR.a) plus a shadowless twin (`ChinatownGeo.fine`); LOD/far are lod_boxes.
   `CHINATOWN=0` is the A/B; probe `tools/chinatown/probe.tscn`; checks `tests/chinatown_checks.gd`.
+- The Chinatown plaza at dusk (wave 6, refcam `chinatown_dusk` in `tools/refcams/cameras_w6.json`,
+  docs/HANDOFF.md "The Chinatown plaza at dusk"): `Rc3Chinatown` (`scripts/world/rc3_chinatown.gd`,
+  chinatown.gdshader's `rc3`, 0 = bit-identical): shop glass traces a room (`shop_room()`), lantern
+  silk held deep red-orange under AgX (red-heavy and bright went pale pink), the hall's screens lit
+  from inside (UV2 `LIT_FLAG`), lit flats with lamp pools and curtains, less street wash on lacquer,
+  12-sided lanterns, round plaza masts. `RC3_CHINATOWN=0` is the A/B; checks
+  `tests/rc3_chinatown_checks.gd`.
 - The ballpark in the ravine (2026-10-05, docs/HANDOFF.md "The ballpark in the ravine"): the FORM of LA's
   famous hillside ballpark, in its real place - home plate's real point through
   `DowntownReal.game_xz()`, 2.9 km grid-north of Pershing Square on the embayed hills above the
@@ -5020,6 +5067,14 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   the environment removes the course (the A/B), `GOLF_LIFE=0` its life. Probe:
   `tools/golf/probe.gd` (`OUT=map.png` a top-down map of the fields); poses:
   `tools/golf/golfer_lab.tscn`; checks: `tests/golf_checks.gd`.
+- The golf course at 08:30 (wave 6, refcam `golf_morning` in `tools/refcams/cameras_w6.json`,
+  docs/HANDOFF.md "The golf course at 08:30"): `GolfMorning` (`scripts/world/golf_morning.gd`, the
+  `golf_morning` global) gates golf_turf.gdshader's tee divots (scars in worn rows), morning dew
+  (`dew_amount()` = `GolfMorning.dew()`; silver at a grazing look, glossier, walked trails),
+  stripe sheen that fades square to the mower (sign() drew a seam), bunkers (lip shadow, raking
+  passes, damp), bunchgrass native areas, the rough's tone patches; tee balls; the firs are LaTrees
+  sycamores / eucalyptus. `GOLF_GROUP=hole:stage[:tee[:count]]` (a row's `golf_group`) stages a
+  group. `GOLF_MORNING=0` is the A/B; checks `tests/rc3_golf_morning_checks.gd`.
 - Power plant (2026-10-30, docs/HANDOFF.md "The power plant on the coast"): `PowerPlant`
   (`scripts/world/power_plant.gd`, pure layout + line), `PowerPlantKit` (code-built pieces on ONE
   shader, `shaders/power_plant.gdshader`, kind in COLOR.a 32nds) and `PowerPlantBuild` (site
@@ -5425,6 +5480,14 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   penthouse|mast|bmu`, `NIGHT=1`, `GOLDEN=1`, seconds), find them in the city with
   `tools/rooftops/find.gd -- --at=x,z --radius=m` (an EYE per pad and pool), count with
   `tools/rooftop_probe.gd`. Checks: `tests/rooftops_checks.gd`.
+- Tower roofs from a roof (wave 6, refcam `rooftop_golden` in tools/refcams/cameras_w6.json,
+  docs/HANDOFF.md "The skyline from a tower's roof"): `LandmarkRoofs` (`scripts/world/landmark_roofs.gd`,
+  one hook in LandmarkDowntown.build()) clads each downtown tower's concrete roof box (TowerMesh.boxes)
+  as a louvred penthouse and lays plant on that roof tier, off the helipad; rooftop.gdshader
+  `pad_closeup` draws the deck as planks; `RcRooftop.windsock()`; offshore_island `island_soft`.
+  Bunker Hill lifts towers (`LaHills.landmark_lift()`): an eye at the table's height is inside the
+  tower and its occluder. `RC_ROOFTOP=0` / `LANDMARK_ROOFS=0` the A/B; checks
+  `tests/rc3_rooftop_golden_checks.gd`.
 - Walk of fame (2026-10-05, docs/HANDOFF.md "The walk of fame"): `StarBoulevard`
   (`scripts/world/star_boulevard.gd`) - a hash-chosen midtown east-west boulevard (`plan_for()`,
   pure, cached; seed 1337: Canyon Blvd) whose pavements get a band of terrazzo stars 2.6-4.0 m in
@@ -5728,6 +5791,15 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   cards' cut breaks into strands (crowd_hair.gdshader `closeup`). `CROWD_CLOSEUP_3=0` the runtime
   A/B, `CROWD_SHOES=0` the build's; close-ups `tools/crowd_closeup_3/closeup_shot.gd` (PARTS=
   rhand,feet,head,...); checks `tests/crowd_closeup_3_checks.gd`.
+- A person at arm's length (2026-11-02, refcam `person_closeup` in `tools/refcams/cameras_w6.json`,
+  docs/HANDOFF.md "A person at arm's length"): `IdleRelax` (`scripts/npc/idle_relax.gd`, hooks in
+  `CrowdGait.apply()` / `CrowdLife.attach()`) rebuilds the library idles (gait/idle, life/idle, nod,
+  shake, talk) once per library: arms slerped toward the rig's own Idle, thighs turned 5.5 degrees in,
+  feet turned back flat (the library tracks are COMPRESSED: no key can be set, so the clip is
+  resampled into a new Animation). The bag hangs from `CrowdLife.BAG_GRIP`, cords meeting there;
+  crowd_hair `strand_detail`, character `lip_tame`. `PERSON_CLOSEUP=0` the A/B (`IDLE_RELAX=0` the
+  stance alone); a row's `"stage": "person"` + `person` key (model, look, dist, turn, carry); checks
+  `tests/rc3_person_closeup_checks.gd`.
 - Crowd faces (2026-10-30, docs/HANDOFF.md "The crowd's faces up close"): a branch of
   `character.gdshader` (`face_pass`, set by `CrowdFaces.apply()` from `Pedestrian.character_material()`)
   that runs only within `CrowdFaces.REACH` (11 m) of the camera on the crowd rigs. Per rig,

@@ -143,7 +143,9 @@ func _process(delta: float) -> void:
 		if not is_instance_valid(e[0]):
 			continue
 		var o := e[0] as Node3D
-		if o == null or not o.is_inside_tree():
+		# Hidden since the last pick (a still's lens-holder, a car put away): no shadow without a
+		# body (the pick runs on the scaled clock, so a frozen still never picks again).
+		if o == null or not o.is_inside_tree() or not o.is_visible_in_tree():
 			continue
 		var info: Vector4 = e[2]
 		var xf := o.global_transform

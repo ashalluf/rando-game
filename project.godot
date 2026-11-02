@@ -427,3 +427,7 @@ night_aerial={
 "type": "float",
 "value": 1.0
 }
+golf_morning={
+"type": "float",
+"value": 1.0
+}

@@ -83,6 +83,7 @@ static func material() -> ShaderMaterial:
 		_material.set_shader_parameter("tail", TAIL)
 		_material.set_shader_parameter("crank_r", CRANK_R)
 		_material.set_shader_parameter("concrete_tex", PropFactory.texture("concrete", "Color"))
+		_material.set_shader_parameter("weather_pass", OilFieldPlanting.enabled)
 	return _material
 
 
