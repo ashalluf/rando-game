@@ -82,8 +82,9 @@ func _levels() -> void:
 					break
 			if leaf == 0 or tips == 0:
 				bad.append("v%d l%d: %d leaflet vertices, %d tips" % [v, l, leaf, tips])
-			# A blade at the coarsest level spans 15 leaflets: still well under a metre across.
-			if worst > 0.8:
+			# A blade spans `stride` leaflets of the rachis (15 at the coarsest level: up to ~3 m
+			# along a long frond), so its half width is under a metre a 4-leaflet stride and 2 m at most.
+			if worst > (2.0 if int(PropFactory.PALM_LEVELS[l].stride) > 4 else 0.8):
 				bad.append("v%d l%d: a leaflet offset of %.2f m" % [v, l, worst])
 			leaf_counts.append(leaf)
 		# Coarser levels draw fewer leaflet vertices.
@@ -136,5 +137,6 @@ func _rule() -> void:
 func _material() -> void:
 	var mat := PropFactory.foliage_material()
 	_check(mat != null and float(mat.get_shader_parameter("palm_shimmer")) == (1.0 if PalmShimmer.enabled else 0.0)
-		and is_equal_approx(float(mat.get_shader_parameter("leaf_min_px")), PalmShimmer.MIN_PX),
+		and is_equal_approx(float(mat.get_shader_parameter("leaf_min_px")), PalmShimmer.MIN_PX)
+		and is_equal_approx(float(mat.get_shader_parameter("leaf_specular")), PalmShimmer.LEAF_SPECULAR if PalmShimmer.enabled else 0.34),
 		"palm shimmer: the palm material carries the switch and the pixel floor")

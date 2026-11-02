@@ -4315,3 +4315,13 @@ none of either.
   comes in with distance; broad road-light pools have no hard rim and dim from the air; floodlit
   masonry is a fifth of the old brick and render, not most of it; a far searchlight seen from the air
   saturates softly and fades with distance. NIGHT_AERIAL=0 is the A/B.
+
+- **2026-11-02 Palm crowns: a leaf keeps its own normal, and a leaf under a pixel keeps its share
+  (palm-shimmer, HANDOFF "Palm crowns without the flecks").** The palm's two leaflet ranks wind
+  opposite ways, so Godot's back-face flip turned every second leaflet's normal to the ground: half
+  of each crown drew near-black, and those sub-pixel dark blades between lit ones were the flecks,
+  holes and crawl. The shader keeps the mesh normal on both faces and shades the underside by the
+  view, never by the winding. A leaflet narrower than 1.5 px is widened to it (at most 4x) and kept
+  by its coverage - dithered for TAA on Forward+, whole on Compatibility, where a fixed dither
+  would crawl. The palm's vertex colours, display numbers, are decoded on Forward+ (they drew twice
+  as bright there once the black half was gone). PALM_SHIMMER=0 is the A/B.

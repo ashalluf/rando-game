@@ -26,6 +26,10 @@ static var enabled: bool = OS.get_environment("PALM_SHIMMER") != "0"
 const MIN_PX := 1.5
 ## At most this many times its own width (an edge-on blade is never widened into a sheet).
 const MAX_WIDEN := 4.0
+## The fronds' dry specular (foliage.gdshader's default 0.34 is the A/B). With every leaflet's
+## normal now leaning up, every one caught the sky's grazing reflection, where only the lit rank
+## did before: a low sun ahead (a backlit morning street) veiled whole crowns in a pale sheen.
+const LEAF_SPECULAR := 0.18
 ## The boots' undersides (the sawn frond stubs on the trunk) lean this far outward: straight
 ## down (the old -nt) only the ground's bounce lit them, and from the pavement they were black
 ## triangles stuck to every trunk.
@@ -37,6 +41,7 @@ static func mark(mat: ShaderMaterial) -> void:
 	if mat == null:
 		return
 	mat.set_shader_parameter("palm_shimmer", 1.0 if enabled else 0.0)
+	mat.set_shader_parameter("leaf_specular", LEAF_SPECULAR if enabled else 0.34)
 	# PALM_MIN_PX / PALM_MAX_WIDEN override the two for a strip's A/B (tools/palm_shimmer/).
 	var mp := OS.get_environment("PALM_MIN_PX")
 	var mw := OS.get_environment("PALM_MAX_WIDEN")
