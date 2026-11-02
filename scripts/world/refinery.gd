@@ -791,7 +791,10 @@ static func _ground(ch: CityChunk, lay: Dictionary, area: Rect2) -> void:
 		return
 	var acc := _acc(ch)
 	for r: Rect2 in _parts(ring, area):
-		FilmStudio._flat(ch, acc.walk, r, CityChunk.SIDEWALK_TOP)
+		if RcRefineryRoad.enabled:
+			RcRefineryRoad.ring_piece(ch, acc.walk, r, rect, CityChunk.SIDEWALK_TOP)
+		else:
+			FilmStudio._flat(ch, acc.walk, r, CityChunk.SIDEWALK_TOP)
 		ch._add_shape(Vector3(r.size.x, 0.3, r.size.y), Vector3(r.get_center().x, CityChunk.SIDEWALK_TOP - 0.15 + ch._gy(r.get_center().x, r.get_center().y), r.get_center().y))
 	for r: Rect2 in _parts([inner], area):
 		for piece: Rect2 in Parks.minus(r, hard, 0.05):
@@ -924,6 +927,10 @@ static func _commit(ch: CityChunk, lay: Dictionary, area: Rect2) -> void:
 	ch.remove_meta("refinery_acc")
 	if _walk_mat == null:
 		_walk_mat = PropFactory.road("sidewalk", 3.0, Color(1.45, 1.43, 1.38), 7713, 1.5, 0.35)
+		if RcRefineryRoad.enabled:
+			# The pavement ring takes the flares' and masts' light too (rc4-refinery-road).
+			_walk_mat = _walk_mat.duplicate()
+			RcRefineryRoad.dress(_walk_mat, ch.plan)
 	var parts := [["RefineryPlant", acc.st, RefineryKit.material(), true], ["RefineryGround", acc.ground, Industrial.ground_material(), false],
 		["RefineryPavement", acc.walk, _walk_mat, false]]
 	for p: Array in parts:

@@ -143,8 +143,22 @@ func _ready() -> void:
 					car.light_brake = false
 				ci += 1
 		cam.global_transform = Transform3D(Basis.from_euler(Vector3(deg_to_rad(p[4].to_float()), deg_to_rad(p[3].to_float()), 0.0)), at)
+		# HIDE=pat,pat hides every node whose name matches (String.match); HIDE_CLASS=OmniLight3D,...
+		# every node of those classes (rc4-refinery-road: which light lights a surface).
+		for pat in _env("HIDE", "").split(",", false):
+			for n: Node in find_children(pat, "Node3D", true, false):
+				(n as Node3D).visible = false
+		for cls in _env("HIDE_CLASS", "").split(",", false):
+			for n: Node in find_children("*", cls, true, false):
+				(n as Node3D).visible = false
 		for i in int(_env("FRAMES", "30")):
 			await get_tree().process_frame
+		# LIST=<node name> prints that node's drawn children (name, class, AABB) to pick a HIDE from.
+		if _env("LIST", "") != "":
+			for host: Node in find_children(_env("LIST", ""), "Node", true, false):
+				for c: Node in host.get_children():
+					if c is GeometryInstance3D:
+						print("LIST %s %s %s" % [c.name, c.get_class(), (c as GeometryInstance3D).global_transform * (c as GeometryInstance3D).get_aabb()])
 		# PICK=px,py lists the drawn nodes whose bounds the ray through that pixel crosses within
 		# 40 m, nearest first (which mesh a surface in the frame is).
 		if _env("PICK", "") != "":
