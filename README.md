@@ -11,3 +11,6 @@ through refcams.py (occlusion culling off: see the HANDOFF section on the engine
   a gravel shoulder, a W-beam guardrail on timber posts along the drop, boulders gathered and bedded.
 - `03_along_the_road_before_after.jpg` - small scene (hill_ground_shot), looking along the
   switchback: before (top), after (bottom).
+- `04_ten_cameras_compare.jpg` - refcams.py compare, all ten cameras + canyon_road, CANYON_ROAD=0 against
+  on (one load each): only canyon_road changes; freeway is flagged for moved traffic only.
+- `05_hills_refcam_before_after.jpg` - the hills refcam (260 m) off / on: unchanged within a level.
