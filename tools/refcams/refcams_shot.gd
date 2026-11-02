@@ -90,18 +90,27 @@ func _run() -> void:
 			day.set("hour", float(cam.hour))
 			day.call("_apply")
 		Engine.time_scale = 1.0
-		_place(player, fov)
-		# The marine layer's morning damp (MarineMorning) wants the hour and the eye: soaked at once.
-		if weather and weather.has_method("settle_wet"):
-			var keys: Array = weather.get_script().get_script_constant_map().get("STATE_KEYS", [])
-			weather.call("settle_wet", keys.find(String(cam.get("weather", "clear"))), float(cam.hour),
-				Vector3(float(eye[0]), y, float(eye[2])))
-		if scene.has_method("update_streaming"):
-			scene.call("update_streaming", true)
+		# A "drive" row (cameras_w5.json, chase_cam): the player drives his own car and the shot is
+		# his chase camera (tools/refcams/chase_stage.gd), not the free eye.
+		var drive: RefCounted = null
+		if cam.has("drive"):
+			OS.set_environment("EYE", "")
+			drive = load("res://tools/refcams/chase_stage.gd").new()
+			await drive.call("run", self, cam, player)
+			fov = player.get("camera").fov
+		else:
+			_place(player, fov)
+			# The marine layer's morning damp (MarineMorning) wants the hour and the eye: soaked at once.
+			if weather and weather.has_method("settle_wet"):
+				var keys: Array = weather.get_script().get_script_constant_map().get("STATE_KEYS", [])
+				weather.call("settle_wet", keys.find(String(cam.get("weather", "clear"))), float(cam.hour),
+					Vector3(float(eye[0]), y, float(eye[2])))
+			if scene.has_method("update_streaming"):
+				scene.call("update_streaming", true)
 		# A row may ask for more frames (cameras_w5.json "shot_frames": a view over big chunks that
 		# the FULL ring has not finished building after the default). What it stages is staged
 		# the default count before the shot, so it is where the row says whatever the wait.
-		var frames := maxi(_env_int("SHOT_FRAMES", 30), int(cam.get("shot_frames", 0)))
+		var frames := 0 if drive else maxi(_env_int("SHOT_FRAMES", 30), int(cam.get("shot_frames", 0)))
 		var stage_at := frames - _env_int("SHOT_FRAMES", 30)
 		var traffic_staged := false
 		for i in frames:
@@ -128,8 +137,12 @@ func _run() -> void:
 		Engine.time_scale = 0.0005
 		for i in _env_int("SETTLE", 6):
 			await process_frame
-			_place(player, fov)
-		_clear_lens(cam.name)
+			if drive:
+				drive.call("hold")
+			else:
+				_place(player, fov)
+		if not drive:
+			_clear_lens(cam.name)
 		await process_frame
 		if not _hero.is_empty():
 			_hero_report(player, cam.name)
@@ -150,6 +163,12 @@ func _run() -> void:
 				"shadow_tris": c[4], "camera_draws": c[5], "shadow_draws": c[6]},
 			"shot_ms": Time.get_ticks_msec() - t0,
 		})
+		if drive:
+			await drive.call("debug", _out_dir)
+			drive.call("finish")
+			Engine.time_scale = 1.0
+			if _eye_cam:
+				_eye_cam.make_current()
 		_write_frames(load_ms, shots)
 		if _stager != null:
 			_unstage(scene, player)
@@ -305,6 +324,8 @@ func _set_weather(weather: Node, key: String) -> void:
 
 ## still_shot's _geo_split re-poses the player before its base count: here that is the free camera.
 func _pose(player: Node3D, _anchor: Vector3, _hold: Vector3, _boost: bool, fov: float) -> void:
+	if player.get("vehicle") != null:
+		return
 	_place(player, fov)
 
 
