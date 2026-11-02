@@ -13,3 +13,6 @@ onto it (port clock held at 162 s), the floodlit stacks on the right. opengl3 st
   framed deckhouse windows, fewer lit, in a few tones; dark lamp housings.
 - `90_rejected_floods_unaimed.jpg` - a first pass, rejected: floods lighting in every direction
   burned the crane tops white over an unlit ground.
+- `03_kit_night_opengl3_top_forward_bottom.jpg` - the kit alone at night (tools/glshot/port_shot.gd
+  NIGHT=1): top opengl3, bottom Forward+ under lavapipe; left PORT_NIGHT=0, right on. The floods
+  read the same on both renderers.
