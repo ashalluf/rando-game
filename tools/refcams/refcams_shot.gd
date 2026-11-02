@@ -37,6 +37,10 @@ func _initialize() -> void:
 		_out_dir = OS.get_environment("OUT_DIR")
 	DirAccess.make_dir_recursive_absolute(_out_dir)
 	_golf_group()
+	_bonfire_lit()
+	# OCCLUSION=0: occlusion culling off (still_shot's switch), to tell what is culled in plain sight.
+	if OS.get_environment("OCCLUSION") == "0":
+		get_root().use_occlusion_culling = false
 	change_scene_to_file("res://scenes/levels/city.tscn")
 	_run.call_deferred()
 
@@ -87,9 +91,11 @@ func _run() -> void:
 		if not _hero.is_empty():
 			_hero_start(player, eye, y)
 		_set_weather(weather, String(cam.get("weather", "clear")))
+		_bonfire_lit_for(cam)
 		if day:
 			day.set("hour", float(cam.hour))
 			day.call("_apply")
+		_port_clock(cam)
 		Engine.time_scale = 1.0
 		# A "drive" row (cameras_w5.json, chase_cam): the player drives his own car and the shot is
 		# his chase camera (tools/refcams/chase_stage.gd), not the free eye.
@@ -359,6 +365,26 @@ func _write_frames(load_ms: int, shots: Array) -> void:
 	f.close()
 
 
+## A row's optional "bonfire_lit" (wave 7's bonfire_night): 1 lights every beach bonfire ring
+## (Bonfires.force_lit, as BONFIRE_LIT=1), so the rings round the eye burn with their groups whatever
+## the night's rolls. Set before the city loads (a ring's group is planned as its chunk builds) when
+## a camera of this run asks; each camera then sets it again (the key, or -1: the hashes decide).
+func _bonfire_lit() -> void:
+	if OS.get_environment("BONFIRE_LIT") != "":
+		return
+	var only := OS.get_environment("ONLY").split(",", false)
+	for cam: Dictionary in _cameras().get("cameras", []):
+		if cam.has("bonfire_lit") and (only.is_empty() or String(cam.name) in only):
+			OS.set_environment("BONFIRE_LIT", str(int(cam.bonfire_lit)))
+
+
+func _bonfire_lit_for(cam: Dictionary) -> void:
+	if not cam.has("bonfire_lit") and OS.get_environment("BONFIRE_LIT") == "":
+		return
+	var bf: GDScript = load("res://scripts/world/bonfires.gd")
+	bf.set("force_lit", int(cam.get("bonfire_lit", -1)))
+
+
 ## A row's optional "golf_group" ("hole:stage[:tee[:count]]", wave 6's golf_morning) puts a group
 ## of golfers there whatever the hole's roll (GolfLife.force_group). Set before the city loads:
 ## golfers are spawned as the course's chunks build.
@@ -492,3 +518,15 @@ func _hero_report(player: Node3D, shot: String) -> void:
 	print("REFCAM %s hero at %s speed %.2f, camera %s, %d people within 12 m (%d at 3-12 m)" % [shot,
 		str(ws.call("to_world", player.global_position)) if ws else "?", float(player.call("horizontal_speed")),
 		str(ws.call("to_world", cam.global_position)) if ws and cam else "?", within, near])
+
+
+## A camera row's optional `port_t` (wave 7, port_night): the container terminal's clock
+## (PortLife.clock, seconds) held there for the shot, so the cranes, tractors and straddle carriers
+## stand where the row was framed for. Rows without it let the clock run as before.
+func _port_clock(cam: Dictionary) -> void:
+	var pl: GDScript = load("res://scripts/world/port_life.gd")
+	if cam.has("port_t"):
+		pl.set("clock", float(cam.port_t))
+		pl.set("hold", true)
+	else:
+		pl.set("hold", OS.get_environment("PORT_HOLD") == "1")

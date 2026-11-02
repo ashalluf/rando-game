@@ -13,6 +13,9 @@ extends SceneTree
 ## LOD=0|1|2 forces one level of every ladder (0 = normal selection), WEAR (0..1, every box),
 ## HOUR (sun elevation from the hour, 15 by default), SHIP=1 moors the container ship (the
 ## landmark's own builder) under the boom. Prints each mesh's triangle counts.
+## NIGHT=1: 22:00 - a moonlit sky, the lamps on (lamp_factor 1) and PortNight's floods from a high
+## mast by the stacks and the crane's portal lamps (PORT_NIGHT=0 the old night); for the Forward+
+## look under lavapipe (--rendering-driver vulkan), the colour of the floods on both renderers.
 func _initialize() -> void:
 	var stage := Node3D.new()
 	get_root().add_child(stage)
@@ -36,9 +39,46 @@ func _initialize() -> void:
 	env.environment = e
 	stage.add_child(env)
 	var hour := float(OS.get_environment("HOUR")) if OS.get_environment("HOUR") != "" else 15.0
+	var night := OS.get_environment("NIGHT") == "1"
 	var sun := DirectionalLight3D.new()
 	sun.rotation_degrees = Vector3(-clampf(90.0 - absf(hour - 12.5) * 11.0, 4.0, 80.0), 35.0, 0.0)
 	sun.light_energy = 1.3
+	if night:
+		sun.rotation_degrees = Vector3(-40.0, 150.0, 0.0)
+		sun.light_energy = 0.12
+		sun.light_color = Color(0.6, 0.7, 1.0)
+		e.ambient_light_energy = 0.08
+		e.background_mode = Environment.BG_COLOR
+		e.background_color = Color(0.02, 0.03, 0.06)
+		e.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
+		e.ambient_light_color = Color(0.12, 0.15, 0.25)
+		RenderingServer.global_shader_parameter_set("lamp_factor", 1.0)
+		for kv in OS.get_environment("GLOBALS").split(";", false):
+			RenderingServer.global_shader_parameter_set(kv.get_slice("=", 0), float(kv.get_slice("=", 1)))
+		# PortNight by path (it names PortLife, which needs the autoloads a --script lacks).
+		var pn: Dictionary = (load("res://scripts/world/port_night.gd") as GDScript).get_script_constant_map()
+		var src := PackedVector4Array()
+		src.resize(int(pn.MAX_SOURCES))
+		var lamps: Array[Vector4] = [Vector4(-8.0, 33.0, -6.0, float(pn.MAST_REACH)), Vector4(64.0, 33.0, -6.0, float(pn.MAST_REACH))]
+		for sz: float in [-1.0, 1.0]:
+			lamps.append(Vector4(20.0, float(pn.CRANE_LAMP_Y), -60.0 + sz * PortKit.STS_GAUGE * 0.5, float(pn.CRANE_REACH)))
+		for i in lamps.size():
+			src[i] = lamps[i]
+		for m: ShaderMaterial in [PortKit.container_material(), PortKit.steel_material()]:
+			m.set_shader_parameter("port_night", 0.0 if OS.get_environment("PORT_NIGHT") == "0" else 1.0)
+			m.set_shader_parameter("flood_src", src)
+			m.set_shader_parameter("flood_count", lamps.size())
+			m.set_shader_parameter("flood_tint", Vector3((pn.TINT as Color).r, (pn.TINT as Color).g, (pn.TINT as Color).b))
+			m.set_shader_parameter("flood_gain", float(pn.GAIN))
+			m.set_shader_parameter("flood_cap", float(pn.CAP))
+		# The apron's pools as PortNight lays them (POOL_Y over the apron plane, y 0).
+		var pool := PropFactory.light_pool(Color(1.0, 0.9, 0.74), float(pn.APRON_STRENGTH), float(pn.APRON_FALLOFF))
+		(pool.material as ShaderMaterial).set_shader_parameter("display_add", OS.get_environment("PORT_NIGHT") != "0")
+		for k in 5:
+			var pi := MeshInstance3D.new()
+			pi.mesh = pool
+			pi.transform = Transform3D(Basis(Vector3.RIGHT, -PI * 0.5).scaled(Vector3(float(pn.APRON_POOL), 1.0, float(pn.APRON_POOL))), Vector3(-30.0 + k * float(pn.APRON_STEP), float(OS.get_environment("POOL_Y")) if OS.get_environment("POOL_Y") != "" else 0.07, -30.0))
+			stage.add_child(pi)
 	sun.shadow_enabled = true
 	sun.directional_shadow_max_distance = 300.0
 	stage.add_child(sun)

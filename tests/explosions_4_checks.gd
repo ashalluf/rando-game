@@ -47,6 +47,8 @@ func run(t: Node, city: Node3D) -> void:
 	await _round5(parent)
 	_round6(parent)
 	_round7(parent)
+	_round8()
+	await _round9()
 	for c in parent.get_children():
 		if not before.has(c) and c != _deck and not (c is BlastBits):
 			c.queue_free()
@@ -316,3 +318,39 @@ func _round7(parent: Node) -> void:
 		"explosions_4: the ribbons' box sits at the blast (at the world origin they were culled)")
 	var got: Array = Blast4.facade_response(_city, _top + Vector3(0.0, 1.0, -120.0), 9.0)
 	_t._check(got.size() == 2 and int(got[0]) >= 0, "explosions_4: the shop fronts' response runs (%d awnings, %d signs)" % [int(got[0]), int(got[1])])
+
+
+## Round 8: the flesh cools faster than the heart; the dust is darker near the ground.
+func _round8() -> void:
+	var vs := FileAccess.get_file_as_string("res://shaders/blast_volume.gdshader")
+	_t._check(vs.contains("temp * temp * 1.12, core4 * smoothstep(0.04, 0.14, t)"),
+		"explosions_4: the young ball's flesh cools to orange-red under its white heart")
+	var m := ShaderMaterial.new()
+	m.shader = load("res://shaders/blast_volume.gdshader")
+	Blast4.dress_volume(m, false, false)
+	var d: Vector3 = m.get_shader_parameter("dust")
+	_t._check(not Blast4.dark_dust or d.x < 0.15, "explosions_4: the volume's dust ring is darker (%.3f)" % d.x)
+
+
+## Round 9: the shock ring kicks loose bodies outside the radius when the wave reaches them.
+func _round9() -> void:
+	var body := RigidBody3D.new()
+	body.collision_layer = 4
+	body.collision_mask = 1
+	var cs := CollisionShape3D.new()
+	var bs := BoxShape3D.new()
+	bs.size = Vector3(0.6, 1.0, 0.6)
+	cs.shape = bs
+	body.add_child(cs)
+	_city.add_child(body)
+	var at := _top + Vector3(60.0, 1.0, -60.0)
+	body.global_position = at + Vector3(12.0, 0.5, 0.0)
+	await _ticks(3)
+	var n := Blast4.shock_kick(_city, at, 9.0)
+	await _ticks(8)
+	_t._check(not Blast4.shock_enabled or (n >= 1 and body.linear_velocity.x > 0.5),
+		"explosions_4: the shock ring kicks a loose body outside the radius outward (%d, %.2f m/s)" % [n, body.linear_velocity.x])
+	body.queue_free()
+	_t._check(Blast4.flash_night() <= 1.0 and Blast4.flash_night() >= Blast4.night_flash - 0.001
+		and Blast4.fire_night_gain() >= 1.0 and Blast4.fire_night_range() >= 1.0,
+		"explosions_4: night holds the flash down and lifts the fires (%.2f, %.2f)" % [Blast4.flash_night(), Blast4.fire_night_gain()])

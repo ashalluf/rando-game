@@ -900,6 +900,8 @@ func _port_kit(st: Dictionary) -> void:
 		# A gantry's shadow past the full ring is a smudge; skip its twin's draws.
 		_batch.set_no_shadow("rtg")
 	_batch.set_no_shadow("port_pool")
+	# The terminal at night (PortNight): the floods on the materials, halos on the lamps.
+	PortNight.dress(self, ix, iz)
 
 
 ## Diameters (m) of the night light pools under a high mast and under a crane's portal.
@@ -913,7 +915,7 @@ func _add_port_pool(at: Vector3, size: float) -> void:
 	var xf := Transform3D(Basis(Vector3.RIGHT, -PI * 0.5).scaled(Vector3(size, 1.0, size)), Vector3(at.x, PORT_YARD_TOP + 0.07, at.z))
 	# A soft falloff: floodlights 34 m up light the yard evenly, not in a hot spot like a street
 	# lamp's.
-	_batch.add("port_pool", PropFactory.light_pool(Color(1.0, 0.9, 0.74), 0.5, 1.5), xf)
+	_batch.add("port_pool", PortNight.pool_mesh(), xf, Color.WHITE, PortNight.pool_custom())
 
 
 ## One stack slot: the rolled `height` of boxes in the row line, a second pile abreast (most
@@ -4455,6 +4457,8 @@ func _add_tree(at: Vector3, rng: RandomNumberGenerator, lean_to: Vector2 = Vecto
 	# the carriageway and stood in the lanes. Skipped after every roll it makes, so the rng
 	# stream, and so everything planted after it, is the same as before.
 	if _under_freeway(Vector2(at.x, at.z), TREE_FREEWAY_MARGIN):
+		return
+	if BroadwayNight.keeps_tree_off(plan, at):
 		return
 	# Los Angeles' own species for a share of blocks, parks and planters (LaTrees, hashes only).
 	if LaTrees.street_or_park(self, at, yaw, tint, lean_to):
