@@ -13,7 +13,7 @@ uniform vec3 paint = vec3(0.70, 0.69, 0.64);
 uniform vec3 back_metal = vec3(0.30, 0.31, 0.31);
 // Dust blown up from the slope onto the foot of each letter (linear), and how high it reaches.
 uniform vec3 dust = vec3(0.42, 0.33, 0.22);
-uniform float dust_height = 3.2;
+uniform float dust_height = 5.0;
 // Rust / grime streaks run down from the fixings at each horizontal seam.
 uniform vec3 streak = vec3(0.34, 0.24, 0.15);
 uniform float streak_amount = 0.55;

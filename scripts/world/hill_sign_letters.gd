@@ -93,6 +93,9 @@ static func build(anchor: Vector2, parent: Node3D, statics: StaticBody3D, plan: 
 				cs.shape = bs
 				cs.transform = xf
 				statics.add_child(cs)
+	if v2:
+		# Kept for the checks: the headless renderer keeps no mesh data to read back.
+		last_arrays = st.commit_to_arrays()
 	var mi := MeshInstance3D.new()
 	mi.name = "SignLetters"
 	mi.mesh = st.commit()
@@ -140,6 +143,8 @@ static func _frame(anchor: Vector2, parent: Node3D, statics: StaticBody3D, plan:
 			var d := b - a
 			var c := (a + b) * 0.5
 			_box(st, Transform3D(Basis(Vector3.BACK, d.angle()), Vector3(c.x, c.y, z)), Vector3(d.length(), PIPE * 0.6, PIPE * 0.6), grey)
+		if RcRidgeSign.on():
+			_legs_braced(st, plan, xs, z, base_y, grey)
 	var mi := MeshInstance3D.new()
 	mi.name = "SignFrame"
 	mi.mesh = st.commit()
@@ -202,6 +207,8 @@ static func _frame_material() -> StandardMaterial3D:
 # --- The ridge-sign refcam's letters (RcRidgeSign) ------------------------------------------------
 
 static var _v2_mat: ShaderMaterial
+## The last v2 letters' surface arrays (tests/rc3_ridge_sign_checks.gd).
+static var last_arrays: Array = []
 
 
 ## Every stroke as a mitred ribbon of sheet metal: a front face, a back and the returns round its
@@ -318,3 +325,32 @@ static func _letters_v2_material() -> ShaderMaterial:
 		_v2_mat = ShaderMaterial.new()
 		_v2_mat.shader = load("res://shaders/ridge_sign.gdshader")
 	return _v2_mat
+
+
+## Under a letter held up off a falling slope the posts ran down to the ground bare: from the basin
+## a comb of thin lines hanging under the name. Now the legs are a braced bent (RcRidgeSign): a
+## tie between neighbouring posts every LEG_BAY metres down to where the ground meets them, and a
+## diagonal across each bay, alternating, as a real hillside sign's legs are braced.
+const LEG_BAY := 4.5
+
+
+static func _legs_braced(st: SurfaceTool, plan: CityPlan, xs: Array, z: float, base_y: float, col: Color) -> void:
+	var gys: Array = []
+	for px: float in xs:
+		gys.append(plan.height_at(Vector2(px, z)) - 0.5)
+	for i in xs.size() - 1:
+		var x0: float = xs[i]
+		var x1: float = xs[i + 1]
+		var floor_y := maxf(float(gys[i]), float(gys[i + 1])) + 0.6
+		var y := base_y
+		var k := 0
+		while y - LEG_BAY > floor_y:
+			var y1 := y - LEG_BAY
+			_box(st, Transform3D(Basis(), Vector3((x0 + x1) * 0.5, y1, z)), Vector3(x1 - x0, PIPE * 0.7, PIPE * 0.7), col)
+			var a := Vector2(x0, y) if (i + k) % 2 == 0 else Vector2(x1, y)
+			var b := Vector2(x1, y1) if (i + k) % 2 == 0 else Vector2(x0, y1)
+			var d := b - a
+			var c := (a + b) * 0.5
+			_box(st, Transform3D(Basis(Vector3.BACK, d.angle()), Vector3(c.x, c.y, z)), Vector3(d.length(), PIPE * 0.55, PIPE * 0.55), col)
+			y = y1
+			k += 1

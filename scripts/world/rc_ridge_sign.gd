@@ -17,3 +17,63 @@ static func on() -> bool:
 	if _on < 0:
 		_on = 0 if OS.get_environment("RC3_SIGN") == "0" else 1
 	return _on == 1
+
+
+## The hills' code-built shrubs (CityChunk._plant_hills, HillShrub): from the ridge sign every stand
+## was one even scatter of identical round mounds - polka dots. RcHills' cluster field (its own
+## phase and a wider cell here) gathers them: under SHRUB_GAP (+ a little by the shrub's own size
+## roll) a shrub is left out, above it it is scaled up to SHRUB_SCALE.y where the field is full, so
+## the mounds of a thicket close up and the gaps between thickets show the straw. The scale to
+## apply, 0 for none. Pure: a point and its size roll, nothing else.
+const SHRUB_GAP := 0.3
+const SHRUB_SCALE := Vector2(0.7, 1.55)
+const SHRUB_FIELD_SCALE := 0.7
+
+
+static func shrub_gather(p: Vector2, size_roll: float) -> float:
+	if not on():
+		return 1.0
+	var c := RcHills.cluster(p * SHRUB_FIELD_SCALE + Vector2(53.0, -21.0))
+	if c < SHRUB_GAP + 0.14 * size_roll:
+		return 0.0
+	return lerpf(SHRUB_SCALE.x, SHRUB_SCALE.y, clampf((c - SHRUB_GAP) / (1.0 - SHRUB_GAP), 0.0, 1.0))
+
+
+## A plaza block past the FULL ring (CityChunk._build_plaza at LOD, and the far city's capture of
+## it) was one bare slab of paving: from the ridge a 230 m tan square at the foot of the hill. It
+## now lays the four lawn beds the FULL build furnishes (the same rects as _furnish_plaza(), worked
+## out from the block alone: no roll), a little proud of the paving.
+static func plaza_far_beds(ch, inner: Rect2) -> void:
+	if not on():
+		return
+	var center := inner.get_center()
+	var basin_r := minf(inner.size.x, inner.size.y) * 0.12
+	var keep := basin_r + 9.0
+	var bw := clampf(inner.size.x * 0.24, 8.0, 26.0)
+	var bd := clampf(inner.size.y * 0.24, 8.0, 26.0)
+	var lawn := PropFactory.lawn(Color(0.40, 0.52, 0.24), hash([ch.plan.seed, ch.ix, ch.iz, "plaza_bed"]), 0.2, 0.0)
+	for sx: float in [-1.0, 1.0]:
+		for sz: float in [-1.0, 1.0]:
+			var off := Vector2(sx * maxf(keep + bw * 0.5, inner.size.x * 0.26), sz * maxf(keep * 0.7 + bd * 0.5, inner.size.y * 0.26))
+			var c := center + off
+			var bed := Rect2(c - Vector2(bw, bd) * 0.5, Vector2(bw, bd))
+			if not inner.grow(-7.0).encloses(bed):
+				continue
+			ch._add_slab(Vector3(c.x, 0.25 + 0.3, c.y), Vector3(bw, 0.5, bd), ch.style.grass, false, lawn)
+
+
+## The horizon plane under a block that straddles a hill's foot (MacroMap.bake()): the chunk takes
+## its zone from the block's centre, so a block whose centre is on the slope builds hill terrain
+## over its flat basin half too - but the bake painted that half by its own zone, a city district,
+## and the far plane drew it as an empty grid of grey streets (four blocks of it at the foot of the
+## ridge sign, 800 m out). The bake now asks this for each city pixel: the zone of the block there.
+static func block_zone_fn(plan) -> Callable:
+	if not on():
+		return Callable()
+	var cache := {}
+	return func(pos: Vector2) -> int:
+		var bi: Vector2i = plan.block_index_at(pos)
+		if not cache.has(bi):
+			var b: Dictionary = plan.block(bi.x, bi.y)
+			cache[bi] = int(plan.zone_at((b.rect as Rect2).get_center()))
+		return cache[bi]
