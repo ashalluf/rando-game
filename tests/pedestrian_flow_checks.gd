@@ -181,6 +181,7 @@ func _follower(city: Node3D, chunk: Node3D) -> void:
 	var sum := 0.0
 	var n := 0
 	var start := Vector2(l.position.x, l.position.z)
+	var dodges0 := int(CrowdFlow.stats.get("dodges", 0))
 	for i in 60 * 9:
 		await _tree.physics_frame
 		if i > 150:
@@ -189,7 +190,8 @@ func _follower(city: Node3D, chunk: Node3D) -> void:
 	var moved := Vector2(l.position.x, l.position.z).distance_to(start)
 	var mean := sum / maxf(float(n), 1.0)
 	_check(f.flow.get("leader") != null and mean < 1.6 and moved > 6.0,
-		"a follower walks beside its leader and stands with it when it stops (mean %.2f m apart, leader went %.1f m, grouped %s)" % [mean, moved, f.flow.get("leader") != null])
+		"a follower walks beside its leader and stands with it when it stops (mean %.2f m apart, leader went %.1f m, grouped %s; %d prop dodges city-wide meanwhile, end gap %.1f m, follower at %s)" % [mean, moved, f.flow.get("leader") != null,
+			int(CrowdFlow.stats.get("dodges", 0)) - dodges0, Vector2(f.position.x, f.position.z).distance_to(Vector2(l.position.x, l.position.z)), Vector2(f.position.x, f.position.z) - at])
 	l.queue_free()
 	await _ticks(2)
 	for i in 30:
