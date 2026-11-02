@@ -288,12 +288,12 @@ void fragment() {
 			// lantern a pale ball); held under ~1.6 in red with green at ~0.4 of it in the core it
 			// stays the deep red-orange of lit silk, the ribs and the ends dark against it.
 			float gold = step(0.3, v_paint.g / max(v_paint.r, 0.01));
-			vec3 rim = gold > 0.5 ? vec3(1.0, 0.30, 0.03) : vec3(1.0, 0.05, 0.02);
+			vec3 rim = gold > 0.5 ? vec3(1.0, 0.26, 0.02) : vec3(1.0, 0.035, 0.012);
 			vec3 hot = gold > 0.5 ? vec3(1.0, 0.48, 0.10) : vec3(1.0, 0.24, 0.06);
 			float view_c = pow(clamp(dot(NORMAL, VIEW), 0.0, 1.0), 1.5);
 			float c2 = pow(bulge, 1.5) * view_c;
 			vec3 glow2 = mix(rim * 0.6, hot, c2);
-			float lit2 = mix(0.08, 0.85, night) * (0.3 + 0.7 * bulge) * (1.0 - rib * 0.75) * (1.0 - clamp(bands, 0.0, 1.0) * 0.85);
+			float lit2 = mix(0.08, 1.9, night) * (0.3 + 0.7 * bulge) * (1.0 - rib * 0.75) * (1.0 - clamp(bands, 0.0, 1.0) * 0.85);
 			emit = glow2 * lit2;
 			col = mix(col, col * 0.7, rib);
 		}
