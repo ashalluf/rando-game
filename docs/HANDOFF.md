@@ -25666,3 +25666,65 @@ patch batch).
 the Meshy airliner's geometry is what it is (engines as blobs from behind); shadow acne shows on the
 fuselage's coloured paint on the opengl3 still; the concourse interior is curtain_glass's generic
 trace (no gate lounges); the ground vehicles are still box-built (now bevelled).
+
+## 9km. The container terminal from the crane (refcam2 port_crane, wave 5 `wt/rc2-port`)
+
+**The camera.** `port_crane` in `tools/refcams/cameras_w5.json`: eye (2955, 45 m over the yard,
+6385), looking south-east (yaw -132, pitch -17, fov 55) at 16:30, clear - the stacks in front,
+the four working ship-to-shore cranes over the moored ship, the bay behind, the sun from the
+right rear. `REFCAMS_JSON=tools/refcams/cameras_w5.json python3 tools/refcams/refcams.py run
+build/refcams/<label> --only port_crane` (~6 min).
+
+**What gave it away (main, bb03d731), in the order the eye lands:**
+1. **A yard a third empty.** The old rolls left 35 % of the stack slots empty and 30 % of the rows
+   for trucks, and piled 1-3 boxes: from 45 m it was a concrete car park with boxes scattered on
+   it. A working terminal is a solid field of blocks 3-5 high. **Fixed:** `PortFill`
+   (`scripts/world/port_fill.gd`) tops every pile up to 3 tiers (4 for 45 %, a pile left low 12 %)
+   and fills 78 % of the rolled-empty slots, all from its OWN stream hash(seed, ix, iz,
+   "port_fill") AFTER every old roll: the block rng and the port_kit stream make exactly the calls
+   they made before, so every box the yard had keeps its place and look (a filled slot's boxes
+   take PortFill's stream for their looks too). The truck lanes stay empty. Pile tops (the RTGs'
+   `_port_piles`) and each pile's collision box follow the new height. `PORT_FILL=0` the A/B.
+2. **A yellow crate on a stick.** The 34 m high mast's head was a 3.8 m box of solid 1 m yellow
+   panels. **Fixed:** `PortKit.mast_mesh()` - a sixteen-sided galvanised pole on a flange, a
+   lowering ring on its carriage with ten floodlights tilted down and out (lenses `S_LAMP`, lit
+   after dark as before), a red obstruction lamp.
+3. **Candy roofs.** From above the roofs ARE the yard, and they were as clean and saturated as
+   the sides. **Fixed:** container.gdshader's roof pass (`roof_dust`, part 1 only): a warm grey
+   dust film by wear and drifts against the rails, dried puddle rings, rust spots; colours through
+   `col()` (proved on Forward+ under lavapipe with `tools/glshot/port_shot.gd SHIP=1`, the same
+   on both renderers). `PORT_ROOF=0` the A/B.
+4. **A slab for a bow, and nothing holding the ship.** **Fixed:** `PortKit._ship_rake()` rakes and
+   flares the stem `SHIP_RAKE` 7.5 m forward at the deck over a bulb under water (nothing aft of
+   x -58; the sheer line follows), the first station 0.15 m off the stem so the deck comes to a
+   point; the hull below the lettered band is `S_HULL` (port_steel.gdshader part 14,
+   `hull_plates()`: 2.6 m strakes, staggered butts, a tone per plate, rust from the scuppers, a
+   tide film at the waterline; also on the lettered band). `PORT_SHIP=0` the old hull.
+   `PortMooring` (`scripts/world/port_mooring.gd`, one hook in `CityChunk._build_quay()`, FULL)
+   hangs pairs of hawsers in a catenary from the bollards in `PATTERN`'s spans (head, bow breast,
+   forward spring, aft spring, stern breast, stern) to chocks on the ship's side.
+   `PORT_MOORING=0` the A/B.
+5. The yard's paving wear 0.6 -> `PortFill.YARD_WEAR` 1.5 (more patches, cracks and oil; with
+   PortFill off, as before).
+
+**Not fixed (next):** the harbour water is a pale flat sheen from up here (the ocean shaders are
+someone else's); the container colours are still bright on the sides; straddle carriers loop
+north of this eye (alt eye `(2950, 45, 6250, -128, -15)` catches the yard aisles and a tractor
+but hides the ship); the crane machinery houses are plain boxes.
+
+**Frame cost** (opengl3 GEO, port_crane): 847,259 tris / 621 draws / 287k shadow ->
+912,953 / 629 / 351k. The extra boxes are in the container batch (LOD'd: the counter counts the
+batch once, measurement trap 3); the rest is the ship's denser bow stations and the lines.
+
+**Checks:** `tests/rc2_port_checks.gd` (19: PortFill pure and only ever up, the fill share, the
+mast's lenses and no yellow panels, the bow's rake and bulb with amidships unchanged, the
+plating branch, the lines between quay and hull within the spans, the roof uniform and its
+switch, the camera row). Stills: `shots/rc2-port`.
+
+**The ten refcams** (main bb03d731 vs this branch, `refcams.py compare`): seven within tolerance;
+street_noon, street_night and freeway flagged by the traffic alone (a bus and cars in other places:
+the diff maps are only vehicles); triangles within +-1.7 % everywhere. Peak RSS of the ten-camera
+run 12.6 GB. Gate (SHARDS=3): 5,095 passed, 2 failed - "one shotgun blast throws a crate" (room)
+and "explosions_2: debris lands on the deck" - both pass when run alone on this branch
+(`SMOKE_PARTS=room,explosions_2_checks`, 239 / 239), neither touches the port.
+

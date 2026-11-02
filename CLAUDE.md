@@ -3302,6 +3302,15 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   hidden and a chassis and box hitched instead (some bobtails). LOD / far: boxes. A/B:
   `PORT_LIFE=0`. Probe: `tools/port_life_probe.gd` (cranes, step times, poses at `T=`). Checks:
   `tests/port_life_checks.gd`.
+- The container terminal from the crane (wave 5, refcam2 `port_crane` in
+  `tools/refcams/cameras_w5.json`, docs/HANDOFF.md "The container terminal from the crane"):
+  `PortFill` (`scripts/world/port_fill.gd`) tops every yard pile up to 3-4 tiers and fills most
+  empty slots from its OWN stream after every old roll (`_port_stack()`'s `fill` argument); the
+  high mast's head is a lowering ring of ten floodlights; container roofs carry dust, stains and
+  rust (container.gdshader `roof_dust`); the ship's bow rakes and flares over a bulb with shell
+  plating (port_steel part 14, `PortKit._ship_rake()`); `PortMooring` hangs head, breast, spring and
+  stern lines from the quay's bollards. `PORT_FILL=0` / `PORT_ROOF=0` / `PORT_SHIP=0` /
+  `PORT_MOORING=0` the A/Bs; checks `tests/rc2_port_checks.gd`.
 - Map: `MacroMap` (`scripts/world/macro_map.gd`) decides zone (city, beach, ocean, hills, airport,
   port), land height and district for any world XZ. The city itself rolls: `relief_at()` is the
   gentle height field under the blocks (zero on beaches, flat zones, mountain hills and around
