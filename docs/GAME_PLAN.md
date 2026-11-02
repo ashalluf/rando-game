@@ -4135,6 +4135,46 @@ none of either.
   The rehearsal is timed like every other loading-screen step. Bake-only memoisation is allowed
   where it is proved byte-identical (the raw-height memo); LoadCache's key stays every script.
 
+- **2026-11-01 Traffic variety: five more everyday bodies, shares taken from what dominates (car-variety-4,
+  HANDOFF "Cars, the fourth wave").** A census of every car round the camera over a game minute
+  (Flower St at Olympic and the 110) put sedans and crossovers first among the everyday cars and the
+  exotics (Sports, Vantari, Kestrel) at one car in eight - a showroom, not Los Angeles. The wagon,
+  muscle coupe, luxury SUV, kei-style city van and 1970s sedan take 85 rolls from the ENDS of the
+  sedan, crossover, SUV, van, sports and three exotic ranges, never from the third wave's slices;
+  their rows name the old owner and the wave (`CARS_4=0` hands them back, bit for bit). The paint
+  palette (white ~22-30 %, but green, orange and purple together ~25 %) is noted, not changed: a
+  palette change moves every parked car's look on every seed.
+
+- **2026-11-01 Aliasing is judged in motion, by a measure, and fixed by footprint (specular-aliasing,
+  HANDOFF "Shimmer and crawl in motion").** A still hides shimmer, so the proof is a frame strip of a
+  slow pan scored by its second temporal difference, through a jittered TAA-like proxy (four
+  sub-pixel-turned renders a frame) so polygon edges the Mac's TAA takes do not drown it. Fixes widen
+  lobes and features to what a pixel can hold (geometric / Toksvig specular AA, widened road paint
+  blended by cover, LOD sooner) rather than blur the picture; dithered coverage only where a temporal
+  pass resolves it (Forward+), never a fixed screen pattern. SPECULAR_AA=0 the A/B.
+
+- **2026-11-01 The LA River from the bed: water mirrors what stands round it, and the channel is
+  lived in (rc2-river, HANDOFF "The LA River from the bed").** A new reference camera, la_river,
+  on the bed at the 6th St ribbon bridge. The low flow's mirror is the channel's own banks traced
+  analytically (the sky only over them), not a sky sheet; joints are filtered per axis so the
+  concrete keeps its pattern at a grazing angle; the shaded bank of the pale concrete canyon takes
+  a bounce; weeds, litter and a denser layer of graffiti are part of the river's look.
+  RIVER_LOOK=0 the A/B.
+
+- **2026-11-01 The airport apron refcam (rc2-airport, HANDOFF "The airport apron from 25 m").** A new
+  reference camera over the apron at noon with a jet taxiing below it. Decisions: the airport's
+  paint is lifted to stand proud of the pressed street paint's rule (it had been under the ground
+  at FULL); apron yellow on a black border, as on real light concrete; stands carry stains from the
+  street's own patch batch (no new draw); the liveries get names (invented) and close-up detail in
+  the shader, not a texture; ground equipment is bevelled rather than remodelled. AIRPORT_APRON=0
+  is the A/B.
+
+- **2026-11-01 The container terminal from the crane (rc2-port, HANDOFF "The container terminal
+  from the crane").** A new reference camera, `port_crane` (cameras_w5.json), and the four things
+  that gave the port away from 45 m: a yard a third empty and two boxes high (now 3-4 tiers, most
+  slots full, from PortFill's own stream after every old roll, so no box the yard had moves), a
+  yellow box for a mast head, clean candy-coloured roofs, and a ship with a slab for a bow lying
+  untied off the quay. PORT_FILL / PORT_ROOF / PORT_SHIP / PORT_MOORING =0 the A/Bs.
 - **2026-11-01 The rainy day is lit by the sky, not the sun (rc2-rain-day, HANDOFF "The rainy day").**
   Daylight rain was the clear day with a grey sky drawn over it. Decisions: under a rain deck by day
   the sun keeps about a third of its key and its shadows fade (RainDay); a wet road by day mirrors

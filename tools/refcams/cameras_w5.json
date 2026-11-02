@@ -1,7 +1,10 @@
 {
-	"_doc": "Wave-5 reference cameras (same format as cameras.json; tools/refcams/README.md). One row a camera, each on its own line. Run with REFCAMS_JSON=tools/refcams/cameras_w5.json.",
+	"_doc": "The ten reference cameras (tools/refcams/README.md). eye = TRUE world x,y,z,yaw,pitch (yaw 0 looks north, 90 west; pitch degrees up); agl true = y is metres over the plan's ground there. weather is a Weather.STATE_KEYS name. Change a camera only on purpose: every run before the change stops being comparable for that shot. Wave 5 (refcam2 sessions): one row per new camera, on its own line; optional staging keys: air (AirTraffic.stage kind: taxi|pushback|apron|final...), air_dist, air_side, as still_shot.gd's AIR / AIR_DIST / AIR_SIDE; street_cars {axis, at, cars: [[along, dir, lane, speed], ...]} (TrafficManager.place_car(), refcams_shot.gd).",
 	"resolution": [1280, 720],
 	"cameras": [
-		{"name": "rain_day", "label": "Wilshire in midtown, 14:00 rain (east toward downtown)", "eye": [1405.0, 1.7, 296.0, -104.0, 1.0], "agl": true, "hour": 14.0, "weather": "rain", "fov": 55, "street_cars": {"axis": "z", "at": 312.7, "cars": [[1418, 1, 0, 14], [1440, 1, 1, 12], [1470, 1, 0, 13], [1585, -1, 1, 12], [1625, -1, 0, 13], [1670, -1, 1, 11]]}}
+		{"name": "rain_day", "label": "Wilshire in midtown, 14:00 rain (east toward downtown)", "eye": [1405.0, 1.7, 296.0, -104.0, 1.0], "agl": true, "hour": 14.0, "weather": "rain", "fov": 55, "street_cars": {"axis": "z", "at": 312.7, "cars": [[1418, 1, 0, 14], [1440, 1, 1, 12], [1470, 1, 0, 13], [1585, -1, 1, 12], [1625, -1, 0, 13], [1670, -1, 1, 11]]}},
+		{"name": "la_river", "label": "The LA River channel at the 6th St ribbon bridge 15:30", "eye": [4503.0, 2.1, 349.0, 12.0, 3.0], "agl": false, "hour": 15.5, "weather": "clear", "fov": 55},
+		{"name": "airport_apron", "label": "Airport apron and concourse from 25 m, noon", "eye": [-410.0, 25.0, 815.0, 16.0, -15.0], "agl": true, "hour": 12.0, "weather": "clear", "fov": 55, "air": "taxi", "air_dist": 72, "air_side": 5, "shot_frames": 120},
+		{"name": "port_crane", "label": "The container terminal from 45 m, 16:30 (STS cranes at the ship)", "eye": [2955.0, 45.0, 6385.0, -132.0, -17.0], "agl": true, "hour": 16.5, "weather": "clear", "fov": 55}
 	]
 }

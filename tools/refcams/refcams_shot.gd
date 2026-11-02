@@ -88,8 +88,16 @@ func _run() -> void:
 		_place(player, fov)
 		if scene.has_method("update_streaming"):
 			scene.call("update_streaming", true)
-		var traffic_staged := _stage_street_cars(cam, scene, plan)
-		for i in _env_int("SHOT_FRAMES", 30):
+		# A row may ask for more frames (cameras_w5.json "shot_frames": a view over big chunks that
+		# the FULL ring has not finished building after the default). What it stages is staged
+		# the default count before the shot, so it is where the row says whatever the wait.
+		var frames := maxi(_env_int("SHOT_FRAMES", 30), int(cam.get("shot_frames", 0)))
+		var stage_at := frames - _env_int("SHOT_FRAMES", 30)
+		var traffic_staged := false
+		for i in frames:
+			if i == stage_at:
+				_stage_air(scene, cam)
+				traffic_staged = _stage_street_cars(cam, scene, plan)
 			await process_frame
 			_place(player, fov)
 			if day:
@@ -158,6 +166,22 @@ func _stage_street_cars(cam: Dictionary, scene: Node, plan: Variant) -> bool:
 			placed += 1
 	print("REFCAM %s: placed %d street cars on road %d (axis %d at %.1f)" % [cam.name, placed, best, axis, float(plan.road_pos(axis, best))])
 	return true
+
+
+## A camera row's optional "air" key (cameras_w5.json): AirTraffic.stage() of that kind with
+## "air_dist" / "air_side", as still_shot.gd's AIR / AIR_DIST / AIR_SIDE (the airport's ground:
+## "taxi" is a landed jet `air_dist` seconds along its way to stand `air_side`). No key, nothing.
+func _stage_air(scene: Node, cam: Dictionary) -> void:
+	var kind := String(cam.get("air", ""))
+	if kind == "":
+		return
+	var air := scene.get_node_or_null("AirTraffic")
+	var lens := get_root().get_camera_3d()
+	if air == null or lens == null:
+		print("REFCAM %s: no AirTraffic to stage %s" % [cam.name, kind])
+		return
+	var placed: Node = air.call("stage", kind, lens, float(cam.get("air_dist", 300.0)), float(cam.get("air_side", 0.0)))
+	print("REFCAM %s: staged %s (%s)" % [cam.name, kind, placed.name if placed else "nothing"])
 
 
 ## A traffic car the shot's clock left with the lens inside or just against its body (the freeway
