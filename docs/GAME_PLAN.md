@@ -4123,6 +4123,6 @@ none of either.
 - **2026-11-01 Shadows: fit the cascades to what the camera can see, not to its depth alone
   (shadows-review, HANDOFF "Shadows across the game").** Godot fits the sun's four cascades by view
   depth, which from the air spends three of them on sky and stops at 500 m; ShadowTuning slides
-  them out with the camera's clearance over whatever is under it (a roof counts), capped at the LOD
-  ring at HIGH. The bias stays (lower values brought acne at golden hour in the lab), the fade is
+  them out with the camera's clearance over whatever is under it (a roof counts), the reach capped
+  at 600 m at HIGH (1000 m doubled an aerial's shadow passes). The bias stays (lower values brought acne at golden hour in the lab), the fade is
   20 %, and far landmark planting casts within 450 m. SHADOW_TUNING=0 is the A/B.

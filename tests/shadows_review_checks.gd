@@ -51,8 +51,8 @@ func _air() -> void:
 		_t._check(ordered and e[3] <= float(ShadowTuning.AIR_CAP[0]) + 0.01,
 			"HIGH's cascades at %d m clearance end in order under the cap: %.0f / %.0f / %.0f / %.0f m" % [a, e[0], e[1], e[2], e[3]])
 	var e128 := ShadowTuning.ends(0, 128.0)
-	_t._check(float(e128[0]) > 60.0 and float(e128[3]) >= 700.0,
-		"128 m up the first cascade starts out where the ground is (%.0f m) and the reach covers the LOD ring (%.0f m)" % [e128[0], e128[3]])
+	_t._check(float(e128[0]) > 60.0 and float(e128[3]) >= 590.0,
+		"128 m up the first cascade starts out where the ground is (%.0f m) and the reach grows past the ground's (%.0f m)" % [e128[0], e128[3]])
 	for i in 3:
 		var r: float = float(e128[i + 1]) / float(e128[i])
 		_t._check(r > 1.6 and r < 3.2, "128 m up cascade %d is %.1f x cascade %d (none wasted, none starved)" % [i + 2, r, i + 1])
@@ -139,7 +139,7 @@ func _follow() -> void:
 		got = ShadowTuning.clearance
 		if got > 140.0:
 			break
-	_t._check(got > 140.0 and ShadowTuning.air > 100.0 and sun.directional_shadow_max_distance >= 700.0,
+	_t._check(got > 140.0 and ShadowTuning.air > 100.0 and sun.directional_shadow_max_distance >= 590.0,
 		"150 m over the ground_body the cascades slide out (clearance %.0f m, reach %.0f m)" % [got, sun.directional_shadow_max_distance])
 	cam.global_position = Vector3(5100, 152, 5000)
 	await (_t as Node).get_tree().physics_frame

@@ -701,7 +701,8 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   each frame from `DayNight._apply()`): on the street city.tscn's splits and Quality's reach stay;
   in the air (a ray down every 0.25 s: clearance over whatever is under the camera, so a rooftop
   is the street) every cascade slides out by `AIR_GAIN` x clearance, the reach capped at `AIR_CAP`
-  (HIGH 1000 m = the LOD ring; the far city casts nothing); fade over the last 20 %. Godot's bias
+  (HIGH 600 m: at 1000 the golden aerial's shadow draws went +55 %); fade over the last 20 %;
+  far landmark planting casts within `FAR_PLANT_REACH` (`ArenaGrounds._far_shadows()`). Godot's bias
   is `shadow_bias`/100 x the cascade's depth range, so lowering it brought acne at golden hour (the
   lab's stills): keep 0.1 / 2.0. `SHADOW_TUNING=0` the A/B; lab `tools/shadows_review/
   shadow_lab.tscn` (Forward+ in ~5 min, 4.6 GB: VARIANTS of sun.<prop>=, Q=, ST=); checks

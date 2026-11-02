@@ -25194,8 +25194,12 @@ hills):
    keeps the street's cascades) and slides every cascade's far end out by `AIR_GAIN` (0.55 / 1.2 /
    2.2 / 3.0 m per metre over `AIR_FROM` 12 m, stepped by `AIR_STEP` 8 m so a hovering camera does
    not re-fit the texels every frame; it rises at 60 m/s and falls at once). The reach is capped by
-   level (`AIR_CAP`: HIGH 1000 m, the LOD ring's reach - the far city past it casts nothing anyway;
-   MEDIUM 700; LOW and LOWEST never follow). 140 m up at HIGH: 104 / 248 / 518 / 920 m.
+   level (`AIR_CAP`: HIGH 600 m, MEDIUM 460; LOW and LOWEST never follow); under the cap the near
+   ends keep their slide while each cascade stays `MIN_RATIO` (1.75) times the one before. 140 m
+   up at HIGH: 98 / 196 / 343 / 600 m (was 27.5 / 80 / 210 / 500: three cascades of sky). The cap
+   was 1000 m (the LOD ring) and then 750 m first: the golden aerial's shadow passes doubled
+   (1.9 M -> 3.6 M triangles, +1,660 draws: every LOD chunk's batches in the last cascades), too
+   much for a Quality stepper that never steps back up.
 2. **The fade drew a line**: the last 8 % (460-500 m) is now the last 20 %.
 3. **A far landmark copy's trees and palms cast nothing** (`ArenaGrounds._far_shadows()`, "they
    fall past the cascades anyway"): the far copy is drawn from ~240 m out, inside the 500 m reach
