@@ -4315,3 +4315,8 @@ none of either.
   comes in with distance; broad road-light pools have no hard rim and dim from the air; floodlit
   masonry is a fifth of the old brick and render, not most of it; a far searchlight seen from the air
   saturates softly and fades with distance. NIGHT_AERIAL=0 is the A/B.
+- 2026-11-02 (wave 6, rc3-airport-night): the airfield at night is lit by its own masts - the apron
+  floods lay real pools and fall on the jets and ground equipment as emitted light, the parked jets
+  show logo lights on their fins, a landing jet's lights flare and light the runway ahead, and a
+  patrol helicopter's searchlight is faint in clear air (a pursuit keeps the full shaft).
+  AIRPORT_NIGHT=0 is the A/B.

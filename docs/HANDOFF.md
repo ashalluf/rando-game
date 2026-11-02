@@ -27034,3 +27034,61 @@ truck in one run, a red car in the other; the deck is freeway_deck.gdshader, not
 (one line in smoke_test.gd's city_files): street asphalt gets lane wear and pavements / car parks do
 not, the shader applies it and 0 is the old road, the switch, the camera row and its staging
 script. Stills on `shots/rc2-chase-cam`.
+
+## 9d?. The airfield at night (wave 6 refcam3 `rc3-airport-night`, branch `wt/rc3-airport-night`)
+
+**The camera.** A new reference view, `airport_night` in `tools/refcams/cameras_w6.json`: eye
+(-600, 12 m over the apron, 770), yaw -96, pitch -3, fov 55, 21:30, clear - on the west end of the
+apron by the first stand, looking east down the gate line (lit concourse, the jets at their gates,
+the control tower and the downtown skyline behind) with the parallel taxiway and both runways'
+lights on the right, and a jet staged on final to 27L (`"air": "final", "air_dist": 800,
+"air_side": 102`, `shot_frames` 120). The jet is in the flare over the threshold at x -43 when the
+shot is taken: further out the approach to 27L is hidden by the hangar domes from anywhere on the
+apron (the first framing put it right behind them). `refcams_shot.gd` now prints where a row's staged
+aircraft is at the shot (`REFCAM <name> air at x,y,z`) - tune `air_dist` / `air_side` from that line.
+`REFCAMS_JSON=tools/refcams/cameras_w6.json python3 tools/refcams/refcams.py run build/refcams/<label>
+--only airport_night` (~12 min).
+
+**What gave it away (main 484a7897), in the order the eye found it, and what was done**
+(`AirportNight`, `scripts/world/airport_night.gd`, all of it behind `AIRPORT_NIGHT`):
+1. **The floodlight masts lit nothing.** Each apron mast laid one 80 m soft dot 14 m in front of it -
+   under the jets and the concourse - so the stands, the lane in front of them and the jets were the
+   same moonlit blue-grey as the taxiway shoulder and everything else; the jets read as grey toys in
+   front of a lit building. `mast_pool()` (from `Airport._masts()`) lays the floods' real pool: one quad
+   a mast in the mast's frame on `shaders/airport_flood.gdshader`, the illuminance of a point source
+   28 m up, (1 + d^2/h^2)^-1.5 out to `REACH` 92 m, `BACK` 0.3 behind the mast, added in DISPLAY
+   numbers on both renderers (light_pool's display_add rule). And the same light falls on what stands
+   there: `shaders/airport_flood.gdshaderinc` (airliner_livery and airport_kit include it) works the
+   floods out per pixel from the masts as a uniform array (`af_masts[16]`, TRUE world x, ground y, z,
+   facing angle; the fragment adds `origin_shift`), h^2 cos / r^2, and EMITS albedo x that x
+   `JET_GAIN` 0.40 / `KIT_GAIN` 0.35 x lamp_factor. The masts come from `Airport.mast_spots()` the
+   first time an airport chunk builds (`note_macro()` in `Airport.build_chunk()`); materials made
+   before that are registered and filled in then (`dress()`).
+2. **A parked jet at night shows its LOGO LIGHTS** (lamps on the tailplane washing the fin) - the
+   brightest thing on a real gate line, and missing. airliner_livery.gdshader `logo_light` (`LOGO`
+   0.65): the fin's colour and mark emitted, brightest low in the middle of the fin, widening and
+   dying toward the tip. On every airliner after dark.
+3. **The landing jet was a dark shape with 2-pixel dots.** Its aimed landing lights showed at 6 % off
+   their axis and never grew past the light's 2.6 m. aircraft_lights.gdshader `landing_side`
+   (`LANDING_SIDE` 0.32 of the glare kept off axis, nothing from behind) and `landing_glare`
+   (`LANDING_GLARE` 5: seen down the beam the glare is up to 6x its size), set on AmbientCraft's
+   light material only (field lights untouched). And the lights now light the runway: `landing_pool()`
+   (one line in AmbientJet's tick) keeps one additive quad (PropFactory.light_pool) on the runway
+   ahead of a jet under `LANDING_POOL_UNDER` 70 m with its landing lights on, further ahead and
+   longer the higher it is.
+4. **The patrol helicopter's searchlight was a solid white wedge across a clear sky** (a patrol always
+   sweeps at night; the lit-haze look's gain runs its core near 1). Helicopter: a helicopter whose
+   `task` is "patrol" runs its drawn shaft at `PATROL_BEAM` 0.2 of the strength; a pursuit (stars)
+   keeps the full shaft. Its pool on the ground is unchanged.
+
+**Proved on both renderers** with the jet alone: `tools/airport_apron/jet_shot.gd NIGHT=1` (a dark
+sky, a faint moon, one mast at `MAST=x,z` with its floods on the jet and its pool on the ground, the
+logo lights; `AN=0` the same night without them), opengl3 and Forward+ under lavapipe
+(`--rendering-driver vulkan --display-driver x11` in xvfb-run, VK_ICD_FILENAMES lvp_icd.json; a
+minute): the floodlit fuselage and the pool come out within a few levels of each other on both.
+
+**Not done / next:** the hangar domes are unlit blue blobs at night (no door lights or apron floods on
+their fronts); the follow-me car's roof sign is a blank glowing slab; the head house's slatted soffit
+glows a saturated orange; the jet on final is ~55 px long at this distance (the approach is behind the
+hangars from anywhere closer on the apron); the concrete's slab grid still reads as tiles in the
+moonlit foreground.

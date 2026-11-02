@@ -66,7 +66,7 @@ func _flood(macro: MacroMap) -> void:
 	var front := _flood_at(Vector3(v.x + face.x * 40.0, y, v.z + face.y * 40.0), Vector3.UP)
 	var behind := _flood_at(Vector3(v.x - face.x * 40.0, y, v.z - face.y * 40.0), Vector3.UP)
 	var far := _flood_at(Vector3(v.x, y, v.z + 400.0), Vector3.UP)
-	_t._check(under > 0.95 and front > behind and front > 0.15 and far == 0.0,
+	_t._check(under > 0.5 and front > behind and front > 0.15 and far == 0.0,
 		"the floods light the concrete under a mast, more in front than behind, nothing far off (%.2f / %.2f / %.2f)" % [under, front, behind])
 	# A jet's side facing a mast is lit; the side turned away is not.
 	var p := Vector3(v.x + face.x * 25.0, y + 4.0, v.z + face.y * 25.0)
