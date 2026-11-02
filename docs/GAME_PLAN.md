@@ -4381,3 +4381,11 @@ none of either.
   block - its mechanical box is a louvred penthouse and its flat roof carries plant, worked out from
   the tower's own tiers and boxes (no new table); the helipad deck is drawn as extruded planks up
   close; the island against a low sun is haze, not land colour. RC_ROOFTOP=0 is the A/B.
+- **2026-11-02 The oil field refcam: an oil field is a planted hill, not a graded sheet
+  (rc3-oil-field, HANDOFF "The oil field from its lease road").** A new reference camera
+  (`oil_field`, wave 6's table) stood on the crest lease road at 16:00 looking down the row of
+  pumpjacks at downtown. Decisions: the field's ground grows what the hill chunks grow (shells,
+  shrub stands, clumps, oaks) from the field's own keep-outs, with weeds along the verges; a dirt
+  edge crumbles in world-space grains, never a screen-space dither; a pad's service pickup is a real
+  parked car, not a far twin, because it stands beside the road; a big site's planting is batched
+  in cells, because a batch's range is measured to its centre. OIL_PLANTING=0 is the A/B.
