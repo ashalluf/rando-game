@@ -49,6 +49,9 @@ const CARRY_POSES := {
 ## stays in front whatever the walk does with the upper arm.
 const CUP_FOREARM := Vector3(-0.3, 0.12, 1.0)
 ## Which hand holds what (a carry's prop, and the standing activities').
+## Where a bag's cords sit in the fist, in the grip frame (metres: along the fingers, out of the
+## palm): in the curl of the fingers, not at the wrist (the bone's origin).
+const BAG_GRIP := Vector3(0.0, 0.085, 0.025)
 const PROP_HAND := {Prop.PHONE: "RightHand", Prop.CUP: "LeftHand", Prop.BAG: "RightHand", Prop.CIGARETTE: "LeftHand"}
 
 ## Seats on a bench: two, either side of the middle (a bench is 2.45 m long).
@@ -77,6 +80,7 @@ static func attach(anim: AnimationPlayer, model_path: String) -> bool:
 	if lib == null:
 		return false
 	anim.add_animation_library("life", lib)
+	IdleRelax.relax(anim, "life")
 	return true
 
 
@@ -175,11 +179,28 @@ static func prop_mesh(kind: int) -> Mesh:
 			_tube(st, Vector3(0.0, 0.07, 0.05), Vector3.RIGHT, -0.055, 0.0365, 0.0405, 0.05, Color(0.55, 0.40, 0.25), 14)
 			_tube(st, Vector3(0.0, 0.07, 0.05), Vector3.RIGHT, 0.055, 0.043, 0.041, 0.016, Color(0.95, 0.95, 0.94), 14)
 		Prop.BAG:
-			# A paper shopping bag hanging from the fist by its cord handles, its width along the
-			# thumb (fore and aft of a hanging arm).
-			_box(st, Vector3(0.0, 0.28, 0.03), Vector3(0.26, 0.30, 0.11), Color(0.62, 0.47, 0.30), 0.0)
-			_box(st, Vector3(0.06, 0.08, 0.03), Vector3(0.008, 0.10, 0.008), Color(0.15, 0.13, 0.12), 0.0)
-			_box(st, Vector3(-0.06, 0.08, 0.03), Vector3(0.008, 0.10, 0.008), Color(0.15, 0.13, 0.12), 0.0)
+			if PersonCloseup.enabled():
+				# A paper shopping bag hanging from the fist (the origin) by its two twisted-paper
+				# cords, which meet in the hand (person_closeup refcam: the old one hung under the
+				# wrist with its cords standing straight up beside the hand). Built "upside down"
+				# (+y is down once Pedestrian hangs it plumb), its width x (turned fore and aft).
+				var paper := Color(0.60, 0.46, 0.30)
+				_box(st, Vector3(0.0, 0.265, 0.0), Vector3(0.26, 0.29, 0.11), paper, 0.0)
+				# The turned-over top band, a little proud and darker, and the gusset's fold.
+				_box(st, Vector3(0.0, 0.132, 0.0), Vector3(0.264, 0.035, 0.114), paper.darkened(0.12), 0.0)
+				_box(st, Vector3(0.0, 0.265, 0.0), Vector3(0.262, 0.27, 0.02), paper.darkened(0.25), 0.0)
+				# The open mouth: the inside in shadow, just above the band.
+				_box(st, Vector3(0.0, 0.1135, 0.0), Vector3(0.25, 0.002, 0.1), Color(0.12, 0.09, 0.06), 0.0)
+				var cord := Color(0.42, 0.31, 0.19)
+				for sx in [-1.0, 1.0]:
+					for sz in [-1.0, 1.0]:
+						_cord(st, Vector3(0.055 * sx, 0.122, 0.05 * sz), Vector3(0.012 * sx, 0.0, 0.006 * sz), 0.006, cord)
+			else:
+				# A paper shopping bag hanging from the fist by its cord handles, its width along the
+				# thumb (fore and aft of a hanging arm).
+				_box(st, Vector3(0.0, 0.28, 0.03), Vector3(0.26, 0.30, 0.11), Color(0.62, 0.47, 0.30), 0.0)
+				_box(st, Vector3(0.06, 0.08, 0.03), Vector3(0.008, 0.10, 0.008), Color(0.15, 0.13, 0.12), 0.0)
+				_box(st, Vector3(-0.06, 0.08, 0.03), Vector3(0.008, 0.10, 0.008), Color(0.15, 0.13, 0.12), 0.0)
 		Prop.CIGARETTE:
 			# Between the first two fingers, out past the thumb side, the filter in the hand and
 			# an ember at the far end.
@@ -232,6 +253,23 @@ static func _box(st: SurfaceTool, c: Vector3, s: Vector3, colour: Color, glow: f
 			st.set_color(colour)
 			st.set_uv(Vector2(glow, 0.0))
 			st.add_vertex(q[i])
+
+
+## A thin square-section cord from `a` to `b`, `w` across, both faces drawn (no winding to get
+## wrong on a prop seen from every side).
+static func _cord(st: SurfaceTool, a: Vector3, b: Vector3, w: float, colour: Color) -> void:
+	var d := (b - a).normalized()
+	var u := d.cross(Vector3.FORWARD if absf(d.z) < 0.9 else Vector3.UP).normalized() * w * 0.5
+	var v := d.cross(u).normalized() * w * 0.5
+	var ring := [u + v, -u + v, -u - v, u - v]
+	for i in 4:
+		var p0: Vector3 = ring[i]
+		var p1: Vector3 = ring[(i + 1) % 4]
+		var quad := [a + p0, b + p0, b + p1, a + p1]
+		for k in [0, 1, 2, 0, 2, 3, 0, 2, 1, 0, 3, 2]:
+			st.set_color(colour)
+			st.set_uv(Vector2.ZERO)
+			st.add_vertex(quad[k])
 
 
 ## A tube (cone frustum) along `axis` through `centre`, from `start` for `height`, capped.

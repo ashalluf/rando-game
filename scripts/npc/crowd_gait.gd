@@ -92,6 +92,7 @@ static func apply(ped: Pedestrian, anim: AnimationPlayer, seed_value: int) -> bo
 		return false
 	if not anim.has_animation_library(LIB):
 		anim.add_animation_library(LIB, lib)
+		IdleRelax.relax(anim, LIB)
 	var name := forced if forced != "" else pick(seed_value, lib, ped._visual.scale.x)
 	ped.gait = name
 	var row: Array = GAITS[name]

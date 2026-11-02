@@ -1081,6 +1081,7 @@ static func hair_material(albedo: Texture2D, look_mat: ShaderMaterial, grime: fl
 	mat.set_shader_parameter("hair_strength", strength)
 	mat.set_shader_parameter("grime", grime)
 	mat.set_shader_parameter("closeup", CrowdCloseup3.hair_closeup())
+	mat.set_shader_parameter("strand_detail", PersonCloseup.STRAND_DETAIL if PersonCloseup.enabled() else 0.0)
 	_hair_looks[key] = mat
 	return mat
 
@@ -3363,8 +3364,13 @@ func _show_props() -> void:
 	if bag != null and bag.visible and bag.get_child_count() > 0:
 		var mi := bag.get_child(0) as Node3D
 		var yaw := _visual.global_rotation.y
-		mi.global_transform = Transform3D(Basis(Vector3.UP, yaw) * Basis(Vector3.RIGHT, PI) * Basis.from_scale(_visual.scale),
-			bag.global_position)
+		if PersonCloseup.enabled():
+			# From the fist, not the wrist (CrowdLife.bag_grip()), its width fore and aft.
+			mi.global_transform = Transform3D(Basis(Vector3.UP, yaw + PI * 0.5) * Basis(Vector3.RIGHT, PI) * Basis.from_scale(_visual.scale),
+				bag.global_transform * (CrowdLife.grip_basis(CrowdLife.PROP_HAND[CrowdLife.Prop.BAG]) * CrowdLife.BAG_GRIP * _skel_unit))
+		else:
+			mi.global_transform = Transform3D(Basis(Vector3.UP, yaw) * Basis(Vector3.RIGHT, PI) * Basis.from_scale(_visual.scale),
+				bag.global_position)
 
 
 ## A prop in the hand that holds it (CrowdLife.PROP_HAND), built in the grip frame
