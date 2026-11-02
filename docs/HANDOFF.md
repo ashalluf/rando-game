@@ -27034,3 +27034,63 @@ truck in one run, a red car in the other; the deck is freeway_deck.gdshader, not
 (one line in smoke_test.gd's city_files): street asphalt gets lane wear and pavements / car parks do
 not, the shader applies it and 0 is the old road, the switch, the camera row and its staging
 script. Stills on `shots/rc2-chase-cam`.
+
+## 9d?. Broadway's theatre district at night: the broadway_night refcam, 2026-11-02 (agent branch `wt/rc3-broadway-night`)
+
+**The camera.** A new wave-6 reference view, `broadway_night` in `tools/refcams/cameras_w6.json`:
+eye level in the middle of Broadway at the 6th St crossing (`eye` 2991, 1.7, 199, yaw 188, pitch 7,
+FOV 55), 22:00, clear, looking south down the theatre district - the Empress (east, left) and La
+Paloma (west, right) with their blade signs and marquees in front, the street receding past the
+other palaces, the 6th St signals overhead. Seven street cars are staged on Broadway itself by the
+row's `street_cars` key (`axis` "x", at 2991). Run:
+`REFCAMS_JSON=tools/refcams/cameras_w6.json python3 tools/refcams/refcams.py run build/refcams/<label> --only broadway_night`
+(~12 min on this box, 6.6 GB peak).
+
+**What read as a game (in the order the eye found it) and what was done** (`BroadwayNight`,
+`scripts/world/broadway_night.gd`, every hook one line, `BROADWAY_NIGHT=0` the old look bit for bit):
+1. **The premiere searchlights were six solid white rods** - the brightest thing in the frame,
+   converging over the street. From the street the cone's alpha ran past 1 down most of its length.
+   `nightlife_beam.gdshader` `look3`: a soft knee (`street_knee`), `street_gain` 0.3, brighter near
+   the lamp; from the air (NightFlight / NightAerial's branches) nothing changes. Set by
+   `BroadwayNight.beam()` in `SkyBeam._ready()`.
+2. **The blade signs were half spelt or dark** in most stills: the old sequence spent 4.2 of every
+   9 s spelling the name row by row, 2.2 flashing and 0.6 dark. `broadway_sign.gdshader` `look3`:
+   spell in 1.6 s, hold 11 s, three quick flashes, a breath of dark (lit ~75 % of the cycle).
+3. **A street tree hid the Empress' marquee** from up the street. `BroadwayNight.keeps_tree_off()`
+   (asked by `CityChunk._add_tree()` after every roll it makes, so nothing else moves): no street
+   tree on Broadway's pavement along a palace's frontage, `TREE_CLEAR` 4 m past it.
+4. **The auditoriums were pale glowing boxes**: the brick's tint (0.86, 0.74, 0.66) over the
+   brick texture's own mean drew a pale pink plaster, and where a low neighbour exposed the side wall
+   (the Empress' north wall at 6th St: x 3008-3046, z 216) it was a 24-33 m blank slab lit blue-white
+   by the lanterns. Now `BRICK_TINT` (0.56, 0.34, 0.26) and `side_dress()` (from
+   `BroadwayTheatre.build()` after `_auditorium()`): pilasters on the bents, a plinth course and a
+   coping, the palace's name painted high in faded cream with PICTURES under it, two steel exit doors
+   under caged lamps, a switchback fire stair of thin stringers and rails (~980 triangles a wall,
+   on the palace's own surfaces: no draw added). Seen in the `broadway_side` still (the same load,
+   `EYE=2999,1.7,190,200,5`).
+5. **The marquees** burn brighter at night (`SIGN_NIGHT`: bulbs 8, soffit 6, board 2.6, letters 4.2),
+   the warm pool under each is 1.25x wider and 1.45x stronger, and the light under the marquee reaches
+   17 m at 2.2x the lamps' level (meta `lamp_gain`).
+
+**Numbers** (refcams, opengl3, 1280x720): before p5/p50/p95 4/30/171, after 4/30/170 (the beams'
+glare out of the sky, the marquee and signs in); triangles 6.07 M -> see the final run in the
+shots README (the side dress, the trees gone); draws flat (no new node).
+
+**Traps found.** `tools/broadway_probe.gd` prints no palaces: under `--script` the autoloads do not
+exist, Broadway's dependencies fail to compile and `palaces()` returns nothing (a misleading empty
+list, not a regression; the game and the checks see all eleven). `ShopfrontKit._text_geo()` dropped
+the A of "THEATRE" in a painted line (the stacked blade-sign letters are fine), so the ghost sign
+says PICTURES. The `build/` folder needs a `.gdignore` before `--import`, or Godot imports every
+refcam PNG. `pkill -f <pattern>` from the tool shell kills the shell itself when the pattern is in
+its own command line: kill by PID. A Forward+ small scene of the Broadway blocks
+(`fwd_block_shot.tscn`, BLOCKS=home + two EXTRA blocks, 800x450, one worker thread) was OOM-killed
+at 13.4 GB on this 15 GB box three times, so the night levels are NOT verified on Forward+ - Mac
+eyes needed (the bulbs at 8 and the soffit at 6 go through AgX to warm white, the beams only got
+fainter, the brick is a plain source_color tint like every landmark wall).
+
+**A/B, checks, probes.** `BROADWAY_NIGHT=0`. `tests/rc3_broadway_night_checks.gd` (one line in
+smoke_test.gd's city_files): the camera row and its staging, the sign material's pass and the A/B,
+the held sequence, the brick tint, the side dressing on both walls (none with the pass off), the
+beam's and the marquee light's pass, the trees kept off a frontage. `tools/rc3_broadway_night/pick.gd`
+loads the city headless and prints what a grid of camera rays from an EYE lands on (which node is
+that wall?). Stills on `shots/rc3-broadway-night`.
