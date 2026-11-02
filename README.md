@@ -23,3 +23,6 @@ shadow at 0.5, the branch's final value is 0.42 - a touch lighter in the strips)
 - 19/20 east of downtown from 45 m (the tan block's piers in raking light; its gravel roof)
 - 21/22 midtown from 70 m
 - 23/24 the east side from 30 m (3400,30,350,-30,-4: ribbon and curtain walls, unchanged by design)
+
+- 25 Forward+ (lavapipe, the Mac's renderer), a test building, left FACADES_MID3=0, right the
+  final branch: piers and recessed strips, stepped parapets
