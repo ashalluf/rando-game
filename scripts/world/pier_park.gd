@@ -280,7 +280,7 @@ static func build(anchor: Vector2, parent: Node3D, _statics: StaticBody3D, _plan
 	# The chunk's crowd-life spots: the queues and the benches, in the chunk's own (world) space.
 	if parent is CityChunk:
 		var queue: Array = parent.get_meta("vendor_queue", [])
-		for q: Array in queue_spots():
+		for q: Array in queue_spots() + PierDay.rail_spots():
 			queue.append({"p": anchor + (q[0] as Vector2), "yaw": float(q[1]), "taken": null, "record": null})
 		parent.set_meta("vendor_queue", queue)
 		for b: Array in benches():
@@ -299,11 +299,29 @@ static func people_steps(anchor: Vector2, chunk: CityChunk) -> Array[Callable]:
 		if rng.randf() < 0.66:
 			node = MIDWAY[rng.randi() % MIDWAY.size()]
 		steps.append(_spawn_goer.bind(chunk, anchor, node, rng.randi()))
+	# By day the pier is packed (PierDay): more on the promenade, some in twos and threes. Their
+	# own stream, after the 48's rolls.
+	var extra := PierDay.extra_people(BeachLife.hour_now(chunk), BeachLife.weather_factor(chunk))
+	var xr := RandomNumberGenerator.new()
+	xr.seed = hash([chunk.plan.seed if chunk.plan else 0, "pier_day_people"])
+	var made := 0
+	while made < extra:
+		var node: int = PierDay.PROMENADE[xr.randi() % PierDay.PROMENADE.size()]
+		if xr.randf() < 0.3:
+			node = MIDWAY[xr.randi() % MIDWAY.size()]
+		var group := mini(1 + (xr.randi() % 3 if xr.randf() < 0.45 else 0), extra - made)
+		for k in group:
+			steps.append(_spawn_goer.bind(chunk, anchor, node, xr.randi()))
+		made += group
+	if OS.get_environment("PIER_DEBUG") != "":
+		print("PIER people %d + %d extra" % [PEOPLE, extra])
 	return steps
 
 
 static func _spawn_goer(chunk: CityChunk, anchor: Vector2, node: int, seed_value: int) -> void:
 	if not chunk._take_crowd_room():
+		if OS.get_environment("PIER_DEBUG") != "":
+			print("PIER no crowd room")
 		return
 	var goer := PierGoer.new()
 	goer.setup_park(anchor, DECK_TOP, node, seed_value)
@@ -320,7 +338,7 @@ static func _spawn_goer(chunk: CityChunk, anchor: Vector2, node: int, seed_value
 ## [the mesh that casts, the detail that does not].
 static func _static_mesh(detailed: bool) -> Array:
 	var g := PierMesh.new()
-	g.use("deck", PropFactory.pbr("planks", 2.4, Color(0.78, 0.70, 0.62)))
+	g.use("deck", PierDay.deck_material())
 	g.use("p", PierMesh.material("park"))
 	g.use("d", PierMesh.material("park"))
 	g.light_slot = "d"
@@ -673,9 +691,9 @@ static func _stand(g: PierMesh, s: Array) -> void:
 	var body := {"fries": Color(0.85, 0.15, 0.12), "candy": Color(0.95, 0.55, 0.75), "corndog": Color(0.95, 0.70, 0.15),
 		"lemon": Color(0.98, 0.88, 0.25), "funnel": Color(0.35, 0.65, 0.85)}.get(kind, WHITE) as Color
 	g.kind = PierMesh.K_BOARDS
-	g.box(xf.call(Vector3(0, 1.4, 0.3)), Vector3(4.0, 2.8, 2.6), body)
+	g.box(xf.call(Vector3(0, 1.4, 0.3)), Vector3(4.0, 2.8, 2.6), body, PierDay.bevel(0.07))
 	g.kind = PierMesh.K_PAINT
-	g.box(xf.call(Vector3(0, 2.95, 0.3)), Vector3(4.3, 0.3, 2.9), WHITE)
+	g.box(xf.call(Vector3(0, 2.95, 0.3)), Vector3(4.3, 0.3, 2.9), WHITE, PierDay.bevel(0.06))
 	g.box(xf.call(Vector3(0, 1.05, -1.1)), Vector3(3.6, 0.08, 0.5), WHITE)
 	g.kind = PierMesh.K_WINDOW
 	g.box(xf.call(Vector3(0, 1.75, -1.0)), Vector3(3.0, 1.2, 0.05), Color(1.0, 0.8, 0.55))
@@ -731,9 +749,9 @@ static func _booth(g: PierMesh, bt: Array) -> void:
 	g.kind = PierMesh.K_BOARDS
 	g.abox(Vector3(x, DECK_TOP + 1.6, z - 1.6), Vector3(w, 3.2, 0.12), Color(0.95, 0.9, 0.78))
 	for xs: float in [-1.0, 1.0]:
-		g.abox(Vector3(x + xs * (w * 0.5 - 0.05), DECK_TOP + 1.6, z), Vector3(0.1, 3.2, 3.2), prize.darkened(0.15))
+		g.abox(Vector3(x + xs * (w * 0.5 - 0.05), DECK_TOP + 1.6, z), Vector3(0.1, 3.2, 3.2), prize.darkened(0.15), 0.0, PierDay.bevel(0.03))
 	g.kind = PierMesh.K_PAINT
-	g.abox(Vector3(x, DECK_TOP + 0.5, z + 1.45), Vector3(w - 0.2, 1.0, 0.3), prize)
+	g.abox(Vector3(x, DECK_TOP + 0.5, z + 1.45), Vector3(w - 0.2, 1.0, 0.3), prize, 0.0, PierDay.bevel(0.05))
 	g.abox(Vector3(x, DECK_TOP + 1.03, z + 1.45), Vector3(w - 0.1, 0.06, 0.45), WHITE)
 	# Shelves of prizes: plush animals in the booth's colour and its neighbours'.
 	var cols: Array[Color] = [prize, prize.lightened(0.3), Color(0.95, 0.85, 0.3), Color(0.4, 0.75, 0.95), Color(0.95, 0.5, 0.6)]
