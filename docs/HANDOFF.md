@@ -28404,8 +28404,15 @@ the before). The film studio uses the same function for its own ring: worth a lo
    `apply_plant()` from RefineryNight.apply()): a flood is light on the paint in a tight fan dying a
    third of the way up, and the flares' light follows the facing more closely.
 
-**Numbers** (refcams, opengl3, refinery_night): p5/p50/p95 16/48/159 -> 14/36/106 (the road no longer a
-pale sheet); 3.82 M triangles / 1,434 draws -> 3.88 M / 1,451 (the weed cells and the smoke).
+**Numbers** (refcams, opengl3, refinery_night): p5/p50/p95 16/48/159 -> 14/36/102 (the road no longer a
+pale sheet); 3.82 M triangles / 1,434 draws -> 3.87 M / 1,439 (+1.4 %: the weed cells and the smoke).
+The ten original cameras, `RC4_REFINERY_ROAD=0` -> on from one tree (`refcams.py compare`): nine within
+tolerance (0-5.4 mean pixel |d|), street_noon flagged at 7.3 by a bus that was in one run only (live
+traffic); triangles -1.3 % .. +1.3 %. Forward+ (lavapipe, `tools/fwd_review_f/shoot.sh` at the eye with
+the camera's chunk and the site chunk, `BLOCKS=home EXTRA=0,-1`; 9 FULL chunks OOM-killed lavapipe): the
+road grey-green and a solid orange tank -> dark damp asphalt with a warm sheen toward the flares and
+flood fans on the tank; the glints needed `rr_glint_forward` 0.22 there (a pale sheet at the
+Compatibility gain). NEEDS MAC CHECK: the whole camera on Forward+ (only the small scene was seen).
 
 **Tools**: `tools/rc4_refinery_road/probe.tscn` (headless: the plant's rect, the perimeter roads, the
 flares and masts the road takes, `light_at()` along the south street, a lamp's state).
