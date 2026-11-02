@@ -3921,6 +3921,13 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   environment is the A/B. Probe: `tools/marina/probe.gd` (headless, seconds); quick checks:
   `tools/marina/marina_check.tscn` (the marina's checks alone, a minute); checks:
   `tests/marina_checks.gd`.
+- The marina at golden hour (wave 6, refcam `marina_golden` in `tools/refcams/cameras_w6.json`,
+  docs/HANDOFF.md "The marina at golden hour"): `MarinaGolden` (`scripts/world/marina_golden.gd`)
+  hands marina_water.gdshader the 40 boats nearest the camera; `shaders/marina_mirror.gdshaderinc`
+  traces the reflected ray against their hulls, cabins and masts and zeroes SPECULAR where one stands
+  in it (Godot's f0 then drops the renderer's own reflection). Rigging is `BoatMesh.Region.WIRE`
+  (centre line in the mesh), widened to a pixel in boat_body's vertex stage; jibs wear a UV cover;
+  piles are round. `MARINA_GOLDEN=0` is the A/B; checks `tests/rc3_marina_golden_checks.gd`.
 - Ocean traffic (wave 3, docs/HANDOFF.md "Ocean traffic"): `OceanTraffic`
   (`scripts/world/ocean_traffic.gd`, a Node3D in city.tscn; its children's local space is true world)
   runs `Vessel`s (`scripts/vehicles/vessel.gd`, AnimatableBody3D on props, mask 0, `take_hit()`:

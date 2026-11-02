@@ -4315,3 +4315,11 @@ none of either.
   comes in with distance; broad road-light pools have no hard rim and dim from the air; floodlit
   masonry is a fifth of the old brick and render, not most of it; a far searchlight seen from the air
   saturates softly and fades with distance. NIGHT_AERIAL=0 is the A/B.
+
+- **2026-11-02 The marina at golden hour: a harbour mirrors its boats (rc3-marina-golden, HANDOFF
+  "The marina at golden hour").** A new reference camera (`marina_golden`, wave 6's table) judged
+  the marina from the east headwalk at 18:00. Decisions: the water traces its reflected ray against
+  the nearest boats (hull, cabin, mast) rather than a second render (a planar reflection is a whole
+  extra pass and nothing on the web); where a boat stands in the mirror the renderer's reflection is
+  taken away by zeroing SPECULAR, not darkened; thin rigging is drawn at least a pixel wide and faded
+  by its coverage rather than at its true width. MARINA_GOLDEN=0 the A/B.
