@@ -98,6 +98,10 @@ func _day_night(day: Node) -> void:
 	SunsetSky.enabled = true
 	var w: Node = day.get_node_or_null("../Weather")
 	var darken: float = day.get("weather_darken")
+	# A June-gloom deck an earlier file left (Weather on MARINE) takes the sunset away: held at 0
+	# here with the read (shuffled gate 2303 read 0.200 with no darken).
+	var was_marine: float = day.get("marine")
+	day.set("marine", 0.0)
 	day.set("hour", 12.0)
 	day.call("_apply")
 	var noon: float = float(sky.get_shader_parameter("sunset"))
@@ -107,10 +111,11 @@ func _day_night(day: Node) -> void:
 	var dusk: float = float(sky.get_shader_parameter("sunset"))
 	var want := SunsetSky.weight(0.0, darken, float(day.get("marine")))
 	_t._check(absf(dusk - want) < 1e-4 and (darken > 0.3 or dusk > 0.5),
-		"sunset: 18:00 hands the sky its weight (%.3f, weather darken %.2f, %s)" % [dusk, darken, "Weather" if w else "no Weather"])
+		"sunset: 18:00 hands the sky its weight (%.3f, weather darken %.2f, marine %.2f held at 0, %s)" % [dusk, darken, was_marine, "Weather" if w else "no Weather"])
 	day.set("hour", 2.0)
 	day.call("_apply")
 	_t._check(float(sky.get_shader_parameter("sunset")) == 0.0, "sunset: 2:00 hands the sky 0")
 	SunsetSky.enabled = was_on
+	day.set("marine", was_marine)
 	day.set("hour", was_hour)
 	day.call("_apply")
