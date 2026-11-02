@@ -578,6 +578,14 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   shown only at HIGH / MEDIUM. `RoofRain`: one MultiMesh of crown splashes animated in GDScript on
   the roofs (`Vehicle._model_top_y` over the cabin) of the nearest cars while it rains. Checks:
   `tests/weather_la_checks.gd`; stills in docs/HANDOFF.md 9ck.
+- June gloom at street level (wave 5, refcam `marine_morning` in `tools/refcams/cameras_w5.json`,
+  docs/HANDOFF.md "June gloom at street level"): `MarineMorning` (`scripts/world/marine_morning.gd`,
+  pure) - under the marine layer overnight and in the morning the streets are damp (`damp()`, a
+  floor under Weather's wetness; road.gdshader's `road_mist` global makes it soaked-in and matte, not
+  a shower's film), the air near the coast is misty (`mist()`, extra depth fog), and the deck's
+  underside is stratocumulus cells (marine_layer.gdshader `look`, taking half the low haze).
+  `Weather.settle_wet()` soaks a still at once. `MARINE_MORNING=0` is the A/B; checks
+  `tests/rc2_marine_checks.gd`.
 - Surf and beach (2026-10-04, owner: "the Pacific and the beach, AAA"). One wave model,
   `shaders/surf.gdshaderinc`, included by the ocean, the sand and the spray, mirrored in GDScript
   by `Surf` (`scripts/world/surf.gd`): crests parallel to the shore at `phi = TAU * ((s + wob) / L

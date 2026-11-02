@@ -4192,3 +4192,12 @@ none of either.
   the far boxes draw the same thing at any range for no triangles; the roofline is real geometry
   (stepped parapets as roof plant near, plant boxes far), added after every existing roll and after
   the rooftop pieces have cleared their plant, so nothing a seed builds moves. FACADES_MID3=0 the A/B.
+- **2026-11-01 June gloom at street level (rc2-marine, HANDOFF "June gloom at street level").** A new
+  reference camera, marine_morning (the beach town at 08:00 under the marine layer, the start of
+  cameras_w5.json). The marine layer is weather the street feels, not only a grey sky: under the
+  deck in the morning the streets are damp from the mist (soaked in and matte, never the rain's
+  glossy film), the air at the coast is misty, and the cloud base has the cells and rolls of real
+  stratocumulus. Decisions: the damp is a floor under Weather's wetness with its own `road_mist`
+  share in road.gdshader (an even rain film at the same wetness read lighter than a dry street,
+  the drying patches read as oil stains); the deck underside takes half the low air's haze, since
+  the scene's fog is the ground layer's. MARINE_MORNING=0 the A/B.

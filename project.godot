@@ -247,6 +247,11 @@ road_drying={
 "value": 0.0
 }
 
+road_mist={
+"type": "float",
+"value": 0.0
+}
+
 rain_intensity={
 "type": "float",
 "value": 0.0
