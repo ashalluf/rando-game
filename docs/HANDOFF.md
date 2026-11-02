@@ -28199,14 +28199,15 @@ per camera (the key, or -1 for a camera without it, once a run has set it). Run:
    brightness, full from 19:48 to 04:12 by `city_hour` (sun_direction is the MOON's at night, so a
    sun-elevation gate never fired). Dusk (the sunset camera at 18:36) and dawn are untouched.
 
-**Numbers** (refcams, opengl3, before = RC4_BONFIRE=0, which is main): p50 52 -> 32, p95 69 ->
-96, p99 82 -> 177, CCT 5336 -> 4129 K. Frame cost 1,535,914 tris / 2,251 draws -> 1,865,083 /
-2,335; +322k of it is shadow triangles: the ring now exists, so the nearest fire's omni shadow
+**Numbers** (refcams, opengl3, before = RC4_BONFIRE=0, which is main): p50 52 -> 43, p95 69 ->
+107, p99 82 -> 182, CCT 5336 -> 3764 K. Frame cost 1,535,914 tris / 2,251 draws -> 1,874,669 /
+2,341; +322k of it is shadow triangles: the ring now exists, so the nearest fire's omni shadow
 cubemap (the bonfire pass's own SHADOW_REACH design) draws; the glow is one quad a fire.
 
 **Not done / unverified.** Nothing seen on Forward+ (the Mac): the glow's additive core and the
 cooler sand need a look there (the glow is linear-on-both, the sand's change is a mix inside its
 albedo). The blankets read as flat pale sheets under firelight; the fire ring's outside is a
 plain grey at this range; the beach restroom block still reads as a box; the group's poses do not
-move (baked figures). Other cameras: only beach scenes can change (sand, rings); see the final
-message for the pier_night / sunset / beach comparison.
+move (baked figures). Other cameras (`compare`, RC4_BONFIRE=0 vs on): sunset and beach unchanged (pixel 0.01);
+pier_night FLAGGED by design: its sand is the moonlit grey now (p50 22 -> 19, -16 mired, sat
++0.055; the first, stronger night look read navy there and was toned down to 0.45 / 0.82).
