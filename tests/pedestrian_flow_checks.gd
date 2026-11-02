@@ -326,6 +326,13 @@ func _doors(city: Node3D) -> void:
 					out_d = -2.0
 				break
 	var state := ("visible %s, layer %d, errand step %s, rain inside %s" % [w.visible, w.collision_layer, String(((w.errand.steps as Array)[mini(int(w.errand.i), (w.errand.steps as Array).size() - 1)] as Dictionary).get("do", "")) if w.errand.has("steps") else "none", w.rain != null and w.rain.inside]) if w != null and is_instance_valid(w) else "gone"
+	if w != null and is_instance_valid(w) and not (came and shown):
+		# What the hidden walker's tick needed (shuffled gate 5101: still inside after 10 s).
+		var st: Dictionary = ((w.errand.steps as Array)[mini(int(w.errand.i), (w.errand.steps as Array).size() - 1)] as Dictionary) if w.errand.has("steps") else {}
+		var dd: Variant = st.get("door")
+		state += "; in tree %s, can process %s, down %s, stride %d, until in %d ms, door alive %s, life near %s, act %d" % [
+			w.is_inside_tree(), w.can_process(), w._down, w._lod_stride, int(st.get("until", 0)) - Pedestrian._life_now_ms(),
+			StreetErrands._door_alive(dd) if dd is Dictionary else "none", w._life_near, int(w._act)]
 	_check(came and shown, "somebody comes out of a shop door near the player (%d doors in reach, out %s, shown %s at %.1f m; %s)" % [near, came, shown, out_d, state])
 
 
