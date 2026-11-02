@@ -133,8 +133,6 @@ func _drop_offs() -> void:
 			max_shift = maxf(max_shift, shift)
 			if float(r[0]) == 0.0:
 				stood = true
-				if not tr.get("hazard", false):
-					break
 			elif stood:
 				gone = true
 				break
@@ -186,7 +184,11 @@ func _build(city: Node) -> void:
 		"the kerb, its lit signs and its plates are laid (%s)" % str(names.keys()))
 	var mi := names.get("TerminalCurb") as MeshInstance3D
 	_t._check(mi != null and mi.mesh.get_surface_count() >= 5, "one mesh, a surface per material")
-	_t._check(body.get_child_count() > 50, "bollards, pylons and benches collide (%d shapes)" % body.get_child_count())
+	var faces := 0
+	for c in body.get_children():
+		if c is CollisionShape3D and (c as CollisionShape3D).shape is ConcavePolygonShape3D:
+			faces += ((c as CollisionShape3D).shape as ConcavePolygonShape3D).get_faces().size() / 3
+	_t._check(faces > 2000, "bollards, pylons, benches and the median collide (%d faces)" % faces)
 	var palms := 0
 	for c in holder.get_children():
 		if String(c.name).contains("palm"):
