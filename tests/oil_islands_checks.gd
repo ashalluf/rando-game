@@ -112,7 +112,7 @@ func run(t: Node, city: Node3D) -> void:
 	_t._check(n.shapes > 10 and f2.shapes == 0, "the detailed oil island collides, the far one does not (%d / %d shapes)" % [n.shapes, f2.shapes])
 	_t._check(n.palms > 20 and n.palms == f2.palms, "the far oil island plants the detailed one's palms (%d near, %d far)" % [n.palms, f2.palms])
 	_t._check(n.boulders > 500 and f2.boulders == 0, "boulders on the detailed revetment only (%d near, %d far)" % [n.boulders, f2.boulders])
-	_t._check(f2.shadowed == 0, "the far oil island's planting casts no shadow (%d)" % f2.shadowed)
+	_t._check(f2.shadowed == 0, "the far oil island's planting casts no shadow past its reach (%d)" % f2.shadowed)
 	_t._check(far_tris > 2000 and far_tris < near_tris and near_tris < 60000,
 		"oil island mesh budget (near %d, far %d triangles)" % [near_tris, far_tris])
 	var lamps := 0
@@ -137,7 +137,10 @@ func _scan(root: Node) -> Dictionary:
 			if nm.contains("palm_"):
 				if nm.begins_with("Batch_"):
 					out.palms += mm.instance_count
-				if (c as GeometryInstance3D).cast_shadow != GeometryInstance3D.SHADOW_CASTING_SETTING_OFF:
+				# A far copy's planting casts only from its lighter twin within ShadowTuning's
+				# FAR_PLANT_REACH of the camera (a twin with a visibility range), or nothing.
+				var ranged := ShadowTuning.enabled and nm.begins_with("BatchShadow_") and (c as GeometryInstance3D).visibility_range_end > 0.0
+				if (c as GeometryInstance3D).cast_shadow != GeometryInstance3D.SHADOW_CASTING_SETTING_OFF and not ranged:
 					out.shadowed += 1
 			elif nm.begins_with("Batch_oil_boulder"):
 				out.boulders += mm.instance_count
