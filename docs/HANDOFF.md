@@ -28838,3 +28838,60 @@ smooth normals on Forward+ are unproved. No crew AT WORK (no shoot, no dolly, ca
 driven: the film-shoot session's area); the stage walls are as they were; the trailers' variants all
 share three dressings, so a long row repeats every third; the far LOD of the trailers is the old
 `lod_box` path. Checks: `tests/rc4_film_lot_checks.gd` (10). Probe: `tools/rc4_film_lot/crew_probe.tscn`.
+
+## 9d?. The terminal's departures kerb (rc4-terminal-curb, wave 7, 2026-11-02)
+
+New reference camera `terminal_curb` (`tools/refcams/cameras_w7.json`): the airport's departures
+drop-off at 08:00 clear, eye level on the kerb under the head house's wing roof at (-408.5, 627.9),
+looking east along the curb. `REFCAMS_JSON=tools/refcams/cameras_w7.json python3
+tools/refcams/refcams.py run <dir> --only terminal_curb`.
+
+**What gave it away (main):** the kerb was a 12 m wide bare grey slab with a white line along its
+edge; the 45 walkers bunched at the strip's two ends (out of shot), three people in view, no
+luggage anywhere; the loop cars crawled bumper to bumper and never stopped at the kerb; the
+vestibules were plain grey boxes with a black panel; across the lanes the city's houses and a
+traffic signal stood in plain view, so it read as a suburban street beside a glass wall.
+
+**Fixed, all in `TerminalCurb` (`scripts/world/terminal_curb.gd`), `TERMINAL_CURB=0` the A/B:**
+1. **The kerb itself** (`build()`, one hook at the end of `Landmarks._build_dropoff()`, near copy
+   only): a granite kerb stone with its face painted white (a loading zone), steel anti-ram
+   bollards every 1.7 m with polished caps and a dark band (gaps at each door), the strip on
+   large-format concrete slabs (`LandmarkMats.paving("concrete", ...)` with 1.5 m joints; the
+   "paving" set was cobbled setts), door pylons by every vestibule (a lit DOOR n box over an
+   invented airline, both faces along the kerb), PASSENGER LOADING ONLY / NO PARKING plates on kerb
+   posts, benches and bin pairs against the glass, a curbside check-in podium with its lit sign, a
+   corral of nested luggage carts; one LandmarkGeo mesh (a surface per material) and one concave
+   collision shape; the lettering is `Airport.merged_text()` (three meshes).
+2. **Travellers with luggage** (`spots()` pure; `CurbTraveller`, `scripts/npc/curb_traveller.gd`,
+   a Pedestrian standing at its spot on the crowd's life clips - phone, talking to its group,
+   folded arms, a coffee, a glance down the lanes for its ride; scared, it runs and walks back):
+   groups of one to four at the kerb facing the lanes, by the doors and along the walk, clear of
+   the columns, pylons, vestibules and furniture, dealt in a hashed order so a crowd cap thins the
+   whole kerb evenly. **They spawn from the chunk that builds the terminal** (`Landmarks.
+   people_steps()`), all of them: the kerb runs over three chunks and an owned-rect filter put
+   only the east third's people down. Their luggage (code-built at real size: a ribbed spinner
+   case, a carry-on with its handle up, a duffel, a carry-on with a backpack leaning on it; muted
+   colours per instance) is ONE batch laid in a last step for the travellers who actually spawned
+   - bags with nobody beside them read as abandoned luggage. The airport chunk's plain kerb
+   walkers drop from 45 to `WALKERS` 12 (`walkers()`): they share the crowd cap. Probe: 60
+   travellers, 12 walkers.
+3. **Cars that pull in** (`loop_speed()`, one hook in `TrafficManager._drive_loops()`): on loop
+   0's kerb leg a car decides per lap (hash of the car and the lap, `STOP_SHARE` 55 %) where it
+   stops, slows to it, pulls `PULL_IN` 1.55 m toward the kerb, stands `DWELL` 9-26 s on its
+   hazards, and goes; the cars behind close up, so the kerb lane is stop-and-go with gaps. On its
+   first tick a car may already be part-way through a stop (so a load opens with cars at the
+   kerb). `loop_car()` makes 22 % of the loop's new cars taxis and 12 % white shuttle vans with a
+   fleet band (the courier livery repainted; built from their own generator, the traffic stream
+   untouched). Probe: 7 of 16 loop cars standing at the kerb.
+4. **Glass vestibules** (`vestibule()`, AirportTerminal asks it in place of the grey boxes):
+   glazed sides and front on the hall's glass, a sliding door's opening with its leaves part open,
+   a steel frame, a canopy slab.
+5. **A planted median across the lanes**: a 2.6 m kerbed planter on the road's north edge with
+   mulch, birds of paradise and agaves (LaTrees) and palms every 14 m, between the lanes and the
+   city's houses.
+
+**Not done / known:** the city block's traffic signal mast still reaches over the loop road's
+west end (it is the city's junction at the block corner); nobody gets out of a stopped car or
+lifts a bag from a boot (the travellers stand, the cars stop); the walkers that remain can still
+stop near the lens on other seeds. The colour work is plain StandardMaterials (no shader), so
+Forward+ was not shot separately.
