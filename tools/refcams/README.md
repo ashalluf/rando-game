@@ -88,6 +88,15 @@ at the shot): tune `air_dist` / `air_side` from it.
 Run with `REFCAMS_JSON=tools/refcams/cameras_w6.json`. `rooftop_golden`: the black twins' north
 helipad (deck 215.55 m), 17:45 clear, looking SSW over the skyline to the basin and the sea.
 
+## Wave 7's cameras (`cameras_w7.json`)
+
+Run with `REFCAMS_JSON=tools/refcams/cameras_w7.json`. `freight_yard`: the Arroyo Pacific yard at
+16:30 clear, eye level where the ladder meets the storage tracks looking north, a train pulling out
+on the east main. Its optional `freight_into` key holds the freight line's clock that many seconds
+into the yard stand of the trip nearest the yard (`FreightRail.clock_at_yard()`; past 150 s the train
+is pulling out south). `tools/rc4_freight_yard/probe.gd` prints the yard's tracks, cuts and masts and
+the train's ends over the pull-out, `chunk_probe.gd` what each yard chunk lays.
+
 ## Running
 
 ```

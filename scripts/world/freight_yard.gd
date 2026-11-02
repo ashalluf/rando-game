@@ -360,7 +360,7 @@ func _tracks_step() -> void:
 			kit.ties(p0.x, p0.y, p1.x, p1.y, ya, yb, true)
 			RcFreightYard.ladder_ballast(kit, p0, p1, ya, yb, ya - FreightRail.TRACK_DEPTH, yb - FreightRail.TRACK_DEPTH)
 
-	RcFreightYard.weeds(self)
+	RcFreightYard.dress(self)
 
 
 ## The cars standing on the yard's tracks (their centres in this chunk), the stack cars' boxes.

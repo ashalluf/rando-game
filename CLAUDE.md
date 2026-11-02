@@ -1459,6 +1459,14 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   FreightStock's too (`RiverBuild._track_run()`). Known gaps: the river's own
   rail-bridge spur (LaRiver) is not joined to this line; Alameda's left-turners may still cross
   the median tracks at a gated crossing; the covered way's interior is not modelled.
+- The freight yard at 16:30 (wave 7, refcam `freight_yard` in `tools/refcams/cameras_w7.json`, its
+  `freight_into` holds the departing train; docs/HANDOFF.md "The freight yard at 16:30"):
+  `RcFreightYard` (`scripts/world/rc4_freight_yard.gd`): the yard's timber ties are drawn (a tie
+  MultiMesh's range was measured to a 520 m chunk's centre: `tie_range()`), a northward track piece
+  keeps its ties (FreightKit.ties() threw the ladder's kilometres away), the ladder has a bed, weeds
+  along every bed in 40 m cells, crushed-rock ballast and graffiti / weathered panels on cars (the
+  `rc4` uniforms of freight_track / freight_stock). `RC4_FREIGHT_YARD=0` is the A/B; checks
+  `tests/rc4_freight_yard_checks.gd`.
 - Cars fly (owner, 2026-09-20: "easily fly cars around the way I fly the main character"). A
   car that leaves the ground goes into stabilised flight (`Vehicle._fly()`): it holds itself
   level instead of tumbling, the stick aims it (W/S nose down/up, A/D turn with a bank), and

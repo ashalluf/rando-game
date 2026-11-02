@@ -83,6 +83,33 @@ const TALL_DISTANCE := 120.0
 const MAX_WEEDS := 1400
 
 
+## The yard's dressing on its tracks' step (FreightYard._tracks_step): the weeds and the switch
+## stands. FULL only.
+static func dress(y: FreightYard) -> void:
+	weeds(y)
+	switch_stands(y)
+
+
+## A hand-thrown switch stand beside every turnout off the ladder: a cast base on two head ties, the
+## post, the throw lever lying in its keeper and the target on top - yellow-faced along the track,
+## red across it. Written into Industrial's walls mesh (one casting mesh a chunk); no collision.
+static func switch_stands(y: FreightYard) -> void:
+	if not enabled or not y.full:
+		return
+	for t: Dictionary in y.lay.tracks:
+		var p := Vector2(float(t.x) + 2.45, float(t.z1) + 3.2)
+		if not y.area.has_point(p):
+			continue
+		var g := y._y(p) + FreightRail.TRACK_DEPTH - FreightKit.BALLAST_DROP
+		var ch := y.ch
+		var steel := Color(0.11, 0.105, 0.1)
+		Industrial._wbox(ch, Transform3D(Basis(), Vector3(p.x, g + 0.06, p.y)), Vector3(0.62, 0.12, 0.42), IndustrialKit.K_STEEL, steel)
+		Industrial._wbox(ch, Transform3D(Basis(), Vector3(p.x, g + 0.62, p.y)), Vector3(0.1, 1.0, 0.1), IndustrialKit.K_STEEL, steel)
+		Industrial._wbox(ch, Transform3D(Basis(Vector3.UP, 0.12), Vector3(p.x + 0.34, g + 0.2, p.y + 0.05)), Vector3(0.72, 0.05, 0.05), IndustrialKit.K_STEEL, Color(0.14, 0.13, 0.12))
+		Industrial._wbox(ch, Transform3D(Basis(), Vector3(p.x, g + 1.27, p.y)), Vector3(0.05, 0.3, 0.42), IndustrialKit.K_STEEL, Color(0.78, 0.6, 0.08))
+		Industrial._wbox(ch, Transform3D(Basis(), Vector3(p.x, g + 1.27, p.y)), Vector3(0.42, 0.3, 0.05), IndustrialKit.K_STEEL, Color(0.6, 0.07, 0.05))
+
+
 static func weeds(y: FreightYard) -> void:
 	if not enabled or not y.full:
 		return

@@ -28689,3 +28689,55 @@ box truck vs an SUV in the freeway lane, the bus in another place), the scenery 
 valet), which passes alone (32 / 32): a shard-order flake.
 Stills on `shots/rc4-canals-day`.
 
+
+## 9d?. The freight yard at 16:30 (wave 7, rc4-freight-yard, refcam `freight_yard`)
+
+**The view.** A new reference camera in `tools/refcams/cameras_w7.json`: the Arroyo Pacific yard
+(9do) at 16:30 clear, eye level (1.7 m over the plan ground, about 1 m over the ballast) where the
+ladder meets the storage tracks, (3399.0, 2712.0) looking north (yaw 4, pitch 2, fov 55): the
+departing train on the east main to the left, the storage tracks and their standing cuts fanning
+off the ladder, the gantry cranes, container stacks and high masts to the right. The row's
+`freight_into` (211 s into the yard stand; the stand is 150 s, so the train is ~60 s into pulling
+out, its north end ~100 m ahead) holds the freight line's clock for the shot (`_freight_clock()` in
+refcams_shot.gd). The first framing (the south throat at z 2745) looked over 200 m of empty dirt: the
+ladder is one long diagonal (slope 0.21) and the storage tracks only start north of it.
+
+**What gave it away (worst first) and what was done** - all in `RcFreightYard`
+(`scripts/world/rc4_freight_yard.gd`), one hook line each in FreightKit / FreightYard /
+FreightStock, `RC4_FREIGHT_YARD=0` the A/B:
+1. **The yard's rails lay on bare ballast: no ties anywhere in the yard.** A chunk's timber ties
+   are one MultiMesh with `visibility_range_end` 260 m, and a node's range is measured to the centre
+   of its bounds: the yard's blocks are ~520 m wide, so from the storage tracks the centre was out
+   of range. `tie_range()` sets the range from the batch's own extent (260 m past its farthest tie).
+2. **The ladder had neither ties nor a bed**: `FreightKit.ties()` divided by `maxf(zb - za, 1e-4)`,
+   so every piece laid northward (the whole ladder) threw its ties kilometres off the track; and the
+   ladder's rails floated 0.65 m over the dirt. The divisor keeps its sign now and
+   `ladder_ballast()` lays a bed with shoulders under each ladder piece (a hair under the storage
+   tracks' beds where they overlap, or the two z-fight).
+3. **The ground was sterile**: `weeds()` puts VacantKit's foxtail / oat tufts along every bed's
+   toes and up in the ballast by the rails, mustard and fennel on the ladder's open side and the
+   west main's edge, by hash of seed + spot, batched in 40 m cells (`fy_tuft_<v>_<cell>`: a
+   chunk-wide batch has the trap of fix 1).
+4. **The ballast read as a cobbled street** from eye height (round domes of one size):
+   freight_track.gdshader's `rc4` pass draws flat-faced crushed stones of two sizes (Voronoi F1 / F2:
+   each stone's own tilt split across a line, dark crevices, warm and cool granite casts).
+5. **The cars were clean painted boxes**, the autoracks a flat grey wall filling a third of the
+   frame: freight_stock.gdshader's `rc4` pass paints graffiti pieces from the street wear tag atlas
+   (`freight_tags()`: a throw-up low on most car sides, a handstyle higher on some, old ones flaking,
+   some buffed out) and weathers the perforated panels (each pressed panel leaning its own way, the
+   two deck rails, rust runs, grime from the sill). The atlas is the one sampler added.
+
+**Frame cost** (refcams GEO, opengl3, freight_yard): see below. **Gate**, **the ten refcams**: below.
+
+**Tools.** `tools/rc4_freight_yard/probe.gd` (headless: the yard's tracks, cuts per track, masts,
+cranes and the train's north end over the pull-out), `chunk_probe.gd` (every yard chunk built FULL:
+its tie, timber and car batches). The yard alone in a minute: `tools/glshot/block_shot.tscn`
+`EYE=3399.8,1.7,2712,4,2` (no train); the stock alone: `tools/freight/stock_shot.tscn` (`ORDER=`).
+
+**Not done / not verified.** Forward+ (the Mac) not seen: the graffiti and ballast are albedo and
+normal only, in linear, so they should hold, but the cars' paint under AgX is unchecked (as in 9do).
+The ladder's turnouts are still plain rail crossings (no switch points, frogs or switch stands); the
+storage tracks' beds end open at the ladder; the departing train's head-end units stand north of
+the frame's vanishing point behind its autoracks.
+
+**Checks:** `tests/rc4_freight_yard_checks.gd`.
