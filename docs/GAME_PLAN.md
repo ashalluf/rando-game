@@ -4152,3 +4152,11 @@ none of either.
   lobes and features to what a pixel can hold (geometric / Toksvig specular AA, widened road paint
   blended by cover, LOD sooner) rather than blur the picture; dithered coverage only where a temporal
   pass resolves it (Forward+), never a fixed screen pattern. SPECULAR_AA=0 the A/B.
+
+- **2026-11-01 The LA River from the bed: water mirrors what stands round it, and the channel is
+  lived in (rc2-river, HANDOFF "The LA River from the bed").** A new reference camera, la_river,
+  on the bed at the 6th St ribbon bridge. The low flow's mirror is the channel's own banks traced
+  analytically (the sky only over them), not a sky sheet; joints are filtered per axis so the
+  concrete keeps its pattern at a grazing angle; the shaded bank of the pale concrete canyon takes
+  a bounce; weeds, litter and a denser layer of graffiti are part of the river's look.
+  RIVER_LOOK=0 the A/B.

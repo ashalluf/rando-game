@@ -2815,6 +2815,9 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	# Shimmer and crawl in motion (tests/specular_aliasing_checks.gd, SpecularAA): the lobes widened by
 	# the pixel's spread of normals, the windows' coverage, the paint's widening, the switch.
 	load("res://tests/specular_aliasing_checks.gd").new().run(self, city)
+	# The LA River from the bed (tests/rc2_river_checks.gd, RiverLook, RiverDebris): the water's
+	# bank mirror, the concrete's A/B, weeds and litter on a FULL chunk's bed.
+	load("res://tests/rc2_river_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()

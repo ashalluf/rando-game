@@ -25550,3 +25550,58 @@ failures were traffic_ai's "a fast freeway car moves over and passes a slow one"
 passed; a third traffic_ai check ("a car swerves into the clear lane round the player") failed once
 in that rerun and passed in two more runs of city_crowd, with SPECULAR_AA on and off. Intermittent,
 not fixed here. Peak RSS of a shard 3,694 MB.
+
+## 9kk. The LA River from the bed (wave 5 refcam2 `la_river`, branch `wt/rc2-river`)
+
+**The camera.** A new reference view, `la_river` in `tools/refcams/cameras_w5.json`: on the
+concrete bed of the LA River just east of the low flow, 50 m south of the 7th / 6th St stretch's
+east access ramp, looking up the channel (yaw 12) at the 6th St ribbon bridge, 15:30, clear, the
+eye 1.2 m over the bed (`[4503, 2.1, 349, 12, 3]`, absolute y). Run it with
+`REFCAMS_JSON=tools/refcams/cameras_w5.json python3 tools/refcams/refcams.py run <dir> --only la_river`.
+The Arts District is behind the west bank's coping: from the bed only the front range shows over it.
+
+**What read fake** (main, `shots/rc2-river` 01), in the order the eye found it:
+1. The low-flow water and the notch beside it were a pale mint-blue sheet: the water's emitted sky
+   at a grazing angle plus the renderer's own sky specular (SPECULAR 0.5) on a near-black albedo -
+   on the Compatibility renderer that grazing sheen is everything you see. Real low flow mirrors the
+   channel's BANKS, not the sky.
+2. The bed was flat clay: its joints were faded out once a pixel spanned 8 cm along ANY axis, i.e.
+   everywhere past a few metres at eye height; the blotches were too broad and weak to read.
+3. The shaded west bank was saturated blue (the sky ambient alone; nothing bounced off the sunlit
+   bank and bed of a pale concrete canyon).
+4. The channel was empty: no weeds, no litter, the real river's most obvious texture.
+5. Few graffiti pieces, and the ramps' tall walls were blank pale slabs.
+
+**What changed** (`RiverLook`, `scripts/world/river_look.gd`; the `river_look` shader global,
+default 1; `RIVER_LOOK=0` is the A/B, bit for bit the old look and no debris):
+- `river_water.gdshader`: `rw_mirror()` follows the reflected ray to the channel's trapezoid (the
+  water's vertex colour carries the cross direction, the bed's half width and the bank's height:
+  `RiverLook.water_color()`), lights the bank face it meets by `sun_direction` and the sky by hand,
+  the fence band and the sky over it; emitted by Fresnel, SPECULAR 0.12, a turbid green-brown body.
+  `RiverLook.mirror_hit()` is the same test in GDScript (checked; RW_SLOPE / RW_TOE are LaRiver's).
+- `river_concrete.gdshader`: joints box-filtered by their OWN axis' footprint (`joint2()`: the lines
+  down the river converge in perspective, the ones across fade to their average), tar-sealed bed
+  joints, long flow lanes of dark stain and pale dried crust, fine grit, weathering runs from the
+  coping; the notch's slime and the algae band browner and matte; SPECULAR 0.12-0.35 where the
+  renderer's grazing sheen painted dark slime pale; a canyon bounce (`bounce_light`) as emission on
+  faces the sun does not reach (half on Forward+, which has SSIL / SDFGI); graffiti factored into
+  `graffiti()` with a second, offset layer on the banks and pieces on the ramp walls / headwalls
+  (kind 4, whose UV.y is world height).
+- `RiverDebris` (`scripts/world/river_debris.gd`, from `RiverBuild._props_step()`, FULL only, hashes
+  of the seed and the place): VacantKit's foxtail tufts in clumps along the bed's joints, the low
+  flow's lip and the bank toes (a stalk of mustard now and then), and litter - shopping carts (some
+  on their side), tyres, trash bags, boxes, a mattress - kept off each ramp's side; `MAX_WEEDS` /
+  `MAX_LITTER` a chunk, no shadow on the weeds, no collision.
+
+**Cost** (refcam la_river, opengl3, same eye, RIVER_LOOK=0 vs 1): 3.59 M -> 3.72 M triangles
+(+3.7 %), 1,209 -> 1,231 draws.
+
+**Checks** `tests/rc2_river_checks.gd`: the water colour decodes to the river's cross direction,
+bed and bank; the mirror model meets the bank grazing and the sky up / down the river; the
+shader's constants are LaRiver's; every new shader branch behind `river_look`; the 6th St chunk
+grows weeds and litter within the caps, LOD none.
+
+**Not done / not verified.** Forward+ (the Mac) not seen: the bounce is halved there on the
+assumption that SSIL / SDFGI give the rest; the mirror's sun term is a fixed warm colour, not the
+real sun's. The bridge is not in the water's mirror (only the banks and the sky). The Arts District
+cannot be seen from the bed at this spot.

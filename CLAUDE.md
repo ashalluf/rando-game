@@ -3741,6 +3741,13 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   crossings; seconds); timing `tools/la_river/river_bench.tscn`; stills
   `tools/la_river/river_shot.tscn` (CAR=1 a car down a ramp) and `still_shot.gd` EYEs (HANDOFF
   9bp). Checks: `tests/la_river_checks.gd`.
+- The LA River from the bed (wave 5, refcam `la_river` in `tools/refcams/cameras_w5.json`,
+  docs/HANDOFF.md "The LA River from the bed"): `RiverLook` (`scripts/world/river_look.gd`, the
+  `river_look` global): the low flow mirrors the channel's own banks (`rw_mirror()` /
+  `RiverLook.mirror_hit()`, change both; the water's vertex colour is `water_color()`), concrete
+  joints filtered per axis (`joint2()`), flow stains, a canyon bounce on what the sun misses, two
+  graffiti layers and pieces on the ramp walls; `RiverDebris` lays weeds and litter on FULL beds.
+  `RIVER_LOOK=0` is the A/B; checks `tests/rc2_river_checks.gd`.
 - The coast highway (2026-10-05, docs/HANDOFF.md "The coast highway"): north of the beach town,
   where the front range meets the sea. `CoastHighway` (`scripts/world/coast_highway.gd`,
   `MacroMap.coast_highway`, built in `setup()` before the hill roads) is a pure plan in
