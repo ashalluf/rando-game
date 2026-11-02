@@ -25393,6 +25393,19 @@ fuel blast leaves.
   (`Blast3.push_fires()` hands `fires[4]`, `fire_count`, `city_glow` to every live volume):
   each lights only the underside (`below` squared), capped, `fire_gain` 0.32. At 1.0 Forward+
   flooded the whole mushroom orange; opengl3 never showed it.
+- **Lit like a cloud** (second round, after the lead's notes on the first stills): the aged
+  smoke had read as one flat grey cutout (half-transparent, every pixel averaged its lit and dark
+  sides; softened to a blur). Now a sooty dark core with paler thin edges (`alb4` by density), warm
+  brown low down and cooler grey in the cap, the sky's light shaded by what hangs over a point
+  (one tap straight up, `occ4`), a warm bounce off the sunlit ground on the undersides, the sun
+  x1.35; a third noise octave, curl-advected and sliding with time, cuts turrets into the
+  silhouette only (`rim`), and `crisp` stays at 0.24 as it ages. The cap rolls wider (`wide` to
+  1.55), the stem is thicker and lasts to 60 % of the life, the dust skirt hangs for half of it
+  (the box is 2.3 radii wide to hold it). A gas ball's glow is held back for its first 0.04-0.25 s
+  so its noise shows instead of a white disc.
+- **The flash's glow** (BlastFX's light) rises with the cap (`Blast4.glow_height()`), lasts 1.7x
+  for a car, 1.3x for gas, again 1.8x after dark with a softer fall (`glow_stretch()`,
+  `glow_fall()`, off `DayNight.lamp_now`): at night it is all that shows the smoke.
 - **The card column waits**: BlastFX keeps the card cap hidden and the stem invisible
   until `handover_height(life * 0.5)`, then restarts it. **Trap:** a CPUParticles3D that never
   ran draws its whole multimesh at its ORIGIN - a dark ball floated over every blast until the
@@ -25428,6 +25441,10 @@ waiting; a fuel blast's pool on a deck burns, lights the smoke, pops go off, it 
 web pop is cards; the chain fuse and its depth). `tests/explosions_3_checks.gd` waits up to 60 s
 for the volume to free itself (it lives longer now).
 
-**Not done / not verified**: the golden-hour strip, the 5 m / 60 m views and the web
-strip were not all rendered (see the shots README for what was); the light on the facades is still
-the second pass's flash light (no new facade wash); debris bounce is the third pass's BlastBits.
+`blast_room_shot.gd` also takes `GOLDEN=1` (a low warm sun) now, and `NIGHT=1` sets
+`DayNight.lamp_now`.
+
+**Not done / not verified**: the web strip (`WEB=1`) was not rendered; frame cost not measured
+with geo_count (a static city frame never holds a blast: one volume draw a blast, at most four,
+and a pool's handful of nodes); debris bounce is the third pass's BlastBits; the night
+mushroom against the city's real light dome was not shot (the room's night sky is black).
