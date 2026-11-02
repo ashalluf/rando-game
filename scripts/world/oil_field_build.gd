@@ -54,6 +54,7 @@ static func dirt_material() -> ShaderMaterial:
 		_dirt_mat.shader = load("res://shaders/oil_dirt.gdshader")
 		_dirt_mat.set_shader_parameter("dirt_tex", PropFactory.texture("hill_dirt", "Color"))
 		_dirt_mat.set_shader_parameter("gravel_tex", PropFactory.texture("rock", "Color"))
+		_dirt_mat.set_shader_parameter("crumble_edge", OilFieldPlanting.enabled)
 	return _dirt_mat
 
 
@@ -88,6 +89,7 @@ static func site_steps(c: CityChunk) -> Array[Callable]:
 	steps.append(b._ground)
 	steps.append(b._lease_roads)
 	steps.append(b._wells)
+	steps.append(OilFieldPlanting.step.bind(b))
 	for i in fld.pads.size():
 		if b.area.has_point(fld.pads[i].c):
 			steps.append(b._pad.bind(i))
@@ -156,6 +158,7 @@ func _ground() -> void:
 	var norms := PackedVector3Array()
 	var cols := PackedColorArray()
 	var idx := PackedInt32Array()
+	var plant := full and OilFieldPlanting.enabled
 	for j in nz + 1:
 		for i in nx + 1:
 			var x := inner.position.x + inner.size.x * float(i) / float(nx)
@@ -168,7 +171,11 @@ func _ground() -> void:
 			# Drainage (terrain.gdshader reads COLOR.g * 2 - 1): the hill's gullies wetter and
 			# brushier, the graded roads and pads plain.
 			var dr := f.drainage(Vector2(x, z))
-			cols.append(Color(0.0, 0.5 + 0.45 * dr, 1.0, 1.0))
+			if plant:
+				# Where the hill shells grow (OilFieldPlanting), and no rill (COLOR.a 0.5).
+				cols.append(Color(0.0, 0.5 + 0.45 * dr, OilFieldPlanting.shell_keep(f, Vector2(x, z)), 0.5))
+			else:
+				cols.append(Color(0.0, 0.5 + 0.45 * dr, 1.0, 1.0))
 	for j in nz:
 		for i in nx:
 			var a := j * (nx + 1) + i
@@ -189,6 +196,15 @@ func _ground() -> void:
 	mi.name = "OilGround"
 	mi.mesh = mesh
 	ch.add_child(mi)
+	if plant:
+		var lo := INF
+		var hi := -INF
+		for v in verts:
+			lo = minf(lo, v.y)
+			hi = maxf(hi, v.y)
+		var sh := OilFieldPlanting.shells(mesh, inner, lo, hi)
+		if sh:
+			ch.add_child(sh)
 	if full:
 		var body := StaticBody3D.new()
 		body.name = "OilGroundBody"
