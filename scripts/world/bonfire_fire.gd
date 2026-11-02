@@ -32,6 +32,11 @@ const LIGHT_COLOR := Color(1.0, 0.55, 0.24)
 const LIGHT_ENERGY := 2.6
 const LIGHT_RANGE := 12.0
 const LIGHT_Y := 1.3
+## The glow over a lit ring (shaders/bonfire_glow.gdshader; off with RC4_BONFIRE=0): its quad (m), height
+## and how far it draws.
+const GLOW_SIZE := 3.4
+const GLOW_Y := 0.95
+const GLOW_RANGE := 2400.0
 ## The crackle's reach (m).
 const SOUND_REACH := 45.0
 
@@ -55,6 +60,7 @@ var _embers: CPUParticles3D
 var _smoke: CPUParticles3D
 var _light: OmniLight3D
 var _sound: AudioStreamPlayer3D
+var _glow: MeshInstance3D
 var _cam_dist: float = INF
 
 ## Every fire node in the tree (for the light budget), and when the budget was last dealt.
@@ -104,6 +110,8 @@ func _check() -> void:
 	# The pool is one quad: it shows from anywhere while the fire burns (the row of glows along a
 	# night beach seen from the air).
 	_pool.visible = lit
+	if _glow:
+		_glow.visible = lit and _cam_dist < GLOW_RANGE
 	var burn := want and _cam_dist < FIRE_RANGE
 	for p: CPUParticles3D in [_flames, _licks, _embers, _smoke]:
 		p.emitting = burn
@@ -180,6 +188,16 @@ func _build() -> void:
 	_pool.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	_pool.transform = Transform3D(Basis(Vector3.RIGHT, -PI * 0.5) * Basis.from_scale(Vector3(Bonfires.POOL_SIZE, Bonfires.POOL_SIZE, 1.0)), Vector3(0.0, 0.06, 0.0))
 	add_child(_pool)
+	if Bonfires.rc4:
+		_glow = MeshInstance3D.new()
+		_glow.name = "Glow"
+		_glow.mesh = glow_mesh()
+		_glow.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		_glow.position = Vector3(0.0, GLOW_Y, 0.0)
+		_glow.scale = Vector3(GLOW_SIZE, GLOW_SIZE, 1.0)
+		# Its own bounds are a unit quad; the shader grows it with distance.
+		_glow.extra_cull_margin = 40.0
+		add_child(_glow)
 	var base := Vector3(0.0, Bonfires.ASH_Y + 0.12, 0.0)
 	# The body of the fire, rolling up off the coals.
 	_flames = _flame_system("Flames", 30, Vector2.ONE, 180.0)
@@ -217,6 +235,25 @@ func _build() -> void:
 	_licks.damping_max = 0.8
 	_licks.scale_amount_min = 0.75
 	_licks.scale_amount_max = 1.15
+	if Bonfires.rc4:
+		# The bonfire_night refcam: the flames stood under the ring's rim, so all a camera on the sand
+		# saw was their cooling tops (a brown puff). A beach fire is stoked high: the body rises from
+		# the rim and the tongues lick a metre over it.
+		_flames.position = base + Vector3(0.0, 0.2, 0.0)
+		_flames.initial_velocity_min = 0.8
+		_flames.initial_velocity_max = 1.45
+		_flames.lifetime = 1.0
+		_flames.scale_amount_min = 0.62
+		_flames.scale_amount_max = 0.95
+		_licks.initial_velocity_min = 0.9
+		_licks.initial_velocity_max = 1.6
+		_licks.scale_amount_min = 0.9
+		_licks.scale_amount_max = 1.35
+		# Taller flames rise longer: with the car fire's ramp their cooled tops hung on as a brown
+		# puff floating over the fire. Gone while still orange.
+		for p: CPUParticles3D in [_flames, _licks]:
+			p.color_ramp = WeaponFX._ramp([Color(1.25, 0.64, 0.07, 0.0), Color(1.3, 0.68, 0.08, 0.95),
+				Color(1.15, 0.52, 0.06, 0.75), Color(0.9, 0.34, 0.04, 0.25), Color(0.5, 0.15, 0.02, 0.0)])
 	# Embers riding the heat up and off down the breeze.
 	_embers = CPUParticles3D.new()
 	_embers.name = "Embers"
@@ -305,6 +342,20 @@ func _build() -> void:
 		_sound.unit_size = 3.0
 		_sound.max_distance = SOUND_REACH + 10.0
 		add_child(_sound)
+
+
+## The glow's quad and material (shared by every fire).
+static var _glow_mesh: QuadMesh = null
+
+
+static func glow_mesh() -> QuadMesh:
+	if _glow_mesh == null:
+		_glow_mesh = QuadMesh.new()
+		_glow_mesh.size = Vector2.ONE
+		var m := ShaderMaterial.new()
+		m.shader = load("res://shaders/bonfire_glow.gdshader")
+		_glow_mesh.material = m
+	return _glow_mesh
 
 
 ## One flame system on the car fire's material and ramps (CarDamage), puffs of `quad_size`.

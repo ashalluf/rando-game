@@ -139,6 +139,37 @@ static func rings_in(plan: CityPlan, z0: float, z1: float) -> Array:
 	return out
 
 
+## Slide lengths along the shore (m) tried for a ring whose spot is taken, nearest first.
+const SLIDES := [3.0, -3.0, 6.0, -6.0, 9.0, -9.0, 12.0, -12.0]
+## RC4_BONFIRE=0 puts back what the bonfire_night refcam changed (rings dropped where a palm
+## stands, the old fire look).
+static var rc4: bool = OS.get_environment("RC4_BONFIRE") != "0"
+
+
+## Ring `ring` moved along the shore (the across fraction kept) to the first SLIDES spot clear of
+## `obstacles` by GROUP_CLEAR and still clear of the bike path; {} if none. Pure but for obstacles.
+static func slide_clear(plan: CityPlan, ring: Dictionary, obstacles: Array) -> Dictionary:
+	if not rc4:
+		return {}
+	var macro: MacroMap = plan.macro
+	var at: Vector2 = ring.at
+	var w0 := macro.beach_width_at(at.y)
+	var a := (at.x - macro.coast_x(at.y)) / maxf(w0, 1.0)
+	for dz: float in SLIDES:
+		var z := at.y + dz
+		var w := macro.beach_width_at(z)
+		if w < MIN_WIDTH or BeachLife.kept_off(plan, z):
+			continue
+		var p := Vector2(macro.coast_x(z) + w * a, z)
+		if BeachLife.path_x(plan, z) - BeachLife.PATH_WIDTH * 0.5 - p.x < GROUP_CLEAR + 0.6:
+			continue
+		if BeachLife._clear_of(obstacles, p, GROUP_CLEAR):
+			var out := ring.duplicate()
+			out["at"] = p
+			return out
+	return {}
+
+
 ## The number painted on ring `ring` (the beach's rings are numbered in order along the shore).
 static func ring_number(ring: Dictionary) -> int:
 	return posmod(int(ring.k), 99) + 1
@@ -248,10 +279,18 @@ static func build(ch: CityChunk, z0: float, z1: float, obstacles: Array) -> void
 	var weather: int = c[2]
 	var n := night_of(hour, day)
 	var built: Array = []
-	for ring: Dictionary in rings_in(plan, z0, z1):
+	# Rings keep a group's room from each other too (a slid ring must not crowd its neighbour).
+	var taken: Array = []
+	for planned: Dictionary in rings_in(plan, z0, z1):
+		var ring := planned
 		var at: Vector2 = ring.at
 		if not BeachLife._clear_of(obstacles, at, GROUP_CLEAR):
-			continue
+			# A palm, the tower or a beach station stands there: slide the ring along the shore to
+			# the nearest clear spot (it used to be dropped - two rings in five on a palm beach).
+			ring = slide_clear(plan, ring, obstacles + taken)
+			if ring.is_empty():
+				continue
+		taken.append([ring.at, GROUP_CLEAR * 2.0])
 		built.append(ring)
 	ch.set_meta("bonfires", built)
 	var people_all: Array = []
@@ -577,3 +616,5 @@ static func warm() -> void:
 	pool_mesh()
 	material(false)
 	material(true)
+	if rc4:
+		BonfireFire.glow_mesh()
