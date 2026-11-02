@@ -69,6 +69,8 @@ uniform vec3 dust = vec3(0.21, 0.19, 0.16);
 // Light through thin smoke toward the sun, and the multiple-scattering lift in shadow.
 uniform float forward = 0.6;
 uniform float ms_lift = 0.3;
+// Blast4's value range in daylight (0 = the round-3 look): brighter sunlit billows, deeper folds.
+uniform float value4 = 0.0;
 // The fires burning round it now (Blast3.push_fires(): xyz world, w = reach + strength / 2), so
 // the smoke over a burning wreck or a fuel pool is lit orange from below long after the fireball
 // is out - the look of a night blast - and the street lamps' glow on its underside after dark.
@@ -375,11 +377,14 @@ void fragment() {
 			// A sooty dark core and paler thin edges; warm brown low down near the fire, cooler grey
 			// up in the cap.
 			alb4 *= mix(1.45, 0.62, smoothstep(0.15, 0.95, f4.x)) * mix(vec3(1.1, 0.97, 0.84), vec3(0.94, 0.98, 1.05), up4);
+			// An aged rocket or gas plume pales toward grey-white (its sunlit billows read near
+			// white); burnt fuel stays black.
+			alb4 *= 1.0 + value4 * 0.9 * smoothstep(1.5, 6.0, t) * (1.0 - fuel) * (1.0 - f4.z);
 			// The sky's light on smoke is mostly its brightness: the blue only tints the shadow side.
 			vec3 sky4 = mix(vec3(dot(sky, vec3(0.2126, 0.7152, 0.0722))), sky, 0.45);
 			// Sky from above (shaded by what hangs over it), the sunlit ground's bounce from below.
 			vec3 ground4 = vec3(0.30, 0.27, 0.23) * 0.22 * sun * clamp(L.y * 1.5, 0.0, 1.0);
-			vec3 amb4 = sky4 * sky_gain * mix(0.25, 1.0, up4) * mix(0.35, 1.0, occ4) * mix(0.6, 1.0, t_sun4) + (sky4 * 0.08 + ground4) * (1.0 - up4);
+			vec3 amb4 = sky4 * sky_gain * mix(0.25, 1.0, up4) * mix(0.35, 1.0, occ4) * mix(0.6 - 0.28 * value4, 1.0, t_sun4) * mix(1.0, 0.8, value4) + (sky4 * 0.08 + ground4) * (1.0 - up4);
 			vec3 wp = (MODEL_MATRIX * vec4(o + dl * f, 1.0)).xyz;
 			vec3 fl = city_glow * lamp_factor * (1.0 - up4) / 6.0;
 			for (int k = 0; k < 4; k++) {
@@ -395,7 +400,7 @@ void fragment() {
 				fl += fire_col * fire_gain * mix(0.22, 1.0, night_factor) * fract(fr.w) * 2.0 * below / (1.0 + fd * fd / max(reach * reach * 0.3, 1.0));
 			}
 			fl = min(fl, vec3(2.4, 0.9, 0.25));
-			vec3 lit4 = alb4 * (fl + sun * sun_gain * 1.35 * (t_sun4 + lift * 0.6 + fwd_lobe * (1.0 - f4.x) * t_sun4) + amb4 + inner4) * (1.0 - 0.85 * smoothstep(0.15, 0.5, f4.y));
+			vec3 lit4 = alb4 * (fl + sun * sun_gain * 1.35 * (mix(t_sun4, 1.35 * pow(t_sun4, 0.75), value4) + lift * mix(0.6, 0.42, value4) + fwd_lobe * (1.0 - f4.x) * t_sun4) + amb4 + inner4) * (1.0 - 0.85 * smoothstep(0.15, 0.5, f4.y));
 			col += tr * a4 * lit4;
 			glow += tr * a4 * blackbody(f4.y) * heat_gain * (1.0 + 0.4 * gas * smoothstep(0.04, 0.25, t));
 			tr *= 1.0 - a4;
