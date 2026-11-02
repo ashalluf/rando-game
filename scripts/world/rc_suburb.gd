@@ -9,15 +9,23 @@ class_name RcSuburb
 ##   `resident_roll()` puts a resident's car on `RESIDENT_ODDS` of the stalls the block's own pass
 ##   and BusyStreets left undecided, from a hash of seed + spot after every roll, with every
 ##   keep-clear the old pass has (CityChunk._park_resident()), so nothing the seed built moves.
+## - Lawn grass tufts stood up to 0.7 m in 2-3 cm blades: `TUFT_SCALE` cuts them to mowing height.
+## - The parkway's soil edge was a vertical lawn-textured wall (a dark carpet-tile edge): a 45 degree
+##   bevel (LawnsCloseup._strip_mesh()).
 ## - The code-built street trees' narrow-leaf sprigs were dithered per pixel from 4-8 m out (meant
 ##   for TAA to resolve); with no TAA (the web, Compatibility) they drew as horizontal streaks.
-##   la_tree.gdshader's `sprig_dither_scale` holds the dither off until a leaf really is under a
+##   la_tree.gdshader's `sprig_dither_fix` holds the dither off until a leaf really is under a
 ##   pixel on Compatibility.
 ##
-## RC2_SUBURB=0 is the A/B (all three off). Checks: tests/rc2_suburb_checks.gd. Probe:
+## RC2_SUBURB=0 is the A/B (all of it off). Checks: tests/rc2_suburb_checks.gd. Probe:
 ## tools/rc2_suburb/yard_probe.tscn (the front-garden kinds round a point).
 
 static var enabled: bool = OS.get_environment("RC2_SUBURB") != "0"
+
+## A lawn tuft's scale on top of its own (CityChunk._add_grass()): the blades stood 25 cm on
+## average and up to 0.7 m, 2-3 cm wide - swords, not turf - so every lawn and parkway read as
+## weeds at eye level. Half the height (mean ~12 cm), three quarters the width.
+const TUFT_SCALE := Vector3(0.75, 0.5, 0.75)
 
 ## Share of the undecided kerb stalls of a residential block a resident's car takes.
 const RESIDENT_ODDS := 0.3

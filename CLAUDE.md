@@ -4222,6 +4222,14 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   the same `ground_detail`-gated second rotated sample the road shader uses. Keep it subtle: the
   first pass used `sign()` for the stripes and a 1.6x albedo boost and the lawns came out
   candy-striped and blown out, which is louder than the flat green it replaced.
+- The suburban street refcam (wave 5, `suburb_morning` in tools/refcams/cameras_w5.json, docs/HANDOFF.md
+  "The suburban street at 09:30"): `RcSuburb` (`scripts/world/rc_suburb.gd`): residents' cars on
+  `RESIDENT_ODDS` of the suburb / beach-town kerb stalls left empty (`CityChunk._park_resident()`,
+  a hash per stall after every roll, every keep-clear; meta `rc2_resident`), lot_yard's DG a pale
+  crushed-granite tan (`dg_real`), la_tree's leaf dither on Compatibility only under a real
+  sub-pixel leaf with a hash with no rows (`sprig_dither_fix`), the parkway's soil edge a 45 degree
+  bevel. `RC2_SUBURB=0` is the A/B; probe `tools/rc2_suburb/yard_probe.tscn`; checks
+  `tests/rc2_suburb_checks.gd`.
 - Lawns close up (2026-10-30, docs/HANDOFF.md "Lawns close up"): `LawnsCloseup`
   (`scripts/world/lawns_closeup.gd`) and `shaders/lawn_field.gdshaderinc`, ONE field (dry, clover,
   brown spots, wear, stripes, morning sprinklers by `city_hour`) shared by lawn.gdshader and every

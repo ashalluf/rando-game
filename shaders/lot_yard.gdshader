@@ -215,9 +215,19 @@ void fragment() {
 			vec3 t = tiled(dirt_tex, p, 2.2);
 			float l = dot(t, vec3(0.299, 0.587, 0.114));
 			vec3 g = mix(vec3(l), t, 0.4) / 121.0 * 255.0;
-			vec2 gc = floor(p * 38.0);
+			// Round stones, one a 3 cm cell at a jittered spot, 4-13 mm across; between them
+			// the fines carry the scan's tone.
+			vec2 gq = p * 33.0;
+			vec2 gc = floor(gq);
 			float gr = hash12(gc + variant * 31.0);
-			float grain = (gr > 0.86 ? 0.22 : (gr < 0.1 ? -0.3 : (gr - 0.5) * 0.12));
+			vec2 go = vec2(hash12(gc + 17.3), hash12(gc + 41.9)) * 0.5 + 0.25;
+			float rad = 0.12 + 0.3 * hash12(gc + 7.7);
+			float gd = length(fract(gq) - go);
+			float gaa = max(fwp.x, fwp.y) * 33.0;
+			float stone = 1.0 - smoothstep(rad - gaa, rad + gaa, gd);
+			float grain = stone * (gr > 0.62 ? 0.22 : (gr < 0.12 ? -0.3 : (gr - 0.4) * 0.25));
+			// A rim of shade on the stone's lower side (the sun is overhead most of the day).
+			grain -= 0.1 * stone * smoothstep(rad * 0.4, rad, gd);
 			grain *= 1.0 - smoothstep(0.012, 0.045, max(fwp.x, fwp.y));
 			albedo = g * dg_color * mix(vec3(1.0), vec3(1.03, 1.0, 0.95), variant) * mottle * (1.0 + grain);
 			// The edges of a bed scuffed into the soil, the middle raked lighter.

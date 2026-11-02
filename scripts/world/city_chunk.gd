@@ -3657,6 +3657,8 @@ func _add_grass(rect: Rect2, density: float = 1.0, keep_out: float = 0.0, blocke
 			var sc := rng.randf_range(0.55, 1.6)
 			var basis := Basis(Vector3.UP, rng.randf_range(0.0, TAU)).scaled(Vector3(sc * rng.randf_range(0.85, 1.2), sc * rng.randf_range(0.7, 1.35), sc * rng.randf_range(0.85, 1.2)))
 			var tint := Color(rng.randf_range(0.85, 1.1), rng.randf_range(0.9, 1.1), rng.randf_range(0.85, 1.05))
+			# Mowing height (RcSuburb: the tufts stood up to 0.7 m in 2-3 cm blades, a lawn of weeds).
+			basis = basis.scaled(RcSuburb.TUFT_SCALE) if RcSuburb.enabled else basis
 			var key := "grass_%d_%d" % [floori(p.x / GRASS_CELL), floori(p.y / GRASS_CELL)]
 			keys[key] = true
 			if closeup:

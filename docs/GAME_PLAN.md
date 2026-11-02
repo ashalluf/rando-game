@@ -4119,3 +4119,11 @@ none of either.
   people in the water are placed on the surfaces that are drawn - waders on the sand mesh's
   foreshore, swimmers and surfers on the ocean's own height model - rather than at a fixed level.
   A summer afternoon's water is busy (waders, more swimmers). SAND_ROADS=0 / WADERS=0 the A/B.
+- **2026-11-01 The suburban street refcam: a suburb reads by its lawns, its kerbs and its yards
+  (rc2-suburb, HANDOFF "The suburban street at 09:30").** A new reference camera, `suburb_morning`
+  (tools/refcams/cameras_w5.json): the pavement of a suburban residential street at 09:30. Fixed:
+  lawn tufts cut to mowing height (they stood up to 0.7 m: every lawn read as weeds), the
+  decomposed-granite gardens a pale crushed tan (they were orange clay), residents' cars on the
+  empty kerb stalls (a hash per stall after every roll, so nothing built moves), the parkway's soil
+  edge a bevel (it was a dark carpet-tile wall), and the code-built trees' leaf dither held off on
+  Compatibility until a leaf really is sub-pixel (no TAA there: it drew streaks). RC2_SUBURB=0 the A/B.
