@@ -28631,6 +28631,13 @@ connectors' traffic has filled by the shot. Run it with
 after 5.64 M / 4,190 (+1.5 % triangles, the groves; -0.6 % draws). FULL block_shot of the stack's
 blocks (EYE 2000,90,-1560): 3.07 M -> 3.10 M triangles, 2,382 -> 2,389 draws.
 
+**Two fixes outside the area, found by the gate.** `TrafficManager._maintain_freeway()` skips (and
+drops from `freeway_cars`) a car whose `traffic` has no `fw` key - StackTraffic takes main-line cars
+more often at rush hour and the gate hit `Invalid access to ... 'fw'` once. `LandmarkRoofs.enabled`
+read `RcRooftop.enabled` in its static initialiser, which can run before RcRooftop's: it came out
+false (the rooftop refcam's "on by default" failed alone too, so the towers' roof dressing was off);
+it reads `RC_ROOFTOP` from the environment now, the same switch.
+
 **Tools.** `tools/rc4_stack_aerial/block_probe.tscn` (headless, seconds: the blocks round the
 stack, their corridor lots and RcStack's spots; `AT=`, `RADIUS=`).
 
