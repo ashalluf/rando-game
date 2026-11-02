@@ -26,6 +26,12 @@ uniform float glow_r = 26.0;
 uniform float glow_gain = 0.35;
 /// A flame never shrinks under this angle of the view (radians; a flare reads across the basin).
 uniform float min_angle = 0.004;
+/// RefineryNight (wave 6): the haze dome round a flame - a sprite a flare at UV2.x 3, wide and faint,
+/// strongest after dark. night_look 0 (REFINERY_NIGHT=0) collapses it.
+uniform float night_look = 0.0;
+uniform float haze_w = 170.0;
+uniform float haze_gain = 0.075;
+global uniform float night_factor;
 
 #include "res://shaders/color_space.gdshaderinc"
 
@@ -33,11 +39,13 @@ varying float v_t;
 varying float v_rnd;
 varying float v_glow;
 varying float v_far;
+varying float v_haze;
 
 void vertex() {
 	vec3 tip = VERTEX;
 	float rnd = UV2.y;
 	v_glow = UV2.x >= 1.5 ? 1.0 : 0.0;
+	v_haze = UV2.x >= 2.5 ? 1.0 : 0.0;
 	float t = fract(TIME / life + UV2.x);
 	v_t = t;
 	v_rnd = rnd;
@@ -45,7 +53,11 @@ void vertex() {
 	float size;
 	vec3 tip_v = (MODELVIEW_MATRIX * vec4(tip, 1.0)).xyz;
 	float depth = max(-tip_v.z, 0.5);
-	if (v_glow > 0.5) {
+	if (v_haze > 0.5) {
+		// The haze dome: centred a little over the flame, a fixed width, gone without night_look.
+		centre = tip + vec3(lean.x * 0.3, flame_len * 0.5, lean.y * 0.3);
+		size = haze_w * night_look * (0.6 + 0.4 * strength);
+	} else if (v_glow > 0.5) {
 		float pulse = 0.85 + 0.15 * sin(TIME * 7.0 + rnd * 6.0) * sin(TIME * 3.1);
 		centre = tip + vec3(lean.x * 0.15, flame_len * 0.25, lean.y * 0.15);
 		size = glow_r * pulse * (0.6 + 0.4 * strength);
@@ -61,7 +73,7 @@ void vertex() {
 	// Never under min_angle of the view, so a flare a few kilometres off is still a bright point.
 	float cd = max(-(MODELVIEW_MATRIX * vec4(centre, 1.0)).z, 0.5);
 	v_far = smoothstep(500.0, 4000.0, cd);
-	size = max(size, cd * min_angle * (v_glow > 0.5 ? 3.0 : 1.0));
+	size = v_haze > 0.5 ? size : max(size, cd * min_angle * (v_glow > 0.5 ? 3.0 : 1.0));
 	vec3 cv = (MODELVIEW_MATRIX * vec4(centre, 1.0)).xyz;
 	vec2 corner = (UV - vec2(0.5)) * size;
 	VERTEX = cv + vec3(corner.x, -corner.y, 0.0);
@@ -71,7 +83,14 @@ void vertex() {
 void fragment() {
 	vec2 c = UV * 2.0 - 1.0;
 	float r = length(c);
-	if (v_glow > 0.5) {
+	if (v_haze > 0.5) {
+		// Lit air round the flame: a soft falloff that reaches exactly zero at the quad's edge
+		// (an additive tail draws the quad on Forward+), stronger at night.
+		float g = max(exp(-r * r * 2.2) - exp(-2.2), 0.0) / (1.0 - exp(-2.2));
+		float a = g * g * haze_gain * strength * (0.25 + 0.75 * night_factor);
+		ALBEDO = cs_as_uniform(vec3(1.0, 0.62, 0.3) * min(a, 1.0));
+		ALPHA = 1.0;
+	} else if (v_glow > 0.5) {
 		// The gaussian less its value at the quad's edge (exp(-3.2) = 0.041), so the halo reaches
 		// nothing there: on Forward+ the 4 % left at the edge, added in linear over a night sky,
 		// drew every flare's halo as a lit orange square (fwd-review-d).

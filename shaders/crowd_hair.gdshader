@@ -44,6 +44,11 @@ uniform float strand_shade = 0.22;     // streaks in the colour
 uniform float strand_freq = 260.0;     // streaks across the atlas (U), per unit
 uniform float silhouette_fade = 0.75;  // how much an edge-on card thins
 uniform float closeup = 1.0;           // 0: the shader as it was (CROWD_HAIR_EDGES=0)
+// person_closeup refcam (PersonCloseup): at 1-2 m a head of hair was a smooth sheet with ONE glossy
+// band across it - a plastic helmet. The shine is broken into strands (a finer streak octave) and
+// clumps (a coarse one along the cards), the strands vary in tone, and the band's roughness
+// wanders with the clumps; all of it faded with the strands themselves (near_k). 0: as before.
+uniform float strand_detail = 0.0;
 
 float hash(vec2 p) {
 	return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453);
@@ -70,12 +75,24 @@ void fragment() {
 	vec3 col = mix(t.rgb, recol, hair_strength);
 	float a = t.a;
 	float dith = hash(FRAGCOORD.xy);
+	float hair_spec_mod = 1.0;
+	float hair_rough_add = 0.0;
 	if (closeup > 0.5) {
 		// how many streak periods one pixel spans: the strands fade out before they alias
 		float span = max(length(dFdx(UV.x)), length(dFdy(UV.x))) * strand_freq;
 		float near_k = 1.0 - smoothstep(0.35, 0.9, span);
 		float sn = strand_noise(UV) - 0.5;
 		col *= 1.0 + strand_shade * sn * near_k;
+		if (strand_detail > 0.0) {
+			float span2 = span * 2.7;
+			float near2 = (1.0 - smoothstep(0.35, 0.9, span2)) * strand_detail;
+			float fine = strand_noise(UV * vec2(2.7, 1.7) + vec2(0.37, 0.11)) - 0.5;
+			float clump = strand_noise(UV * vec2(0.22, 0.5) + vec2(0.71, 0.29)) - 0.5;
+			// Strand tone (fine) and clumps (coarse): the coarse one also reads from further off.
+			col *= 1.0 + 0.2 * fine * near2 + 0.28 * clump * near_k * strand_detail;
+			hair_spec_mod = clamp(1.0 + (1.6 * fine * near2 + 1.4 * sn * near_k) * strand_detail + 1.2 * clump * near_k * strand_detail, 0.15, 1.9);
+			hair_rough_add = (0.12 * clump - 0.08 * sn) * near_k * strand_detail;
+		}
 		a = clamp(a + strand_cut * sn * near_k * smoothstep(0.05, 0.6, a) * (1.0 - smoothstep(0.85, 1.0, a)), 0.0, 1.0);
 		float facing = abs(dot(normalize(NORMAL), normalize(VIEW)));
 		a *= 1.0 - silhouette_fade * (1.0 - smoothstep(0.08, 0.42, facing));
@@ -88,8 +105,8 @@ void fragment() {
 	ALBEDO = col * (1.0 - 0.25 * grime);
 	ALPHA = a;
 	ALPHA_SCISSOR_THRESHOLD = clamp(alpha_cut + (dith - 0.5) * dither, 0.05, 0.95);
-	ROUGHNESS = min(roughness + 0.3 * grime, 1.0);
-	SPECULAR = specular * (1.0 - 0.6 * grime);
+	ROUGHNESS = clamp(roughness + 0.3 * grime + hair_rough_add, 0.05, 1.0);
+	SPECULAR = specular * (1.0 - 0.6 * grime) * hair_spec_mod;
 	ANISOTROPY = anisotropy * (1.0 - grime);
 	ANISOTROPY_FLOW = vec2(0.0, 1.0);
 	BACKLIGHT = vec3(0.12) * col;

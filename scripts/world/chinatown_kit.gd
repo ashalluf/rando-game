@@ -88,6 +88,7 @@ static func material() -> ShaderMaterial:
 	if _mat == null:
 		_mat = ShaderMaterial.new()
 		_mat.shader = load("res://shaders/chinatown.gdshader")
+		Rc3Chinatown.apply(_mat)
 	return _mat
 
 
@@ -435,7 +436,7 @@ static func lantern(g0: ChinatownGeo, pivot: Vector3, hang: float, h: float, col
 	g.uv2 = Vector2(maxf(hang * 0.5, 0.01), phase)
 	beam(g, pivot, top + Vector3(0, 0.06 * h, 0), 0.012, 0.012, kc(WIRE, K_WIRE))
 	g.uv2 = Vector2(hang + h * 0.5, phase)
-	var sides := 8
+	var sides: int = Rc3Chinatown.lantern_sides()
 	var vs := [0.0, 0.2, 0.5, 0.8, 1.0]
 	var prof := func(v: float) -> float:
 		return rad * (0.5 + 0.5 * sin(PI * v))
@@ -1192,9 +1193,19 @@ static func build_plaza(ch: CityChunk, block: Dictionary) -> void:
 		for m: Array in masts:
 			var top: Vector3 = m[1]
 			var y: float = m[3]
-			box(g, Vector3(top.x, y + 2.4, top.z), Vector3(0.16, 4.8, 0.16), kc(RED, K_PAINT))
-			box(g, Vector3(top.x, y + 0.12, top.z), Vector3(0.4, 0.24, 0.4), kc(GRANITE, K_STONE))
-			box(g, Vector3(top.x, y + 4.86, top.z), Vector3(0.26, 0.12, 0.26), kc(GOLD, K_GOLD)))
+			if Rc3Chinatown.enabled:
+				# rc3: a round lacquered post on a stepped granite foot, gilt rings and a finial
+				# (a 16 cm square stick read as a placeholder at eye level).
+				box(g, Vector3(top.x, y + 0.14, top.z), Vector3(0.5, 0.28, 0.5), kc(GRANITE, K_STONE))
+				box(g, Vector3(top.x, y + 0.33, top.z), Vector3(0.34, 0.1, 0.34), kc(GRANITE * 0.92, K_STONE))
+				g.cylinder(KEY, Vector3(top.x, y + 0.38, top.z), 0.1, 4.5, 10, kc(RED, K_PAINT))
+				for ry: float in [0.5, 4.7]:
+					g.cylinder(KEY, Vector3(top.x, y + ry, top.z), 0.115, 0.08, 10, kc(GOLD, K_GOLD))
+				g.cylinder(KEY, Vector3(top.x, y + 4.88, top.z), 0.13, 0.16, 10, kc(GOLD, K_GOLD), 0.04)
+			else:
+				box(g, Vector3(top.x, y + 2.4, top.z), Vector3(0.16, 4.8, 0.16), kc(RED, K_PAINT))
+				box(g, Vector3(top.x, y + 0.12, top.z), Vector3(0.4, 0.24, 0.4), kc(GRANITE, K_STONE))
+				box(g, Vector3(top.x, y + 4.86, top.z), Vector3(0.26, 0.12, 0.26), kc(GOLD, K_GOLD)))
 	for i in masts.size() - 1:
 		var p: Array = masts[i]
 		var q: Array = masts[i + 1]
@@ -1205,7 +1216,7 @@ static func build_plaza(ch: CityChunk, block: Dictionary) -> void:
 				_string_pools(ch, p[1], q[1], CityChunk.SIDEWALK_TOP + 0.1))
 	# People in the court, one a step, in the crowd cap.
 	var court: Array = L.court
-	for i in PLAZA_PEOPLE:
+	for i in Rc3Chinatown.plaza_people(PLAZA_PEOPLE):
 		_job(ch, func() -> void: _plaza_goer(ch, court, walk_z, absi(hash([seed_value, ch.ix, ch.iz, "ct_goer", i]))))
 	# Trees in planters at the four quarters (a private rng: the block's is untouched).
 	_job(ch, func() -> void:
@@ -1264,14 +1275,18 @@ static func hall_mesh(g: ChinatownGeo, st: Dictionary, world: Transform3D) -> vo
 	# The hall itself inside the colonnade: walls, lattice screens, the doors.
 	box(g, Vector3(0, y0 + col_h * 0.5, 0), Vector3(13.6, col_h, 9.6), kc(DEEP_RED, K_PAINT))
 	_shape(st, world, Vector3(0, y0 + col_h * 0.5 + 2.5, 0), Vector3(13.6, col_h + 5.0, 9.6))
+	var lit_hall := Rc3Chinatown.enabled
+	if lit_hall:
+		g.uv2 = Vector2(0.0, Rc3Chinatown.LIT_FLAG)
 	for i in 5:
 		var x := -5.4 + float(i) * 2.7
-		var door := i == 2
+		var door := i == 2 and not lit_hall
 		box(g, Vector3(x, y0 + 1.8, 4.82), Vector3(2.3, 3.0, 0.06), kc(GOLD * 0.8 if not door else RED, K_LATTICE if not door else K_SHOP))
 		box(g, Vector3(x, y0 + 3.5, 4.83), Vector3(2.3, 0.3, 0.06), kc(GOLD, K_GOLD))
 	for z: float in [-2.7, 0.0, 2.7]:
 		for sx: float in [-1.0, 1.0]:
 			box(g, Vector3(sx * 6.82, y0 + 1.8, z), Vector3(0.06, 3.0, 2.3), kc(GOLD * 0.8, K_LATTICE))
+	g.uv2 = Vector2.ZERO
 	# Beams round the column heads.
 	painted_beam(g, Vector3(0, y0 + col_h + 0.25, 6.0), 16.6, 0.5, 0.34, field)
 	painted_beam(g, Vector3(0, y0 + col_h + 0.25, -6.0), 16.6, 0.5, 0.34, field)
@@ -1285,10 +1300,18 @@ static func hall_mesh(g: ChinatownGeo, st: Dictionary, world: Transform3D) -> vo
 	# The upper storey and its roof.
 	var y1 := r1 + 0.8
 	box(g, Vector3(0, y1 + 1.7, 0), Vector3(11.0, 3.4, 7.4), kc(DEEP_RED, K_PAINT))
+	if lit_hall:
+		g.uv2 = Vector2(0.0, Rc3Chinatown.LIT_FLAG)
 	for i in 4:
 		var x := -4.0 + float(i) * 2.66
 		box(g, Vector3(x, y1 + 1.8, 3.72), Vector3(1.8, 1.9, 0.05), kc(GOLD * 0.8, K_LATTICE))
 		box(g, Vector3(x, y1 + 1.8, -3.72), Vector3(1.8, 1.9, 0.05), kc(GOLD * 0.8, K_LATTICE))
+	if lit_hall:
+		# The upper storey's ends get screens too (they were plain red walls).
+		for z: float in [-1.8, 1.8]:
+			for sx: float in [-1.0, 1.0]:
+				box(g, Vector3(sx * 5.52, y1 + 1.8, z), Vector3(0.05, 1.9, 1.8), kc(GOLD * 0.8, K_LATTICE))
+	g.uv2 = Vector2.ZERO
 	box(g, Vector3(0, y1 + 3.0, 3.85), Vector3(6.0, 0.8, 0.12), kc(BOARDS[1], K_SIGN))
 	text(g, Chinatown.HALL_NAME, Vector3(0, y1 + 3.0, 3.93), 0.42, 5.4, kc(GOLD, K_INK))
 	painted_beam(g, Vector3(0, y1 + 3.6, 3.75), 11.2, 0.4, 0.2, FIELDS[1])
@@ -1297,8 +1320,14 @@ static func hall_mesh(g: ChinatownGeo, st: Dictionary, world: Transform3D) -> vo
 	sweep_roof(g, Vector3(0, r2, 0), 5.6, 3.8, 1.3, 1.3, 1.2, 0.6, tile, ridge, field, false, 12, 4)
 	var y2 := r2 + 0.7
 	box(g, Vector3(0, y2 + 1.2, 0), Vector3(6.4, 2.4, 4.4), kc(DEEP_RED, K_PAINT))
+	if lit_hall:
+		g.uv2 = Vector2(0.0, Rc3Chinatown.LIT_FLAG)
 	for sx: float in [-1.0, 1.0]:
 		box(g, Vector3(sx * 1.6, y2 + 1.25, 2.22), Vector3(2.4, 1.5, 0.05), kc(GOLD * 0.8, K_LATTICE))
+		if lit_hall:
+			box(g, Vector3(sx * 1.6, y2 + 1.25, -2.22), Vector3(2.4, 1.5, 0.05), kc(GOLD * 0.8, K_LATTICE))
+			box(g, Vector3(sx * 3.22, y2 + 1.25, 0.0), Vector3(0.05, 1.5, 2.4), kc(GOLD * 0.8, K_LATTICE))
+	g.uv2 = Vector2.ZERO
 	painted_beam(g, Vector3(0, y2 + 2.55, 2.25), 6.6, 0.3, 0.15, field)
 	var r3 := y2 + 2.7
 	sweep_roof(g, Vector3(0, r3, 0), 3.2, 2.2, 1.2, 1.2, 2.0, 0.75, tile, ridge, field, true, 12, 5)

@@ -58,6 +58,7 @@ static func apply(mat: ShaderMaterial, albedo: Texture2D) -> void:
 	mat.set_shader_parameter("eye_r_j", Vector4(er[2], er[3], er[4], er[5]))
 	mat.set_shader_parameter("lid_uv", Vector4(lid[0], lid[1], lid[2], lid[3]))
 	mat.set_shader_parameter("face_reach", REACH)
+	mat.set_shader_parameter("lip_tame", PersonCloseup.LIP_TAME if PersonCloseup.enabled() else 0.0)
 
 
 ## character.gdshader's face_h(), bit for bit as far as float32 lets it (tests only: the shader is
