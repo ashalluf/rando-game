@@ -36,6 +36,7 @@ func _initialize() -> void:
 	if OS.get_environment("OUT_DIR") != "":
 		_out_dir = OS.get_environment("OUT_DIR")
 	DirAccess.make_dir_recursive_absolute(_out_dir)
+	_golf_group()
 	change_scene_to_file("res://scenes/levels/city.tscn")
 	_run.call_deferred()
 
@@ -113,10 +114,18 @@ func _run() -> void:
 		var frames := 0 if drive else maxi(_env_int("SHOT_FRAMES", 30), int(cam.get("shot_frames", 0)))
 		var stage_at := frames - _env_int("SHOT_FRAMES", 30)
 		var traffic_staged := false
+		var park: RefCounted = null
 		for i in frames:
 			if i == stage_at:
 				_stage_air(scene, cam)
 				traffic_staged = _stage_street_cars(cam, scene, plan)
+				# A "park_car" row (cameras_w6.json, car_closeup): a parked car and the eye round it.
+				if cam.has("park_car"):
+					park = load("res://tools/refcams/park_stage.gd").new()
+					if not park.call("stage", self, cam, scene, plan):
+						park = null
+			if i == frames - 3:
+				_stage_freeway_cars(cam, scene)
 			await process_frame
 			_place(player, fov)
 			if day:
@@ -134,6 +143,10 @@ func _run() -> void:
 		if stage == "mayhem":
 			_stager = load("res://tools/refcams/mayhem_stage.gd")
 			await _stager.stage(self, scene, _eye_cam, player, func() -> void: _place(player, fov))
+		elif stage == "person":
+			# cameras_w6.json's person_closeup: one pedestrian at arm's length (person_stage.gd).
+			_stager = load("res://tools/refcams/person_stage.gd")
+			await _stager.stage(self, scene, _eye_cam, player, func() -> void: _place(player, fov), cam)
 		Engine.time_scale = 0.0005
 		for i in _env_int("SETTLE", 6):
 			await process_frame
@@ -143,6 +156,12 @@ func _run() -> void:
 				_place(player, fov)
 		if not drive:
 			_clear_lens(cam.name)
+		if park and _eye_cam:
+			park.call("clear_people", self, _eye_cam.global_position)
+		for car in _fw_staged:
+			if is_instance_valid(car) and _eye_cam:
+				print("REFCAM %s: staged %s at %.1f m, visible %s, in tree %s" % [cam.name, car.name, (car as Node3D).global_position.distance_to(_eye_cam.global_position), (car as Node3D).is_visible_in_tree(), (car as Node).is_inside_tree()])
+		_fw_staged.clear()
 		await process_frame
 		if not _hero.is_empty():
 			_hero_report(player, cam.name)
@@ -170,6 +189,8 @@ func _run() -> void:
 			if _eye_cam:
 				_eye_cam.make_current()
 		_write_frames(load_ms, shots)
+		if park:
+			park.call("finish")
 		if _stager != null:
 			_unstage(scene, player)
 		print("REFCAM %s saved %s eye %s hour %.2f %s" % [cam.name, png, eye_text, float(cam.hour), cam.get("weather", "clear")])
@@ -205,6 +226,56 @@ func _stage_street_cars(cam: Dictionary, scene: Node, plan: Variant) -> bool:
 			placed += 1
 	print("REFCAM %s: placed %d street cars on road %d (axis %d at %.1f)" % [cam.name, placed, best, axis, float(plan.road_pos(axis, best))])
 	return true
+
+
+## A camera row's optional `freeway_cars` (wave 6, freeway_night): {"route": the Freeway route
+## index, "clear": metres round the eye in which no other traffic car is kept, "cars": [[ahead, li,
+## dir, speed, kind], ...]} - freeway cars placed through TrafficManager.place_freeway_car() a few
+## frames before the shot, `ahead` metres along the route from the eye in the direction the
+## camera looks (dir -1 runs toward the route's start), in lane `li` (0 by the median), `kind` a
+## Vehicle.BodyType name or "". Rows without the key place nothing.
+var _fw_staged: Array = []
+
+
+func _stage_freeway_cars(cam: Dictionary, scene: Node) -> void:
+	var spec: Variant = cam.get("freeway_cars")
+	var traffic := scene.get_node_or_null("Traffic")
+	if not spec is Dictionary or traffic == null or _eye_cam == null:
+		return
+	var fw: Variant = traffic.call("_freeway")
+	if fw == null:
+		return
+	var ri := int(spec.get("route", 3))
+	var eye: Vector3 = get_root().get_node("/root/WorldState").call("to_world", _eye_cam.global_position)
+	var t0: float = fw.nearest_on(ri, Vector2(eye.x, eye.z))[0]
+	var look := -_eye_cam.global_transform.basis.z
+	var d: Vector2 = fw.point_at(ri, t0)[1]
+	var toward := 1.0 if Vector2(look.x, look.z).dot(d) >= 0.0 else -1.0
+	var clear := float(spec.get("clear", 40.0))
+	for v in traffic.get("freeway_cars"):
+		var car := v as Node3D
+		if is_instance_valid(car) and car.global_position.distance_to(_eye_cam.global_position) < clear:
+			car.visible = false
+			print("REFCAM %s: hid %s (inside the staged clearance)" % [cam.name, car.name])
+	var width := float(fw.routes[ri].width)
+	var fw_script: GDScript = fw.get_script()
+	var body_types: Dictionary = load("res://scripts/vehicles/vehicle.gd").get_script_constant_map().get("BodyType", {})
+	var placed := 0
+	for c: Array in spec.get("cars", []):
+		var kind := -1
+		if c.size() > 4 and String(c[4]) != "":
+			kind = int(body_types.get(String(c[4]), -1))
+		var dir := int(c[2])
+		var car: Node3D = traffic.call("place_freeway_car", ri, t0 + float(c[0]) * toward, dir, kind, float(c[3]))
+		if car == null:
+			continue
+		var t: Dictionary = car.get("traffic")
+		t.lane = float(fw_script.call("lane_fraction", width, int(c[1]))) * float(dir)
+		t.li = int(c[1])
+		traffic.call("_place_freeway_car", car, fw)
+		_fw_staged.append(car)
+		placed += 1
+	print("REFCAM %s: placed %d freeway cars on route %d at t %.1f" % [cam.name, placed, ri, t0])
 
 
 ## A camera row's optional "air" key (cameras_w5.json): AirTraffic.stage() of that kind with
@@ -257,6 +328,8 @@ var _stager: GDScript = null
 
 ## After a staged camera: the hero hidden again, the aim let go, the police stood down.
 func _unstage(scene: Node, player: Node3D) -> void:
+	if _stager.has_method("unstage") or "unstage" in _stager.get_script_method_list().map(func(m): return m.name):
+		_stager.call("unstage")
 	_stager.set("hero_at", Vector3.INF)
 	_stager = null
 	Input.action_release("alt_fire")
@@ -276,6 +349,16 @@ func _write_frames(load_ms: int, shots: Array) -> void:
 	var f := FileAccess.open(_out_dir.path_join("frames.json"), FileAccess.WRITE)
 	f.store_string(JSON.stringify(out, "\t"))
 	f.close()
+
+
+## A row's optional "golf_group" ("hole:stage[:tee[:count]]", wave 6's golf_morning) puts a group
+## of golfers there whatever the hole's roll (GolfLife.force_group). Set before the city loads:
+## golfers are spawned as the course's chunks build.
+func _golf_group() -> void:
+	var only := OS.get_environment("ONLY").split(",", false)
+	for cam: Dictionary in _cameras().get("cameras", []):
+		if cam.has("golf_group") and (only.is_empty() or String(cam.name) in only):
+			OS.set_environment("GOLF_GROUP", String(cam.golf_group))
 
 
 func _cameras() -> Dictionary:

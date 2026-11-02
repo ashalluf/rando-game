@@ -295,6 +295,23 @@ already mapped so milestone 2 is script-only.
 
 ## Decisions log
 
+- **2026-11-02 The pier by day (rc3-pier-day, HANDOFF "The pier by day from the deck").** A deck
+  the camera stands on is worked out per board in its own shader (transverse boards, gaps,
+  weathering, wear) rather than a tiled plank photo, which smooths into a brown sheet at grazing
+  angles; a summer-afternoon pier is packed, so its crowd follows the hour (up to 110 more people)
+  and people stop at the rail. PIER_DAY=0 the A/B.
+- **2026-11-02 A person at arm's length (rc3-person-closeup, HANDOFF "A person at arm's length").**
+  A single crowd member is a reference camera (`person_closeup`, 1.6 m, 13:00, staged by
+  tools/refcams/person_stage.gd). Standing people stand like people: the library idles' arms are
+  blended toward the rig's own hanging Idle and their thighs turned in, at load, once per library
+  (IdleRelax), never per frame. Props hang from the fist, not the wrist. Close-up hair shine is
+  broken by strands and clumps; lips are toned toward the skin. PERSON_CLOSEUP=0 is the A/B.
+
+- **2026-11-02 The refinery at night (rc3-refinery-night, HANDOFF "The refinery at night").** A
+  flare's light on the plant is worked out in the plant's own shader from the real flame positions
+  (every tier, both renderers, no OmniLight), not a light node that only FULL chunks carry; each
+  flame stands in a faint haze dome; steam is lit as white water, never from the smoke texture's
+  colour. New refcam `refinery_night` (cameras_w6.json). REFINERY_NIGHT=0 is the A/B.
 - **2026-11-02 The chase camera's street (rc2-chase-cam, HANDOFF "The chase camera's street").** A
   driving view is a reference camera too: a camera row may stage the player's own car (`drive`) and
   shoot his DriveCam. The carriageway's wear is per lane in the road shader (wheel tracks, oil band,
@@ -3727,6 +3744,17 @@ already mapped so milestone 2 is script-only.
   people the player never sees. Planter soil is mulch, not lawn. The camera's own fov and distance
   are the owner's feel and stay. CAMERA_FADE=0 / SHOP_CROWD=0 / PLANTER_MULCH=0.
 
+- **2026-11-02 The golf course at 08:30 (rc3-golf-morning, HANDOFF "The golf course at 08:30").**
+  A new reference camera behind a group on the 9th tee. Decisions: the course's look stays code
+  (shader passes over the existing distance fields, no new geometry but the tee balls); the morning
+  is told by dew (the turf greyer and glossier toward the low sun, trails where people walked, the
+  greens mown dark) that burns off by 10:30 and never runs in rain; a mown stripe's sheen fades to
+  nothing where the view is square to the mower rather than flipping; the course is planted with
+  LA's trees (sycamores, eucalyptus) in the firs' spots, after every roll. A camera may stage a
+  group of golfers (`golf_group`), the seed's own groups untouched. The front range seen from the
+  valley reads as beige dunes at this hour: the brush is there (the stand rule says ~80 %), the
+  morning's warm light and fog take its colour; left for a hills / atmosphere pass. GOLF_MORNING=0.
+
 ## Correction: what build 135 (0ce833f) actually contained
 
 That commit's subject says "denser grass, real palm fronds, finer ground". It also shipped a
@@ -4323,3 +4351,52 @@ none of either.
 - 2026-11-02 (chase-box-bug): an additive (blend_add) shader must be `fog_disabled` or write a coverage
   alpha (`af_cover()`, shaders/additive_fog.gdshaderinc): with ALPHA left at 1 the renderer adds the fog
   colour over the whole quad, which drew a grey square round each tail lamp of the player's car.
+
+
+- **2026-11-02 The night game from the hill (rc3-stadium-night, HANDOFF "The night game from the
+  hill").** A new reference camera (`stadium_night`, wave 6's table) judged the ravine ballpark from
+  the bank above the north lot at 21:00. Decisions: a car park seen from the hills holds real (box)
+  cars in every stall it fills, never painted ones; a floodlight bank is the air round it (bloom,
+  shafts), not only its lenses; a crowd past the seat detail is a mosaic of groups, not the tier's
+  tint; a night game has players on the field; the ballpark's far copy keeps its planting.
+  STADIUM_NIGHT=0 is the A/B.
+- **2026-11-02 The parked car at arm's length (rc3-car-closeup, HANDOFF "The parked car at arm's
+  length").** A new reference camera (`car_closeup`, wave 6's table) walks up to a parked crossover
+  on a midtown kerb at 15:00. Decisions: a raycast trim piece that the loft pokes through is drawn
+  again a little proud near the camera rather than the bodies rebuilt (the Blender rebuild of every
+  lofted body was judged too risky); road grime is a thin film that follows how dirty the car is,
+  never an opaque band; tyres sit on a contact patch drawn in the wheel shader at world down (the
+  physics and ride height untouched); on the Compatibility renderer the alloy mirrors a sky over a
+  street. CAR_CLOSEUP=0 is the A/B.
+- **2026-11-02 The Vernon industrial street: busy courts, framed glass, rust where steel rusts
+  (rc3-vernon-industrial, HANDOFF "The Vernon industrial street").** A new reference camera
+  (`vernon_industrial`, wave 6's table) judged a Vernon street at eye level at 14:00. Decisions:
+  most docks carry a trailer (an added hash, never moving the old ones); court asphalt is neutral
+  grey and driven along the court's axis; the office storefront is framed, mirrors the street by
+  the reflected ray and sits in a tilt-up pop-out; painted steel rusts along lips, feet and chips,
+  never in blotches; a contact shadow never outlives its hidden body. RC3_VERNON=0 is the A/B.
+- 2026-11-02 (wave 6, rc3-freeway-night): the freeway at night is lit like one. Each median light
+  standard's heads throw a point-source pool (light_pool's cobra branch) with a rhythm along the
+  deck; a small budget of real OmniLights at the heads nearest the camera lights the cars, barriers
+  and gantries but not the deck top (its own render layer: its light is the pools at every
+  distance); freeway cars' lamps draw to 720 m. FREEWAY_NIGHT=0 is the A/B. New refcam
+  `freeway_night` in cameras_w6.json, staged with the optional `freeway_cars` key.
+- 2026-11-02 (wave 6, rc3-chinatown): a new reference camera, chinatown_dusk (the Chinatown plaza,
+  its hall and gate at 19:15). Decisions: a lit lantern is held to a deep red-orange under AgX (a
+  bright red-heavy emission reads pale pink, so the silk stays under ~0.85 in red with green under
+  half of it); shop glass in Chinatown traces a lit room behind it, never a painted pane; the hall
+  is lit from inside through its screens rather than washed from the street. RC3_CHINATOWN=0 is the A/B.
+- **2026-11-02 The skyline from a tower's roof (rc3-rooftop-golden, HANDOFF "The skyline from a
+  tower's roof").** A new reference camera (`rooftop_golden`, wave 6's table) stands on the black
+  twins' helipad at 17:45. Decisions: a landmark tower's roof is never a blank cap with a concrete
+  block - its mechanical box is a louvred penthouse and its flat roof carries plant, worked out from
+  the tower's own tiers and boxes (no new table); the helipad deck is drawn as extruded planks up
+  close; the island against a low sun is haze, not land colour. RC_ROOFTOP=0 is the A/B.
+- **2026-11-02 The oil field refcam: an oil field is a planted hill, not a graded sheet
+  (rc3-oil-field, HANDOFF "The oil field from its lease road").** A new reference camera
+  (`oil_field`, wave 6's table) stood on the crest lease road at 16:00 looking down the row of
+  pumpjacks at downtown. Decisions: the field's ground grows what the hill chunks grow (shells,
+  shrub stands, clumps, oaks) from the field's own keep-outs, with weeds along the verges; a dirt
+  edge crumbles in world-space grains, never a screen-space dither; a pad's service pickup is a real
+  parked car, not a far twin, because it stands beside the road; a big site's planting is batched
+  in cells, because a batch's range is measured to its centre. OIL_PLANTING=0 is the A/B.

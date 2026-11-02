@@ -2869,6 +2869,32 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	load("res://tests/rc2_chase_cam_checks.gd").new().run(self, city)
 	# The pale box round the player's car (tests/chase_box_bug_checks.gd): additive shaders and the fog.
 	load("res://tests/chase_box_bug_checks.gd").new().run(self, city)
+	# The night game from the hill (tests/rc3_stadium_night_checks.gd, StadiumNight): box cars, banks, players.
+	load("res://tests/rc3_stadium_night_checks.gd").new().run(self, city)
+	# The pier_day refcam (tests/rc3_pier_day_checks.gd, PierDay): the board deck, weathering, the crowd.
+	load("res://tests/rc3_pier_day_checks.gd").new().run(self)
+	# The person close-up refcam (tests/rc3_person_closeup_checks.gd, IdleRelax, PersonCloseup): the
+	# idle's stance, the bag from the fist, hair strands and lips, the A/B, the camera row.
+	await load("res://tests/rc3_person_closeup_checks.gd").new().run(self, city)
+	# The parked car at arm's length (tests/rc3_car_closeup_checks.gd, CarCloseup): bumper trim, tyres, grime.
+	await load("res://tests/rc3_car_closeup_checks.gd").new().run(self, city)
+	# The vernon_industrial refcam (tests/rc3_vernon_industrial_checks.gd, RcVernon): worn steel,
+	# the office storefront and pop-out, the courts' asphalt and trailers, weathered tilt-up.
+	load("res://tests/rc3_vernon_industrial_checks.gd").new().run(self, city)
+	# The freeway at night refcam (tests/rc3_freeway_night_checks.gd, FreewayNight): pools, lights, tail lights.
+	await load("res://tests/rc3_freeway_night_checks.gd").new().run(self, city)
+	# The Chinatown refcam (tests/rc3_chinatown_checks.gd, Rc3Chinatown): shop rooms, lanterns, the hall.
+	load("res://tests/rc3_chinatown_checks.gd").new().run(self, city)
+	# The refinery at night refcam (tests/rc3_refinery_night_checks.gd, RefineryNight): the camera
+	# row, the flares' light on the plant, the A/B.
+	load("res://tests/rc3_refinery_night_checks.gd").new().run(self, city)
+	# The rooftop refcam (tests/rc3_rooftop_golden_checks.gd, RcRooftop, LandmarkRoofs): dressed tower roofs, the island.
+	load("res://tests/rc3_rooftop_golden_checks.gd").new().run(self, city)
+	# The oil field refcam (tests/rc3_oil_field_checks.gd, OilFieldPlanting): the hill planted, the pickups, the dirt's edge.
+	load("res://tests/rc3_oil_field_checks.gd").new().run(self, city)
+	# The golf course at 08:30 (tests/rc3_golf_morning_checks.gd, GolfMorning): the staged group,
+	# the turf's morning passes behind their switch, the course's sycamores and eucalyptus.
+	load("res://tests/rc3_golf_morning_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()
@@ -3751,6 +3777,9 @@ func _test_weapons(player: Player) -> void:
 		# wakes it on its next 0.25 s look (gate run 5555: the pellets hit it, it moved 0.00 m).
 		crate.freeze = false
 		crate.sleeping = false
+		# A slowed clock left by an earlier part (a stunt's slow motion, the wheel) makes the
+		# crate crawl: this check is about the shove, so the clock runs at 1.
+		Engine.time_scale = 1.0
 		await _ticks(5)
 		player.camera_rig.look_at_point(crate.global_position)
 		await _ticks(2)
@@ -3766,6 +3795,11 @@ func _test_weapons(player: Player) -> void:
 		_check(gun.pump_amount() == 0.0, "and slides home again")
 		_check(get_tree().get_nodes_in_group("spent_shell").size() > shells_before, "the pump throws a spent shell")
 		var shoved := crate.global_position.distance_to(crate_at)
+		for i in 80:
+			if shoved > 0.3:
+				break
+			await _ticks(1)
+			shoved = maxf(shoved, crate.global_position.distance_to(crate_at))
 		_check(shoved > 0.3, "one shotgun blast throws a crate (%.2f m; aimed at %s, the crate %s)" % [shoved, aim_hit.name if aim_hit is Node else str(aim_hit), crate.name])
 		# Every pellet goes down the rifle's hit path: a prop hit straight on gets the impulse.
 		# The blast just threw this crate, so put it back and let it stand still first: a pellet

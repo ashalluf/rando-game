@@ -28,6 +28,9 @@ uniform vec2 lean = vec2(30.0, 10.0);
 uniform float density = 0.75;
 /// The plant's light on the plume's underside after dark.
 uniform float glow = 0.22;
+/// RefineryNight (wave 6): the steam lit from its luminance (the puff texture is a brown billow),
+/// cool white by the moon and the city, warm from the plant under it. 0 is the old look.
+uniform float night_look = 0.0;
 
 varying float v_alpha;
 varying float v_h01;
@@ -77,6 +80,17 @@ void fragment() {
 	col += vec3(0.11, 0.11, 0.12) * shade * night_factor;
 	// After dark: the plant's lights from below, strongest at the foot of the plume.
 	col += vec3(1.0, 0.78, 0.6) * glow * lamp_factor * shade * (1.0 - v_h01 * 0.7) * (0.65 - 0.35 * n.y);
+	if (night_look > 0.5) {
+		// Steam is white water: the texture's shape only, never its colour.
+		float lum = dot(cs_in(tex.rgb), vec3(0.2126, 0.7152, 0.0722)) * 1.6;
+		float s2 = clamp(lum, 0.25, 1.4);
+		col = vec3(0.86, 0.88, 0.9) * s2 * (sky * 0.8 + vec3(1.0, 0.97, 0.92) * 1.4 * lit * day);
+		col += vec3(0.1, 0.105, 0.12) * s2 * night_factor;
+		// The plant's sodium light on its underside, strongest low down where it leaves the stack.
+		float under = (1.0 - v_h01 * 0.75) * (0.7 - 0.3 * n.y);
+		col += vec3(1.0, 0.7, 0.42) * 0.6 * lamp_factor * s2 * under;
+		a = min(a * 1.25, 1.0);
+	}
 	ALBEDO = cs_out(col);
 	ALPHA = clamp(a, 0.0, 1.0);
 }

@@ -26714,6 +26714,53 @@ chips that bounce and skid, BlastDebris' burning pieces with trails), the glass 
 (SHATTER records plus shards timed by the wave's travel at 343 m/s) and the refracting pressure
 wave stay as the second and third passes made them.
 
+**Round 5: the lead's five-case strips** (rocket at noon from 60 m, a car at golden hour from 20 m,
+a car at night, a petrol pump at noon, a chain of three cars: `CHAIN=1` on blast_room_shot.gd parks
+two more cars beside the first). Worst first, as judged frame by frame:
+1. **The flat beige dust band.** Bisected with A/Bs: three particle layers stacked into one wall
+   (BlastFX's ground kick puffs, BlastAftermath's dust wave, WeaponFX's skirt); the volume's own
+   dust ring rolls fine. `Blast4.dust_roll()` replaces the first two (the kick keeps its grit) with
+   a lit rolling front: fast low creepers, rollers that start 0.12 s later and lift and curl, and a
+   low hanging haze, on BlastFX's lit smoke with the variety tint. `BLAST_DUST_ROLL=0` the old layers.
+2. **The cap a uniform mid grey at 4-8 s by day.** `value4` (blast_volume.gdshader, set by
+   `dress_volume()`): the cooled plume's albedo rises with age (pale where the sun reaches it), its
+   ambient is pulled down and its sun term steepened, so the folds read dark and the tops pale.
+   Never on fire or dust. `BLAST_VALUE=0` the old grey.
+3. **The chain's flare caught as a white disc.** It grew to 4.2 radii over 0.13 s: now 3 radii over
+   0.1 s (`flare_grow_radii`, `flare_fade_seconds`; off with EXPLOSIONS_4=0).
+4. **Debris read as dots.** Every third burning piece is a bent sheet of panel (`panel_mesh()`, two
+   quads, drawn both sides), the rest 1.2-1.9x bigger, the trails nearly twice as dense.
+   `BLAST_CHUNKS=0` the old pieces.
+Still open: the night cap fades to a faint maroon blob (lit from below too weakly by its fires), the
+stem thins away by 8 s, the burning fuel on the road and up the wreck's sides, the crater at 5 m.
+Stills from 24 on, on `shots/explosions-4`.
+
+**Round 6: night, stem, wreck fire, crater** (the lead's next list, in order):
+1. **The night cap faded to a faint maroon blob.** The fires reached it only by a 3D falloff over
+   their reach, and that was multiplied into soot's near-black albedo. `under4` (blast_volume
+   .gdshader, set by `dress_volume()`, `Blast4.underlight_gain` 0.5): each fire lights the smoke
+   above it with a broad falloff along the ground and a long one upward, shaded by the smoke
+   between (two taps down), on an albedo floor (lit soot reads by what it throws back), in an
+   orange held near half green for AgX; a quarter of it by day. The night cap is now a
+   mushroom glowing from below. `BLAST_UNDERLIGHT=0` the A/B.
+2. **The stem thinned away by 8 s.** `stem_hold`: the stem stays to the end of the volume's life
+   (gate from 0.82 to 1.05 of it), denser and narrower toward the cap. `BLAST_STEM=0`.
+3. **No burning fuel on the road; flames only on the roof.** A car blast throws two tongues of fuel
+   (`fuel_trail()`: stretched BlastPools, yaw a hash of the spot, flames along their length, no
+   light of their own, capped on their own list) and flames climb the wreck's sides
+   (`side_flames()`: a CPUParticles3D on the car emitting from 40 points round its sills from
+   `_dims()`, dying down over `side_flame_seconds` 14). The pool's flame light is held at green
+   half of red (it drew salmon), its outline kept inside the quad (the clip cut a straight edge
+   along every trail). `BLAST_WRECK_FIRE=0`.
+4. **The crater at 5 m: stair steps along every finger and crack** (texel-sized at ~5 cm a texel).
+   The fingers read their reach from the nearest of 720 angle bins and the specks and cracks were
+   thresholds of value noise: now the bins are interpolated, fingers never thinner than a few
+   texels, specks from a smooth noise with a soft edge, cracks a soft profile fading to their tip
+   (in the height too, so the normal map has no terraces). `BLAST_CRATER=0`.
+Checks: `_round5()` in tests/explosions_4_checks.gd.
+Still open: the pit itself is a flat dark disc at 5 m (no rubble in it, no depth); the burning
+pieces' fire reads as round puffs.
+
 ## 9lb. The camera lens (wave 5, `camera-lens`)
 
 **What.** The camera itself: exposure adaptation, the sun's flare, grain, the bloom's spread.
@@ -27169,3 +27216,730 @@ over 650 MB and fails over GitHub Pages' 1 GB.
   wasm heap on every call (it reads terabytes; ignore it).
 
 Stills on `shots/web-build-5`.
+
+
+## 9li. The night game from the hill (refcam3 `stadium_night`, 2026-11-02, agent branch `wt/rc3-stadium-night`)
+
+Number is provisional (the lead renumbers on merge).
+
+**The camera.** A new wave-6 reference view, one row in `tools/refcams/cameras_w6.json`:
+`stadium_night`, eye (1965.6, 235, -3155.6), yaw -173.6, pitch -14, fov 48, 21:00 clear - on the
+bank 98 m over the north lot, 380 m out past centre field (Ballpark frame u 0, v 380), looking back
+over the outfield pavilions into the floodlit bowl with downtown's towers glowing beyond it: the
+famous view of the hillside ballpark. Run it with `REFCAMS_JSON=tools/refcams/cameras_w6.json
+python3 tools/refcams/refcams.py run build/refcams/<label> --only stadium_night`. **From this eye the
+city draws the ballpark's FAR copy** (the landmark's chunk is not FULL 380 m out), so every fix had
+to land in the far copy too.
+
+**What gave it away** (the before, `shots/rc3-stadium-night/01_before_stadium_night.jpg`), in the
+order the eye lands on it:
+1. The lot - two thirds of the frame - was stickers: past the 3D cars' 120 m (and everywhere in the
+   far copy) each car was a flat rectangle painted into its stall, blown white under the pools.
+2. The stands were four flat pastel stripes: no crowd at the hills' distance, the per-seat crowd
+   averaged away into the tier colour.
+3. The light banks were small dots that lit no air: no bloom, no haze shafts, the glow dome only
+   from 450 m.
+4. The field was empty: a night game with nobody on it.
+5. The planted medians and the planted slope were flat bright-green rectangles; the far copy had no
+   palms at all (CLAUDE.md's far-landmark rule: planting stays in the far copy).
+
+**The fixes** (`StadiumNight`, `scripts/world/stadium_night.gd`; one hook line in
+`BallparkBuild.build()` after the glow, one in `_bank()`; `STADIUM_NIGHT=0` is the A/B and every new
+shader uniform defaults to the old look):
+- **Box cars in every filled stall** (`far_cars()`): the stalls `Ballpark.stall_car()` fills (4,435
+  on the default seed) each get a 22-triangle box car (body with tumblehome, glasshouse) in both
+  copies, in 160 m tiles drawn to `FAR_DRAW` 560 m; in the detailed copy the tiles over the 3D cars
+  (q < CAR_REACH) are on BallparkBuild's 80 m grid and start at CAR_DRAW 120, where the 3D ones
+  stop. Shadowless. `shaders/stadium_car.gdshader` lights them with the lot's own pole pools (the
+  pole grid copied from ballpark_lot, Ballpark's numbers checked), tops more than flanks, glass
+  dark with a sheen, the rocker band dark. Within `box_reach` (440 m: inside every tile's range) the
+  lot shader paints a painted car as its box's soft contact shadow instead.
+- **Bank blooms and shafts** (`bank_mesh()`, `shaders/stadium_bank_glow.gdshader`): BallparkBuild
+  notes each of the ten banks (`note_bank()`); one mesh a copy, a camera-facing bloom per bank
+  (2.2x the bank's size, never under `min_angle`, a hot core and a soft skirt reaching zero inside
+  the quad, 0.15 from behind, 1 head-on) and a ribbon of lit haze from the bank toward the field,
+  turned to the eye and faded out for an eye inside the bowl (it veiled the top deck from the
+  field). Additive, unshaded, `bp_flood()` (nothing by day). The glow dome starts showing from 60 m
+  (`away_from`; its strength unchanged: at 1.8x the ground haze read as a disc on Forward+).
+- **The crowd from the hills** (ballpark_seats `night2`): a section between two aisles is fuller or
+  emptier than its tier, now and then a five-row block thin; where the per-seat detail is under a
+  pixel the average is a MOSAIC of 3-seat x 2-row groups (their own shirts, skin, occupancy) instead
+  of one tint; the hand-over to the average starts sooner (half-resolved rows beat into rings round
+  the bowl on the near copy); the rows under each deck's overhang (and the top deck's roof) take a
+  fifth of the flood plus a warm concourse light (the tiers are told apart by their fills, checked).
+- **Players on the field** (`players_mesh()`, `shaders/stadium_player.gdshader`): nine fielders in
+  home whites, the batter side-on with his bat, the umpire, two base coaches and a runner, ~60
+  triangles each, one mesh, lit by the flood after dark, to 1.4 km.
+- **Planting** (ballpark_lot `planting2`): medians and the planted slope are shrub clumps with ice
+  plant flowers over bark mulch, not a lawn; the far copy plants the lot's 398 palms
+  (`BallparkBuild._palms`, shadowless by `ArenaGrounds._far_shadows`, drawn to `PALM_DRAW` 900 m).
+
+**Look fast:** `tools/stadium_night/park_shot.tscn` builds the park alone (the city's Environment
+and DayNight, a dark ground plane, no terrain or city) at its real world place in a minute
+(opengl3) or ~3 minutes (lavapipe Forward+): `OUT`, `HOUR`, `EYE`, `FOV`, `FAR=1` the far copy,
+`SHOTS=` more views from one build.
+
+**Proof.** opengl3 refcam before/after (`01_before` / `02_after`), Forward+ (lavapipe) far copy A/B of
+the refcam eye on park_shot (`03`/`04`), and closer views. Numbers in the final message / the
+shots README. Frame cost at the refcam (opengl3 GEO): see the shots README.
+
+**Not done.** The box cars carry no headlights (a night game's lot is parked); the outfield pavilions'
+backs and the scoreboards' backs are still plain dark boxes; the near copy's 3D cars are unchanged;
+no ramp towers; no traffic on Stadium Way / Sunridge Dr (HillRoads are not driven); the players
+stand still (no pitch, no swing). The hills right of the bowl (terrain, not the park) still show
+faceted crags.
+
+## 9lj. The pier by day from the deck (fleet wave 6, `rc3-pier-day`, refcam pier_day)
+
+**The camera.** A new reference view, `pier_day` in `tools/refcams/cameras_w6.json`: Gullwing Park on
+Rando Pier at 15:00 clear, from the promenade at eye height (true world (-1020, 8.1, -352), yaw 115,
+pitch 6: park frame (-80, -2)), toward the wheel, the coaster's lift, the carousel and the KELP
+CRACKER station, the booths on the right and the sea at the pier's end. Framings from the sea end
+(the ocean over the rail, the park behind) were tried (`-1165,8.1,-347,-118,2`): they show more
+water but nobody is out there; the brief asked for the deck among the crowd.
+
+**What gave it away** (main 484a7897, the before on `shots/rc3-pier-day`), in the order the eye
+lands on it:
+1. **The deck** - 40 % of the frame - was one tiled plank photo (`PropFactory.pbr("planks")`): a
+   smooth tan sheet at a grazing angle, no boards, no gaps, no wear. A real pier deck is
+   transverse boards, grey-weathered, dark gaps, a polished path down the middle, grime at the rail.
+2. **Nobody there**: 48 PierGoers for 16,000 m2 of deck, eight people in the frame at 15:00.
+3. **Showroom-clean paint**: the white coaster steel, the stands, the canopies and rails as if
+   painted that morning; nothing salted, faded or rust-run.
+4. **Cut blocks**: the food stands and booths' boxes with knife-edge corners.
+
+**The fixes** (`PierDay`, `scripts/world/pier_day.gd`; `PIER_DAY=0` the A/B - the pier exactly as
+on main):
+- `shaders/pier_deck.gdshader` (the deck slot of `PierPark._static_mesh()`): worked out per pixel
+  from the mesh's own vertex coordinates, which ARE the park frame (no anchor uniform needed):
+  boards `BOARD_W` 0.145 m across the pier with an 11 mm gap, butt joints every 4.9 m staggered per
+  board, each board's tone by hash (silver-grey, a darker one, 7 % newer reddish replacements),
+  grain along the board, patches of silvered open grain, nail pairs over 0.61 m joists, a cup and a
+  tilt per board (into NORMAL, faded under a pixel), a polished wear path down the promenade, grime
+  within 1.6 m of the rail (the shader takes `PierPark.OUTLINE` as a uniform array of 12),
+  stains, gum. Gaps and joints are box-filtered by the pixel (`line_cover()`), so the far deck
+  goes to its mean, not moire. The deck's side faces are dark timber with seams. Linear on both
+  renderers (color_space.gdshaderinc); wet with `road_wetness`.
+- `pier_park.gdshader` gains `weathered` (0 by default; `PierMesh.material()` sets
+  `PierDay.weathered()`): on paint, steel, canvas, signs and boards - sun fade (16 % toward grey),
+  a blotchy tone over metres, salt grime within half a metre of the deck, rust runs and mottle on
+  the light paint and galvanised steel; each term to its mean under a pixel. Uses the REST
+  position (the rides' animation happens after), so the pattern turns with the wheel.
+- The crowd: `PierPark.people_steps()` adds `PierDay.extra_people(hour, weather)` after the 48's
+  rolls (own stream `pier_day_people`): up to `EXTRA_PEOPLE` 110 at the busiest hours
+  (`density()`: 12:00-19:00 full, thinning to 0.15 by 23:30, 0.08 overnight; rain 5 %), 70 % on
+  the promenade's nodes (`PROMENADE`), 45 % in twos and threes. All in the crowd cap.
+  `PierDay.rail_spots()` (65) join the chunk's `vendor_queue`: people stop at the open rails and
+  the sea end facing out, clear of benches, lamps and stands.
+- Stands and booths chamfered (`PierDay.bevel()`, PierMesh.box's vertical-edge bevel).
+
+**Numbers** (refcams, opengl3 1280x720, pier_day): before p5/p50/p95 53/146/208 sat 0.351, 1.15 M
+triangles / 414 draws (shadows 0.37 M); after 40/155/208 sat 0.316, 1.46 M / 565 (shadows 0.48 M).
+The rise is the crowd (~25 more people in view; each near person is ~12 k triangles); the deck
+shader is no geometry. `PIER_DAY=0` gives the before.
+
+**The ten cameras** (refcams.py on cameras.json, PIER_DAY=0 then on, same tree, compare): eight ok;
+`freeway` flagged by traffic placement (a semi and a taxi in one run only; the pier is 3 km off -
+traffic noise, as in 9iz); `pier_night` draws +18 % (460 -> 543), tris +5 %, the picture the same:
+the extra people at 21:00 are each a draw even as a dot on the pier. The evening curve was then
+eased (full to 19:00, half by ~21:15), which takes about half of that back; not re-measured.
+
+**Tools.** `PIER_DEBUG=1` prints the people count (and a lost crowd-room) from people_steps;
+`tools/pier/compile.gd` still builds the park; checks `tests/rc3_pier_day_checks.gd` (one line in
+smoke_test.gd's city_files).
+
+**Not done / not verified.** The Mac (Forward+) - see the lavapipe note below. Nobody rides (the
+gondolas, coaster and carousel are empty: 9ca's gap). No anglers with rods at the sea end. The
+coaster station's grey gate blocks and the stands are still simple boxes. The sea under the pier
+is not in this view.
+
+## 9lk. A person at arm's length: the person_closeup refcam (fleet wave 6, `rc3-person-closeup`)
+
+The task: a new reference view of ONE pedestrian standing on a pavement at 13:00 clear, the lens
+1.6 m away at head height - face, hair, skin, the garments, shoes, hands - judged against a 2026
+crowd close-up; fix the worst three to five things on the person.
+
+### The camera
+
+`person_closeup` in `tools/refcams/cameras_w6.json`: eye (1501, 1.62 over the ground, 1470), yaw 0,
+pitch -18, fov 60 (the hero_foot pavement in midtown, looking north up the pavement with the shops
+on the right). `"stage": "person"` runs `tools/refcams/person_stage.gd`: a Pedestrian found by seed
+search (`seed_for()`: the first seed from 770000 whose own style rolls deal the row's rig and look
+and then no hat or pack - so the head and hair are what is judged), placed `dist` along the heading
+on the ground, turned `turn` degrees off facing the lens, held standing (`_pause_left`, the idle, or
+a carry's stand), `no_trim`, no dog or jog; walkers within 2.5 m of the line of sight are hidden.
+The row's `person` key: model, look, dist, turn, carry (env `PERSON_MODEL` / `_LOOK` / `_DIST` /
+`_TURN` / `_CARRY` / `_SEED` for framing). It is crowd_h (an East Asian man in his forties,
+striped shirt, jeans, brown leather shoes), look 0, seed 770592, who also rolls a shopping bag.
+The run: `REFCAMS_JSON=tools/refcams/cameras_w6.json python3 tools/refcams/refcams.py run <dir>
+--only person_closeup` (17 min on a cold box, ~7 min warm; peak 7.3 GB).
+
+### What gave him away, in the order the eye lands on it
+
+1. **The stance.** Standing still he squared up like a gunslinger: shoulders up, upper arms held
+   out from the ribs, elbows bent, hands clawed, feet 44 cm apart sideways. Every standing person
+   in the game plays one of the library idles (CrowdGait's `gait/idle` for 80 % of the crowd,
+   CrowdLife's `life/idle`, `nod`, `shake`, `talk`): Quaternius' UAL Idle_Loop retargeted, a ready
+   stance. The rig's OWN "Idle" (after `fix_arm_pose`) hangs its arms properly but turns the whole
+   body round 44 degrees as it looks about, so it cannot simply be used.
+2. **The shopping bag** hung from the wrist (the hand bone's origin), its two cords standing
+   straight up beside the hand like sticks, never reaching it; its width across the body, into the
+   leg.
+3. **The hair** (crowd_h's side-part fringe most of all): a smooth black sheet with one broad glossy
+   highlight band across it - a lacquered helmet.
+4. **The lips**: the MakeHuman photo's lips are a saturated salmon, glossed: every face, men's too,
+   read as lipstick at arm's length.
+5. Not fixed (garment geometry, a Blender rebuild): the stand collar's fall pokes up as two grey
+   points at the shoulders, and the collar's inside reads pale blue.
+
+### What it does now
+
+- **`IdleRelax`** (`scripts/npc/idle_relax.gd`; one line each after the library is added in
+  `CrowdGait.apply()` and `CrowdLife.attach()`): once per library resource (meta `idle_relaxed`;
+  the libraries are cached per rig) the clips in `CLIPS` are rebuilt: the eight arm bones (shoulder
+  to hand) slerped toward the rig's own Idle at the same time (looped) by 0.85 (talk 0.45, so its
+  gestures stay), and each thigh turned 5.5 degrees in toward the other about the pelvis' forward
+  axis, the foot turned back so the sole stays where it was. Measured on crowd_h's gait idle: feet
+  0.44 -> 0.29 m apart sideways, hands 0.17 -> 0.13 m out from the hips, the head exactly where it
+  was; the hips are raised per key by the mean amount the turn lowered the ankles (~1 cm), so the
+  feet stand where the clip had them. **Trap:** the library tracks are COMPRESSED (Godot refuses to
+  set, insert or remove their keys), so each clip is resampled at 30 fps into a new Animation and
+  put back under its name. Blending the legs toward the rig's Idle (tried first) pulled in that
+  clip's 44-degree body turn and its staggered stance; the hips must keep the clip's own facing.
+- **The bag** (`CrowdLife.prop_mesh(BAG)`, `BAG_GRIP`, `Pedestrian._show_props()`): hung plumb from
+  the fist (8.5 cm along the fingers, 2.5 cm out of the palm, in the grip frame), its four
+  twisted-paper cords meeting there, a turned-over top band, the gusset's fold and a dark open
+  mouth; width fore and aft along the leg.
+- **Hair** (`crowd_hair.gdshader` `strand_detail`, set by `Pedestrian.hair_material()`): a finer
+  streak octave in the tone, a coarse clump octave along the cards, and the specular and roughness
+  riding both, so the single band breaks into strands and clumps. Faded with the strands
+  themselves (under a pixel nothing changes); 0 is the old shader bit for bit.
+- **Lips** (`character.gdshader` `lip_tame`, set by `CrowdFaces.apply()`): inside the face map's lip
+  zone the colour goes toward a warm neutral of the same brightness and a little darker, and keeps
+  less of the gloss. (Toward grey first: mauve and dead.)
+- `PERSON_CLOSEUP=0` turns all of it off (`PersonCloseup`, `scripts/npc/person_closeup.gd`);
+  `IDLE_RELAX=0` the stance alone.
+
+### Tools
+
+- `tools/glshot/crowd_lineup.gd` takes `CLIPS=a,b,...` (a clip per person in turn) and loads the
+  gait library for `gait/<name>` clips; it applies IdleRelax like the game (`IDLE_RELAX=0` the old).
+- The bone-framed close-ups are `tools/crowd_closeup_3/closeup_shot.gd` (PARTS=head,hair,...), the
+  bag `tools/crowd/crowd_lab.tscn SCENARIO=props`.
+
+### Checks
+
+`tests/rc3_person_closeup_checks.gd` (one line in smoke_test.gd's city files, ~32 checks with the
+part's own): on a private copy of crowd_h and its gait library, the relaxed idle's feet come in and
+stay apart, the hands come in, the head and feet stay put, the clip keeps its tracks, a library is
+relaxed once; the bag's cords meet at the grip and the grip is in the fingers; the two uniforms are
+off by default and the hair material sets its one; the switch; the camera row and the seed search.
+
+**Numbers.** person_closeup (opengl3, 1280 x 720): before (`PERSON_CLOSEUP=0`) and after in the
+report.txt of each run: 7,233,583 -> 7,243,040 triangles (+0.13 %, the bag and a different crowd draw), 3,588 -> 3,589 draws, luminance p5 / p50 / p95 27 / 145 / 201 -> 27 / 145 / 202. The ten
+original cameras, `PERSON_CLOSEUP=0` vs on (`refcams.py compare`): eight ok (mean pixel difference
+0.0-2.5), street_noon and freeway flagged by traffic (a bus further along; a box truck in one run, a
+pickup in the other), not by anything on a person.
+
+**foot_ik_checks' kerb check changed.** "Both feet at the kerb stand on their own ground"
+compared BOTH kerb ankles to the LOWER of the flat-ground twin's ankles; the idle lifts one heel, so
+it measured the clip's heel lift (3.6 cm on main, 4.2 cm with the narrower stance, the limit 4).
+The foot IK itself was right (each kerb ankle within 2 mm of the twin's same ankle): it now compares
+foot to foot.
+
+### Not done / not verified
+
+- Forward+ (the Mac): judged on opengl3 only. The changes are pose, geometry and two shader terms
+  in the material's own space (no colour constants added outside the existing lip mix, which follows
+  the shader's `value_is_linear` path), but the hair's strand shine under SSAO / TAA is unverified.
+- The shirt collar's points and its pale inside (garment geometry, `tools/crowd/garments.py`), the
+  claw-ish hanging fingers of the relaxed hand pose and the shoes' saturated tan under the noon sun
+  were seen and left.
+- Hands: the relaxed idle keeps a slight elbow bend from the library clip (arm weight 0.85).
+
+## 9ll. The parked car at arm's length: refcam3 `car_closeup` (fleet wave 6, `wt/rc3-car-closeup`)
+
+The task: a NEW reference view - a parked everyday car on a midtown kerb at 15:00 clear, from about
+2 m off its front quarter: paint, glass, wheels, tyres, plates, panel gaps, the kerb and the road
+under it ("what the player sees walking up to a car") - judged as an art director would, the worst
+three to five things fixed ON THE CARS. The row is `car_closeup` in `tools/refcams/cameras_w6.json`:
+Cedar Ave (a 14 m midtown street, road x 1391 on seed 1337), the west kerb at z 1400, a crossover
+facing south, the eye on the pavement 2.3 m right of and 3.5 m ahead of the car's centre, 1.5 m up,
+FOV 55. Run it with `REFCAMS_JSON=tools/refcams/cameras_w6.json python3 tools/refcams/refcams.py run
+<dir> --only car_closeup` (the first launch on a fresh box loads in ~16 min: cold shader caches).
+
+**Staging** (`tools/refcams/park_stage.gd`, the row's optional `park_car` key; the other rows have
+none): `random_car()` from a seeded generator walked on until the body type matches with no livery
+(seed 2026 -> 2037 is a teal crossover), parked on the kerb of the road nearest `at`, `along` the
+TRUE world coordinate, `side` which kerb (right-hand traffic decides which way it faces); the city's
+own parked cars within 7.5 m are freed first; the eye and the point aimed at are given in the car's
+frame and written to EYE, so the frame holds whatever the load rolled. People within 2.5 m of the
+lens are hidden for the shot. `tools/refcams/kerb_probe.gd -- --spawn=x,z` lists kerbs (district,
+width, bike lane, the kerb lines) round a point.
+
+**What read fake, worst first** (before: `build/refcams/before`, main; stills on
+`shots/rc3-car-closeup`):
+1. **The body poked through the bumper trim.** The bumper bands are raycast grids laid 3-5 cm proud
+   of the loft (make_road_cars.py `wrap_band`, rows=3 over ~25 cm), and between the rays the curved
+   skin bulges out through them: ragged teeth of body colour along the black lower band and round
+   the fog pockets, on every lofted body, both renderers (Forward+ proved on lavapipe).
+2. **Grime as tan camouflage.** CarDetail's road grime was an opaque tan coat (mix 0.9) with a hard
+   noisy edge, a band to 0.46 m and a 0.75 m ring round each arch: big pale blotches up the doors and
+   fenders of most cars (65 % of the fleet rolls a level > 0), on a dark car worst of all.
+3. **Tyres as round black holes.** A perfect torus touching the road at a point, rubber at 0.95
+   roughness: no contact, no shape.
+4. **Grey plastic wheels on the web.** On Compatibility the alloy is re-expressed as paint (there is
+   no radiance map to reflect), so a silver five-spoke read as a matte grey hubcap.
+Seen, not fixed: the panel shut lines (4 mm booleans) alias into dotted lines on opengl3 at 3-4 m
+(TAA resolves them on the Mac); the front plate sits a little crooked on the curved bumper; the wing
+mirrors are still bevelled boxes (the body .glbs were not rebuilt, as in 9io).
+
+**The fixes** (`CarCloseup`, `scripts/vehicles/car_closeup.gd`; `CAR_CLOSEUP=0` puts every one back):
+- **Bumper trim**: one hook at the end of `Vehicle._add_body_model()` (after the wheel tuck).
+  `pieces()` (pure) welds the near body's "trim" surface by position, unions it into pieces and keeps
+  the pieces lying WHOLLY under `ZONE_TOP` (0.45) of the body's height and within `ZONE_END` (0.25) of
+  its length from an end: the bands, fog pockets, lower grille surrounds - never a lamp bezel (above
+  the zone) or a sill (it runs the length), and nothing that crosses the zone's top (a first try that
+  grew everything in a height zone left slivers on the grille's corners and swallowed the headlamps,
+  whose bezels are trim too). Those triangles are drawn again `PUSH` 1.2 cm out along their normals
+  as ONE `BumperBands` child of the near body mesh (the glTF's own trim material, no shadow, to
+  `NEAR` 18 m), built once per body mesh and kept as meta on the mesh resource. Headless keeps no
+  mesh data: no copy there. Cost: one draw for each car within 18 m (a few hundred triangles).
+- **Grime** (car_paint.gdshaderinc `grime_look`, set to 1 by CarDetail's `_paint_grime()`): a film
+  (mix 0.58, so the paint reads through) whose strength follows the car's level (light 0.32 shows
+  light), the band's edge graded over 0.34 m with less noise, the arch spray tight (rr + 0.10 m, +
+  0.26 behind the wheel) and soft. Every other material keeps 0 (the old look bit for bit).
+- **Tyres** (PropFactory's wheel shader `squash`, `rubber_look`): `car_wheel()` tags its vertices
+  UV.y = 1 + the tyre's outer radius (`_wheel_tag`; 0.5 everywhere else, so the trucks' wheels on the
+  same shader are untouched); in the vertex stage the lower half of the rubber is grown `TYRE_SQUASH`
+  (1.4 cm) and cut flat at the radius under the hub along WORLD down (the wheel turns; the patch
+  stays at the bottom), and the sidewall bows out over it. The hub keeps its height: physics, ride
+  height and CONTACT are untouched. The sidewall goes satin (roughness 0.66, a touch lighter), the
+  tread stays matte.
+- **Alloy on Compatibility** (`fake_env`, set only where `has_reflections()` is false): the face,
+  barrel and cap give back part of their light as a mirror of `sky_tint` over a sunlit street, split
+  at the reflected ray's horizon with a bright band just above it. Forward+ never sets it.
+
+**Numbers** (refcams, opengl3, one load each, the ten cameras plus car_closeup; `CAR_CLOSEUP=0`
+-> on, `build/refcams/all_off` / `all_on`, `compare`): car_closeup p5/p50/p95 23/67/171 both,
+9.92 M -> 9.89 M triangles, 5,393 -> 5,412 draws (a BumperBands draw for each car within 18 m, the
+rest live traffic), mean pixel change 0.79 (the change is local to the car). The ten originals:
+sunset, golden_aerial, downtown_aerial, beach, hills, macarthur and pier_night within noise (|d| <=
+1.3); street_noon, street_night and freeway flagged by live traffic only (a bus pulling up beside
+the lens, another truck on the deck: the cars' look is the only change and none of those cars is
+within 18 m with a bumper in view). Peak memory of a refcams run 9.4-10.6 GB.
+Gate (SHARDS=3, 5,457 checks): one failure, pedestrian_flow_checks "somebody comes out of a shop
+door near the player" (the walker it waited on was a valet in its errand) - it passes alone
+(`SMOKE_PARTS=pedestrian_flow_checks`, 32/32): a shard-order flake, not this branch's area.
+
+Checks: `tests/rc3_car_closeup_checks.gd` (22: the piece picker on synthetic islands, the wheel
+material's uniforms and the shader's gates, the tag put back, the crossover's paint taking the new
+grime, the copy's draw range, the camera row).
+
+## 9lm. The Vernon industrial street (wave 6, refcam3 `rc3-vernon-industrial`)
+
+A new reference camera, `vernon_industrial` in `tools/refcams/cameras_w6.json`: a Vernon street at
+14:00 clear, eye level (1.7 m) on the corner at (2600, 2972) looking west-south-west (yaw 125):
+the truck courts of block (24, 19) behind chain-link, tilt-up warehouses with docks, the street
+climbing west with traffic and parked cars. Picked from ten candidate eyes (`tools/rc3_vernon/
+probe.gd` lists Vernon's blocks with spurs and courts; `DETAIL=1` their rects).
+
+**What gave it away, in the order the eye lands, and what changed** (all `RcVernon`,
+`scripts/world/rc3_vernon.gd`, plus hooks in Industrial / IndustrialKit and the two industrial
+shaders; `RC3_VERNON=0` is the A/B):
+1. **A car-shaped black blob on the road with no car.** The still hides a car that holds the lens
+   (`refcams_shot.gd`: `car.visible = false`), but ContactShadows checked visibility only at its
+   pick, every 0.25 s of SCALED time - never during the frozen settle - so the hidden car's
+   footprint and wheel blobs stayed. It now skips anything not visible in the tree every frame (one
+   condition in `ContactShadows._process`). In play this was a hidden or put-away car's shadow
+   lingering up to a quarter second.
+2. **Empty truck courts, flat khaki planes.** Of the docks the old roll left empty,
+   `MORE_TRAILERS` (55 %) more get a trailer (a second hash, `ind_trl2`: every old trailer stays,
+   the LOD far boxes follow the same rule) - 21 -> 37 of 46 docks round Vernon. The trailer skin
+   gets the red / white conspicuity tape every US trailer carries and, on three in four, a fleet
+   band (an invented colour, no lettering). The court asphalt is neutral cool grey (the asphalt
+   photo is brown), its 7 m long-crack net thinned to a few faint cracks, and a court's or apron's
+   piece carries the drive axis in COLOR.b (`RcVernon.track_axis()`: 0.25 along z, 0.75 along x;
+   0 elsewhere) so `industrial_ground.gdshader` lays rubber in dual-wheel paths every dock pitch,
+   skid streaks and oil drips down them.
+3. **The office storefront a flat grey slab.** `K_GLASS` (rc3): clear anodised frames round every
+   lite, sill, head and transom; the glass EMITS a mirror by the reflected ray - sky over a band of
+   far roofs, the sunlit street under the horizon - so a horizon line runs across the panes; a
+   third of the lites have a blind down to its own height. And the office stands in a tilt-up
+   POP-OUT (`RcVernon.office_popout()`, geometry in the walls mesh): two piers and a header 0.38 m
+   proud, rising 1.1 m over the parapet with a galvanised cap, in a contrast paint, so the glass
+   sits in a real reveal.
+4. **Yellow bins and roll-offs read as cheese** (painted steel rusted in big blotches on every
+   face). Rust now runs along the lip, a ragged band at the foot, runs down from the top and small
+   chips; the paint fades in broad patches with darker dents.
+5. **Tilt-up walls one even cast.** Each panel its own tone (cast on its own day), rain runs from
+   the coping either side of every joint and under the wall packs, splash-back soil at the foot.
+
+**Numbers** (opengl3, 1280x720, `refcams.py` GEO): vernon_industrial 3,018,181 triangles / 1,842
+draws before (main 484a7897), 3,016,454 / 1,847 after (-0.1 % / +0.3 %); p50 unchanged, p5 -13 (the
+courts' trailers and their shadows). The ten original cameras, `RC3_VERNON=0` vs on (`compare`):
+seven ok (mean pixel difference 0.02-1.5), street_noon, street_night and freeway flagged by the
+traffic and buses alone (none of them shows an industrial block). A full ten-camera run: 42 min,
+peak 10.3 GB.
+
+**Checks** `tests/rc3_vernon_industrial_checks.gd` (one line in smoke_test.gd's city_files): the
+shaders' rc3 branches and both materials' switch, the track axis per role and side, the trailer
+rule over Vernon's courts (more, none lost, about 80 %, the old rule exactly with the switch off),
+the pop-out's geometry (nothing when off).
+
+**Not done.** The camera does not frame the rail spur or a run of utility poles (no eye found that
+held them with the courts; c_e in the probe's candidates - `2610,1.7,3290,180` - has the poles);
+the office glass is still a shader trace, not a room; the LOD far boxes do not carry the pop-out.
+Forward+ (the Mac) not verified: the glass mirror is emitted in linear (sky_tint decoded), the
+rest are albedo in display numbers through the shaders' own disp()/to_lit().
+
+## 9ln. The freeway at night (wave 6 refcam3, branch `wt/rc3-freeway-night`)
+
+The task: a NEW reference view, `freeway_night` (`tools/refcams/cameras_w6.json`): the 110
+northbound at 22:00 clear, a driver's eye 1.2 m over the deck in lane 2 at (1795.8, 1092.3), yaw
+-14, toward the downtown skyline, with the traffic's tail lights ahead, the sign gantries and the
+light standards in frame. Judge it like an art director, fix the worst three to five things.
+
+**The view needed staging first.** The load's own freeway traffic put a box truck on the lens
+(still 00). `refcams_shot.gd` takes an optional `freeway_cars` key (README there): cars placed
+through `TrafficManager.place_freeway_car()` three frames before the shot, `ahead` metres along
+the route in the look direction, in a given lane, and every other traffic car within `clear` metres
+hidden for the shot. Eight northbound (two trucks) and four southbound are staged.
+
+**What gave it away, in the order the eye lands on it (still 01):**
+1. **A flat blue slab of a deck.** Each median standard's two cobra heads threw a 46 x 16 m soft
+   dot every 48 m: one continuous warm strip over the carpool lane, nothing under the light and no
+   darker road between two standards; the other three lanes were moonlit blue.
+2. **Lights that light nothing.** The heads had no real light: cars, trucks, the barriers and the
+   gantries drove through the pools as dark shapes.
+3. **The traffic went dark past a few cars.** A car's lamp mesh stopped drawing at 160 m
+   (`Vehicle._add_night_lights`), so the line of tail lights the view is about was three or four
+   pairs, then unlit bodies.
+4. Seen and left: the eucalyptus right of the deck reads as pale limbs on opengl3 (its leaves
+   dither to nothing there; TAA on the Mac resolves them); the sail tower's lit crown is
+   intentional; the gantry signs' lettering is soft at 100 m.
+
+**What changed** (`FreewayNight`, `scripts/world/freeway_night.gd`; `FREEWAY_NIGHT=0` is the A/B,
+which puts every number back):
+- *Cobra pools.* light_pool.gdshader has a `cobra_size` branch (off by default: x the head's height,
+  y / z the quad, w a gain) that FreewayKit's light-standard pools take (their u shifted by 4,
+  `pool(..., cobra = true)`): a 62 x 28 m quad centred under each head carrying a point source's
+  illuminance, (1 + d^2/h^2)^-1.5 with h = HEAD_H 12.7 m, rim eased. Bright under the standard, a
+  fifth of it halfway to the next, the outer lanes dimmer; the quad stays on the deck (it would
+  float in the air past the edge). The bents' under-deck pools keep the old dot.
+- *Real lights near the camera.* A FreewayNight node (made by the first FULL freeway chunk under the
+  city root) deals `budget()` OmniLight3Ds (8 Forward+, 6 Compatibility desktop, 0 on the web) to the
+  nearest heads every 0.25 real seconds (`heads_near()`, pure on the plan: FreewayKit's rule, every
+  LIGHT_EVERY-th segment, none under the stack), ahead of the camera first. They are `lamp_light`s
+  (DayNight drives them, NightLamps normalises them for the head's height, x LIGHT_GAIN 0.45). The
+  deck top is on its own render layer (`DECK_LAYER`, layer 17) which their cull mask leaves out:
+  the deck's light is its pools at every distance, so a near pool is never brighter than a far one;
+  the cars, the barriers, the poles and the gantries are lit. (A blast's crater decal, cull mask 1,
+  no longer lands on the deck top.)
+- *Far tail lights.* Freeway cars' lamp meshes draw to FAR_LIGHTS (720 m; car_lights.gdshader keeps
+  a far lamp's core 1.5 px across), street cars go back to 160 m (a pooled car changes job).
+
+**Checks:** `tests/rc3_freeway_night_checks.gd` (heads: count, order, pairs and spacing, HEAD_H over
+the deck, the pool on the deck, none under the stack; the pool material's numbers and the A/B; the
+shader branch off by default; a FULL deck on DECK_LAYER and the lights' mask; a placed freeway car's
+reach and the street cars'). Compile and the heads round the camera: `tools/freeway_night/compile.tscn`.
+
+**Measured** (refcams, opengl3 1280x720, staged traffic): the camera on main 6.35 M triangles /
+3,278 draws (p5/p50/p95 4/41/116); this pass 6.39 M / 3,324 (5/49/114): the +46 draws are the
+freeway cars' lamps past 160 m. The ten original cameras, `FREEWAY_NIGHT=0` against on in one tree:
+seven identical (pixel |d| 0.01-1.3), street_noon / street_night / freeway flagged by the traffic
+moving between runs (a bus in street_night; the noon street flags too, where this change does
+nothing). The opengl3 city load peaked at 10.7 GB on this box (refcams, ~12 min to load).
+Gate (`SHARDS=3`, merged with origin/main 0c5f221a): 5,465 checks, all passed; shard peaks
+3,404 / 3,769 / 3,692 MB, 2,046 s.
+
+**Not done / not verified.** Forward+ (the Mac) not rendered: lavapipe climbed past the box's 15 GB
+compiling pipelines even for one block (`fwd_block_shot BLOCKS=home`), so the cobra pool's
+display-space add and the lights' strength on Forward+ are reasoned (the pool path is the old
+display_add one, the lights are ordinary `lamp_light`s), not seen. The pools' rhythm is clearer from
+the air than at the driver's grazing angle. Seen and left: the right-of-way eucalyptus's pale limbs
+on opengl3, the gantry lettering's softness, no headlights of the viewer's own car (the camera has
+no car). Stills on `shots/rc3-freeway-night`.
+
+## 9lo. The Chinatown plaza at dusk (wave 6 refcam3 `rc3-chinatown`, 2026-11-02)
+
+A new reference camera, `chinatown_dusk` in `tools/refcams/cameras_w6.json`: the Chinatown plaza
+(JADE LANTERN PLAZA) from the walk near its east end, looking west-north-west at the HALL OF SPRING
+WIND with the lantern strings over the walk and the west plaza gate at its end - eye
+(2958, 1.7, -2096), yaw 72, pitch 7, fov 60, 19:15 clear. Run with
+`REFCAMS_JSON=tools/refcams/cameras_w6.json python3 tools/refcams/refcams.py run <dir> --only chinatown_dusk`.
+In the game's clock the sun sets at 18:00, so 19:15 is full night: the lanterns are on.
+
+**What gave it away** (in the order the eye lands on it), each fixed behind `Rc3Chinatown`
+(`scripts/world/rc3_chinatown.gd`; `RC3_CHINATOWN=0` is the A/B, the shader's `rc3` 0 is
+bit-identical to main):
+1. **The lanterns blew out to pale pink-white balls.** The silk emitted red x 6.5 with a peach core;
+   through AgX a bright red-heavy colour goes salmon-white (the CarDamage flame rule). Now the silk
+   is a deep red rim (green 0.035 of red) and a hot core with green ~0.24 of red (the gold lanterns
+   amber), x 1.9 at night (0.85 was right on opengl3 but matte on Forward+: no bloom), the ribs and
+   the gilt ends dark against it: lit silk, not paper balls. Proved on Forward+ (lavapipe,
+   `tools/glshot/fwd_block_shot.tscn` with `BLOCKS=home`; BLOCKS=1 is OOM-killed on a 15 GB box):
+   main's lanterns bloom with white-hot cores, these glow red-orange with a soft bloom.
+   12 sides instead of 8 (148 triangles a lantern, was 116; they are in the shadowless twin).
+2. **The shop glass was a flat pale slab** (a shelf pattern painted on the pane, glowing). It now
+   traces a room behind the glass, `shop_room()` in chinatown.gdshader: `shop_bay` 3 m bays,
+   `shop_depth` 4.2 m deep, shelves of goods on the back and side walls, a counter across the front
+   third of most bays, a ceiling of light panels, tiled floor, with true parallax from the face's
+   tangent frame (UV is metres along the face and over the pavement; `ChinatownGeo.tri()` writes
+   the tangents). The glass mirrors the sky by Fresnel on top. Walls are dark and the light warm,
+   so the room reads as a lit shop at night, not a lightbox.
+3. **The hall was a flat red box washed evenly by the street wash.** Its screens (UV2 =
+   (0, `LIT_FLAG`) on its lattice faces) are lit from inside every night - a warm glow peaking at
+   lamp height, the fretwork dark against it; the upper storeys got screens on their ends and back
+   (they were plain red walls); the shop-glass door became a screen. The lacquer keeps
+   `LACQUER_WASH` 0.45 of the street wash, so red walls are walls in the dark.
+4. **Upstairs windows were flat cream panels** (the lit-spreadsheet look): a lamp's warm pool high
+   in the pane falling to the sill, drawn curtains (thin, backlit red or cream) in half the rooms.
+5. **The plaza's masts were 16 cm square red sticks**: round lacquered posts on a stepped granite
+   foot with gilt rings and a finial. **The court held five people**: `PLAZA_PEOPLE` 30 (was 16),
+   each still through the crowd cap.
+
+**Not done / not verified**: the Mac itself (Forward+ judged on lavapipe only, the plaza block
+alone, 45 frames - SDFGI not fully settled); the far / LOD copies are unchanged (boxes); the plaza
+paving is still one even grid; the shop rooms are one generic shop for every trade (a kitchen
+traces shelves of goods too).
+
+Numbers (refcams, opengl3, `chinatown_dusk`): luma p5/p50/p95 12/33/175 -> 11/31/157; 4.62 M ->
+4.71 M triangles, 2,391 -> 2,427 draws. The ten original cameras with `RC3_CHINATOWN=0` vs on: nine
+within tolerance, `freeway` flagged by live traffic only (a car near the lens; Chinatown is not in
+that view). Gate: SHARDS=3, 5,446 checks, one failure in `pedestrian_flow_checks` ("somebody comes
+out of a shop door", a valet picked) that passes alone with this file (`SMOKE_PARTS=pedestrian_flow_checks,rc3_chinatown_checks`, 43 checks).
+On opengl3 the lanterns at the Forward+ level (x 1.9) read a little peach; tuned for the Mac.
+Stills: branch `shots/rc3-chinatown`.
+
+## 9lp. The refinery at night, refcam refinery_night, 2026-11-02 (agent branch `wt/rc3-refinery-night`, fleet wave 6)
+
+**The camera.** `refinery_night` in `tools/refcams/cameras_w6.json`: eye (3180, 1.7 agl, 5838), yaw 40,
+pitch 7, fov 55, 22:30 clear - on the south street outside the fence (the port across the road),
+looking north-west: the flare row on the left, the tank farm's floating-roof tanks behind the berms,
+the cat cracker's structures and the cooling towers' steam beyond. Chosen from four candidates
+(south street NW, west street ENE, Alameda SW, this one; `build/refcams/cand` stills in the shots).
+
+**What gave it away, worst first, and what changed** (`RefineryNight`, `scripts/world/refinery_night.gd`;
+`REFINERY_NIGHT=0` is the A/B - every new shader block is behind a `night_look` uniform that stays 0):
+1. **The flares lit nothing.** A 75-96 m flame over its derrick, and the steel round it was lit by the
+   moon alone: the flare OmniLight sat 4 m over the tip with a 70 m range (FULL chunks only, so never
+   from this camera, where the flares are far pieces). Now `refinery.gdshader` lights every surface of
+   the plant near a flame from the real flame positions (`flare_tips[8]`, TRUE world through the
+   `origin_shift` global, a flicker each; falloff 1 / (1 + (d / 24)^2), gone by 160 m, the face turned
+   to the flame lit most) - the same in FULL chunks and the far pieces, on both renderers, nothing on
+   the CPU. `RefineryNight.flare_light()` is the GDScript copy (checked against the shader's text). The
+   old OmniLight is gone (on Forward+ it also tinted the pavement under the flares pink).
+2. **No air round a flame.** The flame mesh gains one sprite a flare (UV2.x 3): a 170 m haze dome of
+   amber, zero at its edge (fwd-review-d's additive rule), stronger after dark (`HAZE_W`, `HAZE_GAIN`).
+3. **The steam read as brown smoke.** The puff texture is a fire-and-smoke billow; the plume is now lit
+   from its luminance only - cool white from the moon and the city, the plant's warm light under it.
+4. **The berms were one flat tan plane at the fence**, moonlit as bright as the tanks: now dry weedy
+   dirt (patches of dead weeds and dark brush, runnels down the slope, the foot shaded), and darker
+   under the moon.
+5. The masts' OmniLights (FULL, desktop) reach 40 m with a steeper falloff (`MAST_RANGE`,
+   `MAST_ATTENUATION`) so a flood is a pool with an edge.
+
+`RefineryNight.apply()` is called by `RefineryFar.attach()` and by `ensure()` from `Refinery.site_steps()`
+(so block_shot / fwd_block_shot, which build no far city, get it too).
+
+**Proof.** opengl3: `build/refcams/{cand,after3}` (before / after of the camera). Forward+ (lavapipe,
+`tools/glshot/fwd_block_shot.tscn EYE=2925,1.7,5831,10,14 --hour=22.5`, `REFINERY_NIGHT=0|1`): the
+derricks under the flames take their light; the first pass (gain 1.15, a redder colour) read salmon on
+the white bands there, so the light is amber (1.0, 0.56, 0.22) at 0.9. Frame cost: the same geometry
+(the haze is five quads; the shader loop runs over five flares only inside the plant's material).
+
+**Not done / seen.** The foreground road is lit bright and flat by the street's own lamps behind the
+camera and the moon (not the refinery's; every eye along the south street reads the same) - a street
+lamp / night-exposure question for whoever owns those. The tanks are still moonlit nearly white. No
+heat shimmer over the flares, no people or trucks inside the fence. Forward+ seen only on the small
+scene, not the whole camera.
+
+## 9lq. The skyline from a tower's roof: the rooftop_golden refcam (fleet wave 6, `wt/rc3-rooftop-golden`)
+
+**The camera.** New reference view `rooftop_golden` in `tools/refcams/cameras_w6.json`: the black
+twins' north helipad (deck 215.55 m, eye 2.75 m over it at (2288.5, 218.3, 43.0)), 17:45 clear,
+yaw 165 pitch -11, fov 55 - the helipad's H and touchdown circle across the foreground, the south
+twin's roof, the sail tower and the green-crowned pyramid, the city running out to the peninsula,
+the sea and the island under the low sun. Run it with
+`REFCAMS_JSON=tools/refcams/cameras_w6.json python3 tools/refcams/refcams.py run <dir> --only rooftop_golden`.
+
+**Two traps found choosing it** (each cost a render):
+- **Bunker Hill lifts the towers.** `LaHills.landmark_lift()` puts the bronze slab (333 S Hope) on
+  21.9 m of hill, so its pad is at 248.4 m, not 0.25 + 222.9 + 3.4. An eye at the "table" height
+  is INSIDE the tower - and inside its occluder box, so the whole city is culled and the frame is
+  the horizon plane and the sky (it looked like a game bug: it was the camera). Get a landmark's
+  height from its node (`Occluder_<id>` / `Tower_<id>` y) or from `LaHills.landmark_lift()`.
+- **The bronze slab's pad cannot see the skyline**: its mechanical box stands between the pad and
+  every tower to the south. The black twins' pad has its penthouses to the east.
+
+**What read fake, in the order the eye lands** (before = `RC_ROOFTOP=0`, the same tree as main):
+1. **The deck** - half the frame - a plain blue-grey sheet, the H and the circle blotched by cloud
+   noise. Real pads are extruded aluminium planks with a gritty coat and worn paint.
+2. **The south twin's roof**: a blank black box with one featureless concrete block on it - the
+   builders' `detail.box(..., CONCRETE)` "mechanical" placeholder; the same blank block sits on every
+   flat-roofed downtown tower (from the bronze slab's pad it filled half the frame).
+3. **The windsock** in the middle of the frame: one 10-sided cone, faceted, rigid.
+4. **The island** (36 km offshore, sky shader): a hard dark-brown strip against the golden sky -
+   the land's colour let through the haze ("glare" cut the haze back), crisp-edged.
+Seen and left: the pyramid's green crown is lit at 17:45 (its night ramp comes on before sunset,
+by design); the far city's red-roof mosaic is MidCity's.
+
+**What changed** (`RcRooftop`, `scripts/world/rc_rooftop.gd`; `RC_ROOFTOP=0` is the A/B of all of
+it, bit for bit):
+- `LandmarkRoofs` (`scripts/world/landmark_roofs.gd`, one hook in `LandmarkDowntown.build()` beside
+  the helipad; `LANDMARK_ROOFS=0` alone): per tower, from its own data - `TowerMesh.boxes` (every
+  `box()` now recorded, one line) and its prism tiers - each concrete roof box over 60 m (>= 5 m
+  across, >= 1.2 m tall, unturned) is CLAD as a louvred penthouse (0.25 m outside it, 1.3 m taller:
+  posts, mullions, screens on Rooftops' K_LOUVRE, a capped roof, doors with steps, a fan, a flue
+  and a small unit on top), and the tier it stands on gets plant on a 4.4 m hashed grid (72 %):
+  packaged units on curbs (louvred coil face, two fan tops, a duct into the roof), cooling towers on
+  dunnage, mushroom exhaust fans, and duct runs on legs from the two nearest units to the
+  penthouse - inside the outline less 3.6 m (gondola davits), off the penthouse and the helipad's
+  deck + net + stair. Pure (hashes of the id); one mesh a tower on `Rooftops.material()`, cached and
+  shared by the far and detailed copies, drawn to 950 m; box collision on the detailed one. Dressed:
+  black twins, bronze slab, granite slab, dark glass, plaza one (~11 k triangles in all); crowns
+  and the unfinished tower (`SKIP`) are left alone. Probe `tools/landmark_roofs/probe.gd`.
+- `rooftop.gdshader` `pad_closeup` (set once in `Rooftops.material()`): the deck as 0.3 m planks
+  (seams, edge-rolled crowns tilting the normal across the planks, 6 m panel joints, a tone per
+  plank), a grit coat, tyre rubber streaking down the planks, the paint worn in streaks along them,
+  chipped at the seams and grainy over the grit; every part faded to its mean under a couple of
+  pixels. The plank axis comes from screen derivatives taken OUTSIDE the branch (`pad_u`).
+- `RcRooftop.windsock()`: the sock is a cloth of 8 rings x 18 sides sagging toward the tail (the
+  frame's +Z is down: Rooftops builds it as (up x wind) x wind), drawn both ways.
+- `offshore_island.gdshaderinc` `island_soft` (pushed by OffshoreIsland.setup()): against a low sun
+  the haze is no longer cut back, and the air is a greyer, cooler copy of the sky; the skyline
+  softened over three pixels. Noon and night unchanged (it scales with `low_sun`).
+
+**Numbers** (refcams, opengl3, `RC_ROOFTOP=0` -> on): rooftop_golden p5/p50/p95 42/93/187 ->
+35/92/187, saturation 0.311 -> 0.323; 3.19 M triangles / 1,076 draws -> 3.22 M / 1,079 (+1 %; the
+roof plant is ~11 k, the rest traffic noise). The ten original cameras, `RC_ROOFTOP=0` -> on from
+one tree (`refcams.py compare`): eight within a level and 0-1.6 mean pixel |d|; the two flagged,
+street_night (a bus pulled up in the left lane) and freeway (different cars), are live traffic -
+nothing of this work is in either frame. Triangles -1.4 % .. +1.8 %.
+
+**Forward+** (lavapipe): the island with `tools/offshore_island/island_shot.gd` at the eye, 17:45
+(`shots/rc3-rooftop-golden` 05/06): a saturated brown band -> a hazy grey-violet silhouette. The
+deck and the roof plant are Rooftops' shader (linear on both renderers); NEEDS MAC CHECK: the plank
+crowns' shading at a grazing low sun on Forward+.
+
+**Checks**: `tests/rc3_rooftop_golden_checks.gd` (the plan pure, plant on the roof and off the
+penthouse and the pad, the flat roofs dressed and the crowns not, the clad box, one mesh on the
+rooftop shader, nothing when off; the deck and island uniforms behind their switches and pushed;
+the windsock's rings and sag).
+
+## 9lr. The oil field from its lease road (fleet wave 6, refcam3 `oil_field`, branch wt/rc3-oil-field)
+
+**The camera.** `oil_field` in `tools/refcams/cameras_w6.json`: the crest loop's lease road on the
+oil field hill (TRUE world 611.4, 1.7 AGL, 1542.8; yaw -56.6, pitch -2; 16:00 clear; fov 55),
+looking north-east down a row of nodding pumpjacks at the downtown skyline, the tank battery on the
+right. Picked by `tools/rc3_oil_field/eye_probe.tscn` (every lease-road point scored by the
+pumpjacks in a 50-degree cone toward downtown); two other candidates (the flank road at 771, 1782
+and a pumpjack close-up on the crest at 598, 1575) are in the before shots.
+
+**What gave it away** (the before, main 484a7897), in the order the eye lands on it:
+1. The hill was a bare beige sheet. The field's ground is the hills' terrain material on a plain
+   grid with none of the hill chunks' planting: no shells, no shrubs, no clumps, no trees - from the
+   road a flat colour out to the fence, a desert where the real Baldwin Hills / Signal Hill are wild
+   oats, coyote brush and sage.
+2. The dirt roads' and pads' edges were a band of screen-space Bayer dots (a halftone on every still
+   and crawling in motion).
+3. Nothing lived there: no vehicle, nothing at the verges.
+4. The pumpjacks were clean pale-grey plastic.
+
+**What changed** (`OilFieldPlanting`, `scripts/world/oil_field_planting.gd`; `OIL_PLANTING=0` the
+A/B for all of it):
+- **Hill shells on the field's ground** (FULL): `OilFieldBuild._ground()` writes COLOR.b =
+  `shell_keep()` (0.5 at the edge of a road / pad / the fence, a distance so the edge runs straight)
+  and COLOR.a 0.5 (no rill), and adds `HillShells.make()` over the mesh.
+- **Planting** (one step in `site_steps()`, hashes of seed + world grid cell, time-sliced): HillShrub
+  stands where `stand()` (a slow simplex cluster + `OilField.drainage()`) is over 0.5, lone sage
+  outside them; HillScatter clumps (the FULL ones fade in from 70 m; LOD chunks the bigger ones);
+  live oaks in the gullies; VacantKit's foxtail tufts along the lease roads' verges and pad edges,
+  patches of wild mustard and fennel. Keep-outs come from the field's own cell index (`clear()`:
+  road edge, pad edge) and the fence. **Trap**: a field chunk is ~88 x 390 m, and a batch's
+  draw range is measured to its bounds' centre, so a chunk-wide shrub batch with HillGround3's 160 m
+  range was out of range while the camera stood in it - the shrubs are batched in 80 m cells
+  (`SHRUB_CELL`), the weeds in 40 m ones.
+- **Service pickups**: on 40 % of wells pads and 70 % of tank batteries a real parked Vehicle
+  (WORK_TRUCK / PICKUP in fleet whites and greys) along the pad's road edge, built as a deferred step
+  (`_run_or_defer`), in the chunk's `_cars`; past PhysicsBudget's cap the far twin in the batch
+  (`CarParkBuild.real_body()`). The far twin was tried first: its folded wheels are white discs
+  from 10 m.
+- **The dirt's edge** (`oil_dirt.gdshader` `crumble_edge`): world-space grains (a 3.5 cm hash plus
+  two noises) instead of `bayer4(FRAGCOORD)`, with a darker lip of loose soil; a clean edge from the
+  air as before.
+- **Pumpjacks** (`pumpjack.gdshader` `weather_pass`): a dust band up the lower 1.5 m, oil and grime
+  streaks hung in the unit's frame under the saddle bearing and the gearbox, chalked dusty tops
+  (`fwidth` taken outside the branch).
+- **Bug found and fixed on the way**: the step's phase loop sent a LOD chunk back to phase 1 from the
+  FULL-only phases - the build never ended (a refcam load hung in "far landmarks"). The checks now
+  build a LOD chunk too.
+
+**Tools** (`tools/rc3_oil_field/`): `eye_probe.tscn` (camera candidates), `stand_probe.tscn` (ASCII
+stand / keep-out map round AT), `map_probe.tscn` (a 1 m/px PNG of roads, pads, stands, keep-outs and
+the view line: `OUT=`, `AT=`, `YAW=`), `check_runner.tscn` (the checks alone, ~2 min,
+`RC3_DEBUG=1` prints the chunk's counts).
+
+**Checks** (`tests/rc3_oil_field_checks.gd`, one line in smoke_test's city files): the camera row;
+keep-outs pure and right (roads, pads, the fence; the shells' COLOR.b); the eye's FULL chunk plants
+shrubs, clumps and verge weeds, nothing on a road, pad or the fence, every pickup on a pad, the shells
+present; a LOD chunk plants clumps only; the dirt material's `crumble_edge`.
+
+## 9ls. The golf course at 08:30 (refcam golf_morning, 2026-11-02; agent branch `wt/rc3-golf-morning`)
+
+**The camera.** A new wave-6 reference view, `golf_morning` in `tools/refcams/cameras_w6.json`:
+Valley Oaks at 08:30 clear, eye height behind the 9th's back tee (39.6, -2858.2), looking down
+the hole (yaw 158.4) toward the clubhouse and the front range, a group of three staged on the tee
+(the seed rolls no group on the 9th): the row's optional `golf_group` key ("hole:stage[:tee[:count]]")
+is set by refcams_shot.gd as `GOLF_GROUP` before the city loads, read by `GolfLife.force_group`
+(groups() takes that hole whatever its roll; every other hole unchanged). `tools/golf/groups_probe.gd`
+prints which holes the seed puts groups on.
+
+**What read fake, in the order the eye lands on it, and what was done** (all behind
+`GolfMorning`, `scripts/world/golf_morning.gd`, the `golf_morning` shader global; `GOLF_MORNING=0`
+is the A/B and draws the course bit for bit as before):
+1. *The tee box's divots were 33 cm brown squares* on a hash grid, the first thing under the lens.
+   `tee_divots()` in golf_turf.gdshader: scars a hand long along the line of play in a tee-aligned
+   cell grid, packed in worn rows across the box (a slow noise along the line, the middle wears
+   most), two thirds filled with the sand-and-seed mix, the rest bare soil with the torn turf's rim;
+   under a couple of pixels the cell's average. The footprint is taken once in uniform control flow
+   (`px`): fwidth() inside the tee's branch is unreliable on llvmpipe.
+2. *A hard vertical seam down the middle of the frame*: the mown stripes' sheen was
+   `sign(facing)`, so the light and dark bands swapped exactly where the view crossed square to the
+   mower - which, on a tee seen down the line of play, is the screen's centre. Now the sheen fades
+   to nothing square to the mower and comes back the other way round (visible on Forward+ too).
+3. *Nothing said "morning"*: dew. `dew_amount(city_hour)` (= `GolfMorning.dew()`, checked) is 1
+   overnight and at dawn and burns off between 8:6 and 10:6, never in the rain; the turf goes a
+   little grey-silver at a grazing look and toward the low sun, glossier (roughness / specular -
+   kept gentle: at 0.7 roughness Forward+ lit a warm hot spot over the rough that read as straw),
+   fresh stripes stand out more, trails where people walked are dark (along the line of play,
+   wandering, starting and stopping; across the tee), the greens mown at first light keep only a
+   ring. No glints: 3 cm glint cells drew as paper litter in the stills.
+4. *Bunkers were flat white discs* from the tee and the air: `bunker_morning()` - a shade darker and
+   warmer, the lip's shadow a band inside the rim, raking done in metre-wide passes (a sheen change
+   that holds to ~100 m), damp patches, a scuffed walk-out.
+5. *Native areas were flat tan* under the trees and read as bare dirt: `native_grass()`, bunchgrass
+   clumps with dark gaps and straw tips leaning one way, averaged once under a few pixels; and the
+   rough's tone now varies in patches (yellower toward dormant warm-season grass, bluer in others).
+6. Smaller: the tee markers are painted balls (`GolfMorning.tee_ball()`), not tin cans; the fir
+   stands (mountain conifers on a valley course, grey skeletons from the tee) are LaTrees
+   sycamores and eucalyptus, after every roll (`GolfBuild._planting()`, a hash per spot).
+
+**Not done: the front range behind the course reads as smooth beige dunes from the valley.** The
+layer probe (`tools/aerial_review/layer_probe.gd`) pins it on the horizon plane (macro_ground), not
+a chunk. The brush is there: HillPlanting.ground() says ~80 % chaparral on those faces and the
+plane's own stand mask agrees (a debug render painted them almost all brush); dark olive brush
+under the 08:30 warm sun, the depth fog and the plane's range haze comes out tan, and the plane has
+no mid-scale texture at 1-2 km. Raising the plane's brush share in the painted band (tried) moved
+the mean by 3 levels. It wants a hills / atmosphere pass (morning fog colour and density over the
+valley, mid-scale texture on the plane); it is shared by every camera that sees a range.
+
+**How to judge it fast.** `tools/glshot/hill_ground_shot.tscn` with `GROUND=1 DAYNIGHT=1 BLOCKS=1`
+and the camera's EYE builds the course chunks round the tee plus the horizon plane in ~40 s on
+opengl3 and ~6 min on lavapipe Forward+ (the course's colours were checked there, ON and OFF). It
+spawns no golfers (use the refcam for those).
+
+**Checks**: `tests/rc3_golf_morning_checks.gd` (the camera row and its group, force_group touching
+only its hole, every pass gated, the dew hours mirrored, a FULL chunk planting sycamores and
+eucalyptus where the firs were). Stills on `shots/rc3-golf-morning`.

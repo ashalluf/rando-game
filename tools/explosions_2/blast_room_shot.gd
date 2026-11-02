@@ -10,7 +10,7 @@ extends SceneTree
 ##
 ## Env: OUT (stem; `_t<seconds>.png` each), TIMES, NIGHT=1 (no sun, a dark sky, night_factor 1),
 ## GOLDEN=1 (a low warm sun, a peach horizon),
-## CAR=1 (a parked car's own explosion: fuel fireball and toss), DIST (camera metres from the
+## CAR=1 (a parked car's own explosion: fuel fireball and toss; CHAIN=1 two more cars beside it), DIST (camera metres from the
 ## blast, default 34), HEIGHT (camera eye, 1.7), RADIUS (9), SCALE (slow motion before 1 s,
 ## 0.375 = 0.05 s a frame), LATE (after 1 s, 2.0), CAM_X (camera sideways, -4), LOOK_Y (aim height,
 ## 9), WEB=1 (the web build's card path), GAS=1 (a petrol pump's vapour blast, Blast4), FULL=0 (WeaponFX.explosion alone; by default Explosion.blast(), so the crater and rubble too). EXPLOSIONS_2=0 is the old blast (the before).
@@ -124,6 +124,13 @@ func _initialize() -> void:
 		root.add_child(car)
 		car.global_position = at + Vector3(0.0, 0.8, 0.0)
 		car.rotation.y = 0.6
+		if OS.get_environment("CHAIN") == "1":
+			# Two more parked cars beside it: the fuel blast's chain fuse sets them off in turn.
+			for k in 2:
+				var nb: Node3D = load("res://scripts/vehicles/vehicle.gd").random_car(RandomNumberGenerator.new())
+				root.add_child(nb)
+				nb.global_position = at + Vector3(-5.5 * (k + 1), 0.8, 1.0 + 1.5 * k)
+				nb.rotation.y = 0.5 - 0.3 * k
 		for i in 6:
 			await physics_frame
 		car.call("damage_state").explode()

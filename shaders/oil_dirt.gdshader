@@ -18,6 +18,8 @@ uniform vec3 dirt_color = vec3(0.56, 0.47, 0.36);
 uniform vec3 track_color = vec3(0.42, 0.36, 0.29);
 uniform vec3 gravel_color = vec3(0.5, 0.46, 0.4);
 uniform vec3 straw_color = vec3(0.66, 0.58, 0.40);
+// The edge in world-space grains (OilFieldPlanting, refcam3); false is the old Bayer dither.
+uniform bool crumble_edge = false;
 
 global uniform vec3 origin_shift;
 global uniform float road_wetness;
@@ -111,7 +113,19 @@ void fragment() {
 	// Ragged up close; from the air (a pixel over ~15 cm) a clean edge, or the dither reads as dots.
 	float far_edge = smoothstep(0.08, 0.2, fw);
 	edge_cover = mix(edge_cover, step(0.5, edge_cover), far_edge);
-	if (edge_cover < bayer4(FRAGCOORD.xy)) {
+	if (crumble_edge) {
+		// The edge crumbles in WORLD space (refcam3 oil_field): grains and clods of a few cm fixed
+		// to the ground, so it reads as loose dirt giving way to the grass rather than as a
+		// screen-space halftone (the Bayer dither drew a band of dots on every still and in motion).
+		float grain = hash12(floor(w / 0.035)) * 0.45 + vnoise(w * 9.0) * 0.35 + vnoise(w * 2.2 + 17.0) * 0.2;
+		float thr = mix(grain, 0.5, far_edge);
+		if (edge_cover < thr) {
+			discard;
+		}
+		// Darker, looser soil in the last of the edge, where the grass's litter lies on it.
+		float lip = 1.0 - smoothstep(thr, thr + 0.25, edge_cover);
+		albedo = mix(albedo, albedo * vec3(0.78, 0.76, 0.72), lip * (1.0 - far_edge));
+	} else if (edge_cover < bayer4(FRAGCOORD.xy)) {
 		discard;
 	}
 	float wet = clamp(road_wetness, 0.0, 1.0);

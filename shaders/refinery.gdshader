@@ -25,11 +25,21 @@ uniform sampler2D corrugated_tex : source_color, filter_linear_mipmap_anisotropi
 uniform float flood = 0.24;
 /// The tanks' floodlit feet after dark.
 uniform float tank_flood = 0.42;
+/// RefineryNight (wave 6, REFINERY_NIGHT=0 leaves it 0 and every block it gates off): the flares
+/// light the steel round them, the berms are dry weedy dirt.
+uniform float night_look = 0.0;
+/// The flame tips (TRUE world xyz, w a flicker phase), how many, their reach, gain and half distance.
+uniform vec4 flare_tips[8];
+uniform int flare_count = 0;
+uniform float flare_reach = 160.0;
+uniform float flare_gain = 0.9;
+uniform float flare_half = 24.0;
 
 global uniform float road_wetness;
 global uniform float lamp_factor;
 global uniform float night_factor;
 global uniform vec4 sky_tint;
+global uniform vec3 origin_shift;
 
 varying float kind;
 varying vec3 world_n;
@@ -193,6 +203,25 @@ void fragment() {
 		float grass = smoothstep(0.45, 0.75, fbm(uv * 0.12 + 3.0)) * (top ? 1.0 : 0.6);
 		albedo = mix(paint * (0.6 + 0.6 * dot(d, vec3(0.333))), vec3(0.52, 0.45, 0.26) * (0.8 + 0.4 * vnoise(uv * 3.0)), grass * 0.7);
 		albedo *= 1.0 - 0.12 * lines(uv.x, 1.7, 0.08) * (top ? 0.0 : 1.0);
+		if (night_look > 0.5) {
+			// Dry weedy dirt (wave 6): a flat tan plane at the fence read as cardboard. Darker
+			// packed earth, patches of dead weeds and darker brush, gravel washed down in runnels,
+			// the foot damp and shaded where it meets the gravel.
+			vec2 wp = world_p.xz + world_p.y * 0.37;
+			float patch = fbm(wp * 0.09 + param);
+			float weeds = smoothstep(0.42, 0.68, fbm(wp * 0.31 + 5.0)) * (0.6 + 0.4 * vnoise(wp * 2.3));
+			float brush = smoothstep(0.62, 0.8, fbm(wp * 0.17 + 11.0));
+			vec3 earth = paint * vec3(0.78, 0.76, 0.74) * (0.55 + 0.5 * dot(d, vec3(0.333))) * (0.8 + 0.35 * patch);
+			vec3 dry = vec3(0.46, 0.4, 0.27) * (0.7 + 0.45 * vnoise(wp * 4.1));
+			vec3 dark = vec3(0.17, 0.18, 0.12) * (0.75 + 0.5 * vnoise(wp * 3.3));
+			albedo = mix(earth, dry, weeds * 0.75);
+			albedo = mix(albedo, dark, brush * 0.8);
+			float runnel = smoothstep(0.55, 0.9, vnoise(vec2(uv.x * 1.9, uv.y * 0.12) + param)) * (top ? 0.0 : 1.0);
+			albedo = mix(albedo, paint * 0.45, runnel * 0.45);
+			albedo *= top ? 1.0 : mix(0.62, 1.0, smoothstep(0.0, 1.4, uv.y));
+			// Moonlit dirt at night is dull: the slope takes less of the moon than the steel.
+			albedo *= mix(1.0, 0.72, night_factor);
+		}
 		rough = 0.95;
 		spec = 0.3;
 		wet_k = 1.0;
@@ -326,6 +355,26 @@ void fragment() {
 		// Soot: a flare's tip, a stack's crown.
 		albedo = vec3(0.05, 0.045, 0.04) * (0.8 + 0.4 * vnoise(uv * 4.0));
 		rough = 0.9;
+	}
+	if (night_look > 0.5 && flare_count > 0) {
+		// The flares light what stands round them (wave 6, RefineryNight): an inverse-square-ish
+		// falloff from each flame, a flicker per flare, the face turned to it lit most. The same
+		// in FULL chunks and the far pieces, on both renderers. GDScript copy: RefineryNight.flare_light().
+		vec3 tp = world_p + origin_shift;
+		float fl = 0.0;
+		for (int i = 0; i < flare_count; i++) {
+			vec3 d = flare_tips[i].xyz - tp;
+			float dist = length(d);
+			if (dist < flare_reach) {
+				float fall = 1.0 / (1.0 + (dist * dist) / (flare_half * flare_half));
+				fall *= 1.0 - smoothstep(flare_reach * 0.55, flare_reach, dist);
+				float facing = clamp(dot(nrm_world, d / max(dist, 0.01)) * 0.7 + 0.3, 0.0, 1.0);
+				float ph = flare_tips[i].w * 6.2832;
+				float flick = 0.84 + 0.1 * sin(TIME * 9.3 + ph) + 0.06 * sin(TIME * 23.1 + ph * 3.0);
+				fl += fall * facing * flick;
+			}
+		}
+		emit += to_lit(vec3(1.0, 0.56, 0.22) * albedo) * fl * flare_gain * (0.3 + 0.7 * night_factor);
 	}
 	// After dark the steel round the platform lamps is lit warm (two cells in three have one).
 	emit += to_lit(sodium * albedo) * flood * lit_steel * lamp_cell * lamp_factor * (bottom ? 1.6 : 1.0);
