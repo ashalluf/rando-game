@@ -86,6 +86,11 @@ const MAX_KEEPERS := 3
 ## Draw distances (m): the goods, the stalls and tarps (seen down the alley and from above). The
 ## goods and stalls cast no shadow (see dress_market()).
 const GOODS_DRAW := 75.0
+## The goods' batches are cut per face into stretches this long (m): a node's draw range is
+## measured to its bounds' centre, and a downtown block's face runs 200 m - one batch for the
+## whole block drew nothing while you stood next to its goods (rc3-fashion-district).
+const SET_CELL := 36.0
+static var cells_enabled: bool = OS.get_environment("FD_CELLS") != "0"
 const STALL_DRAW := 110.0
 ## The market alleys' invented names (on the banners at the mouths).
 const ALLEY_NAMES := ["CALLEJON DE LA MODA", "SANTA LUZ ALLEY", "EL BAZAR TEXTIL", "MERCADITO DEL SOL",
@@ -297,7 +302,7 @@ static func build_pavement(ch: CityChunk, block: Dictionary, sellers: Array) -> 
 						st.stats.rej_occ = int(st.stats.get("rej_occ", 0)) + 1
 						break
 			if ok:
-				_lay_set(ch, fs, v, Vector3(front.x, CityChunk.SIDEWALK_TOP, front.y), yaw, e, slot)
+				_lay_set(ch, fs, v, Vector3(front.x, CityChunk.SIDEWALK_TOP, front.y), yaw, e, slot, int(floor(mid / SET_CELL)))
 				laid += 1
 				if slot % SELLER_EVERY == 1 and sellers.size() < MAX_SELLERS:
 					var end := front + dir * (len * 0.5 + 0.55) - inward * 0.9
@@ -308,14 +313,13 @@ static func build_pavement(ch: CityChunk, block: Dictionary, sellers: Array) -> 
 			t += len + DOOR_GAP
 	st.stats.sets = int(st.stats.sets) + laid
 	sets_laid += laid
-	for v in FashionKit.SET_VARIANTS:
-		var key := "fd_set_%d" % v
+	for key: String in (st.get("set_keys", {}) as Dictionary):
 		ch._batch.set_draw_distance(key, GOODS_DRAW)
 		ch._batch.set_no_shadow(key)
 
 
 ## One frontage set as a prop (it breaks as one: shot to pieces, the debris flies, it stays gone).
-static func _lay_set(ch: CityChunk, fs: Dictionary, v: int, at: Vector3, yaw: float, e: int, slot: int) -> void:
+static func _lay_set(ch: CityChunk, fs: Dictionary, v: int, at: Vector3, yaw: float, e: int, slot: int, cell: int = 0) -> void:
 	var b := Basis(Vector3.UP, yaw)
 	var custom := Color(h01([ch.plan.seed, "fd_hue", ch.ix, ch.iz, e, slot]), h01([ch.ix, ch.iz, e, slot]), 0.0, 0.0)
 	var shapes: Array = []
@@ -323,8 +327,14 @@ static func _lay_set(ch: CityChunk, fs: Dictionary, v: int, at: Vector3, yaw: fl
 		var size: Vector3 = bx[0]
 		var c: Vector3 = at + b * (bx[1] as Vector3)
 		shapes.append([size, c, yaw])
-	ch._add_prop("fd_set", at, Color(0.5, 0.42, 0.36), [["fd_set_%d" % v, fs.mesh, Transform3D(b, at), Color.WHITE, custom]], shapes)
+	# One batch per variant, face and SET_CELL stretch of it (FD_CELLS=0: per variant, the old
+	# chunk-wide batches, whose 75 m draw range was measured to a block-wide box's centre).
+	var key := "fd_set_%d" % v if not cells_enabled else "fd_set_%d_%d_%d" % [v, e, cell]
 	var st := _state(ch)
+	if not st.has("set_keys"):
+		st["set_keys"] = {}
+	(st.set_keys as Dictionary)[key] = true
+	ch._add_prop("fd_set", at, Color(0.5, 0.42, 0.36), [[key, fs.mesh, Transform3D(b, at), Color.WHITE, custom]], shapes)
 	st.stats.set_tris = int(st.stats.set_tris) + int(fs.tris)
 
 
