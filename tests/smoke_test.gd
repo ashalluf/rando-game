@@ -2895,6 +2895,10 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	# The golf course at 08:30 (tests/rc3_golf_morning_checks.gd, GolfMorning): the staged group,
 	# the turf's morning passes behind their switch, the course's sycamores and eucalyptus.
 	load("res://tests/rc3_golf_morning_checks.gd").new().run(self, city)
+	# The fashion_district refcam (tests/rc3_fashion_district_checks.gd): goods batched per face stretch, no planter in front.
+	load("res://tests/rc3_fashion_district_checks.gd").new().run(self, city)
+	# The marina at golden hour (tests/rc3_marina_golden_checks.gd, MarinaGolden): the water's mirror, the rigging.
+	load("res://tests/rc3_marina_golden_checks.gd").new().run(self, city)
 	# The broadway_night refcam (tests/rc3_broadway_night_checks.gd, BroadwayNight): signs held lit,
 	# blazing marquees, brick auditorium sides, soft searchlight shafts, the camera row, the A/B.
 	load("res://tests/rc3_broadway_night_checks.gd").new().run(self, city)

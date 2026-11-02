@@ -24,6 +24,7 @@ global uniform float night_factor;
 global uniform float wind_factor;
 global uniform float road_wetness;
 global uniform vec3 origin_shift;
+global uniform vec4 skyline_sky_rim;
 
 #include "res://shaders/color_space.gdshaderinc"
 #ifdef BOAT_RIDE
@@ -55,6 +56,12 @@ const vec3 BOTTOM_NAVY = vec3(0.07, 0.09, 0.16);
 uniform vec3 cabin_light = vec3(1.0, 0.72, 0.42);
 uniform float cabin_energy = 2.2;
 uniform float anchor_energy = 14.0;
+// MarinaGolden (wave 6): rigging (region 12, WIRE: BoatMesh.Acc.wire()) is widened in the vertex
+// stage to at least this many pixels and faded toward the sky by what it really covers (0: off,
+// drawn at its true width - a third of a pixel at 20 m, which rasterised as dotted lines); and a
+// UV cover strip in the boat's canvas spirals round each furled jib (0: plain sailcloth).
+uniform float wire_px = 0.0;
+uniform float jib_strip = 0.0;
 
 varying vec3 v_local;
 varying flat float v_region;
@@ -62,6 +69,7 @@ varying vec3 v_paint;
 varying flat float v_flags;
 varying float v_seed;
 varying float v_cam;
+varying float v_wire;
 
 float bt_hash(vec2 p) {
 	vec3 p3 = fract(vec3(p.xyx) * 0.1031);
@@ -86,6 +94,19 @@ void vertex() {
 	float ph = bt_hash(floor(o.xz * 3.0)) * 6.2831;
 	v_seed = solo > 0.5 ? solo_seed : fract(ph * 7.31);
 	v_cam = distance(MODEL_MATRIX[3].xyz, INV_VIEW_MATRIX[3].xyz);
+	v_wire = 1.0;
+	// Rigging: NORMAL is the offset from the wire's centre line, UV.x the half width. In a
+	// perspective pass (never a directional shadow's orthographic one) the wire is widened to
+	// `wire_px` pixels at its depth; v_wire is the share of that it really covers.
+	if (wire_px > 0.0 && v_region > 11.5 && v_region < 12.5 && PROJECTION_MATRIX[3][3] < 0.5) {
+		vec3 ctr = VERTEX - NORMAL * UV.x;
+		vec3 cv = (MODELVIEW_MATRIX * vec4(ctr, 1.0)).xyz;
+		float scale = max(length(MODEL_MATRIX[0].xyz), 0.01);
+		float pxm = max(-cv.z, 0.05) * 2.0 / (abs(PROJECTION_MATRIX[1][1]) * max(VIEWPORT_SIZE.y, 240.0)) / scale;
+		float hw = max(UV.x, wire_px * pxm * 0.5);
+		v_wire = clamp(UV.x / hw, 0.0, 1.0);
+		VERTEX = ctr + NORMAL * hw;
+	}
 #ifdef BOAT_RIDE
 	if (ride > 0.5) {
 		vec2 og = o.xz;
@@ -237,6 +258,20 @@ void fragment() {
 		// Sailcloth, a little weathered.
 		alb = base * (0.94 + 0.06 * bt_noise(UV * 25.0));
 		rough = 0.8;
+		if (jib_strip > 0.5) {
+			// A furled jib shows its UV cover: a strip of the boat's canvas wound round the roll
+			// (the tube's UV: x round it, y metres along it).
+			// The cover is most of what shows; thin slivers of the white sail between its turns.
+			float wind = fract(UV.x + UV.y * 1.1);
+			float strip = smoothstep(0.0, 0.05, wind) * smoothstep(0.86, 0.8, wind);
+			alb = mix(alb, cs_srgb_to_linear(CANVAS[int(canvas_i)]) * (0.9 + 0.1 * bt_noise(UV * 60.0)), strip);
+		}
+	} else if (region > 11.5) {
+		// Rigging: steel or line, faded toward the sky behind it by what it covers of its pixel.
+		alb = base * mix(0.55, 1.0, v_wire);
+		rough = 0.35;
+		metal = 0.4;
+		emit = cs_srgb_to_linear(skyline_sky_rim.rgb) * (1.0 - v_wire) * 0.35;
 	} else {
 		// The outboard's cowl: glossy black.
 		alb = base;

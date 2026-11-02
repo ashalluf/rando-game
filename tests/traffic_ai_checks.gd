@@ -731,6 +731,15 @@ func _freeway_ramps() -> void:
 	var take_was: float = stack_traffic.get("take_share") if stack_traffic else 0.0
 	if stack_traffic:
 		stack_traffic.set("take_share", 0.0)
+	# An empty deck (the pass check's recipe): a fill car stood in the outer lane ahead holds the
+	# leaver behind it past the ramp, and whether one is there depends on what earlier files left
+	# (batch 45 shard: "left false, went down false (parent Traffic, fw car true)").
+	var max_was: int = _traffic.max_freeway_cars
+	_traffic.max_freeway_cars = 0
+	for c in _traffic.freeway_cars.duplicate():
+		if is_instance_valid(c):
+			_traffic._retire(c)
+	_traffic.freeway_cars.clear()
 	var leaver := _traffic.place_freeway_car(ri_off, t0, 1, -1, 22.0)
 	var width := float(fw.routes[ri_off].width)
 	leaver.traffic.li = Freeway.LANES - 1
@@ -753,6 +762,7 @@ func _freeway_ramps() -> void:
 		if left and leaver.global_position.y < top_y - 4.0:
 			down = true
 	FreewayIncidents.enabled = incidents_were
+	_traffic.max_freeway_cars = max_was
 	if stack_traffic:
 		stack_traffic.set("take_share", take_was)
 	var gone := "" if left else (" (%s)" % ("freed" if not is_instance_valid(leaver) else ("parent %s, fw car %s" % [leaver.get_parent().name if leaver.get_parent() else "none", _traffic.freeway_cars.has(leaver)])))
