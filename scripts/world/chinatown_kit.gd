@@ -436,7 +436,7 @@ static func lantern(g0: ChinatownGeo, pivot: Vector3, hang: float, h: float, col
 	g.uv2 = Vector2(maxf(hang * 0.5, 0.01), phase)
 	beam(g, pivot, top + Vector3(0, 0.06 * h, 0), 0.012, 0.012, kc(WIRE, K_WIRE))
 	g.uv2 = Vector2(hang + h * 0.5, phase)
-	var sides := Rc3Chinatown.lantern_sides()
+	var sides: int = Rc3Chinatown.lantern_sides()
 	var vs := [0.0, 0.2, 0.5, 0.8, 1.0]
 	var prof := func(v: float) -> float:
 		return rad * (0.5 + 0.5 * sin(PI * v))
