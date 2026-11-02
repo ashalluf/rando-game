@@ -26880,6 +26880,24 @@ Checks: `_round9()`'s last line. Stills 61 on.
    the air. `BLAST_RING=0`. Judged on opengl3 only this round.
 Checks: `_round11()`. Stills 64 on.
 
+**Round 13: the wires, the masonry, the aerial on Forward+** (the lead's next list):
+1. **The debris ribbons drew long straight grey arcs across the sky, like wires.** The strip was
+   ONE triangle strip for every piece, joined by repeating only the next strip's first vertex - so
+   it ran long thin triangles from one piece's trail to the next. Now each segment is its own quad
+   (`PRIMITIVE_TRIANGLES`, no joins), a ribbon is at most `RIB_MAX_LEN` (8 m) back from its piece,
+   broken into puffs (the width swells and the smoke gaps along the path), widening faster with
+   age, and builds up behind the piece rather than at it (seen end on, the opaque heads fanned out
+   as dark petals).
+2. **The heavier masonry burst** (`Blast4._masonry_extra()`, from wall_blast(); `BLAST_MASONRY=0`):
+   slabs of wall thrown out with the chunks, a pale burst of crushed-masonry dust from the hole,
+   and a heap of broken masonry at the foot of the wall that appears as they land and stays
+   `heap_seconds` (90). Trap, the second time: a MultiMesh's box is round its node - the heap sits
+   at the foot with its instances relative to it.
+3. **The 150 m aerial on Forward+** (lavapipe, `UP=150`): the shock ring reads as a pale band round
+   the blast, the cap as grey smoke from 2 s; the fireball itself is small at 0.15 s (a 9 m
+   rocket from 170 m). The bluish wash is the test room's fog.
+Checks: `_round11()`'s last lines. Stills 69 on.
+
 ## 9lb. The camera lens (wave 5, `camera-lens`)
 
 **What.** The camera itself: exposure adaptation, the sun's flare, grain, the bloom's spread.

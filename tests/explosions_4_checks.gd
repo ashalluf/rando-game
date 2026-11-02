@@ -388,3 +388,13 @@ func _round11(parent: Node) -> void:
 	var none := Blast4.wall_blast(_city, parent, base + Vector3(30.0, 6.0, 0.0), 9.0)
 	_t._check(not none, "explosions_4: no wall, no wall blast")
 	wall.queue_free()
+	var dsrc := FileAccess.get_file_as_string("res://scripts/weapons/blast_debris.gd")
+	_t._check(dsrc.contains("const RIB_MAX_LEN := 8.0") and dsrc.contains("Mesh.PRIMITIVE_TRIANGLES")
+		and not dsrc.contains("PRIMITIVE_TRIANGLE_STRIP"),
+		"explosions_4: debris ribbons are quads, at most 8 m (a joined strip drew wires across the sky)")
+	var heaps := 0
+	for c in parent.get_children():
+		if String(c.name).begins_with("WallHeap") or String(c.name).begins_with("WallSlabs"):
+			heaps += 1
+	_t._check(not (Blast4.wall_enabled and Blast4.heavy_masonry) or heaps >= 2,
+		"explosions_4: a wall blast throws slabs and leaves a heap at the foot (%d)" % heaps)

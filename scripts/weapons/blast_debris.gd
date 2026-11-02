@@ -39,6 +39,8 @@ var _ribbon: MeshInstance3D
 var _rib_mesh: ImmediateMesh
 var _rib_hist: Array = [] # per piece: Array of [world position, age]
 const RIB_LIFE := 1.6
+## A ribbon is never a line longer than this (metres back from the piece).
+const RIB_MAX_LEN := 8.0
 
 
 ## Throws up to `count` pieces (fewer when `BlastFX.max_debris` are already flying); returns how
@@ -362,32 +364,49 @@ func _ribbons(dt: float) -> void:
 			h.append([(p.node as Node3D).global_position, 0.0, 0.25 + 0.75 * fast])
 		if h.size() < 2:
 			continue
-		if not any:
-			_rib_mesh.surface_begin(Mesh.PRIMITIVE_TRIANGLE_STRIP)
-			any = true
-		else:
-			# A degenerate join between strips.
-			_rib_mesh.surface_add_vertex((h[0][0] as Vector3) - org)
-			_rib_mesh.surface_add_vertex((h[0][0] as Vector3) - org)
-		for j in h.size():
+		# Quads per segment (a strip joined piece to piece drew long thin triangles from one
+		# trail to the next: grey wires across the sky), from the newest point back, at most
+		# RIB_MAX_LEN metres, broken into puffs: each segment's own swell and gap.
+		var run := 0.0
+		var hn := h.size()
+		var verts: Array = []
+		for jj in hn:
+			var j := hn - 1 - jj
 			var pos: Vector3 = h[j][0]
 			var age: float = h[j][1]
-			var nxt: Vector3 = h[mini(j + 1, h.size() - 1)][0]
+			if jj > 0:
+				run += pos.distance_to(h[j + 1][0])
+			var nxt: Vector3 = h[mini(j + 1, hn - 1)][0]
 			var prv: Vector3 = h[maxi(j - 1, 0)][0]
 			var along := (nxt - prv)
 			if along.length() < 1e-4:
 				along = Vector3.UP
 			var side := along.cross(eye - pos).normalized()
-			var w := 0.07 + age * 0.45
-			var a := pow(clampf(1.0 - age / RIB_LIFE, 0.0, 1.0), 1.4) * 0.42 * clampf(float(j) / 2.0, 0.0, 1.0) * float(h[j][2])
+			# Puffs: the width swells and the smoke breaks along the path (seeded per piece).
+			var ph := run * 1.35 + float(k) * 2.1
+			var puff := 0.5 + 0.5 * sin(ph) * cos(ph * 0.53 + 1.1)
+			var w := (0.1 + age * 0.9) * (0.6 + 0.8 * puff)
+			# Smoke builds up behind a piece, not at it (seen end on, opaque heads fanned out as petals).
+			var a := pow(clampf(1.0 - age / RIB_LIFE, 0.0, 1.0), 1.4) * 0.3 * float(h[j][2]) * smoothstep(0.0, 0.3, age)
+			a *= smoothstep(0.18, 0.5, puff)
+			a *= 1.0 - smoothstep(RIB_MAX_LEN * 0.6, RIB_MAX_LEN, run)
 			# Gone near the lens: a piece flying past the camera dragged a band across the frame.
 			a *= smoothstep(4.0, 10.0, eye.distance_to(pos))
-			var c := Color(0.11, 0.1, 0.095, a)
-			_rib_mesh.surface_set_normal((eye - pos).normalized())
-			_rib_mesh.surface_set_color(c)
-			_rib_mesh.surface_add_vertex(pos - side * w - org)
-			_rib_mesh.surface_set_normal((eye - pos).normalized())
-			_rib_mesh.surface_set_color(c)
-			_rib_mesh.surface_add_vertex(pos + side * w - org)
+			verts.append([pos - side * w - org, pos + side * w - org, Color(0.11, 0.1, 0.095, a), (eye - pos).normalized()])
+			if run > RIB_MAX_LEN:
+				break
+		for v in verts.size() - 1:
+			var A: Array = verts[v]
+			var B: Array = verts[v + 1]
+			if float((A[2] as Color).a) < 0.004 and float((B[2] as Color).a) < 0.004:
+				continue
+			if not any:
+				_rib_mesh.surface_begin(Mesh.PRIMITIVE_TRIANGLES)
+				any = true
+			for t in [[A, 0], [A, 1], [B, 0], [A, 1], [B, 1], [B, 0]]:
+				var V: Array = t[0]
+				_rib_mesh.surface_set_normal(V[3])
+				_rib_mesh.surface_set_color(V[2])
+				_rib_mesh.surface_add_vertex(V[t[1]])
 	if any:
 		_rib_mesh.surface_end()

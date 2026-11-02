@@ -376,6 +376,10 @@ static var ring_enabled: bool = OS.get_environment("BLAST_RING") != "0"
 static var wall_enabled: bool = OS.get_environment("BLAST_WALL") != "0"
 static var wall_smoke_seconds: float = 22.0
 static var _ring_shader: Shader
+## Round 12: the wall blast's heavier burst - slabs of wall, a pale masonry dust burst, and the
+## rubble heap at the foot of the wall that stays. BLAST_MASONRY=0 is the A/B.
+static var heavy_masonry: bool = OS.get_environment("BLAST_MASONRY") != "0"
+static var heap_seconds: float = 90.0
 
 
 static func dust_roll(parent: Node, ground: Vector3, normal: Vector3, reach: float) -> bool:
@@ -991,6 +995,8 @@ static func wall_blast(node: Node, parent: Node, at: Vector3, radius: float) -> 
 	# Masonry and glass raining from the hole: chunks and glints thrown out, falling to the street
 	# (gone at the ground: their life is the fall's time).
 	var fall := sqrt(2.0 * maxf(drop, 1.0) / 9.8)
+	if heavy_masonry:
+		_masonry_extra(parent, b, wp, wn, radius, fall, down)
 	for kind in 2:
 		var r := CPUParticles3D.new()
 		r.name = "WallRain" if kind == 0 else "WallGlass"
@@ -1040,3 +1046,78 @@ static func wall_blast(node: Node, parent: Node, at: Vector3, radius: float) -> 
 		rt.tween_interval(r.lifetime + 1.0)
 		rt.tween_callback(r.queue_free)
 	return true
+
+
+## The heavier masonry burst (wall_blast()): slabs of wall thrown out with the chunks, a pale
+## burst of masonry dust from the hole, and where they land a heap of broken masonry that stays
+## `heap_seconds` (it appears as the first of them reach the street).
+static func _masonry_extra(parent: Node, b: Basis, wp: Vector3, wn: Vector3, radius: float, fall: float, down: Dictionary) -> void:
+	var slabs := CPUParticles3D.new()
+	slabs.name = "WallSlabs"
+	slabs.amount = WeaponFX._count(12)
+	slabs.one_shot = true
+	slabs.explosiveness = 0.85
+	slabs.lifetime = fall + 0.2
+	slabs.local_coords = false
+	slabs.emission_shape = CPUParticles3D.EMISSION_SHAPE_SPHERE
+	slabs.emission_sphere_radius = radius * 0.15
+	slabs.direction = Vector3(0.0, 1.0, 0.0)
+	slabs.spread = 50.0
+	slabs.initial_velocity_min = 3.0
+	slabs.initial_velocity_max = 8.0
+	slabs.gravity = b.inverse() * Vector3(0.0, -9.8, 0.0)
+	slabs.angular_velocity_min = -300.0
+	slabs.angular_velocity_max = 300.0
+	slabs.particle_flag_rotate_y = true
+	slabs.mesh = BlastAftermath.slab_mesh()
+	slabs.scale_amount_min = 1.0
+	slabs.scale_amount_max = 2.4
+	var sm := StandardMaterial3D.new()
+	sm.vertex_color_use_as_albedo = true
+	sm.roughness = 0.95
+	slabs.material_override = sm
+	slabs.custom_aabb = AABB(Vector3(-30.0, -40.0, -30.0), Vector3(60.0, 50.0, 60.0))
+	parent.add_child(slabs)
+	slabs.global_transform = Transform3D(b, wp + wn * 0.3)
+	slabs.emitting = true
+	var tw := slabs.create_tween()
+	tw.tween_interval(slabs.lifetime + 1.0)
+	tw.tween_callback(slabs.queue_free)
+	# The pale dust of crushed masonry, thrown out of the hole and falling with the debris.
+	WeaponFX._puff_layer(parent, wp + wn * 0.6, WeaponFX._count(22), radius * 0.16, 3.5,
+		radius * 0.25, radius * 0.7, -1.2, WeaponFX._ramp([Color(0.42, 0.39, 0.35, 0.0),
+		Color(0.4, 0.37, 0.33, 0.7), Color(0.38, 0.36, 0.33, 0.35), Color(0.36, 0.35, 0.33, 0.0)]),
+		false, 55.0, 2.6, WeaponFX._basis_up(wn), 0.0, 0.4, 1.4, true, null, BlastFX.smoke_material())
+	if down.is_empty():
+		return
+	# The heap at the foot of the wall.
+	var foot: Vector3 = down.position
+	if _rock_mesh == null:
+		_rock_mesh = BlastAftermath._chunk_mesh(6, Vector3(0.26, 0.16, 0.2), 29, Color(0.08, 0.075, 0.07), Color(0.3, 0.27, 0.24))
+	var mm := MultiMesh.new()
+	mm.transform_format = MultiMesh.TRANSFORM_3D
+	mm.mesh = _rock_mesh
+	var n := WeaponFX._count(26)
+	mm.instance_count = n
+	var hb := hash([int(foot.x * 4.0), int(foot.z * 4.0), "heap"])
+	var side := wn.cross(Vector3.UP).normalized()
+	for i in n:
+		var hi := hash([hb, i])
+		var out := float(hi & 255) / 255.0 * 3.2 + 0.4
+		var along := (float((hi >> 8) & 255) / 255.0 - 0.5) * 4.0 * (1.0 - out / 4.0)
+		var sc := 0.8 + 2.2 * float((hi >> 16) & 63) / 63.0 * (1.0 - out / 4.5)
+		var bb := Basis(Vector3(float((hi >> 3) & 7) - 3.5, 2.0, float((hi >> 6) & 7) - 3.5).normalized(), float(hi & 255) / 40.0)
+		var at := wn * out + side * along + Vector3.UP * 0.05 * sc # relative to the foot
+		mm.set_instance_transform(i, Transform3D(bb.scaled(Vector3.ONE * sc), at))
+	var heap := MultiMeshInstance3D.new()
+	heap.name = "WallHeap"
+	heap.multimesh = mm
+	heap.material_override = sm
+	heap.visible = false
+	parent.add_child(heap)
+	heap.global_transform = Transform3D(Basis(), foot) # its box is round the node: at the foot
+	var ht := heap.create_tween()
+	ht.tween_interval(fall * 0.9)
+	ht.tween_callback(func(): heap.visible = true)
+	ht.tween_interval(heap_seconds)
+	ht.tween_callback(heap.queue_free)
