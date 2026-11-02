@@ -4415,3 +4415,11 @@ none of either.
   extra pass and nothing on the web); where a boat stands in the mirror the renderer's reflection is
   taken away by zeroing SPECULAR, not darkened; thin rigging is drawn at least a pixel wide and faded
   by its coverage rather than at its true width. MARINA_GOLDEN=0 the A/B.
+- **2026-11-02 The port_night refcam: a floodlit place is lit where its lamps point, and a pool
+  must say it is a pool (rc4-port-night, HANDOFF "The container terminal at 22:00").** A new
+  reference camera (`port_night`, wave 7's table) stood on the quay's apron at 22:00. Decisions:
+  big fixed floodlights (masts, cranes) are a pure list handed to the shaders of what they light,
+  emitted there aimed downward, never real lights; an additive pool batch passes an explicit zero
+  custom (the default's alpha selects the NightLamps point source - a bug other features' pools
+  still carry); a refcam row may hold a system's clock (`port_t`) to frame a moment.
+  PORT_NIGHT=0 is the A/B.

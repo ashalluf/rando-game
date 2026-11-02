@@ -149,3 +149,11 @@ Wave 6's cameras are in `cameras_w6.json` (run with `REFCAMS_JSON=tools/refcams/
 `golf_morning` - the golf course at 08:30 from behind the 9th tee toward the clubhouse and the front
 range. Its optional `golf_group` key ("hole:stage[:tee[:count]]") stages a group of golfers there
 (GolfLife.force_group via the GOLF_GROUP environment variable, set before the city loads).
+
+## Wave 7's cameras (`cameras_w7.json`)
+
+Run with `REFCAMS_JSON=tools/refcams/cameras_w7.json`. `port_night` (rc4-port-night): the container
+terminal at 22:00 clear from the quay's apron. Its optional `port_t` key holds PortLife's clock
+(seconds) for the shot, so the cranes and tractors are where the row was framed (`_port_clock()` in
+refcams_shot.gd; rows without it leave the clock alone). `OCCLUSION=0` turns occlusion culling off
+for a run.
