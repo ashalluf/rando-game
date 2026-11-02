@@ -12,8 +12,10 @@ class_name ShadowTuning
 ##   and past 500 m of depth there was no shadow at all: a golden-hour aerial was a lit city with
 ##   a ring of shadow at its feet. In the air the cascades now slide out with the clearance under
 ##   the camera (AIR_GAIN), so each one starts where there is something to shadow, and the reach
-##   grows to the LOD ring (AIR_CAP; the far city past it casts nothing anyway).
+##   grows toward the LOD ring (AIR_CAP; the far city past it casts nothing anyway).
 ## - The 8 % fade drew that edge as a line: 20 % now.
+## - A far landmark copy's planting cast no shadow (it is drawn from ~240 m out, well inside the
+##   reach): FAR_PLANT_REACH.
 
 static var enabled: bool = OS.get_environment("SHADOW_TUNING") != "0"
 
@@ -27,21 +29,29 @@ const OLD_FADE := 0.92
 ## The fade now: the last 20 % of the reach.
 const FADE_START := 0.8
 ## Metres each cascade's far end moves out per metre of clearance under the camera (the four
-## ends: split 1, 2, 3 and the reach). From 140 m up: 104 / 248 / 518 / 920 m. Ratios kept near
+## ends: split 1, 2, 3 and the reach). From 140 m up (before the cap): 104 / 248 / 518 / 920 m. Ratios kept near
 ## the ground's (each cascade a little over twice the last), so no cascade is wasted.
 const AIR_GAIN := [0.55, 1.2, 2.2, 3.0]
-## The longest reach in the air per level (0: the level does not follow the camera). HIGH stops
-## at the LOD ring's reach (CityStreamer.lod_reach_metres() ~840 m plus a block).
-const AIR_CAP := [1000.0, 700.0, 0.0, 0.0]
+## The longest reach in the air per level (0: the level does not follow the camera). At 1000 m
+## (the LOD ring's reach) the golden aerial refcam's shadow passes went 1.9 M -> 3.6 M triangles
+## and +1,770 draws (every LOD chunk's batches in the last cascade); 750 keeps most of the look.
+const AIR_CAP := [750.0, 560.0, 0.0, 0.0]
 ## Clearance under which the camera counts as on the ground, and the step it is rounded to (a
 ## hovering camera must not re-fit the cascades every frame: a new cascade radius re-snaps the
 ## texels and the shadow edges crawl).
 const AIR_FROM := 12.0
+## Under the cap each cascade still ends at least this many times further out than the one before.
+const MIN_RATIO := 1.75
 const AIR_STEP := 8.0
 ## Seconds between the downward rays, and how fast the clearance followed rises (it falls at
 ## once: a camera dropping to the street needs its fine cascade back now).
 const PROBE_SECONDS := 0.25
 const RISE_PER_SECOND := 60.0
+
+## How far from the camera a far landmark copy's trees and palms cast (ArenaGrounds._far_shadows:
+## they cast nothing before this pass, and a park seen from 300 m or from the air was a lawn of
+## shadowless cut-outs). Measured to the grove's centre plus half its spread.
+const FAR_PLANT_REACH := 450.0
 
 static var level: int = 0
 ## The clearance the cascades were last fitted to (metres over AIR_FROM, stepped), and the raw
@@ -72,10 +82,11 @@ static func ends(lvl: int, a: float) -> Array:
 		out.append(base + AIR_GAIN[i] * a)
 	var cap: float = AIR_CAP[clampi(lvl, 0, 3)]
 	if cap > 0.0 and out[3] > cap:
-		var k: float = (cap - reach) / maxf(out[3] - reach, 0.001)
-		for i in 4:
-			var base: float = reach * (OLD_SPLITS[i] if i < 3 else 1.0)
-			out[i] = base + (out[i] - base) * k
+		# The reach stops at the cap; the near ends keep their slide (they cost little: what they
+		# hold is near) as long as each cascade stays at least MIN_RATIO of the one before.
+		out[3] = cap
+		for i in [2, 1, 0]:
+			out[i] = minf(out[i], out[i + 1] / MIN_RATIO)
 	elif cap <= 0.0:
 		for i in 4:
 			out[i] = reach * (OLD_SPLITS[i] if i < 3 else 1.0)

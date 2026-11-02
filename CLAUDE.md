@@ -696,6 +696,16 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   SDFGI / SSAO already occlude. `GI_REVIEW=0` / `CONTACT_SHADOWS=0` the A/B;
   `tools/gi_review/gi_shot.tscn` (VARIANTS= in one load, the player's auto exposure, PROFILE=1);
   checks `tests/gi_review_checks.gd`.
+- The sun's cascades (wave 5, `shadows-review`, docs/HANDOFF.md "Shadows across the game"):
+  `ShadowTuning` (`scripts/world/shadow_tuning.gd`, applied by `Quality._apply_render()`, followed
+  each frame from `DayNight._apply()`): on the street city.tscn's splits and Quality's reach stay;
+  in the air (a ray down every 0.25 s: clearance over whatever is under the camera, so a rooftop
+  is the street) every cascade slides out by `AIR_GAIN` x clearance, the reach capped at `AIR_CAP`
+  (HIGH 1000 m = the LOD ring; the far city casts nothing); fade over the last 20 %. Godot's bias
+  is `shadow_bias`/100 x the cascade's depth range, so lowering it brought acne at golden hour (the
+  lab's stills): keep 0.1 / 2.0. `SHADOW_TUNING=0` the A/B; lab `tools/shadows_review/
+  shadow_lab.tscn` (Forward+ in ~5 min, 4.6 GB: VARIANTS of sun.<prop>=, Q=, ST=); checks
+  `tests/shadows_review_checks.gd`.
 - Ground contact (2026-10-31, docs/HANDOFF.md "Ground contact"): `GroundContact`
   (`scripts/world/ground_contact.gd`) feeds ContactShadows' quads: round feet under trunks and poles
   (`FEET` / `FEET_PREFIX`, at the instance's origin x scale), grime round fixtures (COLOR.b), a blob

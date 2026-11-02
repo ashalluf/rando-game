@@ -4119,3 +4119,10 @@ none of either.
   people in the water are placed on the surfaces that are drawn - waders on the sand mesh's
   foreshore, swimmers and surfers on the ocean's own height model - rather than at a fixed level.
   A summer afternoon's water is busy (waders, more swimmers). SAND_ROADS=0 / WADERS=0 the A/B.
+
+- **2026-11-01 Shadows: fit the cascades to what the camera can see, not to its depth alone
+  (shadows-review, HANDOFF "Shadows across the game").** Godot fits the sun's four cascades by view
+  depth, which from the air spends three of them on sky and stops at 500 m; ShadowTuning slides
+  them out with the camera's clearance over whatever is under it (a roof counts), capped at the LOD
+  ring at HIGH. The bias stays (lower values brought acne at golden hour in the lab), the fade is
+  20 %, and far landmark planting casts within 450 m. SHADOW_TUNING=0 is the A/B.

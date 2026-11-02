@@ -779,9 +779,12 @@ static func surface_lot(g: LandmarkGeo, batch: MultiMeshBatch, pivot: Node3D, r:
 		_far_shadows(batch)
 
 
-## A far landmark copy's planting and parked cars cast no shadow: from where the far copy is
-## drawn they fall past the shadow cascades anyway, and the casters would cost every frame.
+## A far landmark copy's parked cars cast no shadow, and its planting none past
+## ShadowTuning.FAR_PLANT_REACH (from its lighter twin): the far copy is drawn from ~240 m out,
+## inside the sun's 500 m (in the air 1 km) reach, where shadowless groves read as cut-outs.
 static func _far_shadows(batch: MultiMeshBatch) -> void:
 	for key: String in batch.keys():
-		if key.begins_with("tree_") or key.begins_with("palm_") or key.begins_with("gar_car_"):
+		if (key.begins_with("tree_") or key.begins_with("palm_")) and ShadowTuning.enabled:
+			batch.set_shadow_reach(key, ShadowTuning.FAR_PLANT_REACH)
+		elif key.begins_with("tree_") or key.begins_with("palm_") or key.begins_with("gar_car_"):
 			batch.set_no_shadow(key)

@@ -15,7 +15,7 @@ extends Node3D
 ## spec; a spec is space-separated tokens: Q=0..3 (Quality's sun numbers for that level),
 ## ST=0|1 (ShadowTuning off / on, default its env switch), sun.<prop>=<value> (DirectionalLight3D),
 ## env.<prop>=<value> (Environment), SUN_YAW=<deg> turns the sun about the vertical after DayNight
-## (so a golden-hour shadow can be thrown across the view). opengl3 for the Compatibility path.
+## (so a golden-hour shadow can be thrown across the view), CS=0 hides the contact shadows' quads. opengl3 for the Compatibility path.
 ## PROFILE=1 with --gpu-profile marks SAMPLES (6) frames per shot for tools/gpu_profile.py.
 
 var _sun: DirectionalLight3D
@@ -96,6 +96,11 @@ func _setup(spec: String, hour: float) -> void:
 			q = tok.trim_prefix("Q=").to_int()
 		elif tok.begins_with("ST="):
 			st = tok.trim_prefix("ST=") != "0"
+		elif tok.begins_with("CS="):
+			var inst := ContactShadows.instance()
+			if inst:
+				for c in inst.get_children():
+					(c as Node3D).visible = tok != "CS=0"
 		elif tok.begins_with("SUN_YAW="):
 			sun_yaw = tok.trim_prefix("SUN_YAW=").to_float()
 		else:

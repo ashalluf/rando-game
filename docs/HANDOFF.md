@@ -25155,3 +25155,61 @@ Probes: `tools/rc_beach/sand_roads_probe.gd` (headless: every coast street stret
 beach; `LOOK=swim|wade|surf` saves a close look at the first one). Checks `tests/rc_beach_checks.gd`.
 Stills on `shots/rc-beach`.
 
+
+## 9d?. Shadows across the game (fleet wave 5, `shadows-review`, 2026-11-01)
+
+Task: cascade splits and fade, acne / peter-panning, contact hardening, every common caster at
+noon and golden hour, cascade seams, AO where shadows fail. What was found, fixed and left:
+
+**How Godot's sun shadow works here** (read from the 4.x source, `renderer_scene_cull.cpp`
+`_light_instance_setup_directional_shadow`, `light_storage.cpp`): each of the four cascades is a
+sphere fitted round the camera's view frustum between two DEPTHS (with blend_splits on, cascade i
+is fitted from cascade i-1's near end; the blend itself is the last 10 % of each), snapped to its
+texels (stable, no swimming). The depth bias in metres is `shadow_bias / 100 x the cascade's light-
+space depth range x shadow_blur`, the normal bias `shadow_normal_bias x the cascade's texel`, so
+the same 0.1 / 2.0 is ~8 cm in the first cascade and ~70 cm in the last; PCSS (angular distance
+0.9) widens each cascade's rect by tan(0.9 deg) x its depth range. At HIGH (500 m, splits 0.055 /
+0.16 / 0.42): texels ~3.3 / 9 / 24 / 57 cm, each cascade starting at ~3.4 screen pixels a texel.
+
+**The lab** (`tools/shadows_review/shadow_lab.tscn`): the city's WorldEnvironment, Sun and DayNight
+over a small set (asphalt, a kerbed pavement, three building blocks, two cars, two people, a street
+tree, a palm, a lamp, 30 posts and cubes every 10 m) - Forward+ on lavapipe in ~5 minutes at
+4.6 GB, where fwd_block_shot / gi_shot with one block were OOM-killed at 11.8-13.6 GB on this box.
+VARIANTS of `sun.<prop>=`, `env.<prop>=`, `Q=`, `ST=0|1`, `CS=0`, `SUN_YAW=` from one load.
+
+What the lab showed: near the camera the shadows are right - feet, a car's sill, a lamp pole all
+attach (the 15 cm "peter-panning" under the posts was the lab's own posts standing on the kerb
+height over the road). Lowering the bias does not help and hurts: bias 0.02 / normal 0.6 drew acne
+stripes down a sunlit wall at 16:48 (`05_lab_bias_variants_golden.jpg` on shots/shadows-review);
+0.03 / 1.0 and an angular distance of 0.55 were indistinguishable from the game's. The game's
+0.1 / 2.0 / 0.9 stay.
+
+What was wrong was in the city, from the air (refcams golden_aerial, downtown_aerial, macarthur,
+hills):
+1. **The cascades were wasted in the air.** They are fitted by view DEPTH, so 140 m up the first
+   three (0-210 m) held sky and the city got the last one alone, and past 500 m of depth nothing
+   cast at all: the far half of a golden-hour aerial was a lit city with a ring of shadow at its
+   feet. `ShadowTuning` (`scripts/world/shadow_tuning.gd`) follows the camera's CLEARANCE (a world-
+   layer ray straight down four times a second: over a roof it is the roof, so the hero on a tower
+   keeps the street's cascades) and slides every cascade's far end out by `AIR_GAIN` (0.55 / 1.2 /
+   2.2 / 3.0 m per metre over `AIR_FROM` 12 m, stepped by `AIR_STEP` 8 m so a hovering camera does
+   not re-fit the texels every frame; it rises at 60 m/s and falls at once). The reach is capped by
+   level (`AIR_CAP`: HIGH 1000 m, the LOD ring's reach - the far city past it casts nothing anyway;
+   MEDIUM 700; LOW and LOWEST never follow). 140 m up at HIGH: 104 / 248 / 518 / 920 m.
+2. **The fade drew a line**: the last 8 % (460-500 m) is now the last 20 %.
+3. **A far landmark copy's trees and palms cast nothing** (`ArenaGrounds._far_shadows()`, "they
+   fall past the cascades anyway"): the far copy is drawn from ~240 m out, inside the 500 m reach
+   and well inside the aerial one, so a civic park from above was a lawn of shadowless cut-outs.
+   They cast now from their lighter twin within `FAR_PLANT_REACH` (450 m) of the camera (parked
+   cars still cast nothing). tests/far_landmarks_checks.gd's rule follows.
+
+`SHADOW_TUNING=0` is the A/B for all three (the old numbers exactly: city.tscn's splits and fade,
+Quality's reach and blur, the far planting shadowless). Hooks: `Quality._apply_render()`
+(`apply_level()`), `DayNight._apply()` (`follow()`), `ArenaGrounds._far_shadows()`. Checks:
+`tests/shadows_review_checks.gd`.
+
+Not done / left: the far city (Skyline) still casts nothing past the LOD ring, so from 300 m up the
+city beyond ~1 km is flat-lit (a far-box "canyon shade" in building_lod.gdshader would be the next
+step); LOD chunks plant no trees, so between the FULL ring and the far city no street tree casts;
+Pedestrian.shadow_range (45 m) is unchanged. GPU cost: see the numbers below (refcams'
+shadow_tris / draws).
