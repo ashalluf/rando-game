@@ -49,7 +49,17 @@ func run(st: SceneTree) -> void:
 		tree.paused = true
 	cam = tree.root.get_camera_3d()
 	_find_spots()
-	base = await _shot("00_base")
+	# The fixed shader first, then main's (the before) in the same frame.
+	var fixed_img: Image = await _shot("01_fixed")
+	var sh: Shader = load("res://shaders/car_lights.gdshader")
+	var fixed_code := sh.code
+	sh.code = FileAccess.get_file_as_string("res://tools/chase_box_bug/car_lights_old.txt")
+	base = await _shot("00_base_old")
+	var g := _gone(fixed_img)
+	print("FIX vs OLD: the fix takes off dL %.1f dR %.1f" % [g[0], g[1]])
+	if OS.get_environment("MODE") == "":
+		sh.code = fixed_code
+		return
 	var dump := OS.get_environment("DUMP")
 	if dump != "":
 		_dump_near()
@@ -149,8 +159,8 @@ func _gone(img: Image) -> Array:
 	# Did the lamp squares go? The inner patch moves while the outer one stays.
 	var b := _vals(base)
 	var v := _vals(img)
-	var dl := (b[0] - v[0]) - (b[1] - v[1])
-	var dr := (b[2] - v[2]) - (b[3] - v[3])
+	var dl: float = (b[0] - v[0]) - (b[1] - v[1])
+	var dr: float = (b[2] - v[2]) - (b[3] - v[3])
 	return [dl, dr]
 
 
