@@ -299,6 +299,10 @@ vec3 field4(vec3 q) {
 	if (core4 > 0.0) {
 		float deep_t = clamp(heat * (0.3 + sh.y * 1.15 - 0.1 * gas + (n1 - 0.5) * (1.8 - 0.3 * gas) + (n2 - 0.5) * 1.0), 0.0, 1.0);
 		temp = mix(temp, deep_t, core4);
+		// Round 8: from 0.05 s the flesh cools faster than the heart (squared: the mid heats
+		// fall to orange-red and dull red, the white stays in the heart), so at 0.08-0.15 s the
+		// ball reads as burning fuel - saturated flame against soot - not a gold-lit cloud.
+		temp = mix(temp, temp * temp * 1.12, core4 * smoothstep(0.04, 0.14, t) * (1.0 - 0.6 * gas));
 		// Soot over a fuel ball's skin from 0.15 s, deepest in its creases (never for gas).
 		float shell = fuel * (1.0 - gas) * smoothstep(0.15, 0.6, t) * (1.0 - smoothstep(0.05, 0.45, sh.y)) * (0.75 + 0.5 * (1.0 - n2));
 		shell = min(shell, 0.9) * core4;

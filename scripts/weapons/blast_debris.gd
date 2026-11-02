@@ -357,6 +357,8 @@ func _ribbons(dt: float) -> void:
 			var side := along.cross(eye - pos).normalized()
 			var w := 0.07 + age * 0.45
 			var a := pow(clampf(1.0 - age / RIB_LIFE, 0.0, 1.0), 1.4) * 0.42 * clampf(float(j) / 2.0, 0.0, 1.0) * float(h[j][2])
+			# Gone near the lens: a piece flying past the camera dragged a band across the frame.
+			a *= smoothstep(4.0, 10.0, eye.distance_to(pos))
 			var c := Color(0.11, 0.1, 0.095, a)
 			_rib_mesh.surface_set_normal((eye - pos).normalized())
 			_rib_mesh.surface_set_color(c)
