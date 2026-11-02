@@ -24,6 +24,8 @@ static func attach(streamer: Node3D, plan: CityPlan) -> RefineryFar:
 	far.position = -WorldState.world_offset
 	streamer.add_child(far)
 	far.build(plan, lay)
+	# The night look (wave 6): the materials take the flares' tips once the layout exists.
+	RefineryNight.apply(lay, plan)
 	return far
 
 
