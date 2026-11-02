@@ -25798,6 +25798,12 @@ before. Luminance p5/p50/p95 26/53/179 -> 27/61/179 (the asphalt at its luminanc
 canyon_road moves (p50 +8, saturation +0.04); freeway is flagged for moved traffic only (its diff
 map is the cars); every other camera within a level and 0-2.3 % of its triangles (hills +0.2 %).
 
+**Gate** (SHARDS=3, on the merge of main `5de88f6c` + this branch): 5,202 checks, 3 failed -
+pedestrian_flow's sidestep, street_clutter_2's "hash-seeded" and explosions_3's flat debris - all
+three pass run alone with the canyon checks (88 / 88). street_clutter_2's "the same block built
+twice gets the same pieces" also failed in the first sharded run (before the merge): an
+intermittent outside this work, worth a look. Peak RSS 3.76 GB a shard.
+
 **Checks:** `tests/rc2_canyon_road_checks.gd` (the camera row, the materials and their shaders'
 paint / shoulder / linear handling, the boulders gathered and bedded and pure, the switchback's
 FULL chunk building its road on the canyon material and a guardrail, the road at the eye railed on
