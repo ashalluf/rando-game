@@ -51,6 +51,11 @@ uniform float pool_night_energy = 2.2;
 uniform float lamp_energy = 5.0;
 uniform float lamp_day = 0.12;
 uniform float sign_energy = 3.2;
+// RcRooftop (refcam3 rooftop_golden): 1 gives the helipad deck what it is up close - 0.3 m
+// extruded aluminium planks with their seams and crowns, a gritty non-slip coat, paint worn
+// along the planks and chipped at the seams, tyre rubber in streaks - every part faded to its
+// average once it is under a couple of pixels. 0 is the old deck exactly.
+uniform float pad_closeup = 0.0;
 
 varying vec3 lpos;
 varying vec3 lnorm;
@@ -144,6 +149,12 @@ void fragment() {
 	float aa = max(max(fw.x, fw.y), 0.004);
 	vec3 view_l = normalize(lpos - lcam);
 	float grime = fbm(lpos.xz * 0.35 + lpos.y * 0.2);
+	// The direction UV.x grows along, in the mesh's space (the helipad's plank axis), worked out
+	// here: derivatives inside a branch read 0 on some drivers.
+	vec2 duv_x = dFdx(UV);
+	vec2 duv_y = dFdy(UV);
+	vec3 pad_u = dFdx(lpos) * duv_y.y - dFdy(lpos) * duv_x.y;
+	pad_u = length(pad_u) > 1e-9 ? normalize(pad_u) : vec3(1.0, 0.0, 0.0);
 
 	if (kind == K_STEEL) {
 		col *= 0.9 + 0.2 * grime;
@@ -156,6 +167,43 @@ void fragment() {
 			col *= 1.0 - 0.18 * smoothstep(0.55, 0.9, vnoise(vec2(UV.x * 3.0, UV.y * 0.15)));
 		}
 		rough = 0.9;
+	} else if (kind == K_PAD && pad_closeup > 0.0) {
+		float s = UV2.x;
+		vec2 p = UV;
+		const float PW = 0.3;
+		// Seams between the planks (across u), the plank's crown, and the panel joints every 6 m.
+		float fu = p.x / PW;
+		float d = abs(fract(fu) - 0.5);
+		float seam_m = (0.5 - d) * PW;
+		float near_f = 1.0 - smoothstep(0.015, 0.06, aa);
+		float seam = (1.0 - smoothstep(0.004, 0.004 + aa * 1.5, seam_m)) * near_f;
+		float joint = (1.0 - smoothstep(0.006, 0.006 + aa * 1.5, abs(fract(p.y / 6.0 + 0.5) - 0.5) * 6.0)) * near_f;
+		float speck = h21(floor(p * 45.0));
+		float grit_f = 1.0 - smoothstep(0.008, 0.03, aa);
+		float plank_tone = h21(vec2(floor(fu), floor(p.y / 6.0)));
+		col *= 0.9 + 0.08 * fbm(p * 0.5) + (plank_tone - 0.5) * 0.06 * near_f + (speck - 0.5) * 0.16 * grit_f;
+		// Tyre rubber and skid streaks down the planks round the touchdown circle.
+		float r = length(p);
+		float rub = smoothstep(0.5, 0.85, vnoise(vec2(p.x * 1.4, p.y * 0.16) + 9.0)) * smoothstep(s * 0.36, s * 0.12, r);
+		col *= 1.0 - 0.22 * rub;
+		col *= 1.0 - 0.18 * smoothstep(1.6, 0.0, length(p - vec2(0.3, -0.4)) + 0.8 * vnoise(p * 2.0));
+		vec4 m = pad_marks(p, s, aa * 1.2);
+		// The paint: worn in streaks along the planks (the traffic runs that way), chipped
+		// where it bridges a seam, and grainy where the grit shows through it.
+		float wear = smoothstep(0.5, 0.85, fbm(vec2(p.x * 2.6, p.y * 0.3) + 11.0));
+		float chip = (1.0 - smoothstep(0.0, 0.03, seam_m)) * step(0.45, h21(floor(p * 9.0) + 3.0)) * near_f;
+		float through = (speck > 0.72 ? 0.35 : 0.0) * grit_f;
+		float pa = m.a * (1.0 - 0.6 * wear) * (1.0 - 0.8 * chip) * (1.0 - through);
+		col = mix(col, cs_srgb_to_linear(m.rgb) * (0.92 + 0.1 * plank_tone), pa);
+		col *= 1.0 - 0.45 * max(seam, joint);
+		// The crowns: the normal tips across each plank (lit edge, shaded edge in a low sun).
+		float xc = (fract(fu) - 0.5) * 2.0;
+		vec3 tilt = pad_u * (xc * xc * xc * 0.22 * near_f);
+		nm = normalize(nm + tilt);
+		set_normal = true;
+		rough = mix(0.86, 0.62, pa) - 0.06 * grit_f * (speck - 0.5);
+		spec = 0.45;
+		emit = col * 0.12 * lamp_factor;
 	} else if (kind == K_PAD) {
 		// The deck's non-slip coat: aggregate speckle, a darker worn patch where the skids sit,
 		// tyre and skid scuffs, and the markings over it.

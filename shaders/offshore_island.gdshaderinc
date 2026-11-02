@@ -213,7 +213,7 @@ vec3 island_draw(vec3 col, vec3 dir, vec3 sdir, vec3 sun_light, float sun_up, fl
 		// land's brown showed through it), and that air is a greyer, cooler copy of the sky.
 		float k = island_soft * low_sun;
 		float lum = dot(air, vec3(0.2126, 0.7152, 0.0722));
-		vec3 sil = mix(air, vec3(lum) * vec3(0.92, 0.95, 1.06), 0.4);
+		vec3 sil = mix(air, vec3(lum) * vec3(0.92, 0.95, 1.06), 0.55);
 		isl = mix(isl, mix(lit, sil, clamp(ihaze, 0.0, 1.0)), k);
 		// The skyline softened over a few pixels by the same air.
 		cover = mix(cover, clamp((top - s) / (pix * 3.0) + 0.5, 0.0, 1.0) * clamp((s - sea) / (pix * 2.0) + 0.5, 0.0, 1.0), k);

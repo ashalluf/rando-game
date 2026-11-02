@@ -4,6 +4,7 @@ extends RefCounted
 ## - LandmarkRoofs dresses the flat-roofed downtown towers and only them: the mechanical box clad
 ##   as a penthouse a little outside it, plant on the roof inside the outline, never on the
 ##   helipad's deck, its net or its stair, never in the penthouse; the plan pure; nothing when off.
+## - The helipad deck's close-up coat (rooftop.gdshader pad_closeup) and the cloth windsock.
 ## - The offshore island's soft silhouette: the uniform in the include, pushed by OffshoreIsland,
 ##   0 with the switch off.
 
@@ -15,6 +16,7 @@ func run(t: Node, city: Node3D) -> void:
 	_t._check(RcRooftop.enabled and LandmarkRoofs.enabled, "rooftop refcam: on by default")
 	_roofs()
 	_island(city)
+	_pad()
 
 
 func _roofs() -> void:
@@ -93,3 +95,23 @@ func _island(city: Node3D) -> void:
 	var sky_mat: ShaderMaterial = island.get("_sky") if island else null
 	_t._check(sky_mat != null and float(sky_mat.get_shader_parameter("island_soft")) == 1.0,
 		"rooftop refcam: OffshoreIsland pushes island_soft to the sky")
+
+
+func _pad() -> void:
+	var src := FileAccess.get_file_as_string("res://shaders/rooftop.gdshader")
+	_t._check(src.contains("uniform float pad_closeup = 0.0;") and src.contains("kind == K_PAD && pad_closeup > 0.0"),
+		"rooftop refcam: the deck's close-up coat is behind its own uniform, 0 the old deck")
+	_t._check(float(Rooftops.material().get_shader_parameter("pad_closeup")) == 1.0,
+		"rooftop refcam: the rooftop material has the deck's close-up coat on")
+	var g := RooftopGeo.new()
+	RcRooftop.windsock(g)
+	var want := (RcRooftop.SOCK_RINGS + 1) * (RcRooftop.SOCK_SIDES + 1)
+	var tail := Vector3.ZERO
+	var row := RcRooftop.SOCK_SIDES + 1
+	for k in row:
+		tail += g.v[g.v.size() - row + k]
+	tail /= float(row)
+	_t._check(g.v.size() == want and g.idx.size() == RcRooftop.SOCK_RINGS * RcRooftop.SOCK_SIDES * 12,
+		"rooftop refcam: the windsock is a cloth of %d rings round %d sides" % [RcRooftop.SOCK_RINGS, RcRooftop.SOCK_SIDES])
+	_t._check(absf(tail.y - RcRooftop.SOCK_LEN) < 0.01 and tail.z > RcRooftop.SOCK_DROOP * 0.9,
+		"rooftop refcam: the windsock's tail streams out and sags (%s)" % tail)
