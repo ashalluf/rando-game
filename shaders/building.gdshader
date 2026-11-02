@@ -110,6 +110,9 @@ uniform bool sign_letters = false;
 // Color(0.66, 0.75, 0.88) and DayNight's per-hour horizon, the same numbers
 // shaders/building_lod.gdshader already mirrors in its glazing.
 global uniform vec4 sky_tint;
+// Forward+ review g (FwdReviewG; FWD_REVIEW_G=0 sets it 0): the traced room behind a pane is
+// written in display numbers; 1 hands it to the albedo decoded on Forward+ (fx_srgb_in()).
+global uniform float fwd_review_g;
 // Wall texture set (albedo, normal, roughness), sampled in wall space: meters per tile.
 uniform sampler2D wall_albedo : source_color, filter_linear_mipmap, repeat_enable;
 uniform sampler2D wall_normal : hint_normal, filter_linear_mipmap, repeat_enable;
@@ -1395,6 +1398,14 @@ void fragment() {
 				room *= expose * (1.0 - 0.88 * night_factor * ((lit && storefront) ? 0.0 : 1.0));
 				if (storefront) {
 					room *= vec3(1.10, 1.03, 0.92);
+				}
+				// fwd-review-g: the room's paint, blinds and fittings are display numbers (room_raw
+				// keeps them for the lit emission below). In the renderer-space albedo Forward+ read
+				// them as linear: by day every pane was a pale panel as light as the wall (luminance
+				// 70-80 against opengl3's 20-35 beside a 107 / 79 wall). Decoded there, as the wall,
+				// the glass tint and the mirror already are.
+				if (fwd_review_g > 0.5) {
+					room = fx_srgb_in(room);
 				}
 				// The glass still carries its own tint; the room shows through it.
 				dmg_room = room;

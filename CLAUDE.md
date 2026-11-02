@@ -437,6 +437,13 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   cirrus as wisps, the mid deck thinner, a tight white sun halo and a white half-degree disc, no
   crepuscular blot, cumulus tops near white with cooler bases, far clouds hazed sooner, fewer
   fragments; `day_*` uniforms are the knobs. `SKY_DAY=0` is the A/B; checks `tests/sky_day_checks.gd`.
+- Cloud shadows (wave 5, docs/HANDOFF.md "Cloud shadows from the real clouds"): `CloudShadows`
+  (`scripts/world/cloud_shadows.gd`, DayNight's child, Forward+ desktop while the volume draws) is
+  one full-screen `blend_mul` quad (`shaders/cloud_shadow_screen.gdshader`) darkening each pixel by
+  `shaders/cloud_shadow.gdshaderinc` - cumulus()'s own columns up the sun (change both; checked) -
+  and zeroes the far plane's and ocean's noise shadows meanwhile. The day's rays and cirrus also
+  follow the sun's elevation (`high_sun_from/to`). `CLOUD_SHADOWS=0` the A/B,
+  `CLOUD_SHADOW_DEBUG=1`; checks `tests/sky_clouds_3_checks.gd`.
 - The sunset (2026-10-30, docs/HANDOFF.md "The Los Angeles sunset"): `SunsetSky`
   (`scripts/world/sunset_sky.gd`, one hook in DayNight._apply()) hands sky.gdshader a `sunset`
   weight on the sun's elevation alone (0 above ~19 degrees and below ~13 under, 0 in overcast:
@@ -6326,6 +6333,13 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   Measure with `LOAD_FIRST_MINUTE=<s>` (FIRSTMIN lines: missing chunks, swaps, cars) and
   `LOAD_SCREEN_HEADLESS=1` on `tools/load_time/load_time.sh headless`; the desktop launch is
   OOM-killed on a 15 GB box now, and first-use probes run on opengl3. `FIRST_FILL=0` the A/B.
+- Load time after wave 4 (2026-11-01, docs/HANDOFF.md "Load time after wave 4"): WarmRehearsal
+  stages wave 4's first uses (`WARM_WAVE4=0` the A/B: troop truck, gunship, spike strip, a corner
+  crash, bullet marks, barrel smoke, hero blood) and prints `LOADING rehearsal ...` lines; a new
+  wave's mid-play first uses get a stage there and an `EVENTS=` set in first_use_probe (opengl3,
+  `WARM=0 REHEARSE=1`: the full warm-up no longer fits). `MacroMap.bake()` memoises a pixel's raw
+  height (byte-identical, `bake_probe.tscn FULL=1`). Never `x is T` on a list entry that can be
+  freed: `is_instance_valid()` first.
 - Performance: `Quality` node in the city scene (`scripts/util/quality.gd`) starts desktop at
   **HIGH** (owner, 2026-09-21: "I need it PS5 level graphics" - global illumination is the single
   biggest difference between this and a modern-looking game) and steps down to MEDIUM, LOW and
@@ -6836,6 +6850,15 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   many times over: anything bright and brief (lightning) gets a low value or veils the frame.
   A small scene on both renderers: `tools/fwd_review_f/shoot.sh` (`override.cfg` with
   `[threading] worker_pool/max_threads=1`, never committed, or lavapipe OOMs at ~13.5 GB).
+- And two more (fwd-review-g, 2026-11-01, HANDOFF "Forward+ review g"): **a colour a renderer-space
+  shader writes as plain numbers into ALBEDO is display on Compatibility and LINEAR on Forward+** -
+  building.gdshader's traced rooms were (`fwd_review_g` global: decoded there now, fx_srgb_in());
+  any new constant colour in such a shader goes through fx_srgb_in() / cs_as_uniform(). And the
+  Forward+ cloud volume's march stops at 90 km: anything that ends it must hand over to the deck's
+  haze (sky.gdshader `far_deck`), or a closed deck draws a hard line at the horizon. A light of a
+  few frames (a muzzle flash) does not veil the fog: the fog's temporal blend damps it.
+  `fwd_block_shot.gd BLOCKS=0` is a weather sky on Forward+ in three minutes; `FLASH=` holds a
+  muzzle flash. `FWD_REVIEW_G=0` is the A/B; checks `tests/fwd_review_g_checks.gd`.
 - Native screenshots without a browser: `tools/glshot/building_shot.gd` (one building),
   `tools/glshot/block_shot.tscn` (a few FULL city blocks alone, no far city: a block's ground and
   furniture) and `tools/glshot/city_shot.gd` (the city at a `--spawn`) render with the real
