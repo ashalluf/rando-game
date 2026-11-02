@@ -65,7 +65,9 @@ void fragment() {
 		// Seams: the vertical joints and the laps.
 		float sv = lines(p.x, panel.x, seam_width, fw.x);
 		float sh = lines(p.y, panel.y, seam_width * 1.6, fw.y);
-		col *= 1.0 - 0.45 * max(sv, sh);
+		// Faint: a 4 ft sheet's joint is a hairline from a hundred metres (at 0.45 the letters read as
+		// tiled walls on Forward+); the laps fainter still.
+		col *= 1.0 - max(0.16 * sv, 0.08 * sh);
 		// Streaks hang under each lap's fixings: a hash per 0.3 m column, a length each, fading.
 		float col_i = floor(p.x / 0.3);
 		float lap = p.y / panel.y;
