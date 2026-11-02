@@ -423,3 +423,7 @@ rain_day={
 "type": "float",
 "value": 0.0
 }
+night_aerial={
+"type": "float",
+"value": 1.0
+}

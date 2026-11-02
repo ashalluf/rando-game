@@ -2862,6 +2862,9 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	# The rainy day (tests/rc2_rain_day_checks.gd, RainDay): the overcast light, the wet road's day
 	# mirror, soaked lawns, no searchlights by day, nights and clear days untouched, the A/B.
 	await load("res://tests/rc2_rain_day_checks.gd").new().run(self, city)
+	# The night aerial refcam (tests/rc2_night_aerial_checks.gd, NightAerial): fewer floodlit boxes,
+	# the freeway's pools from the air, the far searchlights, the A/B.
+	load("res://tests/rc2_night_aerial_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()

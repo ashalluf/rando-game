@@ -267,6 +267,7 @@ func _ready() -> void:
 	hour = start_hour
 	NightSkyline.install()
 	NightFlight.install()
+	NightAerial.install()
 	WindowInteriors.install()
 	InteriorsGlass.install()
 	_sun = get_node_or_null(sun_path) as DirectionalLight3D

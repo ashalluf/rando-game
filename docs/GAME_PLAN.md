@@ -4302,3 +4302,11 @@ none of either.
   only after dark (searchlights, premiere beams) follow the lamps' night level, not the weather's
   share (street and car lamps still come on under a storm at noon). New refcam `rain_day` in
   tools/refcams/cameras_w5.json. RAIN_DAY=0 the A/B.
+
+- **2026-11-01 The night aerial refcam: light from the air is points, not slabs (rc2-night-aerial,
+  HANDOFF "The night aerial review").** A new reference camera (`night_aerial`, wave 5's table)
+  judged the city from 350 m at 22:30. Decisions: a lane's averaged traffic light is drawn as the
+  cars it averages wherever a pixel can still tell them apart, and its far-distance bloom only
+  comes in with distance; broad road-light pools have no hard rim and dim from the air; floodlit
+  masonry is a fifth of the old brick and render, not most of it; a far searchlight seen from the air
+  saturates softly and fades with distance. NIGHT_AERIAL=0 is the A/B.
