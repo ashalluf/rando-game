@@ -2812,6 +2812,9 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	load("res://tests/fwd_review_g_checks.gd").new().run(self, city)
 	# The fourth wave of everyday bodies (tests/car_variety_4_checks.gd, Cars4): rolls, the switch, builds, traffic.
 	await load("res://tests/car_variety_4_checks.gd").new().run(self, city)
+	# Shimmer and crawl in motion (tests/specular_aliasing_checks.gd, SpecularAA): the lobes widened by
+	# the pixel's spread of normals, the windows' coverage, the paint's widening, the switch.
+	load("res://tests/specular_aliasing_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()

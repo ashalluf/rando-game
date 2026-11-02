@@ -6744,6 +6744,16 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   its last mip once its module (`PavingAA.MODULE`, a share of the tile; `road()` passes
   `pattern_module`) is under two pixels (`paa_tex_fade`). `PAVING_AA=0` is the A/B; checks
   `tests/paving_aliasing_checks.gd`; probes `tools/paving_aa/`.
+- Shimmer in motion (2026-11-01, docs/HANDOFF.md "Shimmer and crawl in motion"): judge aliasing
+  with a frame strip, never a still: `tools/specular_aliasing/strip.py run|measure|compare` (a slow
+  pan from one load, DIFF=1; `--ss 4` averages four jittered renders a frame = what TAA integrates;
+  the score is the per-pixel second temporal difference). `shaders/specular_aa.gdshaderinc`:
+  `saa_geometric()` (geometric specular AA: car lacquer on both renderers - Godot's limiter skips
+  CLEARCOAT_ROUGHNESS - and base roughness on Compatibility), `saa_minified()` (a normal map's slope
+  variance lost in its mips, by footprint: the wet road), `saa_dither()` (temporal on Forward+, a
+  plain half on Compatibility: a FIXED dither crawls as much as the aliasing). Road paint under a
+  pixel is widened and blended by its cover; window frames fade by coverage (`thin_m`); palms take
+  `SpecularAA.PALM_LOD_BIAS`. `SPECULAR_AA=0` is the A/B; checks `tests/specular_aliasing_checks.gd`.
 - Road hardware (2026-10-05, docs/HANDOFF.md "Road hardware"): `RoadHardware`
   (`scripts/world/road_hardware.gd`, one hook line at the end of `StreetDetail.build_block`, FULL
   chunks) lays cast-iron manhole covers (four cast patterns, proud or sunk in a patched round or

@@ -4144,3 +4144,11 @@ none of either.
   their rows name the old owner and the wave (`CARS_4=0` hands them back, bit for bit). The paint
   palette (white ~22-30 %, but green, orange and purple together ~25 %) is noted, not changed: a
   palette change moves every parked car's look on every seed.
+
+- **2026-11-01 Aliasing is judged in motion, by a measure, and fixed by footprint (specular-aliasing,
+  HANDOFF "Shimmer and crawl in motion").** A still hides shimmer, so the proof is a frame strip of a
+  slow pan scored by its second temporal difference, through a jittered TAA-like proxy (four
+  sub-pixel-turned renders a frame) so polygon edges the Mac's TAA takes do not drown it. Fixes widen
+  lobes and features to what a pixel can hold (geometric / Toksvig specular AA, widened road paint
+  blended by cover, LOD sooner) rather than blur the picture; dithered coverage only where a temporal
+  pass resolves it (Forward+), never a fixed screen pattern. SPECULAR_AA=0 the A/B.
