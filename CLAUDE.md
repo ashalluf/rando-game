@@ -141,7 +141,11 @@ drops a pending build once its block stands at the wanted level (`STALE_BUILD_CA
 it was installed over the chunk, the "spawn chunk replaced" family); anything that works round the
 camera (CrowdFlow's 35 m) is staged near the CURRENT camera and the gate reset makes the setup's
 camera current again; a weather-dependent check holds every DayNight weather hook (`marine`,
-`santa_ana`, the flash), not only `weather_darken`; gate loops run from a separate worktree.
+`santa_ana`, the flash), not only `weather_darken`; a check that builds chunks or places service
+cars lifts `PhysicsBudget.max_active_bodies` for it (a busy city sits at the cap); stage and act in
+the SAME frame when a live system re-checks the condition (CarPanic's kerb); a system that sends
+walkers off (doors, errands) takes plain `_lives()` walkers without `no_trim` only; a shared grid
+keyed on the camera reads the game window's camera; gate loops run from a separate worktree.
 
 Download a Linux headless-capable build with:
 
