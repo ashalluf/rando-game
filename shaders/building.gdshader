@@ -2169,7 +2169,7 @@ void fragment() {
 					float dxs = sign(-vw_m.x / vw_m.z);
 					vec3 side_col = wall_mean * fm3_side_light(dxs, sw_m, day_m, lit_front_m) * 0.86;
 					float rec = 1.0 - (1.0 - fm3_recess_mul(facade_finish)) * pc.w;
-					vec3 base_a = albedo * rec * (1.0 - 0.5 * pc.z * day_m);
+					vec3 base_a = albedo * fm3_display(rec * (1.0 - 0.42 * pc.z * day_m));
 					float cov = clamp(pc.x + pc.y, 0.0, 1.0);
 					albedo = mix(base_a, (pier_col * pc.x + side_col * pc.y) / max(pc.x + pc.y, 1e-4), cov);
 					emission *= (1.0 - cov) * (1.0 - 0.25 * pc.z * day_m);

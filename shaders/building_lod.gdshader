@@ -1165,7 +1165,7 @@ void fragment() {
 						// surrounds, sills) stands in front of a share of its wall and is not darkened, so
 						// the same factor drew the far box 5 % darker than the near one (far_pair.py).
 						float rec = 1.0 - (1.0 - fm3_recess_mul(fin)) * pc.w * 0.72;
-						vec3 base_a = albedo * rec * (1.0 - 0.36 * pc.z * day);
+						vec3 base_a = albedo * fm3_display(rec * (1.0 - 0.30 * pc.z * day));
 						float cov = clamp(pc.x + pc.y, 0.0, 1.0);
 						albedo = mix(base_a, (pier_col * pc.x + side_col * pc.y) / max(pc.x + pc.y, 1e-4), cov);
 						emission *= (1.0 - cov) * (1.0 - 0.25 * pc.z * day);

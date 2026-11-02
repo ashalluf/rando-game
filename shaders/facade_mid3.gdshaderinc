@@ -95,3 +95,15 @@ float fm3_side_light(float dxv_sign, vec3 sw, float day, float lit_front) {
 	float lit_side = 0.38 + max(dxv_sign * sw.x, 0.0) * day;
 	return clamp(lit_side / max(lit_front, 1e-3), 0.25, 1.4);
 }
+
+// A shade factor tuned on the display (the opengl3 stills, Compatibility, which lights the albedo as
+// it is) as the renderer needs it: Forward+ lights LINEAR albedo, where the same multiplier darkens
+// far less (0.8 on a linear albedo is 0.9 on the screen), and the piers all but vanished on the
+// Mac. Measured with tools/glshot/building_shot.gd under lavapipe.
+float fm3_display(float m) {
+#if CURRENT_RENDERER == RENDERER_COMPATIBILITY
+	return m;
+#else
+	return pow(max(m, 0.0), 2.2);
+#endif
+}

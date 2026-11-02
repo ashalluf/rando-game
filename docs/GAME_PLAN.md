@@ -4119,3 +4119,11 @@ none of either.
   people in the water are placed on the surfaces that are drawn - waders on the sand mesh's
   foreshore, swimmers and surfers on the ocean's own height model - rather than at a fixed level.
   A summer afternoon's water is busy (waders, more swimmers). SAND_ROADS=0 / WADERS=0 the A/B.
+
+- **2026-11-01 Facades at mid distance, third pass (facades-mid-3, HANDOFF "Facades at mid distance,
+  third pass").** From 30-150 m a punched-window block was a flat plane with a perfect grid of
+  holes and a straight roofline. Decisions: masonry walls are articulated in the shader, not in
+  geometry - piers and recessed strips as box-filtered coverage (fx_member), so the near walls and
+  the far boxes draw the same thing at any range for no triangles; the roofline is real geometry
+  (stepped parapets as roof plant near, plant boxes far), added after every existing roll and after
+  the rooftop pieces have cleared their plant, so nothing a seed builds moves. FACADES_MID3=0 the A/B.
