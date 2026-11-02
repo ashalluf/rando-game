@@ -26110,3 +26110,94 @@ into a running gate (check files are `load()`ed lazily, mid-run).
 
 **Runs** (each `SHARDS=3`, ~30 min, a shard peaking at ~3.4-3.5 GB): see the table at the end of
 this section.
+
+## 9??. The blast, fourth pass (2026-11-01, fleet wave 5, branch `wt/explosions-4`)
+
+The owner's top priority for wave 5 was "make the explosions EXTREMELY AAA quality". The third pass
+(9ix) made the fireball a ray-marched volume, but it died after ~3 s and the rest of the blast was
+the second pass's billboards. This pass keeps the volume alive as the whole event and adds what a
+fuel blast leaves.
+
+**What changed (`Blast4`, `scripts/weapons/blast_4.gd`; `EXPLOSIONS_4=0` is the A/B):**
+- **The mushroom** (`shaders/blast_volume.gdshader`, the `v4` uniform; every block is behind
+  `if (v4 > 0.5)`, so 0 is the third pass bit for bit): `Blast3.spawn_volume()` asks
+  `Blast4.dress_volume()` for a taller box (`half` 1.75 x 2.1 x 1.75 radii, centre 2 radii up)
+  and a life (`volume_life` 9 s, a car 12, gas 8). Shape `shape4()`: a ball that rises and
+  flattens into a torus cap at `cap_y4()` (the same formula as `Blast4.handover_height()`, checked),
+  a skirt, a short-lived dust ring at the foot, a wavering stem. The noise is advected by
+  `advect4()`: a roll round the ring's core plus the curl of a sinusoid potential (cheap, no
+  texture). Temperature spreads over a wider band (`field4()`): the skin cools first, so the
+  surface reads as rolling soot with a fire core instead of salmon (AgX's red-heavy trap).
+  Lighting: three shadow taps along the light (0.12 / 0.36 / 0.85), a multiple-scattering lift,
+  a desaturated sky ambient (raw, it put bluish patches on the smoke), and the fires
+  (`Blast3.push_fires()` hands `fires[4]`, `fire_count`, `city_glow` to every live volume):
+  each lights only the underside (`below` squared), capped, `fire_gain` 0.32. At 1.0 Forward+
+  flooded the whole mushroom orange; opengl3 never showed it.
+- **Lit like a cloud** (second round, after the lead's notes on the first stills): the aged
+  smoke had read as one flat grey cutout (half-transparent, every pixel averaged its lit and dark
+  sides; softened to a blur). Now a sooty dark core with paler thin edges (`alb4` by density), warm
+  brown low down and cooler grey in the cap, the sky's light shaded by what hangs over a point
+  (one tap straight up, `occ4`), a warm bounce off the sunlit ground on the undersides, the sun
+  x1.35; a third noise octave, curl-advected and sliding with time, cuts turrets into the
+  silhouette only (`rim`), and `crisp` stays at 0.24 as it ages. The cap rolls wider (`wide` to
+  1.55), the stem is thicker and lasts to 60 % of the life, the dust skirt hangs for half of it
+  (the box is 2.3 radii wide to hold it). A gas ball's glow is held back for its first 0.04-0.25 s
+  so its noise shows instead of a white disc.
+- **The flash's glow** (BlastFX's light) rises with the cap (`Blast4.glow_height()`), lasts 1.7x
+  for a car, 1.3x for gas, again 1.8x after dark with a softer fall (`glow_stretch()`,
+  `glow_fall()`, off `DayNight.lamp_now`): at night it is all that shows the smoke.
+- **The card column waits**: BlastFX keeps the card cap hidden and the stem invisible
+  until `handover_height(life * 0.5)`, then restarts it. **Trap:** a CPUParticles3D that never
+  ran draws its whole multimesh at its ORIGIN - a dark ball floated over every blast until the
+  stem was hidden as well as not emitting.
+- **Fuel pools** (`BlastPool`, `scripts/weapons/blast_pool.gd`, `shaders/blast_pool.gdshader`): a
+  car's or a pump's blast leaves a burning puddle on the ground under it (ray), ragged outline
+  from the tiling noise, spreading in its first second, flickering burning patches, soot past the
+  rim that stays; CarDamage's flame material for the flames (ring emitters), embers, an OmniLight
+  that is also a Blast3 fire (it lights the mushroom from below), `fire_loop`. 15-24 s, at most 4.
+- **Secondary pops**: 2-4 over 1.6 s within 0.55 radii (`Blast4.pop()`): a small volume with a
+  3 s life while there is room, else cards; a light, sparks, a higher-pitched bang.
+- **Chain reactions**: a fuel blast gives the cars within 1.15 radii `CarDamage.chain_fuse()`
+  (0.5-1.7 s), the depth counted in meta `chain_gen`, stopped at `chain_depth` 3.
+- **Petrol pumps**: `PropBreak.broke()` -> `Blast4.pump_break()`: a gas blast (`gas_next`,
+  shorter and paler) 8.5 m round, rate-limited, then the pump breaks as before.
+- **The bang and the shake** (`Blast4.punch()`, from `Explosion.blast()`): the sound is delayed
+  by the camera's distance / 343 m/s, a low thump inside `thump_reach`, the shake arrives with
+  the wave (a small jolt, the main shake, a rumble). Roof dust shed by the wave is delayed the
+  same way and drawn as a pale flat sheet.
+- **The wreck's smoke** (`CarDamage._continuous_smoke()`, under Blast4): twice the puffs, thinner,
+  wider spread, damping and a radial push, growing to 4.8x: one leaning column instead of a string
+  of beads. Note the harness: at ~1 frame a second, CPUParticles emit in bursts, so a column high
+  up still reads beaded in stills; judge it in the game.
+
+**Stills** (branch `shots/explosions-4`, README there): before / after strips of a rocket and a
+car blast at noon (opengl3), a Forward+ night car strip (lavapipe), the over-lit WIP for
+comparison, the wreck smoke at 4 / 9 / 16 s. `tools/explosions_2/blast_room_shot.gd` takes `GAS=1`
+and `WEB=1`; `tools/explosions_4/dump.gd` prints a blast's nodes.
+
+**Checks**: `tests/explosions_4_checks.gd` (switch and hooks; the pure functions; the shader's cap
+height matches the hand-over; the mushroom's uniforms and box; the card cap hidden and the stem
+waiting; a fuel blast's pool on a deck burns, lights the smoke, pops go off, it frees itself; a
+web pop is cards; the chain fuse and its depth). `tests/explosions_3_checks.gd` waits up to 60 s
+for the volume to free itself (it lives longer now).
+
+`blast_room_shot.gd` also takes `GOLDEN=1` (a low warm sun) now, and `NIGHT=1` sets
+`DayNight.lamp_now`.
+
+**Round 3**: the screen door the Forward+ stills showed was mostly the march, not lavapipe's TAA:
+with a fixed step the first sample in dense smoke took nearly all the opacity, so the surface
+snapped to the step grid. The march now BACKS UP one step there and goes on in thirds for 12
+samples (`n + 16` at most); what is left is the per-frame rotated jitter TAA resolves. Debris,
+glass and the pressure wave are the second and third passes' (BlastDebris trails, BlastBits
+chips tumbling and skidding, BuildingDamage SHATTER with the wave, blast_wave.gdshader, roof dust
+now delayed to the wave). Shot in the city at night: `fx_shot.gd FX_CAR=1 FX_TIMES=0.3,2,6
+--spawn=650,300,0,-4 --hour=22` (still 19). `blast_room_shot.gd` prints `GEO` per still.
+
+**Frame cost with the blast in view** (blast_room_shot GEO, opengl3, 1280 x 720, fourth pass vs
+`EXPLOSIONS_4=0`): 0.3 s 409 / 411 draws, 505k / 506k triangles; 2 s 402 / 406, 504.5k / 504.7k;
+5 s 378 / 380, 502.0k / 502.0k - no more draws than the third pass. The volume costs ALU per
+covered pixel instead. The web keeps the cards (still 21).
+
+**Not done / not verified**: the dither at 60 fps was not seen (lavapipe runs at ~1 fps); the
+night mushroom against the light dome only in the opengl3 city still; no GPU timing of the
+volume (lavapipe's numbers are not a GPU's).

@@ -4223,3 +4223,12 @@ none of either.
   back and replaced the chunk standing there. CityStreamer now cancels a pending build once the
   block stands at the wanted level (STALE_BUILD_CANCEL=0 the A/B); a hidden shopper whose door was
   rebuilt finds it again (REVIVE_DOORS=0). Gate loops run from their own worktree.
+- **2026-11-01 The fireball lives on as the mushroom, and fuel keeps burning (explosions-4, HANDOFF
+  "The blast, fourth pass").** The third pass's ray-marched fireball died after a few seconds and
+  handed over to card smoke, which is where every blast read as a game effect. Decision: the volume
+  itself lives on for 9-12 s and rolls up into a vortex-ring cap over a stem (curl-advected noise,
+  three shadow taps, lit from below by the fires actually burning), and the card column only takes
+  over at half its life. A car or a pump is a fuel blast: a pool of burning fuel where it went up,
+  two to four secondary pops, and a chain fuse to the cars beside it (depth-limited). The bang
+  arrives at the speed of sound and the shake with the wave. All behind EXPLOSIONS_4=0; the web
+  keeps the cards.

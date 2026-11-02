@@ -796,12 +796,45 @@ func _fire_smoke() -> CPUParticles3D:
 	quad.material = WeaponFX.smoke_material()
 	p.mesh = quad
 	p.custom_aabb = AABB(Vector3(-20.0, -2.0, -20.0), Vector3(40.0, 36.0, 40.0))
+	if Blast4.enabled:
+		_continuous_smoke(p)
 	if _staged:
 		p.preprocess = 5.0
 	add_child(p)
 	_place_fire_smoke(p)
 	set_process(true)
 	return p
+
+
+## The fourth explosion pass (Blast4): the column as one continuous plume, not a string of beads.
+## Sixty-four opaque puffs rising fast in a narrow cone each read as a ball of their own; twice
+## as many, thinner where they overlap, wider apart sideways, slowing as they rise (damping) and
+## spreading out (radial push), turning, and growing faster, merge into one rolling column that
+## leans downwind.
+func _continuous_smoke(p: CPUParticles3D) -> void:
+	p.amount = WeaponFX._count(128)
+	p.lifetime = 7.0
+	p.lifetime_randomness = 0.3
+	p.spread = 24.0
+	p.initial_velocity_min = 0.9
+	p.initial_velocity_max = 2.2
+	p.gravity = Vector3(0.9, 1.25, 0.25)
+	p.damping_min = 0.25
+	p.damping_max = 0.7
+	p.radial_accel_min = 0.05
+	p.radial_accel_max = 0.35
+	p.angular_velocity_min = -28.0
+	p.angular_velocity_max = 28.0
+	var curve := Curve.new()
+	curve.max_value = 6.0
+	curve.add_point(Vector2(0.0, 0.9))
+	curve.add_point(Vector2(0.2, 1.8))
+	curve.add_point(Vector2(0.6, 3.4))
+	curve.add_point(Vector2(1.0, 4.8))
+	p.scale_amount_curve = curve
+	p.color_ramp = WeaponFX._ramp([Color(8.0, 3.4, 1.1, 0.45), Color(1.6, 1.15, 1.0, 0.78), Color(1, 1, 1, 0.7),
+		Color(1, 1, 1, 0.45), Color(1, 1, 1, 0.18), Color(1, 1, 1, 0.0)])
+	p.custom_aabb = AABB(Vector3(-30.0, -2.0, -30.0), Vector3(60.0, 50.0, 60.0))
 
 
 ## Over the bay while only the engine burns; over the bay and the cabin once the fire has spread.
@@ -833,6 +866,20 @@ func _bonnet() -> Vector3:
 
 
 var _bonnet_at: Vector3 = Vector3.INF
+
+
+## Blast4's chain reaction (a car going up beside this one): catch fire now, if there is room
+## for another fire, with at most `fuse` seconds left before it goes too. True when it will.
+func chain_fuse(fuse: float) -> bool:
+	if state == State.WRECK or _stage_hold:
+		return false
+	if state != State.BURNING:
+		health = minf(health, max_health * fire_at)
+		_ignite(true)
+	if state != State.BURNING:
+		return false
+	_fuse = minf(_fuse, fuse)
+	return true
 
 
 func _ignite(quick: bool) -> void:
