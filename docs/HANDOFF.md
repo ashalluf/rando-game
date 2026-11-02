@@ -26114,6 +26114,9 @@ into a running gate (check files are `load()`ed lazily, mid-run).
 | 6101 | pedestrian_flow "a follower walks beside its leader (mean 2.14 m)" (also 1303) | the strip moves with the camera's x and sometimes lay on pavement furniture the follower dodges (`CrowdFlow._dodge`) | `_strip()` takes the nearest stretch with nothing at knee height on the world / props layers |
 | 6101 | traffic_behaviour_2 "a car behind a wreck asks for the other lane" / car_panic "with no clear kerb ... swerves instead" / distance "from 600 m up no block is drawn by two tiers at once (1)" | **not found** (seen once each, in one heavy run); the first two print where the car got to and its panic kind now | - |
 | 7101 | pedestrian_flow "two walkers ... (closest 7.67 m, passed false)" | this branch's own south-pavement choice: a walker staged there walked off the wrong way | the pair walks the north pavement again |
+| 8101 | pedestrian_flow "two walkers ... (closest 1.63 m, passed false; both ended 21-23 m along)" (and so 7101 too) | `CrowdFlow._pass_door()` sent walkers past a shop door in (7 %) without sparing `no_trim`, the meta every staged walker carries: both staged walkers turned into the same door | `_pass_door()` leaves `no_trim` walkers alone (the flake rule's list now holds) |
+| 8101 | service_vehicle "a tow truck is sent (physics budget full)" | PhysicsBudget at its 500-body cap in a busy city | the check gives the truck room in the cap for the send |
+| 8101 | car_panic "a driver mounts the clear kerb ..." (up false) | **not found** (the lead hardened its staging on main, batch 35; still seen once) | - |
 
 **Runs** (each `SHARDS=3`, ~30 min, a shard peaking at ~3.4-3.5 GB): see the table at the end of
 this section.

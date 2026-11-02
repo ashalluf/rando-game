@@ -684,8 +684,10 @@ static func _far_walker(near: Node, at: Vector2, player_at: Vector3) -> Pedestri
 ## A walker passing a shop door on its own pavement: now and then they turn in (StreetErrands'
 ## shop visit). One look a second per walker.
 static func _pass_door(p: Pedestrian) -> void:
+	# A walker somebody placed on purpose (meta no_trim: a check's, a venue's line) is never sent
+	# in: two staged walkers turned into a shop door mid-check (shuffled gate 8101).
 	if not StreetErrands.enabled or not (p.get_parent() is CityChunk) or not p._life_free() or p._dog_walker or int(p.flow.get("followers", 0)) > 0 \
-			or p.flow.get("leader") != null:
+			or p.flow.get("leader") != null or p.has_meta("no_trim"):
 		return
 	var now := _now()
 	if now < int(p.flow.get("pass_t", 0)):
