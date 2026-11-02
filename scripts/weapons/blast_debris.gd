@@ -83,6 +83,18 @@ func _throw(radius: float, push: float, count: int) -> void:
 			own.emission_energy_multiplier = 0.5
 			mi.material_override = own
 		mi.scale = Vector3(randf_range(0.25, 0.6), randf_range(0.15, 0.4), randf_range(0.25, 0.55)) * clampf(radius / 9.0, 0.6, 1.4)
+		if Blast4.enabled and Blast4.debris_chunks:
+			# Blast4: real chunks, not dots - a third are torn thin panels (a door skin, a bonnet
+			# corner), the rest bigger wedges; each its own size.
+			if i % 3 == 0:
+				mi.mesh = Blast4.panel_mesh()
+				if own == null:
+					own = _mat.duplicate() as StandardMaterial3D
+					mi.material_override = own
+				own.cull_mode = BaseMaterial3D.CULL_DISABLED
+				mi.scale = Vector3(randf_range(0.7, 1.3), 1.0, randf_range(0.5, 1.0)) * clampf(radius / 9.0, 0.6, 1.4)
+			else:
+				mi.scale *= randf_range(1.2, 1.9)
 		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		add_child(mi)
 		_pieces.append({"node": mi, "pos": Vector3.ZERO, "vel": vel, "landed": false, "t": 0.0,
@@ -103,7 +115,7 @@ func _throw(radius: float, push: float, count: int) -> void:
 		Color(0.8, 0.22, 0.05, 0.6), Color(0.08, 0.06, 0.05, 0.0)])
 	_grow(_flames, 1.6)
 	# The smoke trail: lit puffs left hanging where the piece was, growing and fading.
-	_trail = _emitter(count * 26, 2.4, BlastFX.smoke_material())
+	_trail = _emitter(count * (44 if Blast4.enabled and Blast4.debris_chunks else 26), 2.4, BlastFX.smoke_material())
 	_trail.scale_amount_min = 0.55 * k
 	_trail.scale_amount_max = 0.9 * k
 	_trail.gravity = Vector3(0.2, 1.2, 0.1)

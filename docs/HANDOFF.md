@@ -26693,6 +26693,27 @@ chips that bounce and skid, BlastDebris' burning pieces with trails), the glass 
 (SHATTER records plus shards timed by the wave's travel at 343 m/s) and the refracting pressure
 wave stay as the second and third passes made them.
 
+**Round 5: the lead's five-case strips** (rocket at noon from 60 m, a car at golden hour from 20 m,
+a car at night, a petrol pump at noon, a chain of three cars: `CHAIN=1` on blast_room_shot.gd parks
+two more cars beside the first). Worst first, as judged frame by frame:
+1. **The flat beige dust band.** Bisected with A/Bs: three particle layers stacked into one wall
+   (BlastFX's ground kick puffs, BlastAftermath's dust wave, WeaponFX's skirt); the volume's own
+   dust ring rolls fine. `Blast4.dust_roll()` replaces the first two (the kick keeps its grit) with
+   a lit rolling front: fast low creepers, rollers that start 0.12 s later and lift and curl, and a
+   low hanging haze, on BlastFX's lit smoke with the variety tint. `BLAST_DUST_ROLL=0` the old layers.
+2. **The cap a uniform mid grey at 4-8 s by day.** `value4` (blast_volume.gdshader, set by
+   `dress_volume()`): the cooled plume's albedo rises with age (pale where the sun reaches it), its
+   ambient is pulled down and its sun term steepened, so the folds read dark and the tops pale.
+   Never on fire or dust. `BLAST_VALUE=0` the old grey.
+3. **The chain's flare caught as a white disc.** It grew to 4.2 radii over 0.13 s: now 3 radii over
+   0.1 s (`flare_grow_radii`, `flare_fade_seconds`; off with EXPLOSIONS_4=0).
+4. **Debris read as dots.** Every third burning piece is a bent sheet of panel (`panel_mesh()`, two
+   quads, drawn both sides), the rest 1.2-1.9x bigger, the trails nearly twice as dense.
+   `BLAST_CHUNKS=0` the old pieces.
+Still open: the night cap fades to a faint maroon blob (lit from below too weakly by its fires), the
+stem thins away by 8 s, the burning fuel on the road and up the wreck's sides, the crater at 5 m.
+Stills from 24 on, on `shots/explosions-4`.
+
 ## 9lb. The camera lens (wave 5, `camera-lens`)
 
 **What.** The camera itself: exposure adaptation, the sun's flare, grain, the bloom's spread.
