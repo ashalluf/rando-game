@@ -62,6 +62,11 @@ func _crop(step: String) -> void:
 	if p == null or cam == null or _arg("crops", "1") != "1":
 		return
 	var img := get_viewport().get_texture().get_image()
+	if _arg("full", "0") == "1":
+		# The whole frame at half size (web-build-5: the MacArthur Park glare was not round the hero).
+		img.resize(img.get_width() / 2, img.get_height() / 2)
+		print("PROBE_IMG %s %s" % [step, Marshalls.raw_to_base64(img.save_png_to_buffer())])
+		return
 	var a := cam.unproject_position(p.global_position + Vector3(0, 2.1, 0))
 	var b := cam.unproject_position(p.global_position + Vector3(0, -0.2, 0))
 	var h := absf(b.y - a.y)
@@ -127,6 +132,17 @@ func _apply(step: String, on: bool) -> void:
 				else:
 					env.fog_enabled = _saved["fog"]
 					env.volumetric_fog_enabled = _saved["vfog"]
+		"aerial":
+			if env:
+				if on:
+					_saved["aerial"] = env.fog_aerial_perspective
+				env.fog_aerial_perspective = 0.0 if on else _saved["aerial"]
+		"quality":
+			# The sky's radiance filtered in full every frame (PROCESS_MODE_QUALITY) for the step.
+			if env and env.sky:
+				if on:
+					_saved["pmode"] = env.sky.process_mode
+				env.sky.process_mode = Sky.PROCESS_MODE_QUALITY if on else _saved["pmode"]
 		"glow":
 			if env:
 				if on:
