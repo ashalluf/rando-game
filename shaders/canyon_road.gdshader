@@ -61,10 +61,12 @@ float fbm(vec2 p) {
 	return vnoise(p) * 0.5 + vnoise(p * 2.07 + 13.1) * 0.3 + vnoise(p * 4.31 - 7.7) * 0.2;
 }
 
-// A box-filtered band: 1 inside |x - c| < w / 2, faded by the pixel's footprint.
+// A box-filtered band: 1 inside |x - c| < w / 2, faded by the pixel's footprint. A band under a
+// pixel keeps its coverage (w / fw), not 0.5 over the whole pixel: from the air a 10 cm line read
+// as a stripe a pixel wide at half strength, far brighter than the paint.
 float band(float x, float c, float w, float fw) {
 	float d = abs(x - c) - w * 0.5;
-	return 1.0 - smoothstep(-fw, fw, d);
+	return (1.0 - smoothstep(-fw, fw, d)) * min(1.0, w / fw);
 }
 
 void vertex() {

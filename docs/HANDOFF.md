@@ -25217,9 +25217,14 @@ commit it). Occlusion culling changes no pixel, only the counted triangles and d
 wrapper that kills and retries a stalled run is the other half (`/tmp`-only; the loop is: log
 static 300 s after "far city" and the process under 10 % CPU for 30 s). Not fixed in the engine.
 
-**Measured** (refcam canyon_road, opengl3 1280x720, occlusion off): main 4,762,942 tris / 1,886
-draws at the first eye; after (first eye) 4,788,120 / 1,884 (+0.5 % / 0). The rail is one mesh a
-chunk; the road one mesh as before.
+**Measured** (refcam canyon_road, opengl3 1280x720, occlusion off, one load each): CANYON_ROAD=0
+5,495,237 tris / 2,016 draws (shadow 1,191,851), on 5,695,492 / 2,037 (shadow 1,327,675): +3.6 % /
++1 %, most of it the rail in the shadow passes. The rail is one mesh a chunk; the road one mesh as
+before. Luminance p5/p50/p95 26/53/179 -> 27/61/179 (the asphalt at its luminance, the paint).
+
+**Ten-camera compare** (`refcams.py compare`, all ten + canyon_road, CANYON_ROAD=0 against on): only
+canyon_road moves (p50 +8, saturation +0.04); freeway is flagged for moved traffic only (its diff
+map is the cars); every other camera within a level and 0-2.3 % of its triangles (hills +0.2 %).
 
 **Checks:** `tests/rc2_canyon_road_checks.gd` (the camera row, the materials and their shaders'
 paint / shoulder / linear handling, the boulders gathered and bedded and pure, the switchback's
