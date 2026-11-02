@@ -26115,15 +26115,35 @@ into a running gate (check files are `load()`ed lazily, mid-run).
 | 6101, 10404 | distance "from 600 m up / street level no block is drawn by two tiers at once (1)" | the vantage waited `fade_time` after `update_streaming(true)`, but builds pending from before kept finishing; a chunk installed late was still dissolving the far city | the vantage also waits until nothing is pending or fading (30 s at most) |
 | 6101 | car_panic "with no clear kerb ... swerves instead" | the race below: start() looked at the kerb ticks after the test did | see the 8101 / batch 37 row |
 | 1303, 6101 | pedestrian_flow "a follower walks beside its leader (mean 2.1 m, leader 6.9 m)" | **not found**: the strip sits at the camera's x and may meet pavement furniture the follower dodges; moving the strip off furniture was tried and made the pair walk off east to one spot every time (7101, 8101, 9101: the same end point to the millimetre), so it was taken back out | - |
-| 1202 + the lead's batch 37 | pedestrian_flow "two walkers ... (closest 0.04 m, passed true; camera 24.3 m off, strides 1, flow on)" | **not found**: no sidestep at all with every precondition met; the message now also prints what each saw of the other in CrowdFlow's grid, their group ids, layers and visibility | - |
+| 1202, the lead's batch 37, 12202 | pedestrian_flow "two walkers ... (closest 0.04 m, passed true; camera 24.3 m off, strides 1, flow on, neighbours seen 0, layers 8/8, visible)" | every precondition met and still nothing in CrowdFlow's grid. The likeliest: `CrowdFlow._swap()` took the camera from the first caller's OWN viewport each frame, so any caller elsewhere (another viewport, out of the tree) set `_cam` to nowhere and turned the grid off for that frame | `_swap()` takes the game window's camera (CrowdLook's rule); the message also prints CrowdFlow's own camera distance and grid size, to confirm or refute it |
 | 11101 | weather_la "rain: a splash lands on a car's roof (6142.71 m against 6143.56 m)" | the first upright car in the group was one an earlier file had sent flying, 6 km up and falling between the splash and the read | a car at rest within 400 m of the player |
+| 13202 | air_traffic "the sky is populated from the start (2 aircraft)" | an earlier file shot aircraft down or cleared the sky, and nothing put it back | the gate reset populates AirTraffic afresh when fewer than three (and fewer than at the snapshot) fly |
+| 14202 | explosions_2 "debris lands on the deck, none through it (0 landed, 0 under)" | the landings were counted once, after 120 ticks, by when a busy run had freed or emptied the debris | counted tick by tick as they happen |
+| 15202 | ragdoll_feel "the doll knows it is rolling down the steps" / "it ends at the foot of the flight (hips 1.89 m up)" | **not found**: the knocked doll stayed on the top step; the message now says when it froze and how fast its hips went | - |
+| 15303 | emergency "the other brings the stretcher and they take the body" / "the ambulance leaves" | **not found** (wave 4's 2222 had the same lines: a car in the kerb lane; that fix holds parked cars and errands off, so this is something else) | - |
 | (8101) | - | `CrowdFlow._pass_door()` sent walkers in at shop doors without sparing `no_trim` (the staging meta the flake rules promise every system leaves alone) | spares them now |
 | 8101 | service_vehicle "a tow truck is sent (physics budget full)" | PhysicsBudget at its 500-body cap in a busy city | the check gives the truck room in the cap for the send |
 | 8101, the lead's batches 35 / 37 | car_panic "a driver mounts the clear kerb ..." (up false, never a KERB panic) | the test found the kerb clear, then placed the follower and waited two ticks before `CarPanic.start()`, which looks again: a walker of a busy shard had stepped onto the kerb and the driver rightly swerved | the follower is placed and the panic started in the same frame the kerb was found clear (also in the retry loop) |
 | batches 35-37 (the lead) | street_furniture "the furniture moves nothing in a downtown block" (rebuild signature) | trash cans and parked cars roll only while `PhysicsBudget.can_spawn()`, and a busy shard's city sits at the 500-body cap, so builds of one block differed | the check's builds run with the cap lifted |
 
-**Runs** (each `SHARDS=3`, ~30 min, a shard peaking at ~3.4-3.5 GB): see the table at the end of
-this section.
+**Runs** (each `SHARDS=3`, 28-40 min on this 4-core box, a shard peaking at 3.0-3.8 GB RSS;
+5,084 -> 5,443 checks as main grew): 31 shuffled runs, seeds 1101 .. 15303, each failure fixed as
+it appeared, so the tree moved under the runs (and main merged four times: batches 34-38).
+Clean: 1101, 1404, 1505, 1606, 2101, 2202, 10101, 10202, 10303, 12101, 13101, 14101, 15101 (13 of 31).
+Longest streak on one tree: three (1404-1606 on cb5cc5c4; 10101-10303 on 5a18bde8). **Five
+consecutive clean runs on one unchanged tree were not reached**: about every other run still
+turned up a once-seen failure (1-2 checks of ~5,400), most of them a check leaning on a live
+system or on what an earlier file left, a few real game bugs (the stale pending build, the shop
+door's subclass walkers, CrowdFlow's camera). Each run's `FAIL` lines are in the tables above.
+
+Final gate on the branch merged with main (`afac849b`, batch 38+), unshuffled `SHARDS=3`: PASSED,
+5,624 checks, shards peaking at 3.1 / 3.7 / 3.8 GB RSS.
+
+**Still open** (seen once or twice, diagnostics added, not fixed): the follower lagging its
+leader (1303, 6101), ragdoll_feel's stair roll (15202), emergency's stretcher (15303), crowd_anim_2's bank (the lead, batch 35-37),
+and whether CrowdFlow's camera was the passing pair's cause (12202: the next failure's message
+says CrowdFlow's own camera distance and grid size). `CHUNK_SWAP_LOG=1` prints any chunk swap
+near the player with the stack, should a spawn-chunk replacement come back.
 
 ## 9ky. The blast, fourth pass (2026-11-01, fleet wave 5, branch `wt/explosions-4`)
 
