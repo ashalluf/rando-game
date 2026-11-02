@@ -40,6 +40,13 @@ static var enabled: bool = OS.get_environment("WARM_REHEARSAL") != "0"
 ## car cabins' door split and kit (CarInteriors: the first car the player walks up to), people
 ## under umbrellas and hoods (RainCrowd), a wild animal. `WARM_WAVE3=0` leaves them out (the A/B).
 static var wave3: bool = OS.get_environment("WARM_WAVE3") != "0"
+## Wave 4's first uses (load-time-3, 2026-11-01; docs/HANDOFF.md "Load time after wave 4"): the
+## five-star troop truck and the gunship (wanted-escalation; the first helicopter of any kind), a
+## spike strip and its flats (police-chase), a corner crash at speed (car-crash-3: the torn wheel,
+## its sparks, the debris), a burst's barrel smoke and every surface's bullet marks (gunplay-feel),
+## blood on the hero (blood-gore-2). Measured with tools/shader_warm/first_use_probe EVENTS=wave4.
+## `WARM_WAVE4=0` leaves them out (the A/B).
+static var wave4: bool = OS.get_environment("WARM_WAVE4") != "0"
 ## For the first-use probe (tools/shader_warm/), which cannot fit the whole rehearsal's pipelines in
 ## lavapipe's memory any more: only these stages ("cars", "people", ...) and body types (empty: all).
 static var only_stages: PackedStringArray = []
@@ -63,6 +70,9 @@ static func run(scene: Node, cam: Camera3D, progress: Callable = Callable(), log
 		return
 	var tree := scene.get_tree()
 	var t_all := Time.get_ticks_usec()
+	# Timed stage by stage like the rest of the loading screen (load-time-3: it was the one part of
+	# it with no LOADING line, ~12 s headless on the build box).
+	LoadClock.start("screen: rehearsal")
 	keep_decal_atlas(scene)
 	keep_models()
 	var bus_was := AudioServer.is_bus_mute(0)
@@ -98,8 +108,7 @@ static func run(scene: Node, cam: Camera3D, progress: Callable = Callable(), log
 		await stage.call(holder, ground, fwd, right, tree)
 		for f in HOLD_FRAMES:
 			await tree.process_frame
-		if log_times:
-			print("WARM rehearsal %s %d ms" % [stages[i][0], (Time.get_ticks_usec() - t0) / 1000])
+		print("LOADING rehearsal %s: %d ms" % [stages[i][0], (Time.get_ticks_usec() - t0) / 1000])
 	# Clean up: the holder, and whatever the effects parented to the scene meanwhile (plain
 	# nodes only - a chunk the streamer added is a scripted node and stays).
 	holder.queue_free()
@@ -123,6 +132,8 @@ static func run(scene: Node, cam: Camera3D, progress: Callable = Callable(), log
 	Police.innocent = innocent_was
 	AudioServer.set_bus_mute(0, bus_was)
 	_purge_statics()
+	clear_pools()
+	LoadClock.stop("screen: rehearsal")
 	if log_times:
 		print("WARM rehearsal total %d ms" % ((Time.get_ticks_usec() - t_all) / 1000))
 
@@ -211,6 +222,10 @@ static func _stage_cars(holder: Node3D, ground: Vector3, fwd: Vector3, right: Ve
 		var cop: PoliceCar = PoliceCar.make(heavy, RandomNumberGenerator.new())
 		cop.set("police", null)
 		cars.append(cop)
+	if wave4 and only_types.is_empty():
+		var troop: PoliceCar = PoliceCar.make(false, RandomNumberGenerator.new(), true)
+		troop.set("police", null)
+		cars.append(troop)
 	for k in cars.size():
 		var car: Vehicle = cars[k]
 		# A row across the view, far enough out to be drawn whole, off every collision layer the
@@ -235,6 +250,8 @@ static func _stage_cars(holder: Node3D, ground: Vector3, fwd: Vector3, right: Ve
 	hurt.take_hit(0, 900.0, fwd, at - fwd * 3.0, Vehicle.HIT_BLAST)
 	if wave3:
 		await _stage_wave3_cars(cars, fwd, tree)
+	if wave4:
+		await _stage_wave4_cars(holder, cars, ground, fwd, right, tree)
 
 
 static func _stage_people(holder: Node3D, ground: Vector3, fwd: Vector3, right: Vector3, tree: SceneTree) -> void:
@@ -275,6 +292,15 @@ static func _stage_people(holder: Node3D, ground: Vector3, fwd: Vector3, right: 
 	if is_instance_valid(peds[1]):
 		var b: Pedestrian = peds[1]
 		b.knock(fwd * 6.0 + Vector3.UP * 3.0, 3)
+	# Blood on the hero (HeroBlood): his cloth and skin shaders' spatter path, cleared after.
+	if wave4 and HeroBlood.current != null:
+		var hero := tree.get_first_node_in_group("player") as Node3D
+		if hero:
+			HeroBlood.splash(hero.global_position + Vector3.UP * 1.2 + fwd * 0.6, -fwd, 2.0)
+			for f in HOLD_FRAMES:
+				await tree.process_frame
+			if HeroBlood.current != null:
+				HeroBlood.current.clear()
 
 
 static func _stage_effects(holder: Node3D, ground: Vector3, fwd: Vector3, right: Vector3, tree: SceneTree) -> void:
@@ -313,6 +339,8 @@ static func _stage_effects(holder: Node3D, ground: Vector3, fwd: Vector3, right:
 		holder.add_child(spot)
 		spot.global_position = ground + Vector3.UP * 1.0
 		spot.look_at(p, Vector3.UP)
+	if wave4:
+		_stage_wave4_effects(holder, ground, fwd, right, tree)
 	await tree.process_frame
 
 
@@ -391,11 +419,77 @@ static func _stage_wave3_cars(cars: Array, fwd: Vector3, tree: SceneTree) -> voi
 			inst.deactivate(car)
 
 
+## Wave 4's car first uses (see `wave4`): a spike strip across the row with two of a car's tyres
+## gone flat on it (ChaseFlatTyres' sagging tyre), and a corner crash at speed on another car
+## (CrashBreakup: the glass burst, the bonnet, a torn wheel rolling off with its hub dragging, the
+## debris ring).
+static func _stage_wave4_cars(holder: Node3D, cars: Array, ground: Vector3, fwd: Vector3, right: Vector3, tree: SceneTree) -> void:
+	var strip := ChaseSpikeStrip.new()
+	holder.add_child(strip)
+	strip.global_position = ground + fwd * 10.0
+	strip.deploy()
+	if cars.size() > 3 and is_instance_valid(cars[3]):
+		var flat: Vehicle = cars[3]
+		ChaseFlatTyres.puncture(flat, 0)
+		ChaseFlatTyres.puncture(flat, 1)
+	if cars.size() > 2 and is_instance_valid(cars[2]):
+		var c: Vehicle = cars[2]
+		var at := c.global_position + c.global_basis * Vector3(0.8, 0.0, -2.0)
+		c.take_hit(0, 28.0, -c.global_basis.z, at, Vehicle.HIT_CRASH)
+	for f in HOLD_FRAMES:
+		await tree.process_frame
+
+
+## Wave 4's effect first uses: every surface's bullet marks (GunplayFeel: on Compatibility one
+## quad material per mark set, on Forward+ the decals, whose textures the atlas keeper holds), the
+## smoke off a hot barrel (BarrelSmoke, on the player's gun: it stays there, as it would after the
+## first burst), and the police helicopter dressed as the five-star gunship - the first helicopter
+## of any kind, which the air traffic flies over the city in the first minute.
+static func _stage_wave4_effects(holder: Node3D, ground: Vector3, fwd: Vector3, right: Vector3, tree: SceneTree) -> void:
+	if GunplayFeel.enabled:
+		var k := 0
+		for surf in GunplayFeel.baked_surfaces():
+			for v in GunplayFeel.VARIANTS:
+				GunplayFeel.hole_textures(surf, v)
+			var at := ground + fwd * 7.0 + right * (float(k) - 2.0) * 0.7 + Vector3.UP * 1.0
+			GunplayFeel.hole(holder, at, -fwd, surf, holder)
+			k += 1
+		var player := tree.get_first_node_in_group("player")
+		var manager: Node = player.get("weapon_manager") if player else null
+		var gun: Weapon = manager.get("current") if manager else null
+		if gun != null:
+			GunplayFeel.BarrelSmoke.heat_up(gun)
+	var heli := Helicopter.new()
+	var at_heli := ground + fwd * 45.0 + Vector3.UP * 16.0
+	heli.setup(Helicopter.Role.POLICE, WorldState.to_world(at_heli), 0.0, 4242)
+	heli.set_meta(TAG, true)
+	holder.add_child(heli)
+	heli.global_position = at_heli
+	WantedEscalation.arm_gunship(heli)
+
+
 ## The burnt rehearsal car stays in CarDamage's static lists (burning, smoking, wrecks) after it is
 ## freed: Emergency's scan then met a freed instance every second of play (a SCRIPT ERROR each
 ## time) and the caps counted a car that is not there. Drops every entry that is gone.
 static func _purge_statics() -> void:
+	# The rehearsal's bullet marks in WeaponFX's cap list, and the pieces its crash and blast left
+	# lying in the shared debris rings (CrashDebris, BlastBits: under the camera all session).
+	var holes: Array = WeaponFX._holes
+	for i in range(holes.size() - 1, -1, -1):
+		if not is_instance_valid(holes[i]):
+			holes.remove_at(i)
 	for list: Array in [CarDamage._burning, CarDamage._smokers, CarDamage._wrecks]:
 		for i in range(list.size() - 1, -1, -1):
 			if not is_instance_valid(list[i]):
 				list.remove_at(i)
+
+
+## Empties the shared rings the rehearsal's crash and blast threw pieces into (load-time-3: the
+## crash's bumper chunks and the blast's chips lay at the spawn point for the whole session).
+static func clear_pools() -> void:
+	var debris := CrashDebris.instance()
+	if debris != null:
+		debris.clear()
+	var bits := BlastBits.current()
+	if bits != null:
+		bits.clear()

@@ -262,6 +262,13 @@ float detail(float period, float mpp) {
 #include "res://shaders/roof_weather.gdshaderinc"
 
 
+// Forward+ review g (FwdReviewG): the near pane's traced room is decoded on Forward+ (building.gdshader,
+// fx_srgb_in()); the far pane's stand-ins for it are display numbers too, so they follow. 0 the A/B.
+global uniform float fwd_review_g;
+vec3 fg_room(vec3 c) {
+	return fwd_review_g > 0.5 ? cs_as_uniform(c) : c;
+}
+
 // --- Building's palettes, as it wrote them (sRGB numbers; cs_as_uniform() them before use).
 // tests/far_city_checks.gd reads these back out of this source and compares them with Building.
 // Building.WINDOW_TINTS.
@@ -860,9 +867,9 @@ void fragment() {
 			// traced paint, blinds and desks (about 0.4 on average) at the interior exposure (0.4),
 			// seen through the building's own glass tint, darker toward the frame and where the
 			// head shades the recess (its 0.45 inset and 0.5 recess shade, about 0.8 over a pane).
-			vec3 room = mix(vec3(0.16, 0.155, 0.15), tint_c * 0.19, 0.28) * 0.8 * (0.55 + 0.9 * hash31(vec3(col * 1.7, row, sd * 31.0)));
+			vec3 room = mix(fg_room(vec3(0.16, 0.155, 0.15)), tint_c * 0.19, 0.28) * 0.8 * (0.55 + 0.9 * hash31(vec3(col * 1.7, row, sd * 31.0)));
 			if (storefront) {
-				room = vec3(0.22, 0.20, 0.17) * (0.7 + 0.6 * shop_seed);
+				room = fg_room(vec3(0.22, 0.20, 0.17)) * (0.7 + 0.6 * shop_seed);
 			} else if (facade_variety) {
 				// The pane's tone and its floor's coating, and the blind the near pane hangs at the
 				// same height (fx_pane(): the near room traces it), at their averages once a pane is
@@ -874,9 +881,9 @@ void fragment() {
 				if (wi_home(sd, ws)) {
 					// A home hangs its own (window_interiors.gdshaderinc), seen at its average.
 					vec4 cm = wi_cover_mean(wi_key(sd, face_id, row, col));
-					room = mix(room, cm.rgb * 0.245, cm.a * 0.85);
+					room = mix(room, fg_room(cm.rgb * 0.245), cm.a * 0.85);
 				} else {
-					room = mix(room, vec3(0.20, 0.195, 0.18) * 1.15, blind * 0.85);
+					room = mix(room, fg_room(vec3(0.20, 0.195, 0.18) * 1.15), blind * 0.85);
 				}
 			}
 			// No glare lobe: the near glass has none, its flare is the renderer's own specular.

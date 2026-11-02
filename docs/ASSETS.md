@@ -225,6 +225,12 @@ class instead.
 | `tools/make_cars_3.py` | `road_compact_suv.glb` | 48k tris + 8k far twin (the SUV cut short and scaled to 88 %, spare wheel) | `BodyType.COMPACT_SUV` | 2026-10-30 |
 | `tools/make_cars_3.py` | `road_work_truck.glb` | 56k tris + 8k far twin (the pickup blacked out, toolbox, ladder rack, `ladder` slot) | `BodyType.WORK_TRUCK` | 2026-10-30 |
 | `tools/make_cars_3.py` | `road_coupe.glb` | 51k tris + 8k far twin (the sedan, short overhangs, roof down 9 cm, two doors) | `BodyType.COUPE` | 2026-10-30 |
+| `tools/make_cars_4.py` | `road_wagon.glb` | 52k tris + 8k far twin (the hatchback on a 26 cm longer wheelbase, roof held level to an upright tailgate) | `BodyType.WAGON` | 2026-11-01 |
+| `tools/make_cars_4.py` | `road_muscle.glb` | 50k tris + 8k far twin (the coupe 3 cm lower and 3 % wider, a full-width mouth with round lamps, a bonnet scoop) | `BodyType.MUSCLE` | 2026-11-01 |
+| `tools/make_cars_4.py` | `road_lux_suv.glb` | 50k tris + 8k far twin (the SUV with a 12 cm longer bonnet, a tall chrome grille, running boards) | `BodyType.LUX_SUV` | 2026-11-01 |
+| `tools/make_cars_4.py` | `road_kei_van.glb` | 52k tris + 8k far twin (the panel van's box cut short and the van scaled to 76 %, glazed all round) | `BodyType.KEI_VAN` | 2026-11-01 |
+| `tools/make_cars_4.py` | `road_classic.glb` | 59k tris + 8k far twin (the beater stretched to 5.7 m, quad round lamps, chrome bumpers, vinyl roof) | `BodyType.CLASSIC` | 2026-11-01 |
+| `tools/make_car_undersides.py` | `road_{wagon,muscle,lux_suv,kei_van,classic}_under.glb` | 5-5.6k tris each (liners, exhausts, chassis) | `CarUnderside` | 2026-11-01 |
 | `tools/make_lowriders.py` | `road_lowrider_hardtop.glb` | 51k tris + 8k far twin (1960s two-door hardtop, laid low; the game draws its wire wheels) | `BodyType.LOWRIDER_HARDTOP` | 2026-10-06 |
 | `tools/make_lowriders.py` | `road_lowrider_coupe.glb` | 49k tris + 8k far twin (1980s coupe with a padded half roof) | `BodyType.LOWRIDER_COUPE` | 2026-10-06 |
 | code (`Lowrider.wire_wheel()`) | the lowriders' 13" wire wheels | 72 spokes, thin whitewall, knock-off; ~6k tris near, a disc far | `Lowrider` | 2026-10-06 |

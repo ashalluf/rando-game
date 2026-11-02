@@ -110,6 +110,9 @@ uniform bool sign_letters = false;
 // Color(0.66, 0.75, 0.88) and DayNight's per-hour horizon, the same numbers
 // shaders/building_lod.gdshader already mirrors in its glazing.
 global uniform vec4 sky_tint;
+// Forward+ review g (FwdReviewG; FWD_REVIEW_G=0 sets it 0): the traced room behind a pane is
+// written in display numbers; 1 hands it to the albedo decoded on Forward+ (fx_srgb_in()).
+global uniform float fwd_review_g;
 // Wall texture set (albedo, normal, roughness), sampled in wall space: meters per tile.
 uniform sampler2D wall_albedo : source_color, filter_linear_mipmap, repeat_enable;
 uniform sampler2D wall_normal : hint_normal, filter_linear_mipmap, repeat_enable;
@@ -333,6 +336,7 @@ global uniform vec3 origin_shift;
 #include "res://shaders/building_damage.gdshaderinc"
 #include "res://shaders/wet_surface.gdshaderinc"
 #include "res://shaders/facade_street.gdshaderinc"
+#include "res://shaders/specular_aa.gdshaderinc"
 
 // A door's framing, painted: `p` in metres from the opening's corner at the pavement on
 // ShopfrontKit's low edge (the high end of `u`), `w` the opening's width. The members of the
@@ -1146,6 +1150,35 @@ void fragment() {
 			win_c = vec2(0.5, 0.5);
 			win_h = vec2(0.16, 0.40);
 		}
+		// Specular-aliasing pass (specular_aa.gdshaderinc): a punched, ribbon or slot window under a
+		// few pixels was glass or wall by where the pixel's centre fell, so a tower's window grid
+		// crawled into moire as the camera moved (the landmark towers draw with this shader at
+		// every distance). Under ~2.5 pixels the glass is kept by its box-filtered coverage over a
+		// footprint that widens to two pixels, dithered (saa_dither: TAA resolves it on Forward+),
+		// so a pixel shows its cell's glass or wall in the right share and the grid fades to its
+		// average instead of beating against the pixels.
+		// Forward+ only: on Compatibility (no temporal pass) the stepped mask is steadier than
+		// any fixed dither of it.
+#if CURRENT_RENDERER == RENDERER_FORWARD_PLUS
+		if (saa_on() && !storefront && !chamfer && !garage && window_style != 2 && row >= 0.0) {
+			vec2 wc = window_style == 0 ? vec2(0.5, 0.52) : (window_style == 1 ? vec2(0.5, 0.55) : vec2(0.5, 0.5));
+			vec2 wh = window_style == 0 ? vec2(0.27, 0.25) : (window_style == 1 ? vec2(0.47, 0.27) : vec2(0.16, 0.40));
+			float open_px = min(2.0 * wh.x * pitch, 2.0 * wh.y * pt_floor) / max(px_m, 1.0e-5);
+			float far_k = 1.0 - smoothstep(1.0, 2.5, open_px);
+			if (far_k > 0.0) {
+				float fw = px_m * (1.0 + far_k);
+				float cu = saa_pulse(u / pitch, wc.x, wh.x, fw / pitch);
+				float cv = saa_pulse((v - pt_ground) / pt_floor, wc.y, wh.y, fw / pt_floor);
+				float cover = cu * cv;
+				bool g = cover > saa_dither(FRAGCOORD.xy, TIME);
+				// Handed over to the stepped mask as the window grows back over four pixels.
+				if (saa_dither(FRAGCOORD.yx + vec2(1.0, 2.0), TIME * 1.37) < far_k) {
+					glass = g;
+					frame = false;
+				}
+			}
+		}
+#endif
 
 		// ---- The street level: a door in a ground floor without shops ---------------------
 		// (facade_street.gdshaderinc; FacadeStreet puts the lamp over it and the step under it on
@@ -1395,6 +1428,14 @@ void fragment() {
 				room *= expose * (1.0 - 0.88 * night_factor * ((lit && storefront) ? 0.0 : 1.0));
 				if (storefront) {
 					room *= vec3(1.10, 1.03, 0.92);
+				}
+				// fwd-review-g: the room's paint, blinds and fittings are display numbers (room_raw
+				// keeps them for the lit emission below). In the renderer-space albedo Forward+ read
+				// them as linear: by day every pane was a pale panel as light as the wall (luminance
+				// 70-80 against opengl3's 20-35 beside a 107 / 79 wall). Decoded there, as the wall,
+				// the glass tint and the mirror already are.
+				if (fwd_review_g > 0.5) {
+					room = fx_srgb_in(room);
 				}
 				// The glass still carries its own tint; the room shows through it.
 				dmg_room = room;

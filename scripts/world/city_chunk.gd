@@ -815,7 +815,7 @@ func _port_yard(st: Dictionary) -> void:
 	var area := owned_rect()
 	var c := area.get_center()
 	_port_lift = _gy(c.x, c.y)
-	_add_slab(Vector3(c.x, 0.1, c.y), Vector3(area.size.x, 0.2, area.size.y), style.concrete, level == Level.FULL, PropFactory.road("concrete", 5.0, PORT_YARD_TINT, hash([plan.seed, ix, iz, "yard"]), 6.0, 0.6))
+	_add_slab(Vector3(c.x, 0.1, c.y), Vector3(area.size.x, 0.2, area.size.y), style.concrete, level == Level.FULL, PropFactory.road("concrete", 5.0, PORT_YARD_TINT, hash([plan.seed, ix, iz, "yard"]), 6.0, PortFill.YARD_WEAR if PortFill.enabled else 0.6))
 	var rng := RandomNumberGenerator.new()
 	rng.seed = block.seed
 	var kit := RandomNumberGenerator.new()
@@ -829,6 +829,7 @@ func _port_yard(st: Dictionary) -> void:
 	st.cols = int(area.size.x / 14.0)
 	st.origin = Vector2(area.position.x + 8.0, area.position.y + 6.0)
 	st.gate = PortLife.is_gate(plan, ix, iz)
+	var fill := PortFill.rng_for(plan.seed, ix, iz)
 	_port_piles.clear()
 	var lanes: Array[int] = []
 	st.lanes = lanes
@@ -841,21 +842,25 @@ func _port_yard(st: Dictionary) -> void:
 				lanes.append(r) # an empty lane for trucks
 				continue
 			for col in cols:
+				var filled := false
 				if rng.randf() < 0.35:
-					continue
-				var height := rng.randi_range(1, 3)
+					# An empty slot: PortFill's own stream may stack one (after the old rolls).
+					if not PortFill.fills_slot(fill):
+						continue
+					filled = true
+				var height := fill.randi_range(1, 3) if filled else rng.randi_range(1, 3)
 				var p := origin + Vector2(col * 14.0, r * 9.0)
 				if p.x + 6.0 > area.end.x - 4.0 or p.y + 1.2 > area.end.y - 4.0:
 					continue
 				var picks: Array[int] = []
 				for h in height:
-					picks.append(rng.randi() % PORT_COLOR_ROLLS)
+					picks.append((fill if filled else rng).randi() % PORT_COLOR_ROLLS)
 				if p.y + PORT_ROW_OFFSET + PortKit.W * 0.5 > float(st.apron_z):
 					continue
 				# The gate's chunk holds no stacks (PortLife / PortGate; after the rolls).
 				if st.gate:
 					continue
-				_port_stack(p, height, picks, kit))
+				_port_stack(p, height, picks, fill if filled else kit, fill))
 
 
 func _port_paint(st: Dictionary) -> void:
@@ -913,7 +918,7 @@ func _add_port_pool(at: Vector3, size: float) -> void:
 ## One stack slot: the rolled `height` of boxes in the row line, a second pile abreast (most
 ## slots) a box higher or lower, each pile 40 ft boxes or pairs of 20s, some of them high-cubes.
 ## `picks` are the old per-box colour rolls, which choose the first pile's liveries.
-func _port_stack(p: Vector2, height: int, picks: Array[int], kit: RandomNumberGenerator) -> void:
+func _port_stack(p: Vector2, height: int, picks: Array[int], kit: RandomNumberGenerator, fill: RandomNumberGenerator = null) -> void:
 	var single := kit.randf() < 0.15
 	var offsets: Array[float] = [0.0]
 	if not single:
@@ -938,6 +943,17 @@ func _port_stack(p: Vector2, height: int, picks: Array[int], kit: RandomNumberGe
 			else:
 				top_index = _add_container(Vector3(p.x, y + hgt * 0.5, z), true, hc, row_flip != (kit.randf() < 0.15), _port_livery(pick, kit), kit)
 			y += hgt
+		if fill != null:
+			# PortFill: topped up to a terminal's tiers, every roll on its own stream.
+			for h in PortFill.target(n, fill) - n:
+				var hgt := PortKit.H_HC if fill.randf() < (0.1 if twenty else 0.45) else PortKit.H_STD
+				if twenty:
+					for e: float in [-1.0, 1.0]:
+						var cx := p.x + e * (PortKit.L20 + PortKit.PAIR_GAP) * 0.5
+						_add_container(Vector3(cx, y + hgt * 0.5, z), false, hgt > PortKit.H_STD, row_flip != (fill.randf() < 0.2), _port_livery(fill.randi() % PORT_COLOR_ROLLS, fill), fill)
+				else:
+					top_index = _add_container(Vector3(p.x, y + hgt * 0.5, z), true, hgt > PortKit.H_STD, row_flip != (fill.randf() < 0.15), _port_livery(fill.randi() % PORT_COLOR_ROLLS, fill), fill)
+				y += hgt
 		if level == Level.FULL and not capturing:
 			# Each pile's top for PortLife's gantries (a 40 ft box on top can be lifted off).
 			_port_piles.append(PortLife.pile(_batch, top_index if not twenty else -1, p.x, z, y + _port_lift))
@@ -1057,12 +1073,17 @@ func _build_quay(area: Rect2, kit: RandomNumberGenerator) -> void:
 	_add_slab(Vector3(cx, PORT_YARD_TOP + cope_h * 0.5, qz - 0.6), Vector3(w, cope_h, 1.2), Color(0.64, 0.63, 0.6))
 	_port_line(Vector2(area.position.x, qz - 0.15), Vector2(area.end.x, qz - 0.15), 0.25, PORT_PAINT_YELLOW)
 	var x := area.position.x + 8.0
+	var moor: Array = []
 	while x < area.end.x - 2.0:
 		var at := Vector3(x, PORT_YARD_TOP + cope_h, qz - 0.75)
+		moor.append(at + Vector3(0.0, _pgy(x, at.z), 0.0))
 		_batch.add("port_bollard", PortKit.bollard_mesh(), Transform3D(Basis(), at))
 		_add_shape(Vector3(0.6, 0.8, 0.6), at + Vector3(0.0, 0.4 + _pgy(x, at.z), 0.0))
 		_batch.add("port_fender", PortKit.fender_mesh(), Transform3D(Basis(), Vector3(x + 8.0, PORT_YARD_TOP + 0.1, qz)))
 		x += 16.0
+	var lines := PortMooring.build(moor, ship)
+	if lines:
+		add_child(lines)
 	# The apron: the yellow keep-clear line inside the waterside rail and the truck lanes'
 	# dashed lines between the rails.
 	var lane_x0 := area.position.x + 1.0

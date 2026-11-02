@@ -30,6 +30,12 @@ const EVENTS := ["rifle", "rocket", "ped", "shotgun_ped", "cars", "police", "eme
 ## the chase camera, the radio card), a hard crash (crumple), a lit cruiser at night (the washes),
 ## people putting up umbrellas, a wild animal. Not in "all" (run them by name; "wave3" = all five).
 const WAVE3 := ["enter_car", "crash", "police_night", "umbrellas", "wildlife"]
+## Wave 4's first uses (load-time-3, 2026-11-01): a blast's volume, bits and haze (explosions-3), a
+## burst's barrel smoke and marks (gunplay-feel), a corner crash at speed (car-crash-3: glass,
+## bonnet, torn wheel, airbag, debris), a spike strip and a flat (police-chase), the five-star
+## troop truck, troopers and the gunship (wanted-escalation), gibs and stumps (blood-gore-2), blood
+## on the hero. "wave4" = all of them.
+const WAVE4 := ["blast3", "burst", "crash_hard", "spikes", "troop", "officers", "gunship", "gore", "hero_blood"]
 
 var _frames_per_event := 12
 var _base_ms := 0.0
@@ -116,8 +122,8 @@ func _ready() -> void:
 	base.sort()
 	_base_ms = base[base.size() / 2]
 	print("BASE median frame %.0f ms" % _base_ms)
-	var list: Array = EVENTS if _env("EVENTS", "all") == "all" else (WAVE3 if _env("EVENTS", "") == "wave3" \
-			else Array(_env("EVENTS", "").split(",", false)))
+	var list: Array = EVENTS if _env("EVENTS", "all") == "all" else (WAVE3 if _env("EVENTS", "") == "wave3" else (WAVE4 if _env("EVENTS", "") == "wave4" \
+			else Array(_env("EVENTS", "").split(",", false))))
 	for ev in list:
 		await _event(String(ev))
 	_spikes.sort_custom(func(a, b): return a[0] > b[0])
@@ -429,3 +435,95 @@ func _ev_wildlife() -> void:
 	a.call("setup", "coyote", 4242)
 	a.position = _ahead(8.0)
 	_hold().add_child(a)
+
+
+func _ev_blast3() -> void:
+	WeaponFX.explosion(_hold(), _ahead(16.0, 0.5), 5.0, 1.0)
+
+
+func _ev_burst() -> void:
+	# A longer burst than "rifle": the barrel smoke after it, more holes and tracers.
+	await _fire(0, 14, -4.0)
+	for i in 8:
+		await get_tree().process_frame
+
+
+func _ev_crash_hard() -> void:
+	var car := _car(0)
+	car.position = _ahead(9.0) + Vector3(0.0, 0.9, 0.0)
+	_hold().add_child(car)
+	for i in 3:
+		await get_tree().process_frame
+	# A front corner at 28 m/s over: glass, the bonnet, the wheel, the airbags, debris.
+	var at: Vector3 = car.global_position + car.global_basis * Vector3(0.8, 0.0, -2.0)
+	car.call("take_hit", 0, 28.0, -car.global_basis.z, at, Vehicle.HIT_CRASH)
+
+
+func _ev_spikes() -> void:
+	var strip := ChaseSpikeStrip.new()
+	strip.position = _ahead(8.0)
+	_hold().add_child(strip)
+	strip.deploy()
+	var car := _car(0)
+	car.position = _ahead(11.0) + Vector3(2.0, 0.9, 0.0)
+	_hold().add_child(car)
+	for i in 3:
+		await get_tree().process_frame
+	ChaseFlatTyres.puncture(car, 0)
+	ChaseFlatTyres.puncture(car, 1)
+
+
+func _ev_troop() -> void:
+	var car: Node3D = PoliceCar.make(false, RandomNumberGenerator.new(), true)
+	car.set("police", null)
+	car.position = _ahead(13.0) + Vector3(0.0, float(car.call("road_lift")), 0.0)
+	_hold().add_child(car)
+
+
+func _ev_officers() -> void:
+	for i in 3:
+		var o := PoliceOfficer.new()
+		o.setup_officer(null, null, i, i > 0, 7700 + i * 31)
+		o.agency = i == 2
+		o.heavy = i > 0
+		var at := _ahead(6.0) + Vector3(float(i - 1) * 1.4, 0.3, 0.0)
+		_hold().add_child(o)
+		o.global_position = at
+		o.set("_pause_left", 60.0)
+		o.process_mode = Node.PROCESS_MODE_DISABLED
+	_player.get("camera_rig").call("set_look", 0.0, -8.0)
+
+
+func _ev_gunship() -> void:
+	var h := Helicopter.new()
+	h.setup(Helicopter.Role.POLICE, _ahead(40.0, 18.0), 0.0, 4242)
+	_hold().add_child(h)
+	for i in 2:
+		await get_tree().process_frame
+	WantedEscalation.arm_gunship(h)
+	_player.get("camera_rig").call("set_look", 0.0, 10.0)
+
+
+func _ev_gore() -> void:
+	var ped_script: GDScript = load("res://scripts/npc/pedestrian.gd")
+	var peds: Array = []
+	for i in 2:
+		var p: Node3D = ped_script.new()
+		var at := _ahead(6.0) + Vector3(float(i) * 2.0 - 1.0, 0.3, 0.0)
+		p.call("setup", Rect2(at.x - 2.0, at.z - 2.0, 4.0, 4.0), 1.0, 8100 + i * 53)
+		_hold().add_child(p)
+		p.global_position = at
+		p.set("_pause_left", 60.0)
+		peds.append(p)
+	for i in 3:
+		await get_tree().process_frame
+	var f := -_cam.global_basis.z
+	peds[0].call("knock", f * 6.0 + Vector3.UP * 3.0, 3)
+	peds[1].call("shot", peds[1].global_position + Vector3.UP * 1.3, f, f * 4.0, 2.0)
+
+
+func _ev_hero_blood() -> void:
+	var at: Vector3 = _player.global_position + Vector3.UP * 1.2 - _cam.global_basis.z * 0.8
+	for i in 3:
+		HeroBlood.splash(at, _cam.global_basis.z, 2.0)
+		await get_tree().process_frame

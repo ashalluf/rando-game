@@ -1852,6 +1852,9 @@ func _commit_details() -> void:
 		node.material_override = _detail_material(d.mesh, refs)
 		if FacadeStreet.enabled:
 			(node.material_override as ShaderMaterial).set_shader_parameter("street_foot", to_true.origin.y)
+		# Frames under a pixel fade by dithered coverage (SpecularAA; the shader's thin_m).
+		if node_name == "Frames":
+			(node.material_override as ShaderMaterial).set_shader_parameter("thin_m", 0.05)
 		# A little over, so float rounding in the bounds can never cut in before the shader does.
 		node.visibility_range_end = reach + 0.5
 		if not d.shadow:

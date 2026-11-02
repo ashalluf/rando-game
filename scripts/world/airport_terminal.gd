@@ -34,6 +34,8 @@ static var _jet_mat: ShaderMaterial = null
 # --- Materials ----------------------------------------------------------------------------------
 
 static func _glass(key: String, y0: float, storey: float, depth: float) -> ShaderMaterial:
+	if AirportApron.enabled:
+		return LandmarkMats.glass("airport_" + key, AirportApron.glass_params(y0, storey, depth))
 	return LandmarkMats.glass("airport_" + key, {"glass_tint": Color(0.17, 0.24, 0.28), "frame_color": Color(0.74, 0.76, 0.79),
 		"grid": Vector2(1.8, minf(storey * 0.5, 3.4)), "frame_width": 0.07, "room_depth": depth, "storey": storey, "floor_y": y0,
 		"interior_color": Color(1.0, 0.88, 0.70), "interior_day": 0.16, "interior_night": 1.9, "spandrel_every": 0.0})
@@ -42,6 +44,8 @@ static func _glass(key: String, y0: float, storey: float, depth: float) -> Shade
 ## Roofing: pale standing-seam metal (the brushed steel shader mirrored the sky and read as a
 ## blue plastic sheet from the air).
 static func _steel(key: String) -> ShaderMaterial:
+	if AirportApron.enabled:
+		return LandmarkMats.facade("airport_roof_" + key, "", 1.0, AirportApron.ROOF_PARAMS)
 	return LandmarkMats.facade("airport_roof_" + key, "", 1.0, {"tint": Color(0.80, 0.80, 0.79), "roughness": 0.5, "metallic": 0.25,
 		"joint_spacing": Vector2(0.6, 0.0), "joint_width": 0.03, "joint_dark": 0.22, "grime": 0.15})
 
@@ -364,6 +368,7 @@ static func jet_material() -> ShaderMaterial:
 		_jet_mat = ShaderMaterial.new()
 		_jet_mat.shader = load("res://shaders/airliner_livery.gdshader")
 		_jet_mat.set_shader_parameter("cabin_glow", 0.35)
+		AirportApron.dress_jet(_jet_mat)
 	return _jet_mat
 
 
@@ -376,6 +381,7 @@ static func livery_material(livery: int) -> ShaderMaterial:
 	mat.shader = load("res://shaders/airliner_livery.gdshader")
 	mat.set_shader_parameter("livery", float(livery % Airport.LIVERIES))
 	mat.set_shader_parameter("cabin_glow", 0.8)
+	AirportApron.dress_jet(mat)
 	LandmarkMats._cache[key] = mat
 	return mat
 

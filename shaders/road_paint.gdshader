@@ -25,6 +25,15 @@ varying vec3 world_pos;
 global uniform float ground_detail;
 
 #include "res://shaders/wet_drying.gdshaderinc"
+#include "res://shaders/specular_aa.gdshaderinc"
+
+// Thin-line AA (specular-aliasing pass): a marking whose width or length comes to under
+// `min_px` pixels on screen (a 10 cm centre line 40 m off, a stop line seen edge on) is widened
+// in the vertex shader to `min_px` and its paint mixed toward the asphalt by the share it really
+// covers (`paint_cover`), so it stays a steady faint line instead of breaking into dashes that
+// crawl as the camera moves. Measured in projected pixels, so foreshortening counts.
+uniform float min_px = 1.2;
+varying float paint_cover;
 
 
 float hash12(vec2 p) {
@@ -65,6 +74,31 @@ void vertex() {
 	if (thickness > 0.0 && VERTEX.y > 0.0) {
 		VERTEX.y = -VERTEX.y + thickness;
 	}
+	paint_cover = 1.0;
+	if (saa_on()) {
+		vec3 wp = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
+		mat4 vpm = PROJECTION_MATRIX * VIEW_MATRIX;
+		// VIEWPORT_SIZE can read 0 in a vertex stage (CLAUDE.md, the far shader's masts).
+		vec2 vps = VIEWPORT_SIZE.y > 2.0 ? VIEWPORT_SIZE : vec2(1920.0, 1080.0);
+		vec4 c0 = vpm * vec4(wp, 1.0);
+		if (c0.w > 0.05) {
+			for (int a = 0; a < 3; a += 2) {
+				float hl = VERTEX[a];
+				if (abs(hl) > 1.0e-4) {
+					// The opposite edge of the marking across this axis, projected.
+					vec4 c1 = vpm * vec4(wp - MODEL_MATRIX[a].xyz * (2.0 * hl), 1.0);
+					if (c1.w > 0.05) {
+						float px = length((c0.xy / c0.w - c1.xy / c1.w) * 0.5 * vps);
+						if (px < min_px) {
+							float k = min(min_px / max(px, 0.05), 6.0);
+							VERTEX[a] *= k;
+							paint_cover /= k;
+						}
+					}
+				}
+			}
+		}
+	}
 	world_pos = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
 }
 
@@ -77,7 +111,9 @@ void fragment() {
 	// faces are culled and there is nothing behind a hole but the road itself.
 	// Paint thins before it goes: a soft band where the asphalt shows through it, then a hole.
 	// Cut straight to holes, the wear read as camouflage printed on the stripe.
-	float v = patches + grain * 0.22;
+	// The grain's 9 cm cells in the wear edge only crawl once they are under a couple of pixels.
+	float grain_keep = saa_on() ? 1.0 - smoothstep(0.03, 0.08, length(fwidth(w))) : 1.0;
+	float v = patches + grain * 0.22 * grain_keep + 0.11 * (1.0 - grain_keep);
 	float edge = 0.78 - wear * 0.45;
 	float thin = smoothstep(edge - 0.16, edge + 0.03, v);
 	// Worn thermoplastic goes speckled before it goes: the stones in the asphalt poke through
@@ -104,5 +140,11 @@ void fragment() {
 	ALBEDO = col * mix(1.0, 0.85, fd.y);
 	// Road paint is smoother than the tarmac around it, and wet it shines.
 	ROUGHNESS = mix(0.66, 0.12, fd.x);
+	if (paint_cover < 0.999) {
+		// Widened past its real width: the asphalt's share of the pixel, at the asphalt's look.
+		float c = clamp(paint_cover, 0.0, 1.0);
+		ALBEDO = mix(asphalt * mix(1.0, 0.62, fd.y), ALBEDO, c);
+		ROUGHNESS = mix(mix(0.85, 0.07, fd.x), ROUGHNESS, c);
+	}
 	SPECULAR = 0.5;
 }

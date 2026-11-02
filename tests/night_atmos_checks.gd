@@ -155,7 +155,22 @@ func _chunk(city: Node3D) -> void:
 		and off.get_node_or_null("Batch_" + NightAtmos.SHOP_KEY) == null
 	off.queue_free()
 	NightAtmos.enabled = true
-	_t._check(none and ids == ids_off, "with NIGHT_ATMOS=0 the chunk has no atmosphere batches and every prop keeps its id and place (%d props)" % ids.size())
+	# The live city can move between the first build and the switched-off one (an origin shift, a
+	# streaming swap or a prop knocked over in a shard), so a mismatch is checked again against a
+	# lit build made straight after the dark one: only a difference both builds share is ours.
+	var same := ids == ids_off
+	if not same:
+		var on2: CityChunk = city._new_chunk(k, CityChunk.Level.FULL)
+		on2.build()
+		var ids_on2 := _records(on2)
+		on2.queue_free()
+		same = ids_on2 == ids_off
+		if not same:
+			var diff := 0
+			for i in mini(ids_on2.size(), ids_off.size()):
+				diff += 0 if ids_on2[i] == ids_off[i] else 1
+			print("NIGHT_ATMOS ids differ: on %d off %d, %d entries differ" % [ids_on2.size(), ids_off.size(), diff])
+	_t._check(none and same, "with NIGHT_ATMOS=0 the chunk has no atmosphere batches and every prop keeps its id and place (%d props)" % ids.size())
 
 
 func _node(city: Node3D) -> void:

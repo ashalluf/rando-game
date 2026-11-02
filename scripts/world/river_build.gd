@@ -388,7 +388,9 @@ func _water(s0: float, s1: float) -> void:
 	var w := LaRiver.LF_BOTTOM_HALF + LaRiver.LF_SIDE * (LaRiver.WATER_DEPTH / LaRiver.LF_DEPTH) + 0.08
 	var y0 := rv.water_at(s0)
 	var y1 := rv.water_at(s1)
-	var col := Color(1.0, 1.0, 1.0, 1.0)
+	# The water's mirror needs the channel round it (river_water.gdshader): the +o direction in
+	# world xz (r, g as 0..1), the bed's half width / 40 (b) and the bank's height / 10 (a).
+	var col := RiverLook.water_color(rv, (s0 + s1) * 0.5)
 	tri("water", P(s0, -w, y0), P(s1, -w, y1), P(s1, w, y1), Vector3.UP, col, Vector2(s0, -w), Vector2(s1, -w), Vector2(s1, w), Vector2.ZERO, Vector2.ZERO, Vector2.ZERO, false)
 	tri("water", P(s0, -w, y0), P(s1, w, y1), P(s0, w, y0), Vector3.UP, col, Vector2(s0, -w), Vector2(s1, w), Vector2(s0, w), Vector2.ZERO, Vector2.ZERO, Vector2.ZERO, false)
 
@@ -759,6 +761,7 @@ func _props_step() -> bool:
 			_tracks()
 		3:
 			_yard_dress()
+			RiverDebris.dress(self)
 	_prop_i += 1
 	return _prop_i >= 4
 
@@ -1192,6 +1195,7 @@ static var _lamp_mat: ShaderMaterial
 
 static func concrete_material() -> ShaderMaterial:
 	if _concrete_mat == null:
+		RiverLook.apply()
 		_concrete_mat = ShaderMaterial.new()
 		_concrete_mat.shader = load("res://shaders/river_concrete.gdshader")
 		_concrete_mat.set_shader_parameter("concrete_tex", PropFactory.texture("concrete", "Color"))
@@ -1204,6 +1208,7 @@ static func concrete_material() -> ShaderMaterial:
 
 static func water_material() -> ShaderMaterial:
 	if _water_mat == null:
+		RiverLook.apply()
 		_water_mat = ShaderMaterial.new()
 		_water_mat.shader = load("res://shaders/river_water.gdshader")
 		_water_mat.set_shader_parameter("half_width", LaRiver.LF_BOTTOM_HALF + LaRiver.LF_SIDE * (LaRiver.WATER_DEPTH / LaRiver.LF_DEPTH))

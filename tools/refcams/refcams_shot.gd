@@ -88,7 +88,14 @@ func _run() -> void:
 		_place(player, fov)
 		if scene.has_method("update_streaming"):
 			scene.call("update_streaming", true)
-		for i in _env_int("SHOT_FRAMES", 30):
+		# A row may ask for more frames (cameras_w5.json "shot_frames": a view over big chunks that
+		# the FULL ring has not finished building after the default). What it stages is staged
+		# the default count before the shot, so it is where the row says whatever the wait.
+		var frames := maxi(_env_int("SHOT_FRAMES", 30), int(cam.get("shot_frames", 0)))
+		var stage_at := frames - _env_int("SHOT_FRAMES", 30)
+		for i in frames:
+			if i == stage_at:
+				_stage_air(scene, cam)
 			await process_frame
 			_place(player, fov)
 			if day:
@@ -125,6 +132,22 @@ func _run() -> void:
 		print("REFCAM %s saved %s eye %s hour %.2f %s" % [cam.name, png, eye_text, float(cam.hour), cam.get("weather", "clear")])
 	print("REFCAMS done, %d shots in %d ms" % [shots.size(), Time.get_ticks_msec() - started])
 	quit()
+
+
+## A camera row's optional "air" key (cameras_w5.json): AirTraffic.stage() of that kind with
+## "air_dist" / "air_side", as still_shot.gd's AIR / AIR_DIST / AIR_SIDE (the airport's ground:
+## "taxi" is a landed jet `air_dist` seconds along its way to stand `air_side`). No key, nothing.
+func _stage_air(scene: Node, cam: Dictionary) -> void:
+	var kind := String(cam.get("air", ""))
+	if kind == "":
+		return
+	var air := scene.get_node_or_null("AirTraffic")
+	var lens := get_root().get_camera_3d()
+	if air == null or lens == null:
+		print("REFCAM %s: no AirTraffic to stage %s" % [cam.name, kind])
+		return
+	var placed: Node = air.call("stage", kind, lens, float(cam.get("air_dist", 300.0)), float(cam.get("air_side", 0.0)))
+	print("REFCAM %s: staged %s (%s)" % [cam.name, kind, placed.name if placed else "nothing"])
 
 
 ## A traffic car the shot's clock left with the lens inside or just against its body (the freeway

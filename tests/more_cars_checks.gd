@@ -129,6 +129,9 @@ func _rolls() -> void:
 	var moved_to_old := 0
 	var kept := 0
 	var moved := 0
+	# The fourth wave (Cars4) is checked by its own file: this one sees the third wave's table.
+	var c4 := Cars4.enabled
+	Cars4.enabled = false
 	for roll in 1000:
 		var old_type := -1
 		for type: int in OLD_RANGES:
@@ -143,6 +146,7 @@ func _rolls() -> void:
 			moved_to_old += 1
 	# The third wave (Cars3) took 135 more rolls from the old types' kept ranges (and 30 from the
 	# hatchbacks' slices); with CARS_3=0 it takes none.
+	Cars4.enabled = c4
 	var c3 := 135 if Cars3.enabled else 0
 	_check(moved_to_old == 0 and moved == 240 + c3 and kept == 760 - c3,
 			"a roll keeps its old body type unless a new body took its slice (kept %d, to new types %d, to another old type %d)" % [kept, moved, moved_to_old])

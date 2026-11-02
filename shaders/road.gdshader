@@ -36,6 +36,9 @@ uniform float patch_amount = 0.30;
 uniform float crack_amount = 0.5;
 uniform float stain_amount = 0.32;
 uniform float normal_depth = 0.75;
+// The normal map's mean squared slope at full detail (Asphalt033: 0.041, measured from the 1K
+// NormalGL; nearly all of it is texel-scale and gone by mip 3). Specular AA's Toksvig term.
+uniform float normal_slope_var = 0.041;
 // Spacing of expansion joints in metres (0 = none). Pavements are poured in slabs; the grid of
 // joints between them is the single most recognisable thing about a concrete sidewalk.
 uniform float joint_spacing = 0.0;
@@ -97,6 +100,7 @@ varying vec2 slab_uv;
 #include "res://shaders/street_glow.gdshaderinc"
 #include "res://shaders/color_space.gdshaderinc"
 #include "res://shaders/pattern_aa.gdshaderinc"
+#include "res://shaders/specular_aa.gdshaderinc"
 // Which way this road's lamps run (CityChunk._road_look): 0 no glow, 1 along Z, 2 along X. Seen
 // from past `street_glow_near` metres the road wears the same lamp glow the far chunks do
 // (far_ground.gdshader); closer in, the real lamps and their light pools take over.
@@ -244,6 +248,10 @@ void fragment() {
 	vec2 w = mix(world_pos.xz, vec2(dot(world_pos.xz, along), -world_pos.y), side);
 	vec2 uv = w / tex_scale;
 	vec2 joint_fw = fwidth(w);
+	// The normal map's texels one pixel covers (specular_aa.gdshaderinc), taken here in uniform
+	// control flow: past one, its slopes are averaged away in the mips while the wet lobe stays
+	// a mirror's, and each texel that still bends it flashes as the camera moves.
+	float saa_texels = max(length(fwidth(uv)), 1.0e-6) * float(textureSize(normal_tex, 0).x);
 	vec3 base = road_desat(texture(albedo_tex, uv).rgb) * tint;
 	float rough = texture(rough_tex, uv).r;
 	// A laid pattern (setts, pavers) under two pixels is its average, not moire (pattern_aa): the
@@ -464,6 +472,19 @@ void fragment() {
 	}
 	// Godot rebuilds z from xy, so keep the slope inside the unit circle.
 	slope *= min(1.0, 0.95 / max(length(slope), 1.0e-4));
+	// Specular AA: the slope variance the mips threw away (normal_slope_var at full detail, scaled
+	// by the depth the map was drawn at) widens the lobe instead; then, on Compatibility (no
+	// roughness limiter), the slope's own turn across the pixel. Dry tarmac at 0.8+ is untouched
+	// in effect; the wet film (0.07) and the gutter run are what it is for.
+	vec2 sdx = dFdx(slope);
+	vec2 sdy = dFdy(slope);
+	if (saa_on()) {
+		float nd = normal_depth * (1.0 - 0.6 * film) * (1.0 - puddle) * mix(0.3, 1.0, pattern_keep);
+		ROUGHNESS = saa_minified(ROUGHNESS, normal_slope_var * nd * nd, saa_texels);
+#if CURRENT_RENDERER != RENDERER_FORWARD_PLUS
+		ROUGHNESS = saa_geometric(ROUGHNESS, vec3(sdx, 0.0), vec3(sdy, 0.0), 0.25, 0.18);
+#endif
+	}
 	NORMAL_MAP = vec3(slope * 0.5 + 0.5, 1.0);
 	NORMAL_MAP_DEPTH = 1.0;
 	vec3 glow = vec3(0.0);
