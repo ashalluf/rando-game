@@ -25220,6 +25220,15 @@ upkeep held (`staged`) until the shot. The bus at its stop in the frame is the l
 (fwd_block_shot at the same eye, the home block plus east and south, `tools/fwd_review_f/shoot.sh`
 with `override.cfg` threads 1 - never commit it). Numbers in the last section of this entry.
 
+**Numbers** (refcams, opengl3, one load each). rain_day, `RAIN_DAY=0` -> on: p5/p50/p95 41/140/197
+-> 37/120/163 (a rainy afternoon, no longer a bright one), saturation 0.240 -> 0.243, triangles
+5.93 M -> 5.61 M and draws 3,257 -> 3,232 (the difference is the live traffic: shader-only changes
+plus one uniform, no node, mesh or draw added). The ten original cameras, `RAIN_DAY=0` vs on
+(`build/refcams/all_off` / `all_on`, `compare`): the seven quiet ones within pixel noise (|d| <=
+1.75); street_noon, freeway and street_night flagged by live traffic only (a bus pulling up, a
+truck, a bus at the stop: the lighting is identical, as designed - nights and clear days are
+untouched).
+
 Checks: `tests/rc2_rain_day_checks.gd` (22: the pure numbers, the switch, nights and clear days
 untouched, the shaders' gates and defaults, the live city at 14:00 in rain and at 23:00).
 
