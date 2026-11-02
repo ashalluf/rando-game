@@ -4593,6 +4593,13 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   screen (`PierPark.warm()`). Stills: `PIER_COASTER_S=<s>` (or `PIER_COASTER=<seconds>`) holds
   the train; EYEs in HANDOFF 9ca. Probe: `tools/pier/compile.gd` (compiles, builds near and far,
   prints the cost, runs the layout checks; seconds, headless).
+- The pier by day (wave 6, refcam `pier_day` in `tools/refcams/cameras_w6.json`, docs/HANDOFF.md
+  "The pier by day from the deck"): `PierDay` (`scripts/world/pier_day.gd`): the deck is
+  `shaders/pier_deck.gdshader` (transverse weathered boards from the mesh's park-frame coordinates,
+  gaps box-filtered, wear path, rail grime, gum, nails), pier_park.gdshader's `weathered` uniform
+  (salt grime, sun fade, rust runs on the white steel), up to `EXTRA_PEOPLE` more PierGoers by the
+  hour (`density()`) and rail spots in the queue list where they stop and look out to sea; stands
+  chamfered. `PIER_DAY=0` is the A/B; checks `tests/rc3_pier_day_checks.gd`.
 - The pier at night (wave 4, refcam pier_night, docs/HANDOFF.md "The pier at night from the
   beach"): `PierNight` (`scripts/world/pier_night.gd`, one hook in `PierPark.build()`, one in
   `PierCoaster._track_mesh()`): the wheel's sub-pixel LED strips drawn analytically in its plane
