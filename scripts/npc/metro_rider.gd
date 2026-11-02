@@ -52,6 +52,14 @@ func _face_esc() -> void:
 	_visual.rotation.y = atan2(-d.x, -d.y)
 
 
+## Only the island boards: someone on the concourse (or on an escalator) sent to a door walked
+## to it at the concourse's height, five metres over the platform (wave 7).
+func board(door: Vector2) -> void:
+	if level != 0 and MetroCrowd.enabled:
+		return
+	super(door)
+
+
 ## Alighting here means off toward the bank's up escalator, and up it (not gone at its foot).
 func alight(exit: Vector2) -> void:
 	if not frame.is_empty() and MetroCrowd.enabled:
@@ -119,6 +127,11 @@ func _random_ring_point(_sidewalk: float) -> Vector2:
 		# Either end of the island, clear of the bank (and the lift beside it) and the benches.
 		u = _rng.randf_range(12.0, 29.0) * (1.0 if _rng.randf() < 0.5 else -1.0)
 		v = _rng.randf_range(1.0, 2.6) * (1.0 if _rng.randf() < 0.5 else -1.0)
+		if MetroCrowd.enabled:
+			# Wave 7: from just past the bank's foot (and the lift beside it) to the island's ends,
+			# toward the edges where people wait for a train. The same rolls, spread wider.
+			u = (7.0 + (absf(u) - 12.0) * (22.0 / 17.0)) * signf(u)
+			v = (1.3 + (absf(v) - 1.0) * (1.4 / 1.6)) * signf(v)
 	else:
 		# The unpaid halls by the ticket machines, or the paid zone round the bank.
 		if _rng.randf() < 0.7:

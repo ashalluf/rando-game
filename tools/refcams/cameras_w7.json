@@ -2,6 +2,6 @@
 	"_doc": "Wave 7 reference cameras (tools/refcams/README.md), the same format as cameras.json, cameras_w5.json and cameras_w6.json. One row a camera, each on its own line. Run with REFCAMS_JSON=tools/refcams/cameras_w7.json.",
 	"resolution": [1280, 720],
 	"cameras": [
-		{"name": "metro_station", "label": "The Coral Line's underground terminus at 7th St, on the island platform toward the bank's escalators and the lift, a train dwelling on the left with its doors open, riders", "eye": [2362.0, -10.3, 468.0, 10.0, 0.0], "agl": false, "hour": 17.5, "weather": "clear", "fov": 60, "rail_at": "0:0", "shot_frames": 40}
+		{"name": "metro_station", "label": "The Coral Line's underground terminus at 7th St, on the island platform toward the bank's escalators and the lift, a train dwelling on the left with its doors open, riders", "eye": [2362.2, -10.3, 477.0, 8.0, 0.0], "agl": false, "hour": 17.5, "weather": "clear", "fov": 55, "rail_at": "0:0", "shot_frames": 40}
 	]
 }

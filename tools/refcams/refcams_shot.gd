@@ -383,6 +383,10 @@ func _place(player: Node3D, fov: float) -> void:
 	if _eye_cam:
 		player.global_position = _eye_cam.global_position
 	player.set("velocity", Vector3.ZERO)
+	# An eye in the underground station (rail_at rows): the parked player is let through the city's
+	# ground box at once, or each step throws him out to the street and the tunnel train is hidden.
+	if _rail_held and player is PhysicsBody3D:
+		(load("res://scripts/world/metro_station.gd") as GDScript).call("admit", player)
 	# A staged camera puts the hero in the shot, at the stage's spot, facing down the street.
 	if _stager != null and _stager.get("hero_at") != Vector3.INF:
 		player.visible = true

@@ -27926,3 +27926,75 @@ spawns no golfers (use the refcam for those).
 **Checks**: `tests/rc3_golf_morning_checks.gd` (the camera row and its group, force_group touching
 only its hole, every pass gated, the dew hours mirrored, a FULL chunk planting sycamores and
 eucalyptus where the firs were). Stills on `shots/rc3-golf-morning`.
+
+## 9??. The metro station refcam, 2026-11-02 (fleet wave 7, `wt/rc4-metro-station`; VISUAL_ROADMAP "?")
+
+**The camera.** `metro_station` in `tools/refcams/cameras_w7.json` (the file is new, wave 6's
+format): on the Coral Line's underground island at 7th St (`MetroStation`, docs/HANDOFF.md "The
+Coral Line's underground station"), u +25 from the platform's centre near the empty track's edge,
+looking back along the island toward the bank's escalators and the glass lift, a train dwelling on
+the left with its doors open; 17:30 clear (the hour does not matter down here), FOV 55. The row's
+`rail_at` key (`"0:0"`: station 0, direction 0, mid-dwell) sets the light rail's clock when the
+row is staged and holds it (refcams_shot `_stage_rail()`); while it is held every placement of
+the parked player calls `MetroStation.admit()`. **Trap found on the way:** without that, the
+player parked 13 m under the city's ground box is thrown out to the street each physics step,
+`MetroStation.showing` reads false and the tunnel train is not drawn - the first framing (u -28)
+happened to stand in a stairwell's zone volume and showed it; every other eye on the platform
+lost the train.
+
+**What read as a game (in the order the eye found it).**
+1. *The platform was empty.* A dwelling train takes most of the waiting riders aboard
+   (LightRailSystem `_passengers()`, they vanish at the doors) and nothing comes back; the
+   escalators never carried anyone ("no crowd on the stairs", wave 3's own not-done).
+2. *The floor was matte.* Polished terrazzo under line lights is the station's whole look in any
+   2026 game; the opengl3 / web path has no SSR, so it read as a beige carpet.
+3. *The walls carried blank whiteboards* (the "lit system maps": a pale panel with a dashed
+   line), four a side, and the bank's back wall over the island was a tiled blank.
+4. *The lift was an open glass shaft with a white lamp floating in it*, and a concourse walker
+   seen up through the shaft stood on nothing.
+5. *The car's line bullet was a flat red dot* (make_light_rail.py's comment promises a white "C";
+   the model has only the disc).
+
+**What changed.**
+- `MetroCrowd` (`scripts/npc/metro_crowd.gd`, one hook line at the end of
+  `MetroBuild._add_riders()`): the station starts with 3 riders on the down escalator, 2 on the up
+  one and 6 more waiting on the island; while `MetroStation.showing` it puts somebody on the down
+  escalator every `ARRIVE_EVERY` (2.6 s) while the island holds fewer than `ISLAND_TARGET` (12) and
+  the escalator fewer than `DOWN_MAX`. All in the crowd cap, seeds `hash(seed, "metro_crowd", n)`.
+  `MetroRider` gains level 2 (on an escalator): `ride(dir, u)`, standing (the gait's idle, a pause
+  that never runs out), placed on the step each tick at `ESC_SPEED` along the incline, facing the
+  way it runs; off at the foot it waits on the island, off at the top it walks the concourse.
+  Alighting riders walk to the up escalator's foot and ride up (they used to vanish at the bank's
+  foot). The waiting spots run from u 7 (past the bank and the lift) to 29 instead of 12-29, and
+  1.3-2.7 m from the centre line (the same rolls, mapped).
+- `MetroLook` (`scripts/world/metro_look.gd`):
+  - metro_station.gdshader `floor_mirror()`: for a floor fragment the view ray is reflected about
+    the floor (the camera brought into the station's frame in the vertex stage), met with the plane
+    of the light lines (platform: the edge lines at v -+2.7 and the wall washers at -+6.4; the
+    concourse's three), each line a soft band whose width grows with the distance travelled and the
+    floor's roughness, wobbling a little with the polish, plus a faint sheen of the lit ceiling,
+    times Schlick Fresnel, EMITTED (`mirror_gain`, `MetroLook.MIRROR` 1.4; halved on Forward+ where
+    SSR and the station's probe add their own). Terrazzo, tactile and paint floors only.
+  - Ad lightboxes: kind `K_AD` (18) samples `ad_atlas` (the billboard atlas,
+    `assets/textures/billboards/billboard_ads.jpg`) at UVs baked into the mesh
+    (`MetroLook.cell()` = billboard_face.gdshader `cell()`, checked); 2.6 x 1.3 m posters in a
+    steel frame on the track walls where three of the four map boards a side stood (the one at
+    u -6 stays), a 4.3 x 1.25 m bulletin on the bank's back wall. Which campaign is a hash of the
+    slot.
+  - The lift's car: a steel canopy with an inset light panel, corner posts, kick plates, a top
+    band and a steel back wall; inside the shaft a concrete band where it passes the slab between
+    the levels.
+  - `LightRailTrain._bullet_letters()`: a white "C" (a 290-degree flat arc, one shared mesh a side)
+    on each section's bullet disc.
+
+**A/B.** `METRO_LOOK=0` (no mirror, no ads, the old lift and bullet), `METRO_CROWD=0` (the riders
+as wave 3 left them). Nothing outside the station's chunk and the cars' bullets changes: no roll,
+no prop id, no other camera's frame (the ten cameras compared both ways).
+
+**Files.** New: `scripts/world/metro_look.gd`, `scripts/npc/metro_crowd.gd`,
+`tests/rc4_metro_station_checks.gd`, `tools/refcams/cameras_w7.json`. Touched:
+`shaders/metro_station.gdshader` (K_AD, floor_mirror, three uniforms), `scripts/world/metro_build.gd`
+(`_ad()`, the wall and bank hooks, the lift car, the material's two parameters, the MetroCrowd
+hook), `scripts/npc/metro_rider.gd` (level 2, alight), `scripts/vehicles/light_rail_train.gd`
+(the bullet's letter), `tools/refcams/refcams_shot.gd` (`rail_at`), `tests/smoke_test.gd` (one
+line).

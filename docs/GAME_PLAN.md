@@ -4400,3 +4400,11 @@ none of either.
   edge crumbles in world-space grains, never a screen-space dither; a pad's service pickup is a real
   parked car, not a far twin, because it stands beside the road; a big site's planting is batched
   in cells, because a batch's range is measured to its centre. OIL_PLANTING=0 is the A/B.
+- **2026-11-02 The metro station refcam: an underground platform is lit, reflected, advertised
+  and busy (rc4-metro-station, HANDOFF "The metro station refcam").** A new reference camera
+  (`metro_station`, wave 7's table) stands on the 7th St terminus' island toward the bank with a
+  train dwelling (`rail_at`). Decisions: the polished floor's mirror of the light lines is worked out
+  in the station's own shader (the reflected ray meets the ceiling's plane), never left to SSR,
+  which the web and opengl3 do not have; the walls' lit panels are ads from the existing billboard
+  atlas (no new art); the escalators carry standing riders and the platform refills from them while
+  the player is down there, inside the crowd cap. METRO_LOOK=0 / METRO_CROWD=0 are the A/Bs.

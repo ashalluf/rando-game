@@ -1390,6 +1390,15 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   (`cuts_in()`), macro_ground's `cut_rect2` sinks the plane; LightRailSystem / LightRailTrain draw
   tunnel trains while `MetroStation.showing`. `METRO_STATION=0` is the A/B; probe
   `tools/metro/probe.gd`; checks `tests/metro_underground_checks.gd`.
+- The metro station refcam (wave 7, `metro_station` in `tools/refcams/cameras_w7.json`, its
+  `rail_at` key holds a train at the terminus; docs/HANDOFF.md "The metro station refcam"):
+  `MetroLook` (`scripts/world/metro_look.gd`): the floors mirror the light lines
+  (metro_station.gdshader `floor_mirror()`, halved on Forward+), ad lightboxes from the billboard
+  atlas (K_AD 18, atlas UV in the mesh) where blank map boards stood, a lift car, the bullet's "C"
+  on the cars. `MetroCrowd` (`scripts/npc/metro_crowd.gd`): MetroRiders ride the bank's
+  escalators (level 2, standing on the step), alighters ride up, arrivals refill the island while
+  `MetroStation.showing`. `METRO_LOOK=0` / `METRO_CROWD=0` the A/Bs; checks
+  `tests/rc4_metro_station_checks.gd`.
 - Freight rail (2026-10-05, "freight trains on the industrial rail"; HANDOFF 9do): the **Arroyo
   Pacific's Harbor Subdivision** (invented railroad, mark APXR) down ALAMEDA ST (a pinned real
   street that runs the whole map). **The line is a DATA TABLE** (`FreightRail`,

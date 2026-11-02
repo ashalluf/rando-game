@@ -15,8 +15,10 @@ static var enabled: bool = OS.get_environment("METRO_CROWD") != "0"
 ## Riders put on the escalators when the station is built: down, up.
 const START_DOWN := 3
 const START_UP := 2
+## And people already waiting on the island (MetroRider's spots), beside MetroBuild's.
+const START_ISLAND := 6
 ## The island's share while the station is shown, and the most on the down escalator at once.
-const ISLAND_TARGET := 9
+const ISLAND_TARGET := 12
 const DOWN_MAX := 4
 ## Seconds between two arrivals (the step a rider takes is ~1.1 m at 0.5 m/s: 2.4 s apart).
 const ARRIVE_EVERY := 2.6
@@ -48,6 +50,8 @@ static func attach(c: CityChunk, f: Dictionary, l: LightRail, idx: int, s: int) 
 		mc._spawn(1, -MetroStation.BANK_U + 0.3 + span * (float(k) + 0.35) / float(START_DOWN))
 	for k in START_UP:
 		mc._spawn(-1, MetroStation.BANK_U - 0.3 - span * (float(k) + 0.6) / float(START_UP))
+	for k in START_ISLAND:
+		mc._wait()
 
 
 func _physics_process(delta: float) -> void:
@@ -69,6 +73,31 @@ func _physics_process(delta: float) -> void:
 			down += 1
 	if island + down < ISLAND_TARGET and down < DOWN_MAX:
 		_spawn(1, -MetroStation.BANK_U + 0.3)
+	if OS.get_environment("METRO_CROWD_DEBUG") == "1":
+		var where := []
+		for r in get_tree().get_nodes_in_group("rail_rider"):
+			var m := r as MetroRider
+			if m and m.get_parent() == chunk:
+				var p := MetroStation.to_frame(frame, m.position)
+				where.append("L%d/S%d u%.1f v%.1f" % [m.level, m.state, p.x, p.z])
+		print("METRO_CROWD island %d down %d: %s" % [island, down, ", ".join(where)])
+
+
+## One rider waiting on the island at one of MetroRider's spots.
+func _wait() -> bool:
+	if chunk == null or not chunk._take_crowd_room():
+		return false
+	var ped := MetroRider.new()
+	ped.line = line
+	ped.station = station
+	ped.frame = frame
+	ped.level = 0
+	ped.setup(Rect2(), 3.0, hash([seed_base, "metro_wait", _n]))
+	_n += 1
+	var p := ped._random_ring_point(3.0)
+	ped.position = Vector3(p.x, ped._ground_y(p.x, p.y, 0.0), p.y)
+	chunk.add_child(ped)
+	return true
 
 
 ## One rider stood on an escalator (dir +1 down, -1 up) at `u`; false with the crowd cap full.

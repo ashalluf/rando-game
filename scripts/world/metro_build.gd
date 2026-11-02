@@ -327,8 +327,14 @@ func _platform() -> void:
 	for u: float in [-25.0, -15.0, 15.0, 25.0]:
 		_bench(u, 0.0)
 	for u: float in [-20.0, 20.0, -29.5, 29.5]:
-		_box(u - 0.25, u + 0.25, p, p + 0.95, -0.25, 0.25, K_STEEL, STEEL * 0.8)
-		_box(u - 0.27, u + 0.27, p + 0.95, p + 1.0, -0.27, 0.27, K_PAINT, CORAL)
+		if MetroLook.enabled:
+			# Wave 7: a round steel bin with the line's coral rim and a dark mouth, not a box.
+			prism(body, _w(Vector3(u, p, 0.0)), _w(Vector3(u, p + 0.92, 0.0)), 0.26, 0.26, 16, _kc(STEEL * 0.8, K_STEEL), true)
+			prism(body, _w(Vector3(u, p + 0.92, 0.0)), _w(Vector3(u, p + 1.0, 0.0)), 0.275, 0.275, 16, _kc(CORAL, K_PAINT), false)
+			prism(body, _w(Vector3(u, p + 0.985, 0.0)), _w(Vector3(u, p + 0.99, 0.0)), 0.2, 0.2, 16, _kc(Color(0, 0, 0), K_DARK), true)
+		else:
+			_box(u - 0.25, u + 0.25, p, p + 0.95, -0.25, 0.25, K_STEEL, STEEL * 0.8)
+			_box(u - 0.27, u + 0.27, p + 0.95, p + 1.0, -0.27, 0.27, K_PAINT, CORAL)
 		_solid(u - 0.25, u + 0.25, p, p + 1.0, -0.25, 0.25)
 	# Departure screens hanging over the platform, one each way, and the platform signs.
 	var dest := str(line.stations[line.stations.size() - 1].name)
@@ -569,6 +575,15 @@ func _lift() -> void:
 			_box(u + e * c0 - 0.03, u + e * c0 + 0.03, h0 + 0.05, h0 + 0.3, -c0, c0, K_STEEL, STEEL * 0.75)
 			_box(u + e * c0 - 0.03, u + e * c0 + 0.03, h0 + 2.12, h0 + 2.3, -c0, c0, K_STEEL, STEEL * 0.75)
 		_box(u - c0, u + c0, h0 + 0.05, h0 + 2.3, -c0, -c0 + 0.05, K_STEEL, STEEL * 0.9)
+		# The slab between the levels where the shaft passes it: seen through the glass, the
+		# concourse above stands on something (people up there read as on the floor, not the car).
+		var s0 := MetroStation.PLAT_CEIL - 0.05
+		var s1 := MetroStation.CONC_FLOOR + 0.12
+		var ai := a - 0.03
+		_box(u - ai, u + ai, s0, s1, -ai, -ai + 0.06, K_CONCRETE, M_CONCRETE * 0.6)
+		_box(u - ai, u + ai, s0, s1, ai - 0.06, ai, K_CONCRETE, M_CONCRETE * 0.6)
+		_box(u - ai, u - ai + 0.06, s0, s1, -ai, ai, K_CONCRETE, M_CONCRETE * 0.6)
+		_box(u + ai - 0.06, u + ai, s0, s1, -ai, ai, K_CONCRETE, M_CONCRETE * 0.6)
 	else:
 		_box(u - a + 0.1, u + a - 0.1, h0 + 2.3, h0 + 2.36, -a + 0.1, a - 0.1, K_LAMP, LAMP, true)
 	for rail_h: float in [h0 + 0.95]:
