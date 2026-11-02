@@ -22,6 +22,7 @@ func run(t: Object, city: Node) -> void:
 	var med := Hospital.medical_block(plan) if plan != null else Vector2i.MAX
 	_t._check(med != Vector2i.MAX, "the medical centre stands on this seed")
 	if med != Vector2i.MAX:
+		_deck(plan, med)
 		RcHospitalEr.enabled = true
 		var on := _build(med)
 		RcHospitalEr.enabled = false
@@ -80,3 +81,32 @@ func _build(med: Vector2i) -> Dictionary:
 		out.glaze = int(n.get_meta("rc4_glaze", 0))
 	chunk.free()
 	return out
+
+
+## The court is level at the campus floor and ramps to the pavement at the block's edge: the
+## medical centre's block falls ~1.9 m to its ER street, and the relief-following court sank away
+## under the bays, their paint and the ambulances, which stand at the floor.
+func _deck(plan: CityPlan, med: Vector2i) -> void:
+	var lay := Hospital.layout(plan, med.x, med.y)
+	var gy := func(x: float, z: float) -> float: return plan.macro.relief_at(Vector2(x, z))
+	var court: Rect2 = lay.court
+	var floor_y := float(lay.floor_gy) + CityChunk.SIDEWALK_TOP + HospitalBuild.LIFT_ROAD
+	var W: float = lay.W
+	var ok := true
+	var worst := 0.0
+	for v: float in [court.position.y, court.get_center().y, court.end.y]:
+		if absf(RcHospitalEr.court_y(gy, lay, court.position.x, v) - floor_y) > 0.001 or absf(RcHospitalEr.court_y(gy, lay, W - RcHospitalEr.RAMP_FROM, v) - floor_y) > 0.001:
+			ok = false
+		var e := Hospital.fp(lay, W, v)
+		var edge := float(gy.call(e.x, e.y)) + CityChunk.SIDEWALK_TOP + 0.02
+		worst = maxf(worst, absf(RcHospitalEr.court_y(gy, lay, W, v) - minf(edge, floor_y)))
+		var last := INF
+		for i in 25:
+			var y := RcHospitalEr.court_y(gy, lay, lerpf(court.position.x, W, float(i) / 24.0), v)
+			if y > last + 0.0001:
+				ok = false
+			last = y
+	_t._check(ok and worst < 0.01, "the court is level at the floor under the canopy and only falls toward the street (edge off by %.3f m)" % worst)
+	var e2 := Hospital.fp(lay, W, court.get_center().y)
+	var drop := floor_y - (float(gy.call(e2.x, e2.y)) + CityChunk.SIDEWALK_TOP)
+	_t._check(drop / RcHospitalEr.RAMP_FROM < 0.2, "the ramp to the ER street is drivable (%.1f m over %.0f m)" % [drop, RcHospitalEr.RAMP_FROM])
