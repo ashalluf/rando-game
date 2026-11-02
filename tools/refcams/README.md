@@ -22,6 +22,12 @@ number, not by someone happening to look.
 The table is `cameras.json` (eye = TRUE world x, y, z, yaw, pitch; `agl` = y over the plan's
 ground). **Change a camera only on purpose**: the runs before stop being comparable for it.
 
+Wave 5's new cameras are in `cameras_w5.json` (run with `REFCAMS_JSON=tools/refcams/cameras_w5.json`).
+A row with `"hero": {"walk": 0.35, "weapon": 0, "distance": ...}` (every key optional) is shot through
+the player's own CameraRig instead of a free camera: he stands at the eye's x, z walking away from
+the lens, the eye's yaw / pitch is the rig's look (`hero_foot`, docs/HANDOFF.md "The on-foot camera
+behind the hero").
+
 ## Running
 
 ```

@@ -25155,3 +25155,61 @@ Probes: `tools/rc_beach/sand_roads_probe.gd` (headless: every coast street stret
 beach; `LOOK=swim|wade|surf` saves a close look at the first one). Checks `tests/rc_beach_checks.gd`.
 Stills on `shots/rc-beach`.
 
+
+## 9d?. The on-foot camera behind the hero (wave 5, `rc2-hero-foot`, branch `wt/rc2-hero-foot`)
+
+A NEW reference camera, `hero_foot` (`tools/refcams/cameras_w5.json`): the game's default on-foot
+view - the player's own CameraRig (6.5 m arm, fov 75, pitched -8) - behind the hero walking north
+up the west pavement of block 16,7 (midtown, x 1501 z 1470) at 13:30, clear: a bakery and a
+laundry under awnings on the right, the boulevard on the left, the tower and the hills beyond.
+What the player sees most of the time on foot. Run it with
+`REFCAMS_JSON=tools/refcams/cameras_w5.json python3 tools/refcams/refcams.py run <dir> --only hero_foot`.
+
+**The staging** (`refcams_shot.gd`, `_hero_start()` / `_hero_place()` / `_hero_report()`): a row
+with `"hero": {...}` stands the player on the ground at the eye's x, z (eye y unused), equips
+`weapon` (default 0, the rifle), turns the rig to the eye's yaw / pitch (`distance` optional),
+makes the rig's camera current and holds `move_forward` at `walk` (default 0.35: 2.2 m/s, the walk
+clip) so he walks away from the lens, put back to the start every frame (kept in TRUE world: the
+first version kept a local position and an origin re-centre sent him 30 km away, which streamed
+the far city in and was OOM-killed at 13.6 GB). Rows without it are untouched. The log line
+`REFCAM <name> hero at ... N people within 12 m` is the crowd count.
+
+**What read fake** (before: shots/rc2-hero-foot 01-03), worst first:
+1. **The camera sits inside street trees.** The spring arm collides with the world layer only and
+   street trees, palms and the LA trees have no collision, so on two of the four candidate
+   pavements the lens was in a crown or behind a trunk (02: a trunk filling the frame). Fixed by
+   `CameraFade` (`scripts/world/camera_fade.gd`): every tree material dithers out what is within
+   `FAR` 3.4 m of the camera, gone inside `NEAR` 1.1 m (`shaders/camera_fade.gdshaderinc`, the first
+   thing in foliage_tex / foliage / la_tree's fragment; the scanned trees' bark is a
+   StandardMaterial3D and gets the built-in pixel-dither distance fade). Never in a directional
+   shadow pass (orthographic), so the shadow keeps the whole tree. Set from `TreesCloseup.mark()` /
+   `dress()` (one line each). The aiming camera is 3.8 m out, so the hero's own tree never fades.
+   On opengl3 (no TAA) the dither shows as grain (05); Forward+'s TAA resolves it.
+2. **Nobody near him** on a midtown shopping pavement at 13:30 (0 within 12 m). A midtown block
+   plans 20 walkers, and block 16,7 is 79 x 334 m: an 826 m ring, one walker every 40 m.
+   `ShopCrowd` (`scripts/npc/shop_crowd.gd`): a BUILDINGS block whose buildings have storefront
+   parts (3 make a full one) carries up to `GAIN` x its planned walkers (MIDTOWN 2.2, BEACHTOWN 1.6,
+   DOWNTOWN 1.35 - the core doubles its own) while within `NEAR` 70 m of the camera, back to the
+   plan by `FAR` 150 m. One step hook after the block's walkers (`ShopCrowd.steps()`; it weighs the
+   block once its lots stand and keeps the weight as the 4th item of the block's BusyStreets entry)
+   spawns the extras of a near block at build - the chunk is still hidden - put down within
+   `SPAWN_REACH` 50 m of the player on the ring (spread over the whole ring two dozen more still left
+   nobody near him), never within 3.5 m; one hook in `BusyStreets.balance_crowd()` makes the gain the
+   top-up target (spawned out of view as before). Hash-seeded, the cap and the camps' reserve spent
+   as any walker spends them. After: 5 within 12 m (04). busy_streets_checks' top-up bound reads
+   the gain too.
+3. **The raised planters were green carpet in a concrete box** (LotFill's planted soil drew the
+   lawn texture). lot_ground.gdshader's kind 6 is now shredded bark mulch (two octaves of 3-6 cm
+   chips, their average under a pixel, a few pale chips) with low ground cover creeping over it in
+   patches; `mulch_tint` is a `source_color` uniform like the other tints. `PLANTER_MULCH=0`.
+
+**Not fixed, for the next session:** the rifle does not read from behind - his low-ready carry
+holds it in front of the body, hidden by his back at this camera (`hero_shot.gd YAW=180 WALK=1`
+shows it); GTA carries the long gun across the body so stock or barrel shows. The hold numbers are
+fitted per gun (`tools/grip_fit.gd`), the hero-moves area. The planters in this view have no
+shrubs (the chunk's accent species planted a few dry sprigs). The default camera's fov 75
+(vertical) makes him small in the frame; it is the settings' default and the owner's feel, left.
+
+**Cost** (opengl3 GEO, this view): 7.97 M tris / 3,901 draws -> 8.05 M / 3,974 (+1 %, +2 %).
+Checks: `tests/rc2_hero_foot_checks.gd`. Forward+ (the Mac) not verified for the mulch colour or
+the dither.

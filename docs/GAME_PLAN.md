@@ -3704,6 +3704,17 @@ already mapped so milestone 2 is script-only.
   new star and calls more often, and a line under the stars names the response. No real agency's
   name or livery; `WANTED_ESCALATION=0` restores the old response.
 
+- **2026-11-01 The on-foot camera never sits in a tree, and shopping pavements are busy near the
+  player (rc2-hero-foot, HANDOFF "The on-foot camera behind the hero").** A new reference camera,
+  hero_foot, is the game's own third-person view behind the hero on a midtown shopping street.
+  Decisions: trees dither out near the camera (like every modern third-person game) rather than
+  giving them collision for the spring arm, which would yank the camera in under every street tree;
+  never in the shadow pass. The crowd is made denser only where the player is - storefront blocks
+  within ~70 m of the camera carry up to 2.2x their walkers (midtown), the extras put down near him
+  at build - rather than raising every block's plan, which would move the seeded crowd and cost
+  people the player never sees. Planter soil is mulch, not lawn. The camera's own fov and distance
+  are the owner's feel and stay. CAMERA_FADE=0 / SHOP_CROWD=0 / PLANTER_MULCH=0.
+
 ## Correction: what build 135 (0ce833f) actually contained
 
 That commit's subject says "denser grass, real palm fronds, finer ground". It also shipped a

@@ -1159,6 +1159,17 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   a kerb spot the block's pass left undecided gets an extra parked car at `PARK_EXTRA_ODDS` (a pure
   hash per spot, no running count, after every roll). `BUSY_STREETS=0` is the A/B; census `tools/busy_streets/census.gd`
   (and `CENSUS=1` on still_shot.gd); checks `tests/busy_streets_checks.gd`.
+- The on-foot camera (wave 5, refcam `hero_foot` in `tools/refcams/cameras_w5.json`, docs/HANDOFF.md
+  "The on-foot camera behind the hero"): a refcam row with `"hero"` stands the player at the eye's
+  x, z walking away from the lens and shoots through his own CameraRig. `CameraFade`
+  (`scripts/world/camera_fade.gd`, `shaders/camera_fade.gdshaderinc` in the three tree shaders, a
+  pixel-dither distance fade on scanned bark): trees dither out within 1.1-3.4 m of the camera (the
+  spring arm passes through crowns), never in the directional shadow pass. `ShopCrowd`
+  (`scripts/npc/shop_crowd.gd`, one step hook after the block's walkers, one in
+  `BusyStreets.balance_crowd`): a storefront block near the camera carries up to 2.2x its walkers
+  (midtown), the build's extras put down within 50 m of the player. Planter soil is bark mulch
+  (lot_ground `planter_mulch`). `CAMERA_FADE=0` / `SHOP_CROWD=0` / `PLANTER_MULCH=0` the A/Bs;
+  checks `tests/rc2_hero_foot_checks.gd`.
 - Traffic AI (2026-10-05, "traffic that drives like people"; HANDOFF 9ed): `TrafficAI`
   (`scripts/npc/traffic_ai.gd`, static) is the drivers on top of TrafficManager's IDM queues.
   **Moods** from a hash per car (`roll_mood()`: NORMAL, 12 % PUSHY, 12 % CAREFUL, 8 % DOZY) set
