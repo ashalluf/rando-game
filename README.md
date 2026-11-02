@@ -8,3 +8,8 @@ from tools/refcams.
   batch's 75 m draw range measured to the block's centre).
 - 02_after_goods_drawn.jpg - batches per face stretch: racks, mannequins, tables are back, but a
   bare forecourt planter walls them off.
+- 03_after_no_planter.jpg - the forecourt planter left out of the goods' frontage.
+- 04_after_fashion_district.jpg - the final camera: denser frontage (goods up to the lens), the
+  district block carrying 2.6x its walkers near the camera, folded stock with creases.
+- 05_before_after_side_by_side.jpg - main (left) against the branch (right), same eye.
+- 06_after_goods_close.jpg - the goods in the final still, cropped 2x.
