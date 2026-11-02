@@ -49,6 +49,10 @@ static var flames_enabled: bool = OS.get_environment("BLAST_FLAMES") != "0"
 ## The crater's pit with depth (`pit_dress()`): a traced bowl, a raised lip of earth and loose
 ## chunks on it. BLAST_PIT=0 is the A/B.
 static var pit_enabled: bool = OS.get_environment("BLAST_PIT") != "0"
+## The volume's march jitter narrowed (blast_volume.gdshader `quiet4`): TAA does not clear it.
+## BLAST_QUIET=0 is the A/B.
+static var quiet_enabled: bool = OS.get_environment("BLAST_QUIET") != "0"
+static var quiet_jitter: float = 0.3
 static var pit_depth: float = 0.35 # metres of depth per metre of pit radius
 static var _pit_shader: Shader
 static var _lip_mat: StandardMaterial3D
@@ -108,6 +112,7 @@ static func dress_volume(mat: ShaderMaterial, fuel: bool, gas: bool) -> Array:
 	mat.set_shader_parameter("value4", value_range if value_enabled else 0.0)
 	mat.set_shader_parameter("under4", underlight_gain if underlight_enabled else 0.0)
 	mat.set_shader_parameter("stem_hold", 1.0 if stem_enabled else 0.0)
+	mat.set_shader_parameter("quiet4", quiet_jitter if quiet_enabled else 0.0)
 	return [Vector3(2.3, 2.1, 2.3) * big, Vector3(0.0, 2.0, 0.0) * big, life]
 
 

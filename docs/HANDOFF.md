@@ -26687,8 +26687,8 @@ orange flesh, a dull red skin), and a fuel ball's outside turns to soot from 0.1
 (`shell`, deepest in the creases by n2, denser; never for gas). The arc: 0.3 s an orange ball
 with a hot heart, 0.55 s a black sooty mass with fire in its gaps, 3 s grey-black (still 22).
 On Compatibility (desktop opengl3, the refcams; no TAA) the march's per-frame jitter drew a
-crosshatch over the fireball: there the v4 march takes twice the steps from each step's middle
-(jitter 0.5); the web never runs the volume. Frame cost unchanged (GEO within a few draws).
+crosshatch over the fireball: the fix (twice the steps from each step's middle) landed only in
+round 7 (`quiet4`); the web never runs the volume. Frame cost unchanged (GEO within a few draws).
 
 **Tried and dropped: a condensation shell** (a torn white cloud shell racing out with the shock,
 0.06-0.3 s). Smooth it read as a glass soap bubble over the street, torn as faint stringy streaks
@@ -26763,8 +26763,16 @@ pieces' fire reads as round puffs.
    MultiMesh). It receives shadows (a first try with `shadows_disabled` lit it through the
    building's shadow). Colours are linear and dark: the room's asphalt is ~0.02 linear.
    `BLAST_PIT=0` the A/B. `SUN=pitch,yaw` on blast_room_shot.gd turns the sun for such stills.
-3. **The Forward+ screen door.** `FRAMES=n` on blast_room_shot.gd saves n frames after each time
-   with the clock all but stopped; their mean is what TAA integrates at 60 fps.
+3. **The Forward+ screen door does NOT resolve under TAA.** Proved on lavapipe Forward+ with
+   `--fixed-fps 60 FRAMES=8 FRAMES_SCALE=1` on blast_room_shot.gd (8 consecutive frames at true
+   60 fps steps): every single frame still showed the march's per-pixel jitter (high-frequency
+   energy 7.2-7.4) while their mean was smooth (4.6) - the jitter changes each frame, but TAA's
+   neighbourhood clamp keeps per-pixel noise. (`FRAMES` without FRAMES_SCALE freezes the clock,
+   and shader TIME with it: the jitter froze too and proved nothing.) `quiet4` (Blast4.quiet_jitter
+   0.3): on Forward+ the jitter is narrowed to 0.3 of a step and the march takes 1.5x the steps
+   (the body clean, a little left on thin edges: 7.4 -> 5.8); on Compatibility the step's middle and
+   twice the steps. NOTE: round 4's note said this Compatibility fix was in; it was rc2-mayhem's,
+   reverted with its handover, and only lands here. `BLAST_QUIET=0` the A/B.
 Checks: `_round6()` in tests/explosions_4_checks.gd.
 
 ## 9lb. The camera lens (wave 5, `camera-lens`)

@@ -291,3 +291,9 @@ func _round6(parent: Node) -> void:
 	_t._check(Blast4.lip_height(1.2, 2.0) > 0.0 and Blast4.lip_height(0.5, 2.0) == 0.0,
 		"explosions_4: the lip stands round the opening, not over it")
 	mark.queue_free()
+	var qm := ShaderMaterial.new()
+	qm.shader = load("res://shaders/blast_volume.gdshader")
+	Blast4.dress_volume(qm, false, false)
+	_t._check(float(qm.get_shader_parameter("quiet4")) == (Blast4.quiet_jitter if Blast4.quiet_enabled else 0.0)
+		and FileAccess.get_file_as_string("res://shaders/blast_volume.gdshader").contains("jit = 0.5 + (jit - 0.5) * quiet4;"),
+		"explosions_4: the march's jitter is narrowed (TAA does not clear it)")
