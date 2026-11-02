@@ -3968,6 +3968,15 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   fenced rect to Industrial's / YardFill's block step as a footprint. The operator, BASIN CREST OIL
   CO., and the lease names are invented. `OIL_FIELD=0` is the A/B; `tools/oil_field/probe.tscn`
   prints the plan and EYEs; checks: `tests/oil_field_checks.gd`.
+- The oil field refcam (wave 6, `oil_field` in `tools/refcams/cameras_w6.json`, docs/HANDOFF.md
+  "The oil field from its lease road"): `OilFieldPlanting` (`scripts/world/oil_field_planting.gd`,
+  one step in `OilFieldBuild.site_steps()`, the shells in `_ground()`) plants the field's bare ground
+  like a hill: hill shells (COLOR.b from `shell_keep()`), HillShrub stands in 80 m batch cells (a
+  field chunk is ~390 m long: one batch a chunk was out of range with the camera in it), HillScatter
+  clumps, gully oaks, VacantKit's tufts / mustard / fennel on the verges, a real parked service pickup
+  on some pads; oil_dirt's edge crumbles in world space (`crumble_edge`), pumpjacks weather
+  (`weather_pass`). Hashes only. `OIL_PLANTING=0` is the A/B; probes `tools/rc3_oil_field/`; checks
+  `tests/rc3_oil_field_checks.gd`.
 - The oil refinery (2026-10-29, docs/HANDOFF.md "The oil refinery north of the port"): `Refinery`
   (`scripts/world/refinery.gd`), VELLARD REFINING CO.'s BAY WORKS (invented), an area site of 4 x 7
   INDUSTRIAL blocks north of the port (x 2739-3235, z 5167-5830 on seed 1337; CityPlan snaps and

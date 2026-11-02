@@ -77,9 +77,16 @@ func _chunk(city: Node3D, plan: CityPlan, f: OilField) -> void:
 	var chunk: CityChunk = city._new_chunk(k, CityChunk.Level.FULL)
 	chunk.build()
 	var done: Dictionary = chunk.get_meta("oil_planting_done", {})
-	_t._check(int(done.get("shrub", 0)) > 40 and int(done.get("clump", 0)) > 20,
-		"rc3-oil-field: the eye's chunk plants shrubs and clumps (%d shrubs, %d sage, %d clumps, %d oaks)" % [
-			int(done.get("shrub", 0)), int(done.get("sage", 0)), int(done.get("clump", 0)), int(done.get("oak", 0))])
+	if OS.get_environment("RC3_DEBUG") == "1":
+		print("RC3 chunk ", k, " rect ", chunk.owned_rect(), " counts ", done.keys(), " ", [done.get("shrub"), done.get("sage"), done.get("clump"), done.get("oak"), done.get("truck")])
+		var near := 0
+		for e: Array in done.get("points", []):
+			if (e[0] as Vector2).distance_to(EYE) < 80.0:
+				near += 1
+		print("RC3 planted within 80 m of the eye: ", near)
+	_t._check(int(done.get("shrub", 0)) > 40 and int(done.get("clump", 0)) > 20 and int(done.get("tuft", 0)) > 40,
+		"rc3-oil-field: the eye's chunk plants shrubs, clumps and verge weeds (%d shrubs, %d sage, %d clumps, %d oaks, %d tufts, %d tall weeds)" % [
+			int(done.get("shrub", 0)), int(done.get("sage", 0)), int(done.get("clump", 0)), int(done.get("oak", 0)), int(done.get("tuft", 0)), int(done.get("weed", 0))])
 	var bad := 0
 	var trucks := 0
 	for e: Array in done.get("points", []):
@@ -92,10 +99,26 @@ func _chunk(city: Node3D, plan: CityPlan, f: OilField) -> void:
 				on_pad = on_pad or OilField.pad_dist(pd, p) < 0.0
 			if not on_pad:
 				bad += 1
+		elif String(e[1]) in ["tuft", "weed", "sage"]:
+			# Weeds and lone sage grow out to a road's verge and a pad's edge, never on them.
+			var c := OilFieldPlanting.clear(f, p)
+			if c.x < 0.3 or c.y < 0.2 or OilFieldPlanting.fence_in(f, p) < 0.9:
+				bad += 1
+				if bad < 6:
+					print("rc3-oil-field: %s at %s clear %s fence %.1f" % [e[1], p, c, OilFieldPlanting.fence_in(f, p)])
 		elif not OilFieldPlanting.room(f, p, 0.0):
 			bad += 1
+			if bad < 6:
+				print("rc3-oil-field: %s at %s clear %s" % [e[1], p, OilFieldPlanting.clear(f, p)])
 	_t._check(bad == 0, "rc3-oil-field: nothing planted on a road, a pad or the fence, and every pickup on a pad (%d wrong)" % bad)
 	_t._check(trucks == int(done.get("truck", 0)), "rc3-oil-field: %d service pickups parked" % trucks)
+	# A LOD chunk plants the bigger clumps and nothing a FULL chunk keeps near the camera.
+	var lod: CityChunk = city._new_chunk(k, CityChunk.Level.LOD)
+	lod.build()
+	var ld: Dictionary = lod.get_meta("oil_planting_done", {})
+	_t._check(int(ld.get("clump", 0)) > 0 and int(ld.get("shrub", 0)) == 0 and int(ld.get("tuft", 0)) == 0 and int(ld.get("truck", 0)) == 0,
+		"rc3-oil-field: a LOD chunk plants clumps only (%d)" % int(ld.get("clump", 0)))
+	lod.queue_free()
 	if CityChunk.shells_enabled:
 		_t._check(chunk.find_child("HillShells", false, false) != null, "rc3-oil-field: the field's ground grows the hill shells")
 	chunk.queue_free()

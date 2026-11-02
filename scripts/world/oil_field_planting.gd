@@ -62,6 +62,23 @@ const TRUCK_BATTERY_ODDS := 0.7
 const TRUCK_TYPES := [Vehicle.BodyType.WORK_TRUCK, Vehicle.BodyType.PICKUP, Vehicle.BodyType.WORK_TRUCK]
 const TRUCK_PAINTS := [Color(0.86, 0.86, 0.84), Color(0.9, 0.9, 0.88), Color(0.62, 0.64, 0.66), Color(0.88, 0.87, 0.84),
 	Color(0.18, 0.19, 0.2), Color(0.74, 0.72, 0.66)]
+## Metres of the cells the shrubs are batched in: a batch's range is measured to its bounds'
+## centre, and a field chunk is up to ~390 m long, so one batch a chunk was out of range while the
+## camera stood in it. One variant a cell (one draw).
+const SHRUB_CELL := 80.0
+## Roadside weeds (FULL; VacantKit's code-built foxtail tufts, wild mustard and fennel): the band
+## along a lease road's edge and round a pad they grow in (metres out from the edge), the grid and
+## odds of a tuft there, and the odds of a mustard / fennel patch a WEED_PATCH_CELL cell.
+const VERGE := Vector2(0.4, 5.5)
+const PAD_VERGE := Vector2(0.3, 3.5)
+const TUFT_SPACING := 1.4
+const TUFT_ODDS := 0.42
+const WEED_PATCH_CELL := 18.0
+const WEED_PATCH_ODDS := 0.4
+## Weed batches are cut in cells this size (their range is measured to the cell's centre).
+const WEED_CELL := 40.0
+## A lone sage may stand this near a road's edge (the stands keep ROAD_KEEP).
+const SAGE_ROAD_KEEP := 2.3
 ## Microseconds of planting a build step.
 const STEP_BUDGET_US := 3500
 
@@ -148,12 +165,12 @@ static func step(b: OilFieldBuild) -> bool:
 		ch.set_meta("oil_planting", {"phase": 0, "row": -1, "counts": {"shrub": 0, "sage": 0, "clump": 0, "oak": 0, "points": []}})
 	var st: Dictionary = ch.get_meta("oil_planting")
 	var t0 := Time.get_ticks_usec()
-	# Phases: 0 shrubs (FULL), 1 clumps, 2 oaks.
-	while int(st.phase) < 3:
+	# Phases: 0 shrubs (FULL), 1 clumps, 2 oaks, 3 weed tufts (FULL), 4 weed patches (FULL).
+	while int(st.phase) < 5:
 		var ph: int = st.phase
-		var spacing := SHRUB_SPACING if ph == 0 else (OAK_SPACING if ph == 2 else (CLUMP_SPACING if b.full else LOD_CLUMP_SPACING))
-		if ph == 0 and not b.full:
-			st.phase = 1
+		var spacing: float = [SHRUB_SPACING, CLUMP_SPACING if b.full else LOD_CLUMP_SPACING, OAK_SPACING, TUFT_SPACING, WEED_PATCH_CELL][ph]
+		if (ph == 0 or ph >= 3) and not b.full:
+			st.phase = ph + 1
 			continue
 		var gz0 := floori(area.position.y / spacing)
 		var gz1 := ceili(area.end.y / spacing)
@@ -164,15 +181,18 @@ static func step(b: OilFieldBuild) -> bool:
 		while int(st.row) < gz1:
 			var j: int = st.row
 			for i in range(gx0, gx1):
-				_plant(b, ph, spacing, i, j, area, st.counts)
+				_plant(b, ph, spacing, i, j, area, st)
 			st.row = j + 1
 			if Time.get_ticks_usec() - t0 > STEP_BUDGET_US:
 				return false
 		st.phase = ph + 1
 		st.row = -1
-	for v in HillShrub.VARIANTS:
-		ch._batch.set_no_shadow("oil_shrub_%d" % v)
-		ch._batch.set_draw_distance("oil_shrub_%d" % v, HillGround3.SHRUB_DISTANCE)
+	for key: String in st.get("shrub_keys", {}):
+		ch._batch.set_no_shadow(key)
+		ch._batch.set_draw_distance(key, HillGround3.SHRUB_DISTANCE)
+	for key: String in st.get("weed_keys", {}):
+		ch._batch.set_no_shadow(key)
+		ch._batch.set_draw_distance(key, VacantLots.TUFT_DISTANCE if key.begins_with("oil_tuft") else VacantLots.TALL_WEED_DISTANCE)
 	for key: String in ["oil_scatter_full", "oil_scatter_lod"]:
 		ch._batch.set_no_shadow(key)
 	ch._batch.set_draw_distance("oil_scatter_full", HillScatter.FULL_DRAW)
@@ -184,13 +204,24 @@ static func step(b: OilFieldBuild) -> bool:
 	return true
 
 
+static func _cell_tag(p: Vector2) -> String:
+	return "%d_%d" % [floori(p.x / WEED_CELL), floori(p.y / WEED_CELL)]
+
+
+static func _weed_key(st: Dictionary, key: String) -> void:
+	if not st.has("weed_keys"):
+		st.weed_keys = {}
+	st.weed_keys[key] = true
+
+
 ## Records a planted point for the checks (a MultiMesh reads back identity headless).
 static func _note(counts: Dictionary, p: Vector2, kind: String) -> void:
-	if (counts.points as Array).size() < 3000:
+	if (counts.points as Array).size() < 8000:
 		(counts.points as Array).append([p, kind])
 
 
-static func _plant(b: OilFieldBuild, ph: int, spacing: float, i: int, j: int, area: Rect2, counts: Dictionary) -> void:
+static func _plant(b: OilFieldBuild, ph: int, spacing: float, i: int, j: int, area: Rect2, st: Dictionary) -> void:
+	var counts: Dictionary = st.counts
 	var f := b.f
 	var ch := b.ch
 	var h0 := hash([f.seed, "oil_plant", ph, int(spacing * 10.0), i, j])
@@ -207,24 +238,33 @@ static func _plant(b: OilFieldBuild, ph: int, spacing: float, i: int, j: int, ar
 			var in_stand := s > STAND_MIN + 0.08 * (_u(hash([h0, 1]), 0) - 0.5)
 			if not in_stand and _u(hash([h0, 2]), 0) > SAGE_ODDS:
 				return
-			if not room(f, p, 0.0):
+			if in_stand and not room(f, p, 0.0):
 				return
+			if not in_stand:
+				var c := clear(f, p)
+				if c.x < SAGE_ROAD_KEEP or c.y < PAD_KEEP or fence_in(f, p) < FENCE_KEEP:
+					return
 			var tone := _u(hash([h0, 3]), 0)
 			var size := _u(hash([h0, 3]), 1)
-			var v := int(tone * 30.0) % HillShrub.VARIANTS
+			var cell := Vector2i(floori(p.x / SHRUB_CELL), floori(p.y / SHRUB_CELL))
+			var v := absi(hash([f.seed, "oil_shrub_cell", cell])) % HillShrub.VARIANTS
+			var key := "oil_shrub_%d_%d_%d" % [v, cell.x, cell.y]
+			if not st.has("shrub_keys"):
+				st.shrub_keys = {}
+			st.shrub_keys[key] = true
 			var up := Vector3(-grad.x, 1.0, -grad.y).normalized().lerp(Vector3.UP, 0.6).normalized()
 			var tilt := Basis(Quaternion(Vector3.UP, up)) * Basis(Vector3.UP, yaw)
 			var variety := Color(_u(h0, 2) * 0.3, tone, size, 0.0)
 			if in_stand:
 				var hs := lerpf(SHRUB_HEIGHT.x, SHRUB_HEIGHT.y, size * size * (0.6 + 0.4 * s)) / HillShrub.HEIGHT
-				ch._batch.add("oil_shrub_%d" % v, HillShrub.mesh(v), Transform3D(tilt.scaled(Vector3(hs * 1.45, hs, hs * 1.45)), Vector3(p.x, y - 0.1 - slope * 1.2, p.y)),
+				ch._batch.add(key, HillShrub.mesh(v), Transform3D(tilt.scaled(Vector3(hs * 1.45, hs, hs * 1.45)), Vector3(p.x, y - 0.1 - slope * 1.2, p.y)),
 					Color(1.0, 1.0, 1.0).lerp(Color(1.18, 1.15, 1.08), tone), variety)
 				counts.shrub = int(counts.shrub) + 1
 				_note(counts, p, "shrub")
 			else:
 				# A lone sage or buckwheat out on the grass: small and paler.
 				var hs := lerpf(0.7, 1.2, size) / HillShrub.HEIGHT
-				ch._batch.add("oil_shrub_%d" % v, HillShrub.mesh(v), Transform3D(Basis(Vector3.UP, yaw).scaled(Vector3(hs, hs, hs)), Vector3(p.x, y - 0.1, p.y)),
+				ch._batch.add(key, HillShrub.mesh(v), Transform3D(Basis(Vector3.UP, yaw).scaled(Vector3(hs, hs, hs)), Vector3(p.x, y - 0.1, p.y)),
 					Color(1.45, 1.45, 1.3), Color(variety.r, variety.g, 0.8, 0.0))
 				counts.sage = int(counts.sage) + 1
 				_note(counts, p, "sage")
@@ -242,6 +282,52 @@ static func _plant(b: OilFieldBuild, ph: int, spacing: float, i: int, j: int, ar
 				Color(_u(h0, 0), _u(h0, 2), float(full), 0.0))
 			counts.clump = int(counts.clump) + 1
 			_note(counts, p, "clump")
+		3:
+			if fence_in(f, p) < 1.0:
+				return
+			var c := clear(f, p)
+			if c.y < PAD_VERGE.x:
+				return
+			var verge := c.x > VERGE.x and c.x < VERGE.y
+			var pad_edge := c.y > PAD_VERGE.x and c.y < PAD_VERGE.y and c.x > VERGE.x
+			if not (verge or pad_edge):
+				return
+			# Thicker nearer the edge, in patches.
+			var near := 1.0 - smoothstep(VERGE.x, VERGE.y, c.x if verge else c.y + 2.0)
+			var patchy := _cluster(f.seed + 7, p * 3.0)
+			if _u(h0, 2) > TUFT_ODDS * (0.4 + 0.9 * near) * (0.5 + patchy):
+				return
+			var dry := _u(hash([h0, 6]), 0)
+			var v := 0 if dry > 0.25 else 1
+			var key := "oil_tuft_%d_%s" % [v, _cell_tag(p)]
+			_weed_key(st, key)
+			var sc := lerpf(0.7, 1.3, _u(hash([h0, 6]), 1))
+			var tint := Color(lerpf(0.85, 1.15, dry), lerpf(0.85, 1.1, dry), lerpf(0.75, 1.0, dry))
+			b.ch._batch.add(key, VacantKit.tuft(v), Transform3D(Basis(Vector3.UP, yaw).scaled(Vector3(sc, sc * lerpf(0.8, 1.3, _u(h0, 1)), sc)), Vector3(p.x, y + 0.02, p.y)), tint)
+			counts.tuft = int(counts.get("tuft", 0)) + 1
+			_note(counts, p, "tuft")
+		4:
+			if _u(h0, 2) > WEED_PATCH_ODDS:
+				return
+			var mustard := _u(h0, 3) < 0.55
+			var r := lerpf(1.6, 3.4, _u(hash([h0, 7]), 0))
+			var n := int(r * r * (1.8 if mustard else 0.8))
+			var key := "oil_%s_%s" % ["mustard" if mustard else "fennel", _cell_tag(p)]
+			for k in n:
+				var hk := hash([h0, "weed", k])
+				var a := TAU * _u(hk, 0)
+				var q := p + Vector2(cos(a), sin(a)) * sqrt(_u(hk, 1)) * r
+				if not area.has_point(q) or fence_in(f, q) < 1.5:
+					continue
+				var c := clear(f, q)
+				if c.x < VERGE.x + 0.4 or c.y < 0.8:
+					continue
+				_weed_key(st, key)
+				var sc := lerpf(0.75, 1.2, _u(hk, 2))
+				var tint := Color(lerpf(0.85, 1.1, _u(hash([hk, 1]), 0)), lerpf(0.85, 1.1, _u(hash([hk, 1]), 1)), lerpf(0.8, 1.0, _u(hash([hk, 1]), 2)))
+				b.ch._batch.add(key, VacantKit.mustard() if mustard else VacantKit.fennel(), Transform3D(Basis(Vector3.UP, TAU * _u(hk, 2)).scaled(Vector3(sc, sc, sc)), Vector3(q.x, y + 0.02, q.y)), tint)
+				counts.weed = int(counts.get("weed", 0)) + 1
+				_note(counts, q, "weed")
 		2:
 			var dr := f.drainage(p)
 			if dr < OAK_DRAIN or _u(hash([h0, 4]), 0) > OAK_ODDS * dr or slope > 0.45 or not room(f, p, 4.0):
