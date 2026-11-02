@@ -23,6 +23,14 @@ func _ready() -> void:
 	_run.call_deferred()
 
 
+func _process(_delta: float) -> void:
+	# ap_slow=<ms>: every frame takes at least that long (a browser frame under SwiftShader), so a
+	# native run sees the same huge process deltas.
+	var slow := int(_arg("ap_slow", "0"))
+	if slow > 0:
+		OS.delay_msec(slow)
+
+
 func _run() -> void:
 	var t0 := Time.get_ticks_msec()
 	var settle := _arg("ap_settle", "300").to_float() * 1000.0
@@ -112,4 +120,7 @@ func _report(i: int) -> void:
 	if _arg("ap_img", "1") == "1":
 		var img := vp.get_texture().get_image()
 		img.resize(img.get_width() / 2, img.get_height() / 2)
+		if not OS.has_feature("web") and _arg("ap_out", "") != "":
+			img.save_png(_arg("ap_out", "") + "_%d.png" % i)
+			return
 		print("PROBE_IMG ap%d %s" % [i, Marshalls.raw_to_base64(img.save_png_to_buffer())])
