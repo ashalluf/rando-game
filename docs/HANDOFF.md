@@ -26460,3 +26460,64 @@ one side only). Probe: `tools/rc2_canyon_road/probe.gd`.
 by construction but only judged on opengl3. No delineator posts, curve signs or utility poles
 along the hill roads. The LOD chunks draw the canyon material too (their roads are visible from the
 basin) but no rail. Fire roads stay unpaved and unmarked (`draw: false`).
+
+## 9kx. The mayhem refcam (fleet wave 5, rc2-mayhem, 2026-11-01)
+
+A NEW reference camera, `mayhem` in `tools/refcams/cameras_w5.json` (its own file, one row a line,
+same format as cameras.json): Wilshire in midtown at (760, 318) looking east down the boulevard
+toward downtown, 3 m up, 18:00 clear, FOV 60. It is STAGED (`"stage": "mayhem"`): refcams_shot.gd,
+once the chunks round the eye stand, loads `tools/refcams/mayhem_stage.gd`, which (all in the
+camera's frame, the cars seeded) puts the hero 4.6 m ahead with his rifle up and firing, blows up
+a wreck 34 m out (burning and smoking by the shot), puts ten civilians on both pavements 36-65 m
+out and panics them from 95 m (they run back past the hero), calls a three-star police standoff
+(Police.stage_for_shot), then blows up a car 18 m out and steps the effect clock to
+`MAYHEM_FX_TIME` (0.6 s) the way fx_shot.gd does; the settle frames hold it. No other camera is
+staged (checked); `_unstage()` puts the hero, the aim and the stars back. Knobs: MAYHEM_FX_TIME,
+MAYHEM_STARS, MAYHEM_NO_POLICE / _CAR / _WRECK, MAYHEM_DUMP=1 (every flat thing near the car
+printed, to name a surface in the still). Run it:
+
+```
+REFCAMS_JSON=tools/refcams/cameras_w5.json GODOT=... python3 tools/refcams/refcams.py run build/refcams/<label> --only mayhem
+```
+
+About 20 minutes on a 4-core box (the 45 load frames under llvmpipe are most of it).
+
+What read fake, worst first, and what changed (`RcMayhem`, `scripts/weapons/rc_mayhem.gd`;
+`RC_MAYHEM=0` is the A/B of all of it):
+1. **A flat salmon disc round the shooter.** GunplayFeel's main muzzle light (7 energy, 9 m,
+   attenuation 1.4) lit the road in a disc clipped at its range; frozen in a still (or photo mode)
+   it was a 9 m pink circle. `RcMayhem.dress_muzzle()`: 4.2 m, attenuation 2.2 - a muzzle flash is
+   a small source.
+2. **The police pool** (police_wash.gdshader `rc_soft`): a soft falloff at a third of the bank's
+   HDR red instead of `pow(1 - d, 2.2)` at full - from a chase camera it stood at saturation over
+   most of its 10 m.
+3. **A flat red disc under a burning car.** CarDamage's fire light (11 m, attenuation 1.4) lit the
+   road in a saturated disc cut at its range (the opengl3 still; desktop only, the web has no
+   fire light). `RcMayhem.dress_fire_light()`: inverse square (2.0), range 14 m, energy x1.6 -
+   about as bright on the car's own flank, fading out long before the range.
+4. **A script error** under every staged blast: `Emergency._scan` ran `is` on a wreck the cap had
+   just freed. Main fixed the same line meanwhile (wave 5 batch 33); the merge keeps main's.
+
+**Handed to explosions-4 (the lead moved the blast to that session; this branch leaves every
+blast_* / fire_puff file as main has it).** The worst thing in this camera is the fireball itself:
+on Forward+ (lavapipe, tools/explosions_2/blast_room_shot.gd CAR=1) the explosions-3 volume is
+white-hot over its whole surface at 0.3 s - `field()` in blast_volume.gdshader starts the
+temperature at 0.57 x heat everywhere, so every billow sits in the blackbody's white stage and the
+car blast reads as a cream cotton ball, then a tan sphere at 0.8 s and brown smoke at 3 s. What
+worked here (tried and reverted, stills 04 / 05 on shots/rc2-mayhem): temperature from the depth
+into the ball, `heat * (0.34 + sh.y * 1.05 + (n1 - 0.5) * 1.3 + (n2 - 0.5) * 0.9)`, and a fuel
+ball's outside going to soot from ~0.03-0.35 s (`(1 - smoothstep(0.05, 0.45, sh.y))`, more in the
+creases by n2), made opaque - 0.3 s orange with a hot heart, 0.8 s a dark sooty mass with fire in
+its gaps, 3 s grey-black. Also: on the Compatibility renderer (desktop opengl3 stills, the refcams)
+the march's per-frame jitter shows as a crosshatch over the whole fireball (no TAA there); twice
+the steps with the jitter at 0.5 removed it.
+
+Found and left alone: the dark flat rectangle on the road under the fireball (every run, the
+same world spot near the right kerb, x ~778-790, z ~320-325) is not the blast's: MAYHEM_PROBE=<dir>
+saves the frame again with each suspect hidden (scorch quad, contact shadows, car undersides, every
+vehicle, crash litter, debris) and none removed it, nor did Compatibility's lights-per-object cap
+(tried at 16, reverted) - it is street hardware in the parking lane (steel plates), dark and glossy
+under the fire. The officers stand stiff in the standoff; traffic differs run to run (a semi was
+launched in one run), and any car or truck whose body comes within 10 m of the eye is hidden for the shot.
+
+Stills on `shots/rc2-mayhem`. Checks `tests/rc2_mayhem_checks.gd`.

@@ -129,6 +129,7 @@ static func _lights(node: Node, parent: Node, at: Vector3, fwd: Vector3, k: floa
 	# metres off to white.
 	var main := _light(parent, at + fwd * 0.45 * k, WeaponFX.muzzle_light_energy * clampf(k, 0.7, 1.5) * day_k,
 		WeaponFX.muzzle_light_range * clampf(k, 0.7, 1.4), WeaponFX.muzzle_light_time)
+	RcMayhem.dress_muzzle(main)
 	if not web:
 		# Volumetric fog takes it too (Forward+ HIGH): a flash in the haze is a puff of light.
 		main.light_volumetric_fog_energy = 3.0

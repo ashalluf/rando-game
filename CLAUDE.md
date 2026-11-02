@@ -1584,6 +1584,12 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   petrol pump is a gas blast (`gas_next`); the bang at the speed of sound with a thump, the shake with
   the wave. `EXPLOSIONS_4=0` is the A/B; strips blast_room_shot.gd (`GAS=1`, `WEB=1`); checks
   `tests/explosions_4_checks.gd`.
+- The mayhem refcam (2026-11-01, docs/HANDOFF.md "The mayhem refcam"): `mayhem` in
+  `tools/refcams/cameras_w5.json` is STAGED (`"stage": "mayhem"` -> `tools/refcams/mayhem_stage.gd`:
+  hero firing, a car blast, a burning wreck, a police standoff, fleeing people). `RcMayhem`
+  (`scripts/weapons/rc_mayhem.gd`): a short muzzle light, police_wash's soft pool, an inverse-square
+  burning-car light (the fireball's own look is explosions-4's; HANDOFF lists what this view found). `RC_MAYHEM=0` is the A/B; checks
+  `tests/rc2_mayhem_checks.gd`.
 - Street props break by KIND (2026-10-06, docs/HANDOFF.md "Street props that break like GTA"):
   `PropBreak` (`scripts/world/prop_break.gd`) takes `damage_prop()` / `break_prop()`: a hydrant
   leaves a `HydrantGeyser` (13 m column, wet patch, lifts the player) and a flange; a shelter loses

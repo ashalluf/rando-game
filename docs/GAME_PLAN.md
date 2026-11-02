@@ -4257,3 +4257,9 @@ none of either.
   driveways and junctions); the hill boulders are gathered and bedded after their rolls, so no
   seed's layout moves. CANYON_ROAD=0 the A/B. Occlusion culling hangs the opengl3 stills on this
   box (an engine lost wakeup in RaycastOcclusionCull); shots are taken with it off.
+
+- **2026-11-01 The mayhem refcam: a staged combat moment is judged like the other cameras
+  (rc2-mayhem, HANDOFF "The mayhem refcam").** The eleventh view lives in cameras_w5.json and is
+  staged by a script the row names, so effects, police and crowd are judged where a player sees
+  them. A muzzle flash lights a few metres, a burning car's light falls off by the inverse square,
+  the police pool falls off softly; the fireball's look belongs to explosions-4. RC_MAYHEM=0 is the A/B.
