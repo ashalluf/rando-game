@@ -127,7 +127,7 @@ vec4 shop_room(vec2 p, vec3 d, float seed, float lit, float px) {
 		vec2 f = abs(fract(g) - 0.5);
 		float panel = (1.0 - smoothstep(0.30, 0.34, f.x)) * (1.0 - smoothstep(0.18, 0.22, f.y));
 		panel = mix(panel, 0.18, avg);
-		c = vec3(0.30, 0.28, 0.26) * 0.6 + lightc * panel * (1.6 + 2.4 * lit);
+		c = vec3(0.30, 0.28, 0.26) * 0.5 + lightc * panel * (0.9 + 0.9 * lit);
 	} else if (t == ty) {
 		// The floor: tiles, darker toward the back.
 		vec2 g = vec2(h.x, h.z) / 0.45;
@@ -286,12 +286,12 @@ void fragment() {
 			// lantern a pale ball); held under ~1.6 in red with green at ~0.4 of it in the core it
 			// stays the deep red-orange of lit silk, the ribs and the ends dark against it.
 			float gold = step(0.3, v_paint.g / max(v_paint.r, 0.01));
-			vec3 rim = gold > 0.5 ? vec3(1.0, 0.42, 0.06) : vec3(1.0, 0.10, 0.03);
-			vec3 hot = gold > 0.5 ? vec3(1.0, 0.62, 0.18) : vec3(1.0, 0.40, 0.12);
+			vec3 rim = gold > 0.5 ? vec3(1.0, 0.30, 0.03) : vec3(1.0, 0.05, 0.02);
+			vec3 hot = gold > 0.5 ? vec3(1.0, 0.48, 0.10) : vec3(1.0, 0.24, 0.06);
 			float view_c = pow(clamp(dot(NORMAL, VIEW), 0.0, 1.0), 1.5);
 			float c2 = pow(bulge, 1.5) * view_c;
-			vec3 glow2 = mix(rim * 0.55, hot, c2);
-			float lit2 = mix(0.12, 1.6, night) * (0.3 + 0.7 * bulge) * (1.0 - rib * 0.75) * (1.0 - clamp(bands, 0.0, 1.0) * 0.85);
+			vec3 glow2 = mix(rim * 0.6, hot, c2);
+			float lit2 = mix(0.08, 0.85, night) * (0.3 + 0.7 * bulge) * (1.0 - rib * 0.75) * (1.0 - clamp(bands, 0.0, 1.0) * 0.85);
 			emit = glow2 * lit2;
 			col = mix(col, col * 0.7, rib);
 		}
@@ -333,9 +333,12 @@ void fragment() {
 		if (rc3 > 0.5 && v_lit > 0.5) {
 			// The hall's screens: a warm hall behind the fretwork, brighter low (lamps inside),
 			// the timber itself catching a little of it.
-			vec3 hall = vec3(1.0, 0.55, 0.22) * (0.8 + 0.4 * noise2(v_world.xz * 0.7));
-			emit = hall * window_night * 0.85 * night * (1.0 - bars * 0.85);
-			emit += frame * vec3(1.0, 0.6, 0.3) * 0.25 * night * bars;
+			// Lamps inside hang at about head height: the screen is brightest round them and falls
+			// off up and down it, the fretwork itself dark against the glow.
+			float lamp = exp(-pow((fract(uv.y / 3.6) - 0.45) * 2.6, 2.0));
+			vec3 hall = vec3(1.0, 0.36, 0.10) * (0.7 + 0.5 * noise2(v_world.xz * 0.9 + uv.y * 0.3));
+			emit = hall * (0.25 + 0.75 * lamp) * 0.55 * night * (1.0 - bars * 0.9);
+			col = mix(vec3(0.02, 0.012, 0.008), frame * 0.5, bars);
 		}
 		rough = mix(0.1, 0.5, bars);
 		spec = mix(0.6, 0.4, bars);
@@ -362,7 +365,7 @@ void fragment() {
 			float sd = floor(hash21(floor(v_world.xz * 0.12)) * 97.0);
 			vec4 room = shop_room(uv, d3, sd, night * open_, pxs);
 			// Glass: the room through it (dimmed by Fresnel), the street's sky mirrored on top.
-			emit = room.rgb * (0.16 + shop_night * night * open_) * (1.0 - 0.6 * fres)
+			emit = room.rgb * (0.12 + shop_night * 0.42 * night * open_) * (1.0 - 0.6 * fres)
 				+ cs_srgb_to_linear(sky_tint.rgb) * (0.04 + 0.45 * fres) * (1.0 - night * 0.6);
 		}
 		rough = 0.05;
