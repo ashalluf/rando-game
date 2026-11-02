@@ -25209,3 +25209,11 @@ batch once, measurement trap 3); the rest is the ship's denser bow stations and 
 mast's lenses and no yellow panels, the bow's rake and bulb with amidships unchanged, the
 plating branch, the lines between quay and hull within the spans, the roof uniform and its
 switch, the camera row). Stills: `shots/rc2-port`.
+
+**The ten refcams** (main bb03d731 vs this branch, `refcams.py compare`): seven within tolerance;
+street_noon, street_night and freeway flagged by the traffic alone (a bus and cars in other places:
+the diff maps are only vehicles); triangles within +-1.7 % everywhere. Peak RSS of the ten-camera
+run 12.6 GB. Gate (SHARDS=3): 5,095 passed, 2 failed - "one shotgun blast throws a crate" (room)
+and "explosions_2: debris lands on the deck" - both pass when run alone on this branch
+(`SMOKE_PARTS=room,explosions_2_checks`, 239 / 239), neither touches the port.
+
