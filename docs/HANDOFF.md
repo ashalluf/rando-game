@@ -27258,7 +27258,10 @@ it, bit for bit):
 
 **Numbers** (refcams, opengl3, `RC_ROOFTOP=0` -> on): rooftop_golden p5/p50/p95 42/93/187 ->
 35/92/187, saturation 0.311 -> 0.323; 3.19 M triangles / 1,076 draws -> 3.22 M / 1,079 (+1 %; the
-roof plant is ~11 k, the rest traffic noise). The ten original cameras: see the compare below.
+roof plant is ~11 k, the rest traffic noise). The ten original cameras, `RC_ROOFTOP=0` -> on from
+one tree (`refcams.py compare`): eight within a level and 0-1.6 mean pixel |d|; the two flagged,
+street_night (a bus pulled up in the left lane) and freeway (different cars), are live traffic -
+nothing of this work is in either frame. Triangles -1.4 % .. +1.8 %.
 
 **Forward+** (lavapipe): the island with `tools/offshore_island/island_shot.gd` at the eye, 17:45
 (`shots/rc3-rooftop-golden` 05/06): a saturated brown band -> a hazy grey-violet silhouette. The
