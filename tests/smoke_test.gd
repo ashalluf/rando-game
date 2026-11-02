@@ -2911,6 +2911,9 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	load("res://tests/rc4_pier_night_2_checks.gd").new().run(self, city)
 	# The bonfire_night refcam (tests/rc4_bonfire_night_checks.gd): rings slid clear of palms, the glow, the moonlit sand.
 	load("res://tests/rc4_bonfire_night_checks.gd").new().run(self, city)
+	# The broadway_night refcam (tests/rc3_broadway_night_checks.gd, BroadwayNight): signs held lit,
+	# blazing marquees, brick auditorium sides, soft searchlight shafts, the camera row, the A/B.
+	load("res://tests/rc3_broadway_night_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()

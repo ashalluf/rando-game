@@ -115,6 +115,7 @@ static func build(ch: CityChunk, p: Dictionary) -> void:
 	if spec.get("roof_sign", false):
 		_roof_sign(g, spec, w, hc)
 	_auditorium(g, w, d, fd, ha)
+	BroadwayNight.side_dress(g, spec, w - 1.0, ha, fd, d - fd)
 	_entrance(g, spec, tw, marquee_l)
 	_marquee(g, spec, tw, marquee_l)
 	_blade_sign(g, spec, sh, minf(marquee_l - 0.9, 3.0), hc)
@@ -144,6 +145,7 @@ static func build(ch: CityChunk, p: Dictionary) -> void:
 	light.distance_fade_begin = 70.0
 	light.distance_fade_length = 20.0
 	light.add_to_group("lamp_light")
+	BroadwayNight.marquee_light(light)
 	node.add_child(light)
 	var neon: Color = spec.neon
 	var pools := [
@@ -154,7 +156,9 @@ static func build(ch: CityChunk, p: Dictionary) -> void:
 		var at: Vector3 = xf * (pl[0] as Vector3)
 		# The batch adds the relief itself.
 		at.y -= ch._gy(at.x, at.z)
-		var sz: Vector2 = pl[1]
+		var pg: Array = BroadwayNight.pool(pl[1], pl[3])
+		var sz: Vector2 = pg[0]
+		pl[3] = pg[1]
 		var pool := Transform3D(Basis(Vector3.UP, xf.basis.get_euler().y) * Basis(Vector3.RIGHT, -PI * 0.5).scaled(Vector3(sz.x, 1.0, sz.y)), at)
 		ch._batch.add("bw_pool", PropFactory.light_pool(Color(1.0, 1.0, 1.0), 1.3, 1.6), pool, Color((pl[2] as Color).r, (pl[2] as Color).g, (pl[2] as Color).b, float(pl[3])))
 	ch._batch.set_no_shadow("bw_pool")
@@ -185,8 +189,8 @@ static func _use_mats(g: LandmarkGeo, spec: Dictionary, hc: float) -> void:
 	win.merge({"win_pitch": Vector2(1.9, 3.7), "win_size": Vector2(0.36, 0.56), "win_sill": 0.2,
 		"win_band": Vector2(STOREY_GROUND + 1.2, 200.0), "lit_ratio": 0.22, "flood_strength": 0.7}, true)
 	g.use("terra_win", LandmarkMats.facade("bw_terrawin_" + k, "plaster_white", 3.0, win))
-	g.use("brick", LandmarkMats.facade("bw_brick", "brick_red", 2.6,
-		{"tint": Color(0.86, 0.74, 0.66), "roughness": 0.85, "texture_contrast": 0.9, "grime": 0.5, "seed": 2.0}))
+	g.use("brick", LandmarkMats.facade("bw_brick" if not BroadwayNight.enabled else "bw_brick_n", "brick_red", 2.6,
+		{"tint": BroadwayNight.brick_tint(), "roughness": 0.85, "texture_contrast": 0.9, "grime": 0.5, "seed": 2.0}))
 	# The flanking blocks of a wide palace: brick with windows (the 1920s commercial fronts either
 	# side of the pavilion), so a 70 m frontage is not one long terracotta front.
 	g.use("brick_win", LandmarkMats.facade("bw_brickwin", "brick_red", 2.6,
@@ -204,6 +208,7 @@ static func sign_material(id: String) -> ShaderMaterial:
 	var m := ShaderMaterial.new()
 	m.shader = load("res://shaders/broadway_sign.gdshader")
 	m.set_shader_parameter("seed", Broadway.h01([id, "seq"]))
+	BroadwayNight.sign(m)
 	_mats[id] = m
 	return m
 

@@ -4456,3 +4456,10 @@ none of either.
   judged from 10-100 m, so it carries a glow whose core only comes in with distance; firelight falls
   off within a few metres; the dry sand loses its colour by moonlight, gated on the clock, never on
   sun_direction (the moon's at night). RC4_BONFIRE=0 is the A/B.
+- **2026-11-02 Broadway at night: the signs are the subject (rc3-broadway-night, HANDOFF "Broadway's
+  theatre district at night").** A new reference camera (`broadway_night`, wave 6's table) judged the
+  theatre district at eye level at 22:00. Decisions: a palace's blade sign holds its name lit most of
+  the cycle (a sign caught half spelt reads broken in any still); nothing planted stands in front of a
+  palace's marquee; a blank party wall is never pale plaster at night - the auditoriums are dark brick
+  dressed like real ones; a searchlight seen from the street is a soft haze, never a solid white rod.
+  BROADWAY_NIGHT=0 is the A/B.

@@ -43,6 +43,13 @@ uniform float beam_far_gain = 0.3;
 uniform float beam_far_from = 300.0;
 uniform float beam_far_to = 1400.0;
 
+// The broadway_night pass (BroadwayNight; 0 = the old look): from the street the cone's alpha ran
+// past 1 down most of its length and the shafts were solid white rods over the theatre district. A
+// shaft of lit haze is a soft glow brightest near the lamp: a soft knee, then `street_gain`.
+uniform float look3 = 0.0;
+uniform float street_gain = 0.3;
+uniform float street_knee = 1.4;
+
 varying flat vec3 lens_world;
 
 void vertex() {
@@ -69,6 +76,11 @@ void fragment() {
 		// a gain before it did nothing: a soft knee keeps the shaft's fall-off, then the far fade.
 		float above_a = smoothstep(40.0, 110.0, CAMERA_POSITION_WORLD.y - lens_world.y);
 		a = mix(clamp(a, 0.0, 1.0), 1.0 - exp(-a * 1.3), above_a) * mix(1.0, beam_far_gain, above_a * smoothstep(beam_far_from, beam_far_to, length(VERTEX)));
+	}
+	if (look3 > 0.5) {
+		float above_s = smoothstep(40.0, 110.0, CAMERA_POSITION_WORLD.y - lens_world.y);
+		float soft = (1.0 - exp(-a * street_knee)) * street_gain * (0.35 + 0.65 * exp(-along * 7.0));
+		a = mix(soft, a, above_s);
 	}
 	ALPHA = clamp(a, 0.0, 1.0);
 }

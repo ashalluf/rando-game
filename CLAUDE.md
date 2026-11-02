@@ -4870,6 +4870,14 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   `SHOP_NAMES`, Broadway's appended after the first `BASE_SHOP_NAMES`; nothing else's roll moves).
   `BROADWAY=0` is the A/B; `tools/broadway_probe.gd` lists the palaces with EYEs; checks
   `tests/broadway_checks.gd`.
+- Broadway at night (wave 6 refcam `broadway_night` in `tools/refcams/cameras_w6.json`, docs/HANDOFF.md
+  "Broadway's theatre district at night"): `BroadwayNight` (`scripts/world/broadway_night.gd`, hooks
+  in BroadwayTheatre, SkyBeam and one in `CityChunk._add_tree()` after its rolls): blade signs hold
+  their names lit (broadway_sign `look3`), brighter marquees and their light, red-brown auditorium
+  brick with dressed side walls (pilasters, a painted name, exit doors, a fire stair), soft searchlight
+  shafts from the street (nightlife_beam `look3`), no street tree on a palace's frontage.
+  `BROADWAY_NIGHT=0` is the A/B; pick probe `tools/rc3_broadway_night/pick.gd`; checks
+  `tests/rc3_broadway_night_checks.gd`.
 - Fashion district (2026-10-06, HANDOFF "The fashion district"): `FashionDistrict`
   (`scripts/world/fashion_district.gd`) overlays the DOWNTOWN building blocks east of Main St from
   7th St to Pico Blvd (`stretch()`, `EAST_REACH` past Alameda; `block_info()` is pure, cached per
