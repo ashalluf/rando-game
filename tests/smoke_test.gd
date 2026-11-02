@@ -2810,6 +2810,8 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	load("res://tests/sky_clouds_3_checks.gd").new().run(self, city)
 	# Forward+ review g (tests/fwd_review_g_checks.gd, FwdReviewG): wave 4's look work on the Mac's renderer.
 	load("res://tests/fwd_review_g_checks.gd").new().run(self, city)
+	# The fourth wave of everyday bodies (tests/car_variety_4_checks.gd, Cars4): rolls, the switch, builds, traffic.
+	await load("res://tests/car_variety_4_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()

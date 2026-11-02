@@ -4134,3 +4134,13 @@ none of either.
   first-use probe's events for that wave (`EVENTS=wave4`); wave 4's are behind `WARM_WAVE4=0`.
   The rehearsal is timed like every other loading-screen step. Bake-only memoisation is allowed
   where it is proved byte-identical (the raw-height memo); LoadCache's key stays every script.
+
+- **2026-11-01 Traffic variety: five more everyday bodies, shares taken from what dominates (car-variety-4,
+  HANDOFF "Cars, the fourth wave").** A census of every car round the camera over a game minute
+  (Flower St at Olympic and the 110) put sedans and crossovers first among the everyday cars and the
+  exotics (Sports, Vantari, Kestrel) at one car in eight - a showroom, not Los Angeles. The wagon,
+  muscle coupe, luxury SUV, kei-style city van and 1970s sedan take 85 rolls from the ENDS of the
+  sedan, crossover, SUV, van, sports and three exotic ranges, never from the third wave's slices;
+  their rows name the old owner and the wave (`CARS_4=0` hands them back, bit for bit). The paint
+  palette (white ~22-30 %, but green, orange and purple together ~25 %) is noted, not changed: a
+  palette change moves every parked car's look on every seed.

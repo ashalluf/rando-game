@@ -25371,3 +25371,86 @@ spikes, troop, officers, gunship, gore, hero_blood). Checks: `tests/load_time_3_
   cache built by CI, would make a release launch warm; neither tried (the key must stay safe).
 - Forward+ first uses (LampShadows' shadowed omnis, Blast3's haze) are not measured: lavapipe cannot
   hold the rehearsal.
+
+## 9ki. Cars, the fourth wave (wave 5, `car-variety-4`)
+
+**The census first.** `tools/car_variety/census.tscn` (a scene, so Vehicle compiles after the
+autoloads) loads the city at a spawn and for a game minute records every Vehicle within `RADIUS` of
+the camera once (body type, paint family by hue / saturation / value, street / freeway / parked):
+
+    godot --headless --path . tools/car_variety/census.tscn -- --spawn=2359.4,880,0,12,2 --hour=15.5
+    RADIUS=250 godot --headless --path . tools/car_variety/census.tscn -- --spawn=1989,160,-6,-3,12 --hour=15.5
+
+Before (main, build 402+): Flower St at Olympic, 125 cars, 27 kinds - City Bus 19 % (Flower is a bus
+line; the buses stack there, not this task's), then minivan, SUV, van, sedan, pickup 7-9 % each; the
+110 and the streets round it, 459 cars, 28 kinds - crossover 11.3 %, sedan 10.5 %, buses 7.8 %,
+pickup 6.8 %, and the exotics (Sports 5.0 %, Kestrel, Kestrel RS, Vantari, Vantari Aperta 7.6 %
+together: one car in eight a sports car or a supercar, a showroom, not Los Angeles). Paints: white
+22-30 %, but blue 13-17 %, green 9-11 %, orange 6-9 %, purple 5-6 % - more colour than a real LA
+street (white / black / grey / silver ~75 %). Noted, not changed (a palette change moves every
+parked car's look on every seed).
+
+**Five bodies, all invented** (`tools/make_cars_4.py`, ~15 s a body, same command as make_cars_3.py
+with `wagon muscle lux_suv kei_van classic`; then `--import`):
+
+| Body | BodyType | What it is | Derived from |
+| --- | --- | --- | --- |
+| Wagon | `WAGON` (35) | compact estate, 4.90 m: a long flat roof held level to an upright tailgate, a long quarter window, roof rails, tall tail lamps up the D-pillars, chrome belt, a chrome-framed slot grille | the hatchback stretched behind the B-pillar (rear axle 24 cm back, the overhang 30 cm longer), its roof / rail / belt profiles replaced behind -0.95 |
+| Muscle coupe | `MUSCLE` (36) | 2-door, 4.74 m: an upright full-width mouth with round lamps in its ends and a chrome split bar, a black bonnet panel with a low scoop, vents behind the front wheels, a black tail panel with round-cornered quad lamps | make_cars_3's coupe, roof 3 cm lower, 3 % wider |
+| Luxury SUV | `LUX_SUV` (37) | 5.62 m: a bonnet 12 cm longer (dash-to-axle), slim lamp blades with three projector eyes, a tall nine-bar chrome grille in a heavy surround, chrome belt, window line, rocker, rails and side vents, running boards, a full-width tail bar, quad tips | the full-size SUV, front stretched (front axle with it) |
+| City van | `KEI_VAN` (38) | kei-style one-box van, 3.63 x 1.53 x 1.77 m on 13-inch wheels: glazed all round, a sliding door each side, a tailgate with a big glass, small square lamps, black bumpers, roof rails | the panel van with its load box cut short (`g` station map: rear axle -1.56 -> -1.05, tail -2.73 -> -1.55), its own detail builder `kei_details()` (van_details moved), then scaled to 76 % along / up and 73 % across after the build (make_cars_3's `post_scale`) |
+| Classic | `CLASSIC` (39) | a 1970s full-size sedan, 5.70 m: quad round lamps in a wide egg-crate grille in a chrome frame, a bonnet ornament, slim chrome bumpers, a chrome side spear, rocker and belt, a black vinyl roof, wide tail lamps right across | the beater stretched 15 % along (both overhangs and the wheelbase) and 3 % across, its dent and cracked lamp left off |
+
+**`map_d(d, h)`** moves a whole detail table (windows, gaps, handles, pillars, belt, cowl, spoiler,
+fuel, sill, rear door, mirror, rails, tracks) with a station map, so an older body's details follow its
+stretched loft; only the parts a body changes are rewritten. Build: no boolean is rolled back on four
+of them; the wagon keeps the hatchback's own 6 (one front-wing groove that the hatchback also loses).
+Bodies 50-59k triangles, far twins ~7.9k, undersides 5.1-5.6k (`make_car_undersides.py` knows them:
+twin tips on the classic, quad on the muscle and the luxury SUV, a ladder frame under the classic).
+
+**Rolls.** `BODY_ODDS`: wagon 20, muscle 15, luxury SUV 20, city van 15, classic 15 per thousand,
+taken from the END of eight older ranges: sedan 190 -> 180 and crossover 135 -> 125 (the wagon), SUV
+80 -> 70 and Super 30 -> 20 (the luxury SUV), van 60 -> 45 (the city van), sports 65 -> 50 (the muscle),
+Hyper 20 -> 10 and Track 15 -> 10 (the classic). Never a slice of the third wave's. A row the wave took
+is `[end, type, old, 4]`; `Cars4.row_type()` hands it back under `CARS_4=0` and passes everything
+else to `Cars3.row_type()`. The older waves' roll checks (more_cars, cars_3) now run with
+`Cars4.enabled` off, so they still check exactly their own tables. random_car() still spends one rng
+call for the body; the new paints are off the look seed after every roll (`Cars4.paint_for()`: the
+classic always a 1970s colour, 60 % of city vans a fleet white / grey / blue, 55 % of muscle coupes a
+loud paint), each with no add-on.
+
+**Game side.** `scripts/vehicles/cars_4.gd` (TYPES, DIMS, paints, row_type); vehicle.gd: the enum,
+names, models, BODY_ODDS, ROLL_MAP, WHEEL_POSE rows, the `_dims()` arm, the paint hook; VehicleHud
+names (Orivo Ventra Estate, Haldric Brutano 6.4, Quentis Sovrana, Sundale Minimo, Velmara Cordale
+'74), CarDetail makers and plates, CarDoorSplit shut lines (wagon, luxury SUV, classic; the muscle
+and the city van have none, like the third wave's), CarCabin privacy glass (luxury SUV, city van),
+EngineAudio's V8 (muscle, luxury SUV, classic), CarPaint2 contrast roofs (wagon, luxury SUV). The
+city van's PHYSICS tyre is 0.316 m (its drawn wheel 0.274): with the drawn radius the car sat 5 cm
+low on its springs; stance now -0.157 / -0.149.
+
+**Frame cost** (still_shot.gd GEO, opengl3, `--spawn=2359.4,880,0,12,2 --hour=15.5 STREET=queue
+STREET_EYE=1`): the queue made of the five new bodies (`STREET_MIX=35,36,37,38,39`) 7,747,671
+triangles / 2,716 draws, against the same queue of the third wave's five (`STREET_MIX=30..34`)
+7,739,577 / 2,725: flat. With SPLIT=1, Vehicle 1.54 M / 332 draws in that frame.
+
+**After** (the census again; traffic differs run to run, so read the shapes, not the units): the
+110, 437 cars, 33 kinds (28), top three 28.1 % (29.6 %), exotics 5.0 % (7.6 %), the five new bodies
+36 cars (8 %); Flower St 29 kinds (27).
+
+**Checks** (`tests/car_variety_4_checks.gd`, 14): shares equal BODY_ODDS; every roll keeps its
+third-wave type unless a new body took it (915 kept, 85 taken), every row names its old owner and
+the wave, every old range keeps its start; `CARS_4=0` never rolls a new body (and with `CARS_3=0`
+none of either wave); random_car() spends the caller's rng as before and rolls the five in about
+their shares over 4,000 seeds; the paints; every body has its model, underside, WHEEL_POSE, dims,
+maker and plates and its wheel's foot on its road; privacy glass, voices, shut lines, the HUD's
+names; each builds with glass, far twin, underside, lamps and four wheels (worst 1.7 ms warm),
+stands within 4 cm of where traffic stands it, carries a driver in traffic and goes to physics and
+CarDamage when shot.
+
+**Not done / unverified.** Nothing seen on Forward+ (the Mac): the luxury SUV's and the classic's
+chrome and the muscle's black bonnet panel need a look there. The Blender previews of the muscle and
+the classic on shots/car-variety-4 are from before the scoop was lowered and the bumpers slimmed (the
+in-game close-ups are after). No dealer or car-park lineup shows them (they arrive through
+random_car() and traffic). The city van has no door split (CarInterior's stand-in doors) and no
+sliding-door animation. The bus share on Flower St (19-23 % of the cars there) is someone else's
+(BigVehicles' route roll) but is the loudest repeat in that census.

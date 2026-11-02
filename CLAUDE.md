@@ -2138,6 +2138,14 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   2 cm roof raise on the hatchback) can leave the body non-manifold - every later boolean is then
   "rolled back"; check the log's count. `car_shot.gd --each=30,31,32,33,34`; checks
   `tests/cars_3_checks.gd`.
+- Cars, the fourth wave (2026-11-01, docs/HANDOFF.md "Cars, the fourth wave"): `Cars4`
+  (`scripts/vehicles/cars_4.gd`) - WAGON, MUSCLE, LUX_SUV, KEI_VAN, CLASSIC, appended, built by
+  `tools/make_cars_4.py` (the same command as make_cars_3.py) as specs DERIVED by station maps
+  (`map_d()` moves a detail table with them; the kei van is scaled after the build). ROLL_MAP rows a
+  fourth entry 4 (`Cars4.row_type()`; older waves' checks run with `Cars4.enabled` off). Their own
+  paints off the look seed (`Cars4.paint_for()`). Census `tools/car_variety/census.tscn` (bodies and
+  paint families round the camera over a game minute). `CARS_4=0` the A/B; checks
+  `tests/car_variety_4_checks.gd`.
 - Lowriders (2026-10-06, docs/HANDOFF.md "Lowriders"): `Lowrider` (`scripts/vehicles/lowrider.gd`),
   `BodyType.LOWRIDER_HARDTOP` (a 1960s full-size hardtop) and `LOWRIDER_COUPE` (a 1980s coupe),
   appended, `BODY_ODDS` 0, built by `tools/make_lowriders.py` on the road-car loft (bpy 4.2 works:
