@@ -147,6 +147,11 @@ func _initialize() -> void:
 		var path := out.get_basename() + "_t%05.2f.png" % want
 		root.get_texture().get_image().save_png(path)
 		print("saved ", path, " at ", elapsed)
+		# The frame's cost with the blast in it (opengl3 / vulkan; zero under --headless).
+		print("GEO t=%.2f draws=%d objects=%d tris=%d" % [elapsed,
+			Performance.get_monitor(Performance.RENDER_TOTAL_DRAW_CALLS_IN_FRAME),
+			Performance.get_monitor(Performance.RENDER_TOTAL_OBJECTS_IN_FRAME),
+			Performance.get_monitor(Performance.RENDER_TOTAL_PRIMITIVES_IN_FRAME)])
 	quit()
 
 

@@ -326,16 +326,37 @@ void fragment() {
 	vec3 col = vec3(0.0);
 	vec3 glow = vec3(0.0);
 	float tr = 1.0;
-	for (int i = 0; i < n; i++) {
-		float f = f0 + (f1 - f0) * (float(i) + jit) / float(n);
+	// Blast4: the march BACKS UP on entering dense smoke and goes on in thirds of a step (the
+	// sky's cumulus do the same): with a fixed step the first sample inside took nearly all the
+	// opacity, so the surface snapped to the step grid and only the per-frame jitter hid it - a
+	// screen door that TAA must average out of noise. Refined, the edge is smooth in one frame.
+	float df = (f1 - f0) / float(n);
+	float fc = f0 + df * jit;
+	int fine = 0;
+	bool backed = false;
+	int n_loop = (v4 > 0.5) ? n + 16 : n;
+	for (int i = 0; i < n_loop; i++) {
+		float f = (v4 > 0.5) ? fc : f0 + (f1 - f0) * (float(i) + jit) / float(n);
 		vec3 q = (o + dl * f) * half_r + centre_r;
 		if (v4 > 0.5) {
+			if (fc > f1) {
+				break;
+			}
+			float stepk = (fine > 0) ? (1.0 / 3.0) : 1.0;
+			fc += df * stepk;
+			fine = max(fine - 1, 0);
 			vec3 f4 = field4(q);
 			float dens4 = f4.x * fade;
 			if (dens4 <= 0.002) {
 				continue;
 			}
-			float a4 = 1.0 - exp(-sigma * dens4 * ds_m);
+			float a4 = 1.0 - exp(-sigma * dens4 * ds_m * stepk);
+			if (!backed && fine == 0 && a4 > 0.35) {
+				backed = true;
+				fine = 12;
+				fc = max(f - df * 0.9, f0);
+				continue;
+			}
 			// Three taps toward the sun, further each time: a billow's sunny shoulder, its dark
 			// belly, and the whole cap shading its stem.
 			float od = field4_lo(q + L * 0.12) * 0.12 + field4_lo(q + L * 0.36) * 0.26 + field4_lo(q + L * 0.85) * 0.5;
