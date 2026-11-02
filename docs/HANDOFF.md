@@ -26697,6 +26697,53 @@ chips that bounce and skid, BlastDebris' burning pieces with trails), the glass 
 (SHATTER records plus shards timed by the wave's travel at 343 m/s) and the refracting pressure
 wave stay as the second and third passes made them.
 
+**Round 5: the lead's five-case strips** (rocket at noon from 60 m, a car at golden hour from 20 m,
+a car at night, a petrol pump at noon, a chain of three cars: `CHAIN=1` on blast_room_shot.gd parks
+two more cars beside the first). Worst first, as judged frame by frame:
+1. **The flat beige dust band.** Bisected with A/Bs: three particle layers stacked into one wall
+   (BlastFX's ground kick puffs, BlastAftermath's dust wave, WeaponFX's skirt); the volume's own
+   dust ring rolls fine. `Blast4.dust_roll()` replaces the first two (the kick keeps its grit) with
+   a lit rolling front: fast low creepers, rollers that start 0.12 s later and lift and curl, and a
+   low hanging haze, on BlastFX's lit smoke with the variety tint. `BLAST_DUST_ROLL=0` the old layers.
+2. **The cap a uniform mid grey at 4-8 s by day.** `value4` (blast_volume.gdshader, set by
+   `dress_volume()`): the cooled plume's albedo rises with age (pale where the sun reaches it), its
+   ambient is pulled down and its sun term steepened, so the folds read dark and the tops pale.
+   Never on fire or dust. `BLAST_VALUE=0` the old grey.
+3. **The chain's flare caught as a white disc.** It grew to 4.2 radii over 0.13 s: now 3 radii over
+   0.1 s (`flare_grow_radii`, `flare_fade_seconds`; off with EXPLOSIONS_4=0).
+4. **Debris read as dots.** Every third burning piece is a bent sheet of panel (`panel_mesh()`, two
+   quads, drawn both sides), the rest 1.2-1.9x bigger, the trails nearly twice as dense.
+   `BLAST_CHUNKS=0` the old pieces.
+Still open: the night cap fades to a faint maroon blob (lit from below too weakly by its fires), the
+stem thins away by 8 s, the burning fuel on the road and up the wreck's sides, the crater at 5 m.
+Stills from 24 on, on `shots/explosions-4`.
+
+**Round 6: night, stem, wreck fire, crater** (the lead's next list, in order):
+1. **The night cap faded to a faint maroon blob.** The fires reached it only by a 3D falloff over
+   their reach, and that was multiplied into soot's near-black albedo. `under4` (blast_volume
+   .gdshader, set by `dress_volume()`, `Blast4.underlight_gain` 0.5): each fire lights the smoke
+   above it with a broad falloff along the ground and a long one upward, shaded by the smoke
+   between (two taps down), on an albedo floor (lit soot reads by what it throws back), in an
+   orange held near half green for AgX; a quarter of it by day. The night cap is now a
+   mushroom glowing from below. `BLAST_UNDERLIGHT=0` the A/B.
+2. **The stem thinned away by 8 s.** `stem_hold`: the stem stays to the end of the volume's life
+   (gate from 0.82 to 1.05 of it), denser and narrower toward the cap. `BLAST_STEM=0`.
+3. **No burning fuel on the road; flames only on the roof.** A car blast throws two tongues of fuel
+   (`fuel_trail()`: stretched BlastPools, yaw a hash of the spot, flames along their length, no
+   light of their own, capped on their own list) and flames climb the wreck's sides
+   (`side_flames()`: a CPUParticles3D on the car emitting from 40 points round its sills from
+   `_dims()`, dying down over `side_flame_seconds` 14). The pool's flame light is held at green
+   half of red (it drew salmon), its outline kept inside the quad (the clip cut a straight edge
+   along every trail). `BLAST_WRECK_FIRE=0`.
+4. **The crater at 5 m: stair steps along every finger and crack** (texel-sized at ~5 cm a texel).
+   The fingers read their reach from the nearest of 720 angle bins and the specks and cracks were
+   thresholds of value noise: now the bins are interpolated, fingers never thinner than a few
+   texels, specks from a smooth noise with a soft edge, cracks a soft profile fading to their tip
+   (in the height too, so the normal map has no terraces). `BLAST_CRATER=0`.
+Checks: `_round5()` in tests/explosions_4_checks.gd.
+Still open: the pit itself is a flat dark disc at 5 m (no rubble in it, no depth); the burning
+pieces' fire reads as round puffs.
+
 ## 9lb. The camera lens (wave 5, `camera-lens`)
 
 **What.** The camera itself: exposure adaptation, the sun's flare, grain, the bloom's spread.

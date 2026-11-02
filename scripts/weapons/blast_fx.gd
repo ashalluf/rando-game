@@ -163,8 +163,8 @@ static func _flash(node: Node, parent: Node, at: Vector3, radius: float) -> void
 	var fs := Blast3.flare_scale if Blast3.enabled else 1.0
 	flare.scale = Vector3.ONE * radius * 2.2 * fs
 	var ft := flare.create_tween()
-	ft.tween_property(flare, "scale", Vector3.ONE * radius * 4.2 * fs, 0.09).set_ease(Tween.EASE_OUT)
-	ft.parallel().tween_property(flare, "transparency", 1.0, 0.13).set_ease(Tween.EASE_IN)
+	ft.tween_property(flare, "scale", Vector3.ONE * radius * Blast4.flare_grow() * fs, 0.09).set_ease(Tween.EASE_OUT)
+	ft.parallel().tween_property(flare, "transparency", 1.0, Blast4.flare_fade()).set_ease(Tween.EASE_IN)
 	ft.tween_callback(flare.queue_free)
 	last["flash"] = 1
 
@@ -272,9 +272,12 @@ static func _ground_kick(node: Node, parent: Node, at: Vector3, radius: float, p
 		# Linear albedo for the lit smoke material: street dust, lit by the sun or left dark at night.
 		_ground_ramp = WeaponFX._ramp([Color(0.22, 0.20, 0.17, 0.0), Color(0.20, 0.18, 0.16, 0.55),
 			Color(0.17, 0.16, 0.14, 0.25), Color(0.14, 0.13, 0.12, 0.0)])
-	WeaponFX._puff_layer(parent, ground + Vector3.UP * 0.25, WeaponFX._count(28), radius * 0.28, 0.9,
-		radius * 3.4 * push, radius * 5.0 * push, 0.4, _ground_ramp, false, 180.0, 3.4,
-		gb, 1.0, 0.3, 2.2, true, null, smoke_material())
+	# Blast4's rolling dust front (BlastAftermath -> Blast4.dust_roll()) is the dust: the kick
+	# only throws its grit then, or three layers of puffs stood up into one flat wall.
+	if not (Blast4.enabled and Blast4.dust_roll_enabled and BlastAftermath.enabled):
+		WeaponFX._puff_layer(parent, ground + Vector3.UP * 0.25, WeaponFX._count(28), radius * 0.28, 0.9,
+			radius * 3.4 * push, radius * 5.0 * push, 0.4, _ground_ramp, false, 180.0, 3.4,
+			gb, 1.0, 0.3, 2.2, true, null, smoke_material())
 	# Grit: lit dark chips skimming out low along the ground.
 	if Blast3.bits_on():
 		BlastBits.pool(node).throw_chips(ground + Vector3.UP * 0.2, WeaponFX._count(26), Vector2(radius * 1.6, radius * 3.2) * push,
