@@ -36,6 +36,7 @@ func _initialize() -> void:
 	if OS.get_environment("OUT_DIR") != "":
 		_out_dir = OS.get_environment("OUT_DIR")
 	DirAccess.make_dir_recursive_absolute(_out_dir)
+	_golf_group()
 	change_scene_to_file("res://scenes/levels/city.tscn")
 	_run.call_deferred()
 
@@ -276,6 +277,16 @@ func _write_frames(load_ms: int, shots: Array) -> void:
 	var f := FileAccess.open(_out_dir.path_join("frames.json"), FileAccess.WRITE)
 	f.store_string(JSON.stringify(out, "\t"))
 	f.close()
+
+
+## A row's optional "golf_group" ("hole:stage[:tee[:count]]", wave 6's golf_morning) puts a group
+## of golfers there whatever the hole's roll (GolfLife.force_group). Set before the city loads:
+## golfers are spawned as the course's chunks build.
+func _golf_group() -> void:
+	var only := OS.get_environment("ONLY").split(",", false)
+	for cam: Dictionary in _cameras().get("cameras", []):
+		if cam.has("golf_group") and (only.is_empty() or String(cam.name) in only):
+			OS.set_environment("GOLF_GROUP", String(cam.golf_group))
 
 
 func _cameras() -> Dictionary:
