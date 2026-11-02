@@ -368,7 +368,7 @@ void fragment() {
 					vec3 glow = vec3(0.0);
 					vec4 br = rn_mirror(wp, rr, vec2(1.0, 0.0), 0.0, 1e4, 1e4, 0.0, 1.0, 0.03, glow);
 					float fr = 0.03 + 0.5 * pow(1.0 - clamp(dot(wn, vw), 0.0, 1.0), 5.0);
-					em += glow * fr * damp * 0.08 * lf;
+					em += glow * fr * damp * 0.05 * lf;
 				}
 			}
 		}
