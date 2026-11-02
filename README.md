@@ -4,3 +4,6 @@
 - 03: the same bookmark with the plume left out on the web: clean.
 - 04: rain 13:00 on main: the hero's top reads blue again and pale straight-edged wedges stand in the sky (under investigation: the rain emitter).
 - 05-10: the other bookmarks on main, clean console, matching wave 4's.
+- 11: the hero in rain in the browser, crops over a probe run: QUALITY sky, then reflections off - still blue (not the radiance; open, for the hero's owner).
+- 12: MacArthur in the browser, plume made unshaded, then local coords (glare stays), then hidden (last frame: clean).
+- 13: the real fountain in a small web room with 20 s frames, lit vs unshaded: both fine (the city-only failure is not reproduced there).
