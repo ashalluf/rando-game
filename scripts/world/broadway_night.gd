@@ -87,13 +87,13 @@ static func side_dress(g: LandmarkGeo, spec: Dictionary, aw: float, ha: float, f
 		g.box("trim", Vector3(x + sx * 0.08, 0.45, (z0 + z1) * 0.5), Vector3(0.18, 0.9, depth - 0.2))
 		g.box("trim", Vector3(x + sx * 0.1, ha + 0.12, (z0 + z1) * 0.5), Vector3(0.36, 0.24, depth))
 		# The painted name, faded cream on the brick, high on the front half of the wall.
-		var paint := Color(0.70, 0.64, 0.52)
+		var paint := Color(0.92, 0.86, 0.72)
 		var basis := Basis(Vector3(0.0, 0.0, -sx), Vector3.UP, Vector3(sx, 0.0, 0.0))
 		var sign_z := z0 - minf(depth * 0.45, 14.0)
 		var cap := clampf(ha * 0.11, 1.8, 3.0)
 		BroadwayTheatre.text(g, name, Transform3D(basis, Vector3(x + sx * 0.03, ha * 0.62, sign_z)), cap, minf(depth * 0.8, 24.0),
 			BroadwayTheatre.kc(paint, BroadwayTheatre.K_ENAMEL), n)
-		BroadwayTheatre.text(g, "THEATRE", Transform3D(basis, Vector3(x + sx * 0.03, ha * 0.62 - cap * 1.25, sign_z)), cap * 0.55, minf(depth * 0.6, 16.0),
+		BroadwayTheatre.text(g, "PICTURES", Transform3D(basis, Vector3(x + sx * 0.03, ha * 0.62 - cap * 1.25, sign_z)), cap * 0.55, minf(depth * 0.6, 16.0),
 			BroadwayTheatre.kc(paint.darkened(0.12), BroadwayTheatre.K_ENAMEL), n)
 		# Exit doors at the foot, each under a caged lamp (a small warm glow).
 		for k in 2:
@@ -102,17 +102,53 @@ static func side_dress(g: LandmarkGeo, spec: Dictionary, aw: float, ha: float, f
 			g.box("trim", Vector3(x + sx * 0.12, 2.42, dz), Vector3(0.24, 0.16, 2.2))
 			g.box("sign", Vector3(x + sx * 0.2, 2.9, dz), Vector3(0.22, 0.26, 0.22), BroadwayTheatre.kc(Color(1.0, 0.78, 0.48), BroadwayTheatre.K_NEON))
 			g.box("sign", Vector3(x + sx * 0.06, 3.05, dz), Vector3(0.14, 0.08, 0.3), BroadwayTheatre.kc(BroadwayTheatre.IRON, BroadwayTheatre.K_IRON))
-		# A steel fire stair up the front end: landings every 5 m, the flights between, rails.
+		# A steel fire stair up the front end: grated landings every 5 m and switchback flights
+		# between them, each flight two thin stringers and a rail (seen from the street it is a
+		# lattice of dark lines, never a solid band).
 		var fz := z0 - 3.2
+		var iron := BroadwayTheatre.kc(BroadwayTheatre.IRON, BroadwayTheatre.K_IRON)
 		var y := 5.0
+		var flip := 1.0
 		while y < ha - 3.0:
-			g.box("sign", Vector3(x + sx * 0.75, y, fz), Vector3(1.3, 0.08, 3.6), BroadwayTheatre.kc(BroadwayTheatre.IRON, BroadwayTheatre.K_IRON))
-			g.box("sign", Vector3(x + sx * 1.38, y + 0.5, fz), Vector3(0.05, 1.0, 3.6), BroadwayTheatre.kc(BroadwayTheatre.IRON, BroadwayTheatre.K_IRON))
-			var a := Vector3(x + sx * 0.75, y + 0.05, fz - 1.6)
-			var b := Vector3(x + sx * 0.75, y + 5.0, fz + 1.6)
+			g.box("sign", Vector3(x + sx * 0.75, y, fz), Vector3(1.3, 0.05, 3.6), iron)
+			g.box("sign", Vector3(x + sx * 1.38, y + 0.5, fz), Vector3(0.04, 1.0, 3.6), iron)
+			g.box("sign", Vector3(x + sx * 1.38, y + 1.0, fz), Vector3(0.06, 0.05, 3.6), iron)
+			var a := Vector3(0.0, y + 0.05, fz - 1.6 * flip)
+			var b := Vector3(0.0, y + 5.0, fz + 1.6 * flip)
 			var dvec := b - a
 			var yy := dvec.normalized()
-			var xx := Vector3(sx, 0.0, 0.0)
+			var xx := Vector3(1.0, 0.0, 0.0)
 			var zz := xx.cross(yy).normalized()
-			g.box("sign", (a + b) * 0.5, Vector3(1.1, dvec.length(), 0.06), BroadwayTheatre.kc(BroadwayTheatre.IRON, BroadwayTheatre.K_IRON), Basis(xx, yy, zz))
+			for off: float in [0.22, 1.28]:
+				var ofs := Vector3(x + sx * off, 0.0, 0.0)
+				g.box("sign", (a + b) * 0.5 + ofs, Vector3(0.05, dvec.length(), 0.18), iron, Basis(xx, yy, zz))
+			g.box("sign", (a + b) * 0.5 + Vector3(x + sx * 1.28, 0.9, 0.0), Vector3(0.04, dvec.length(), 0.04), iron, Basis(xx, yy, zz))
+			flip = -flip
 			y += 5.0
+
+
+## True when a street tree at `at` (true world) would stand in front of a palace's marquee and
+## blade sign: on Broadway's pavement along a palace's frontage, out to `TREE_CLEAR` past it. The
+## real street keeps its palace fronts open; here a block's street tree hid the Empress' marquee
+## from up the street. Asked by CityChunk._add_tree() after every roll it makes (nothing moves).
+const TREE_CLEAR := 4.0
+static func keeps_tree_off(plan: CityPlan, at: Vector3) -> bool:
+	if not enabled or plan == null or not Broadway.enabled:
+		return false
+	var x := Broadway.avenue_x()
+	var half := Broadway.avenue_width() * 0.5
+	var off := absf(at.x - x)
+	if off < half - 1.0 or off > half + plan.sidewalk_width + 1.0:
+		return false
+	var zr := Broadway.z_range()
+	if at.z < zr.x - 10.0 or at.z > zr.y + 10.0:
+		return false
+	var side := 1 if at.x > x else -1
+	for p: Dictionary in Broadway.palaces(plan):
+		if int(p.side) != side:
+			continue
+		var c: Vector2 = (p.lot as Dictionary).center
+		var s: Vector2 = (p.lot as Dictionary).size
+		if absf(at.z - c.y) < s.y * 0.5 + TREE_CLEAR:
+			return true
+	return false

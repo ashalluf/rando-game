@@ -4439,6 +4439,8 @@ func _add_tree(at: Vector3, rng: RandomNumberGenerator, lean_to: Vector2 = Vecto
 	# stream, and so everything planted after it, is the same as before.
 	if _under_freeway(Vector2(at.x, at.z), TREE_FREEWAY_MARGIN):
 		return
+	if BroadwayNight.keeps_tree_off(plan, at):
+		return
 	# Los Angeles' own species for a share of blocks, parks and planters (LaTrees, hashes only).
 	if LaTrees.street_or_park(self, at, yaw, tint, lean_to):
 		return

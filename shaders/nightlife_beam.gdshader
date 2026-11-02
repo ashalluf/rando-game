@@ -47,7 +47,7 @@ uniform float beam_far_to = 1400.0;
 // past 1 down most of its length and the shafts were solid white rods over the theatre district. A
 // shaft of lit haze is a soft glow brightest near the lamp: a soft knee, then `street_gain`.
 uniform float look3 = 0.0;
-uniform float street_gain = 0.5;
+uniform float street_gain = 0.3;
 uniform float street_knee = 1.4;
 
 varying flat vec3 lens_world;
@@ -79,7 +79,7 @@ void fragment() {
 	}
 	if (look3 > 0.5) {
 		float above_s = smoothstep(40.0, 110.0, CAMERA_POSITION_WORLD.y - lens_world.y);
-		float soft = (1.0 - exp(-a * street_knee)) * street_gain * (0.55 + 0.45 * exp(-along * 9.0));
+		float soft = (1.0 - exp(-a * street_knee)) * street_gain * (0.35 + 0.65 * exp(-along * 7.0));
 		a = mix(soft, a, above_s);
 	}
 	ALPHA = clamp(a, 0.0, 1.0);
