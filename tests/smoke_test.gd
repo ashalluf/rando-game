@@ -2867,6 +2867,9 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	load("res://tests/rc2_night_aerial_checks.gd").new().run(self, city)
 	# The chase_cam review (tests/rc2_chase_cam_checks.gd, ChaseCamReview): lane wear on the asphalt.
 	load("res://tests/rc2_chase_cam_checks.gd").new().run(self, city)
+	# The vernon_industrial refcam (tests/rc3_vernon_industrial_checks.gd, RcVernon): worn steel,
+	# the office storefront and pop-out, the courts' asphalt and trailers, weathered tilt-up.
+	load("res://tests/rc3_vernon_industrial_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()
