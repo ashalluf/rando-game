@@ -406,13 +406,23 @@ static func _strip_mesh(st: SurfaceTool, ch: CityChunk, r: Rect2) -> void:
 				out = -out
 			var uv := Vector2(clampf((mid.x - r.position.x) / r.size.x, 0.0, 1.0), clampf((mid.y - r.position.y) / r.size.y, 0.0, 1.0))
 			var v := [Vector3(q0.x, y0, q0.y), Vector3(q1.x, y1, q1.y), Vector3(q1.x, y1 - 0.13, q1.y), Vector3(q0.x, y0 - 0.13, q0.y)]
+			# RcSuburb: the soil edge slopes out at 45 degrees (the visible 5 cm a bevel lit by the
+			# sky), not a vertical lawn-textured wall that read as the dark edge of a carpet tile.
+			var face := out
+			if RcSuburb.enabled:
+				v[2] += out * 0.13
+				v[3] += out * 0.13
+				face = (out + Vector3.UP).normalized()
+				# Its UV inside the rect: the lawn shader paints the edge's soil line on the top's
+				# rim, and the bevel reads as the turf rolling over (the edge UV drew it dark).
+				uv = Vector2(0.5, 0.5)
 			var tri := [0, 1, 2, 0, 2, 3]
 			# Winding toward `out` (Godot's front faces are clockwise seen from the front).
 			var nrm: Vector3 = (v[1] - v[0]).cross(v[2] - v[0])
 			if nrm.dot(out) > 0.0:
 				tri = [0, 2, 1, 0, 3, 2]
 			for t: int in tri:
-				st.set_normal(out)
+				st.set_normal(face)
 				st.set_tangent(Plane(1.0, 0.0, 0.0, 1.0))
 				st.set_uv(uv)
 				st.add_vertex(v[t])

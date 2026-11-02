@@ -2830,6 +2830,8 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	load("res://tests/facades_mid3_checks.gd").new().run(self, city)
 	# The marine-morning refcam (tests/rc2_marine_checks.gd, MarineMorning): damp streets, the coast's mist, the deck's underside.
 	load("res://tests/rc2_marine_checks.gd").new().run(self, city)
+	# The suburb refcam (tests/rc2_suburb_checks.gd, RcSuburb): residents' cars, pale DG, the leaf dither.
+	load("res://tests/rc2_suburb_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()

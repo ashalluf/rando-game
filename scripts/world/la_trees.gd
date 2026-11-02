@@ -141,6 +141,7 @@ static func material(sp: int) -> ShaderMaterial:
 	var m := ShaderMaterial.new()
 	m.shader = load("res://shaders/la_tree.gdshader")
 	TreesCloseup.mark(m)
+	m.set_shader_parameter("sprig_dither_fix", 1.0 if RcSuburb.enabled else 0.0)
 	var p: Dictionary = _params(sp, 0)
 	m.set_shader_parameter("bend_scale", float(p.get("bend", 0.0012)))
 	m.set_shader_parameter("flutter", float(p.get("flutter", 0.03)))
