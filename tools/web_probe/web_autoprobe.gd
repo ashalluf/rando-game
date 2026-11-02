@@ -1,5 +1,5 @@
 extends Node
-## An autoload for a probe export of the REAL main build (tools/webshot/export_probe.sh): every
+## An autoload for a probe export of the REAL main build (tools/web_probe/export_probe.sh): every
 ## `every` seconds after `settle`, prints the frame's exposure, glow, fog and sky state and the
 ## whole frame (half size) as AUTOPROBE / PROBE_IMG lines, so the browser log says what changed
 ## when the picture did (web-build-5: the MacArthur Park washout that the change_scene probe
@@ -28,7 +28,21 @@ func _run() -> void:
 	var settle := _arg("ap_settle", "300").to_float() * 1000.0
 	while Time.get_ticks_msec() - t0 < settle:
 		await get_tree().process_frame
+	# ap_stage=fire|hose|medic: Emergency's own staging ahead of the player camera.
+	var stage := _arg("ap_stage", "")
+	var em := get_tree().current_scene.get_node_or_null("Emergency") if get_tree().current_scene else null
+	if stage != "" and em:
+		var eye: String = await em.call("stage_for_shot", stage, get_viewport().get_camera_3d())
+		print("AUTOPROBE_STAGE %s eye %s" % [stage, eye])
+	# ap_hide=a,b,...: after the first report, each report hides one more group of particle
+	# emitters (path contains the name) before it is taken: which one draws the glare.
+	var hides := _arg("ap_hide", "").split(",", false)
 	for i in int(_arg("ap_n", "6")):
+		if i >= 1 and i - 1 < hides.size():
+			for n in get_tree().root.find_children("*", "GeometryInstance3D", true, false):
+				if str(n.get_path()).contains(hides[i - 1]):
+					(n as Node3D).visible = false
+			print("AUTOPROBE_HIDE %d %s" % [i, hides[i - 1]])
 		_report(i)
 		var t1 := Time.get_ticks_msec()
 		while Time.get_ticks_msec() - t1 < _arg("ap_every", "120").to_float() * 1000.0:
@@ -73,6 +87,28 @@ func _report(i: int) -> void:
 		var cr := n as ColorRect
 		if cr.is_visible_in_tree() and (cr.color.a > 0.02 or cr.material != null):
 			print("AUTOPROBE_RECT %d %s col=%s mat=%s" % [i, cr.get_path(), cr.color, cr.material.shader.resource_path.get_file() if cr.material is ShaderMaterial else ""])
+	# Particle emitters near the camera: which one draws what.
+	if cam:
+		for n in get_tree().root.find_children("*", "CPUParticles3D", true, false):
+			var p := n as CPUParticles3D
+			if not p.is_visible_in_tree() or p.global_position.distance_to(cam.global_position) > 80.0:
+				continue
+			var mat: Material = p.material_override
+			if mat == null and p.mesh and p.mesh.get_surface_count() > 0:
+				mat = p.mesh.surface_get_material(0)
+			var mdesc := mat.get_class() if mat else "none"
+			if mat is StandardMaterial3D:
+				var sm := mat as StandardMaterial3D
+				mdesc += "/blend%d/shade%d/bb%d/tex%s" % [sm.blend_mode, sm.shading_mode, sm.billboard_mode, sm.albedo_texture != null]
+			elif mat is ShaderMaterial:
+				mdesc += "/" + (mat as ShaderMaterial).shader.resource_path.get_file()
+			var ramp := ""
+			if p.color_ramp:
+				for k in p.color_ramp.get_point_count():
+					ramp += "%s " % [p.color_ramp.get_color(k)]
+			print("AUTOPROBE_PART %d %s d=%.0f emit=%s amt=%d life=%.2f col=%s scale=%.2f-%.2f mat=%s ramp=[%s]" % [i, p.get_path(),
+				p.global_position.distance_to(cam.global_position), p.emitting, p.amount, p.lifetime, p.color,
+				p.scale_amount_min, p.scale_amount_max, mdesc, ramp])
 	if _arg("ap_img", "1") == "1":
 		var img := vp.get_texture().get_image()
 		img.resize(img.get_width() / 2, img.get_height() / 2)
