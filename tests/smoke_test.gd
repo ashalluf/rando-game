@@ -2895,6 +2895,9 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	# The golf course at 08:30 (tests/rc3_golf_morning_checks.gd, GolfMorning): the staged group,
 	# the turf's morning passes behind their switch, the course's sycamores and eucalyptus.
 	load("res://tests/rc3_golf_morning_checks.gd").new().run(self, city)
+	# The pier at night, second pass (tests/rc4_pier_night_2_checks.gd, RcPierNight / CoastExposure):
+	# the coast's exposure, the park's wash, the light on the sand and the sea, the night strollers.
+	load("res://tests/rc4_pier_night_2_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()

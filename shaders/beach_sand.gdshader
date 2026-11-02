@@ -19,6 +19,8 @@ shader_type spatial;
 #include "res://shaders/surf.gdshaderinc"
 #include "res://shaders/color_space.gdshaderinc"
 #include "res://shaders/beach_golden.gdshaderinc"
+// The piers' lamps on the sand at night (RcPierNight; pw_gain 0 = none).
+#include "res://shaders/pier_wash.gdshaderinc"
 
 global uniform vec3 origin_shift;
 global uniform vec4 sky_tint;
@@ -27,6 +29,7 @@ global uniform float night_factor;
 global uniform float ground_detail;
 // Rain darkens the sand the way it darkens the streets (PropFactory.set_wetness()).
 global uniform float road_wetness;
+global uniform float lamp_factor;
 
 uniform sampler2D albedo_tex : source_color, filter_linear_mipmap_anisotropic, repeat_enable;
 uniform sampler2D normal_tex : hint_normal, filter_linear_mipmap_anisotropic, repeat_enable;
@@ -235,6 +238,11 @@ void fragment() {
 		EMISSION = (sky_ref * fres + sun_col * sun_glint * fres) * mirror;
 	}
 	ALBEDO = alb * (1.0 - fres * (sh * 0.8 + pool * 0.6));
+	if (pw_gain > 0.0 && lamp_factor > 0.01) {
+		// The lamps' light on the sand: lit like the albedo it lands on (renderer space), wet sand
+		// darker and mirroring a little of it.
+		EMISSION += ALBEDO * cs_as_uniform(pier_wash(vec3(tw.x, wpos.y, tw.y))) * lamp_factor;
+	}
 	ROUGHNESS = rough;
 	NORMAL_MAP = nm;
 	NORMAL_MAP_DEPTH = normal_scale;
