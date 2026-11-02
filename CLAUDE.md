@@ -5627,6 +5627,14 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   shared look materials stay shared. BACKLIGHT is held to thin skin everywhere (it lit faces orange
   under a lamp behind). `CROWD_FACES=0` is the A/B; stills `tools/crowd_faces/face_shot.gd`; checks
   `tests/crowd_faces_checks.gd`.
+- The crowd plaza (2026-11-01, refcam `crowd_plaza` in `tools/refcams/cameras_w5.json`, docs/HANDOFF.md
+  "The crowd plaza refcam"): `PlazaCrowd` (`scripts/npc/plaza_crowd.gd`) makes a landmark crowd rect
+  14 m+ either way OPEN GROUND - count by the hour (`KEYS`, a person per 14 m2 at most), walkers
+  straight to points anywhere in it (`Pedestrian.open_ground`), rigs and looks dealt (`deal()`).
+  `CrowdDress` (`scripts/npc/crowd_dress.gd`): a look's colours seeded by look AND rig (they were
+  the look's alone: twelve recolours city-wide), one look in four plain, saturation muted (`tame()`).
+  life_clips.gd `STAND_SETTLE` 0.88. `PLAZA_CROWD=0` / `CROWD_DRESS=0` the A/Bs; checks
+  `tests/rc2_crowd_plaza_checks.gd`.
 - Crowd look (2026-10-29, "heads turn to what happens"; docs/HANDOFF.md "The crowd's heads"):
   `CrowdLook` (`scripts/npc/crowd_look.gd`), a SkeletonModifier3D a near pedestrian gets on its
   rig the first time it is within `look_range` of the player and the camera (one hook in

@@ -25971,3 +25971,47 @@ moves over and passes a slow one" (closest 22 m, the slow car not passed), which
 (`SMOKE_PARTS=city_crowd`: moved, passed, 62 m) - intermittent, freeway traffic, not touched here.
 Peak RSS 3.69 GB a shard. The ten original refcams with RC2_SUBURB=0 vs on: nine ok, the freeway
 flagged by its traffic (a semi beside the lens in one run).
+
+## 9kr. The crowd plaza refcam: a plaza at lunch, people who are not twins (fleet wave 5, `rc2-crowd-plaza`)
+
+A new reference view, `crowd_plaza` (`tools/refcams/cameras_w5.json`): STARLIGHT PLAZA in the
+arena district at 12:30, eye 1.7 m at (2158, 1112) looking north at the screens and the
+restaurant strip, the crowd 2-25 m off. Run it with `REFCAMS_JSON=tools/refcams/cameras_w5.json
+python3 tools/refcams/refcams.py run build/refcams/<label> --only crowd_plaza`. Chosen after a
+scouting load (stills on `shots/rc2-crowd-plaza`): Broadway's pavements at 12:30 were nearly
+empty, and the plaza is the densest landmark crowd rect downtown (`tools/crowd_plaza_probe.gd`
+lists every one in true world metres).
+
+**What read fake, worst first, and what was done:**
+1. **An empty plaza.** 46 people for 56 x 70 m at any hour, and every one of them walked the
+   rect's RING by its corners (`Pedestrian._ring_route()`), so the middle was a field of paving and
+   the crowd filed along the edges 40 m from the eye. `PlazaCrowd` (`scripts/npc/plaza_crowd.gd`):
+   a landmark crowd rect 14 m+ either way is OPEN GROUND - its head-count follows the hour the chunk
+   is built at (`KEYS`: 2.7x at lunch, 2.1-2.3x in the evening, a third at night; never past one
+   person a 14 m2), its walkers go straight to points anywhere in it (`open_ground` on Pedestrian:
+   `_random_ring_point()` / `_ring_route()`), stop more and join crowd-life groups more
+   (`PAUSE_CHANCE`, `LIFE_CHANCE`), never plan a street crossing. The extra walkers come after the
+   rect's own on its seeded stream. Hooks: `CityChunk._build_landmarks()` (count, `mark()`),
+   `_spawn_walker()` (`walker()`), Pedestrian (three lines). At 12:30 the plaza holds ~124.
+2. **Twins.** A look's garment colours were seeded by the LOOK alone (`4200 + look`), so look 5 was
+   the same green top on all 32 crowd rigs - twelve recolours for the whole city - and every even
+   look kept the rig's own outfit, so two copies of a rig with even looks were identical. With ~4
+   copies of each rig on a plaza, every view had twin pairs. `CrowdDress`
+   (`scripts/npc/crowd_dress.gd`, crowd rigs only): colours seeded by look AND rig (the texture's
+   file name), one look in four plain; still 24 shared materials a rig. On open ground the rigs and
+   looks are also DEALT (`PlazaCrowd.deal()`: a seeded order of the rigs, each round of them with a
+   fresh look stepped by 7), so nobody on a plaza shares a rig and a look with anybody.
+3. **People standing like fighters.** The library idles (life/idle, talk, phone, fold, drink, nod,
+   shake) were settled 0.6 of the way to the rig's stance; at eye level a talking group still read
+   as squaring up, knees bent and one foot forward. `tools/crowd/life_clips.gd` `STAND_SETTLE` 0.88,
+   the 32 `assets/models/crowd_life/*_life.res` rebuilt (deterministic: an unchanged rerun is byte
+   identical; the sources are `tools/crowd/fetch_life_clips.sh`).
+4. **A toy box of colours.** The "something bright" top bucket rolled saturation 0.45-0.80; with
+   per-rig colours a lunch crowd was orange, pink, yellow and teal tees. `CrowdDress.tame()`: every
+   recoloured garment keeps 0.72 of its rolled saturation, at most 0.5 (after every roll).
+
+A/Bs: `PLAZA_CROWD=0`, `CROWD_DRESS=0` (the old rolls bit for bit); the clips have no switch (an
+asset rebuild: `git checkout origin/main -- assets/models/crowd_life` is the before). Checks:
+`tests/rc2_crowd_plaza_checks.gd`. Not done: the plaza's own paving (a regular 5 m joint grid at eye
+level), the plaza's café chairs are not life seats (the plaza is built in a turned landmark frame),
+and a plaza's extra walkers spend the city's crowd cap (650 at HIGH) before blocks built after it.

@@ -4209,3 +4209,11 @@ none of either.
   empty kerb stalls (a hash per stall after every roll, so nothing built moves), the parkway's soil
   edge a bevel (it was a dark carpet-tile wall), and the code-built trees' leaf dither held off on
   Compatibility until a leaf really is sub-pixel (no TAA there: it drew streaks). RC2_SUBURB=0 the A/B.
+- **2026-11-01 The crowd plaza refcam: a plaza is open ground, and no crowd has twins
+  (rc2-crowd-plaza, HANDOFF "The crowd plaza refcam").** A new reference view at eye level in
+  STARLIGHT PLAZA at lunch. Decisions: a landmark crowd rect 14 m+ either way is open ground whose
+  head-count follows the hour (PlazaCrowd, capped at a person per 14 m2) and whose walkers cross it
+  rather than walking its edges; a crowd look's colours are rolled per rig, a quarter of looks keep
+  the rig's own outfit, and recolours are muted (CrowdDress); on a plaza rigs and looks are dealt,
+  not rolled. The library's standing clips keep their legs near the rig's own stance (0.88).
+  PLAZA_CROWD=0 / CROWD_DRESS=0 the A/B.

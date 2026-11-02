@@ -2832,6 +2832,9 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	load("res://tests/rc2_marine_checks.gd").new().run(self, city)
 	# The suburb refcam (tests/rc2_suburb_checks.gd, RcSuburb): residents' cars, pale DG, the leaf dither.
 	load("res://tests/rc2_suburb_checks.gd").new().run(self, city)
+	# The crowd plaza refcam (tests/rc2_crowd_plaza_checks.gd, PlazaCrowd, CrowdDress): plazas by the
+	# hour and crossed, rigs dealt, outfits per rig, the A/Bs.
+	load("res://tests/rc2_crowd_plaza_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()

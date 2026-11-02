@@ -562,7 +562,8 @@ func _build_landmarks() -> void:
 		for crowd: Array in Landmarks.crowds(lm, plan):
 			var rng := RandomNumberGenerator.new()
 			rng.seed = hash([plan.seed, lm.id, crowd[0]])
-			for step in _crowd_steps(crowd[0], crowd[1], crowd[2], rng):
+			PlazaCrowd.mark(self, crowd[0])
+			for step in _crowd_steps(crowd[0], crowd[1], PlazaCrowd.count(crowd[0], crowd[2], BusyStreets.hour_now(self)), rng):
 				_steps.insert(_steps.size() - 1, step)
 		for step in Landmarks.people_steps(lm, self):
 			_steps.insert(_steps.size() - 1, step)
@@ -2934,6 +2935,7 @@ func _spawn_walker(rect: Rect2, sidewalk: float, rng: RandomNumberGenerator) -> 
 	var ped := Pedestrian.new()
 	ped.setup(rect, sidewalk, rng.randi())
 	FashionDistrict.walker(self, ped)
+	PlazaCrowd.walker(self, ped, rect)
 	var start := ped._random_ring_point(sidewalk)
 	ped.position = Vector3(start.x, SIDEWALK_TOP + 0.1 + _gy(start.x, start.y), start.y)
 	add_child(ped)
