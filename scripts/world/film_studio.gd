@@ -477,6 +477,8 @@ static func site_steps(ch: CityChunk) -> Array[Callable]:
 			steps.append(_backlot.bind(ch, lay, area, i, i + 4))
 		for i in range(0, lay.parking.size(), 8):
 			steps.append(_vehicles.bind(ch, lay, area, i, i + 8))
+		if Rc4FilmLot.enabled:
+			steps.append(Rc4FilmLot.dressing_step.bind(ch, lay, area))
 		for i in range(0, lay.cars.size(), 2):
 			if area.has_point(lay.cars[i].at) or (i + 1 < lay.cars.size() and area.has_point(lay.cars[i + 1].at)):
 				steps.append(_park.bind(ch, lay, area, i, i + 2))
@@ -487,6 +489,8 @@ static func site_steps(ch: CityChunk) -> Array[Callable]:
 	if ch.level == CityChunk.Level.FULL:
 		steps.append(_lights.bind(ch, lay, area))
 		steps.append(_crowd.bind(ch, lay, area))
+		if Rc4FilmLot.enabled:
+			steps.append(Rc4FilmLot.dress_crew.bind(ch))
 	steps.append(_commit.bind(ch))
 	return steps
 
@@ -562,7 +566,7 @@ static func _ground(ch: CityChunk, lay: Dictionary, area: Rect2) -> void:
 		aprons.append(Rect2((sg.c as Vector2) - ext * 0.5, ext))
 	for r: Rect2 in _parts(inside, area):
 		for piece: Rect2 in Parks.minus(r, aprons, 0.05):
-			Industrial._ground_rect(acc.ground, ch, piece, BASE_Y, Industrial.G_ASPHALT, 0.15, true)
+			Industrial._ground_rect(acc.ground, ch, piece, BASE_Y, Industrial.G_ASPHALT, 0.15, true, Rc4FilmLot.track_axis(lay, piece) if Rc4FilmLot.enabled else 0.0)
 		for ap: Rect2 in aprons:
 			var p := ap.intersection(r)
 			if p.size.x > 0.05 and p.size.y > 0.05:
@@ -771,10 +775,16 @@ static func _vehicles(ch: CityChunk, lay: Dictionary, area: Rect2, i0: int = 0, 
 		var y := BASE_Y + ch._gy(p.x, p.y)
 		var xf := Transform3D(Basis(Vector3.UP, float(pk.yaw)), Vector3(p.x, y, p.y))
 		match String(pk.kind):
+			"trailer" when Rc4FilmLot.enabled:
+				Rc4FilmLot.place_trailer(ch, Transform3D(xf.basis, Vector3(p.x, BASE_Y, p.y)), float(pk.length) - 1.6, false, int(pk.band), int(pk.seed))
+			"honey" when Rc4FilmLot.enabled:
+				Rc4FilmLot.place_trailer(ch, Transform3D(xf.basis, Vector3(p.x, BASE_Y, p.y)), float(pk.length) - 1.6, true, int(pk.band), int(pk.seed))
 			"trailer":
 				FilmStudioKit.trailer(acc.st, xf, float(pk.length) - 1.6, false, int(pk.band))
 			"honey":
 				FilmStudioKit.trailer(acc.st, xf, float(pk.length) - 1.6, true, int(pk.band))
+			_ when Rc4FilmLot.enabled:
+				Rc4FilmLot.place_truck(ch, Transform3D(xf.basis, Vector3(p.x, BASE_Y, p.y)), int(pk.band))
 			_:
 				FilmStudioKit.truck(acc.st, xf, int(pk.band))
 		var l: float = float(pk.length)
@@ -788,7 +798,10 @@ static func _vehicles(ch: CityChunk, lay: Dictionary, area: Rect2, i0: int = 0, 
 		var paints := [Color(0.92, 0.92, 0.9), Color(0.9, 0.86, 0.74), Color(0.2, 0.34, 0.24), Color(0.12, 0.12, 0.13)]
 		var paint: Color = paints[int(cart.seed) % paints.size()]
 		var y := BASE_Y + ch._gy(p.x, p.y)
-		FilmStudioKit.golf_cart(acc.st, Transform3D(Basis(Vector3.UP, float(cart.yaw)), Vector3(p.x, y, p.y)), paint, int(cart.seed) % 3 == 0)
+		if Rc4FilmLot.enabled:
+			Rc4FilmLot.place_cart(ch, Transform3D(Basis(Vector3.UP, float(cart.yaw)), Vector3(p.x, BASE_Y, p.y)), int(cart.seed) % 4, int(cart.seed) % 3 == 0)
+		else:
+			FilmStudioKit.golf_cart(acc.st, Transform3D(Basis(Vector3.UP, float(cart.yaw)), Vector3(p.x, y, p.y)), paint, int(cart.seed) % 3 == 0)
 		ch._add_shape(Vector3(1.2, 1.9, 2.4), Vector3(p.x, y + 0.95, p.y), float(cart.yaw))
 	for gear: Dictionary in lay.gear:
 		var p: Vector2 = gear.at
@@ -877,7 +890,7 @@ static func _commit(ch: CityChunk) -> void:
 	if _walk_mat == null:
 		_walk_mat = PropFactory.road("sidewalk", 3.0, Color(1.45, 1.43, 1.38), 7713, 1.5, 0.35)
 		_lawn_mat = PropFactory.lawn(Color(0.86, 0.98, 0.72), 5521, 0.25, 3.0)
-	var parts := [["StudioLot", acc.st, FilmStudioKit.material(), true], ["StudioGround", acc.ground, Industrial.ground_material(), false],
+	var parts := [["StudioLot", acc.st, FilmStudioKit.material(), true], ["StudioGround", acc.ground, Rc4FilmLot.ground_material() if Rc4FilmLot.enabled else Industrial.ground_material(), false],
 		["StudioPavement", acc.walk, _walk_mat, false], ["StudioLawn", acc.lawn, _lawn_mat, false],
 		["StudioGlass", acc.glass, FilmStudioKit.glass_material(), true]]
 	for p: Array in parts:

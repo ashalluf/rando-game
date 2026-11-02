@@ -25,7 +25,9 @@ extends RefCounted
 ## built once and shared by the far copy and the detailed one; collision boxes on the detailed
 ## one. LANDMARK_ROOFS=0 is the A/B (nothing built).
 
-static var enabled := OS.get_environment("LANDMARK_ROOFS") != "0" and RcRooftop.enabled
+# RC_ROOFTOP read directly: RcRooftop.enabled may not be initialised yet when this class loads first
+# (a cross-class static initialiser read false, and the roofs were off in game and in the gate).
+static var enabled := OS.get_environment("LANDMARK_ROOFS") != "0" and OS.get_environment("RC_ROOFTOP") != "0"
 
 ## A roof box is one the builders put higher than this (local metres over the tower's base)...
 const MECH_MIN_Y := 60.0

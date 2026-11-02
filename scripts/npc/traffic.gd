@@ -1303,7 +1303,8 @@ func _maintain_freeway() -> void:
 	# Where the player is along each route, worked out once a route (nearest_on() is a search).
 	var anchors := {}
 	for car in freeway_cars.duplicate():
-		if not is_instance_valid(car) or not car.is_traffic():
+		# A car another system took off the main line (StackTraffic's connectors) is not ours.
+		if not is_instance_valid(car) or not car.is_traffic() or not car.traffic.has("fw"):
 			freeway_cars.erase(car)
 			continue
 		# Off the end of its route, or the player has left it behind.

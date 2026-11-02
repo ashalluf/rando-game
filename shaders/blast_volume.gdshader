@@ -88,6 +88,9 @@ uniform float quiet4 = 0.0;
 // burning the whole surface white (through AgX every billow was the same cream), a fuel ball's
 // outside goes to soot from 0.15 s, and the dust skirt is lit by the flash. 0 = off.
 uniform float core4 = 0.0;
+// Blast4 round 10: at night the fire's light falls off faster up the smoke (its underside glows,
+// its crowns do not) and the crowns go darker against the sky; the 8 s cloud read flat brown. 0 = off.
+uniform float night4 = 0.0;
 uniform vec3 under_col = vec3(1.0, 0.42, 0.12);
 // The fires burning round it now (Blast3.push_fires(): xyz world, w = reach + strength / 2), so
 // the smoke over a burning wreck or a fuel pool is lit orange from below long after the fireball
@@ -466,7 +469,7 @@ void fragment() {
 					vec3 dd = wp - fr.xyz;
 					float hz = length(dd.xz);
 					float rise = max(dd.y, 0.0);
-					u_sum += fract(fr.w) * 2.0 / (1.0 + hz * hz / (reach * reach * 1.6)) / (1.0 + rise * rise / (reach * reach * 2.5)) * step(-2.0, dd.y);
+					u_sum += fract(fr.w) * 2.0 / (1.0 + hz * hz / (reach * reach * 1.6)) / (1.0 + rise * rise / (reach * reach * mix(2.5, 0.9, night_factor * night4))) * step(-2.0, dd.y);
 				}
 				// Soot scatters little, but a lit underside reads by the light it throws back.
 				vec3 u_alb = max(alb4, vec3(0.08, 0.07, 0.065));
@@ -480,6 +483,9 @@ void fragment() {
 				// The young ball's unburnt soot is dark, so its fire stands out of black gaps
 				// (lit by the sun and sky it read as a milky tan ball).
 				lit4 *= mix(1.0, 0.35, core4 * (1.0 - smoothstep(0.1, 0.6, t)) * (1.0 - f4.z));
+			}
+			if (night4 > 0.0) {
+				lit4 *= mix(1.0, 0.5, night4 * night_factor * up4 * smoothstep(1.5, 4.0, t));
 			}
 			col += tr * a4 * lit4;
 			glow += tr * a4 * mix(blackbody(f4.y), blackbody4(f4.y), core4) * heat_gain * (1.0 + 0.4 * gas * smoothstep(0.04, 0.25, t));
