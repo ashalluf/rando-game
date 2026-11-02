@@ -26718,6 +26718,32 @@ Still open: the night cap fades to a faint maroon blob (lit from below too weakl
 stem thins away by 8 s, the burning fuel on the road and up the wreck's sides, the crater at 5 m.
 Stills from 24 on, on `shots/explosions-4`.
 
+**Round 6: night, stem, wreck fire, crater** (the lead's next list, in order):
+1. **The night cap faded to a faint maroon blob.** The fires reached it only by a 3D falloff over
+   their reach, and that was multiplied into soot's near-black albedo. `under4` (blast_volume
+   .gdshader, set by `dress_volume()`, `Blast4.underlight_gain` 0.5): each fire lights the smoke
+   above it with a broad falloff along the ground and a long one upward, shaded by the smoke
+   between (two taps down), on an albedo floor (lit soot reads by what it throws back), in an
+   orange held near half green for AgX; a quarter of it by day. The night cap is now a
+   mushroom glowing from below. `BLAST_UNDERLIGHT=0` the A/B.
+2. **The stem thinned away by 8 s.** `stem_hold`: the stem stays to the end of the volume's life
+   (gate from 0.82 to 1.05 of it), denser and narrower toward the cap. `BLAST_STEM=0`.
+3. **No burning fuel on the road; flames only on the roof.** A car blast throws two tongues of fuel
+   (`fuel_trail()`: stretched BlastPools, yaw a hash of the spot, flames along their length, no
+   light of their own, capped on their own list) and flames climb the wreck's sides
+   (`side_flames()`: a CPUParticles3D on the car emitting from 40 points round its sills from
+   `_dims()`, dying down over `side_flame_seconds` 14). The pool's flame light is held at green
+   half of red (it drew salmon), its outline kept inside the quad (the clip cut a straight edge
+   along every trail). `BLAST_WRECK_FIRE=0`.
+4. **The crater at 5 m: stair steps along every finger and crack** (texel-sized at ~5 cm a texel).
+   The fingers read their reach from the nearest of 720 angle bins and the specks and cracks were
+   thresholds of value noise: now the bins are interpolated, fingers never thinner than a few
+   texels, specks from a smooth noise with a soft edge, cracks a soft profile fading to their tip
+   (in the height too, so the normal map has no terraces). `BLAST_CRATER=0`.
+Checks: `_round5()` in tests/explosions_4_checks.gd.
+Still open: the pit itself is a flat dark disc at 5 m (no rubble in it, no depth); the burning
+pieces' fire reads as round puffs.
+
 ## 9lb. The camera lens (wave 5, `camera-lens`)
 
 **What.** The camera itself: exposure adaptation, the sun's flare, grain, the bloom's spread.
