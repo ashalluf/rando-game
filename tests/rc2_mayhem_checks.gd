@@ -63,7 +63,12 @@ func _police() -> void:
 	var m := ShaderMaterial.new()
 	m.shader = load("res://shaders/police_wash.gdshader")
 	RcMayhem.dress_police(m)
-	var gain := float(m.get_shader_parameter("rc_pool_gain"))
+	# The shader's default (get_shader_parameter() is null for a uniform nobody set).
+	var gain := 1.0
+	var rx := RegEx.create_from_string("uniform float rc_pool_gain = ([0-9.]+);")
+	var mt := rx.search(src)
+	if mt:
+		gain = mt.get_string(1).to_float()
 	_t._check(float(m.get_shader_parameter("rc_soft")) == 1.0 and gain > 0.0 and gain < 0.6,
 		"rc2-mayhem: a cruiser's pool is soft and far below the bank's HDR red (gain %.2f)" % gain)
 	_t._check(FileAccess.get_file_as_string("res://scripts/npc/police_night_look.gd").contains("RcMayhem.dress_police(mat)"),

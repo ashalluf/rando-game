@@ -25199,7 +25199,12 @@ What read fake, worst first, and what changed (`RcMayhem`, `scripts/weapons/rc_m
 4. **A script error** under every staged blast: `Emergency._scan` ran `is` on a wreck the cap had
    just freed. It skips freed entries now.
 
-Found and left alone: the dark board under the fireball in the opengl3 still is the tossed car's
-underside (MAYHEM_DUMP named it), not a decal; the officers stand stiff in the standoff.
+Found and left alone: the dark flat rectangle on the road under the fireball (every run, the
+same world spot near the right kerb, x ~778-790, z ~320-325) is not the blast's: MAYHEM_PROBE=<dir>
+saves the frame again with each suspect hidden (scorch quad, contact shadows, car undersides, every
+vehicle, crash litter, debris) and none removed it, nor did Compatibility's lights-per-object cap
+(tried at 16, reverted) - it is street hardware in the parking lane (steel plates), dark and glossy
+under the fire. The officers stand stiff in the standoff; traffic differs run to run (a semi was
+launched in one run), and any traffic car within 13 m of the eye is hidden for the shot.
 
 Stills on `shots/rc2-mayhem`. Checks `tests/rc2_mayhem_checks.gd`.

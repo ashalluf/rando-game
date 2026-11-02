@@ -49,6 +49,7 @@ static func stage(tree: SceneTree, scene: Node, cam: Camera3D, player: Node3D, p
 	var rng := RandomNumberGenerator.new()
 	rng.seed = MAYHEM_SEED
 	var parent := player.get_parent()
+	var wreck_ref: Node3D = null
 	# The wreck first: blown up now, it is burning and smoking by the time of the shot.
 	if OS.get_environment("MAYHEM_NO_WRECK") != "1":
 		var wreck := _car(tree, parent, rng, eye + fwd * WRECK.x + right * WRECK.y, hero_yaw + 0.9)
@@ -56,6 +57,7 @@ static func stage(tree: SceneTree, scene: Node, cam: Camera3D, player: Node3D, p
 			await tree.process_frame
 			place.call()
 		wreck.call("damage_state").explode()
+		wreck_ref = wreck
 	# The street panics before the police arrive (gunfire up the street), so people are running.
 	Pedestrian.alarm(tree, eye + fwd * PANIC_FROM, PANIC_RADIUS, 6, true, "")
 	var police := scene.get_node_or_null("Police")
@@ -103,11 +105,14 @@ static func stage(tree: SceneTree, scene: Node, cam: Camera3D, player: Node3D, p
 		place.call()
 		_tough(player)
 	Input.action_release("fire")
+	_clear_foreground(tree, eye, [car, wreck_ref])
 	for w in _made:
 		if is_instance_valid(w):
 			print("MAYHEM runner %s at %s panic %.1f visible %s" % [w.name, WorldState.to_world(w.global_position), float(w.get("_panic_left")), w.is_visible_in_tree()])
 		else:
 			print("MAYHEM runner gone")
+	if OS.get_environment("MAYHEM_PROBE") != "":
+		await _probe(tree, OS.get_environment("MAYHEM_PROBE"))
 	if OS.get_environment("MAYHEM_DUMP") == "1":
 		_dump(tree, eye + fwd * CAR.x + right * CAR.y)
 	print("MAYHEM staged: hero %s, car %s, %d cruisers, %d officers, fx %.2f s" % [WorldState.to_world(hero_at),
@@ -150,6 +155,58 @@ static func _runners(tree: SceneTree, scene: Node, eye: Vector3, fwd: Vector3) -
 		w.position = Vector3(p.x, chunk.call("ground_y", p.x, p.y) + 0.1, p.y)
 		chunk.add_child(w)
 		_made.append(w)
+
+
+## The foreground is the hero's: a traffic car that drove within FOREGROUND metres of the eye
+## while the scene played (a truck once filled a fifth of the frame) is hidden for the shot.
+const FOREGROUND := 13.0
+
+
+static func _clear_foreground(tree: SceneTree, eye: Vector3, keep: Array) -> void:
+	for v in tree.get_nodes_in_group("vehicle"):
+		var car := v as Node3D
+		if car == null or keep.has(car) or car.is_in_group("police_car") or not car.is_visible_in_tree():
+			continue
+		if car.global_position.distance_to(eye) < FOREGROUND:
+			car.visible = false
+			print("MAYHEM hid %s in the foreground" % car.name)
+
+
+## MAYHEM_PROBE=<dir>: the frame saved again with each suspect layer hidden in turn (which node
+## draws that patch?), as <dir>/probe_<name>.png.
+static func _probe(tree: SceneTree, dir: String) -> void:
+	Engine.time_scale = 0.0005
+	DirAccess.make_dir_recursive_absolute(dir)
+	var groups := {
+		"none": func(n: Node) -> bool: return false,
+		"crater": func(n: Node) -> bool: return n is MeshInstance3D and (n as MeshInstance3D).material_override != null and (n as MeshInstance3D).material_override.resource_name.begins_with("crater_"),
+		"contact": func(n: Node) -> bool: return n is ContactShadows,
+		"under": func(n: Node) -> bool: return n.name == "Underside",
+		"vehicles": func(n: Node) -> bool: return n is Vehicle,
+		"litter": func(n: Node) -> bool: return n is CrashLitter or n.name == "CrashDebris",
+		"debris": func(n: Node) -> bool: return n.is_in_group("debris") and not (n is Vehicle),
+	}
+	for key: String in groups:
+		var hid: Array = []
+		var f: Callable = groups[key]
+		for n in tree.root.find_children("*", "Node3D", true, false):
+			if f.call(n) and (n as Node3D).visible:
+				(n as Node3D).visible = false
+				hid.append(n)
+		if key == "contact":
+			for n in tree.root.find_children("*", "Node", true, false):
+				if n is ContactShadows:
+					for c in n.get_children():
+						if c is Node3D and (c as Node3D).visible:
+							(c as Node3D).visible = false
+							hid.append(c)
+		for i in 2:
+			await tree.process_frame
+		tree.root.get_texture().get_image().save_png(dir.path_join("probe_%s.png" % key))
+		print("MAYHEM_PROBE %s: %d hidden" % [key, hid.size()])
+		for n in hid:
+			if is_instance_valid(n):
+				(n as Node3D).visible = true
 
 
 ## MAYHEM_DUMP=1: every flat thing drawn near the car's spot, to name a surface in the still.
