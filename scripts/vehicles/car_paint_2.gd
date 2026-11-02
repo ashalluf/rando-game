@@ -86,9 +86,11 @@ const ROOF_SHARE := {
 	31: 0.06,  # LUX_SEDAN
 	32: 0.24,  # COMPACT_SUV
 	34: 0.12,  # COUPE
+	35: 0.10,  # WAGON
+	37: 0.05,  # LUX_SUV
 }
 const ROOF_LINE := {
-	8: 0.66, 14: 0.64, 15: 0.67, 16: 0.66, 30: 0.64, 31: 0.67, 32: 0.66, 34: 0.66,
+	8: 0.66, 14: 0.64, 15: 0.67, 16: 0.66, 30: 0.64, 31: 0.67, 32: 0.66, 34: 0.66, 35: 0.64, 37: 0.67,
 }
 ## Gloss black, or (on a dark body) a pale silver-white.
 const ROOF_DARK := Color(0.035, 0.035, 0.04)

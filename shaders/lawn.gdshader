@@ -33,6 +33,9 @@ uniform float stripe_width = 3.4;
 uniform float stripe_amount : hint_range(0.0, 1.0) = 0.075;
 uniform float wear_amount : hint_range(0.0, 1.0) = 0.30;
 uniform float normal_depth = 0.7;
+// Field grass gone to straw (AirportApron: the airport's infield): the texture's green taken to
+// its own luminance in a warm straw before the tints. 0 (every lawn) leaves it as it was.
+uniform float straw : hint_range(0.0, 1.0) = 0.0;
 
 global uniform float ground_detail;
 // Night. Roads and pavements are lit by street lamps; open grass is not - it gets skylight only,

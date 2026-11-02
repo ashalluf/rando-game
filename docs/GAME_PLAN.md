@@ -3927,6 +3927,10 @@ none of either.
   not erase it - the flash's light is scaled by the night (the exposure is set for the moon) and
   the bolt stays the brightest thing in the frame. Forward+ lighting verdicts on lavapipe are taken
   only after the GI has converged (~90 frames). STORM_NIGHT_FLASH=0 is the A/B.
+- 2026-11-01 (Forward+ review g, wave 5): what the Mac draws differently is fixed at its colour-space
+  cause, not tuned per renderer - the traced room behind every window is display numbers and is
+  decoded on Forward+ like the wall and the glass round it; and a closed cloud deck on Forward+
+  runs into its own haze at the horizon like the painted one on the web. FWD_REVIEW_G=0 is the A/B.
 - **2026-10-31 The first minute is part of the load (loading-first-frame, HANDOFF "The first
   minute").** Whatever play would build in its first seconds - the traffic, the streamer's own
   window, wave 3's first-use pipelines - is built behind the shade, and nothing the loading screen
@@ -4126,3 +4130,55 @@ none of either.
   people in the water are placed on the surfaces that are drawn - waders on the sand mesh's
   foreshore, swimmers and surfers on the ocean's own height model - rather than at a fixed level.
   A summer afternoon's water is busy (waders, more swimmers). SAND_ROADS=0 / WADERS=0 the A/B.
+- **2026-11-01 Cloud shadows come from the clouds the sky draws (sky-clouds-3, HANDOFF "Cloud
+  shadows from the real clouds").** On Forward+ one screen pass multiplies the lit picture by the
+  volume's own weather-map columns seen up the sun (no new texture, no per-material code); the old
+  noise shadows on the far plane and the sea stay only where the volume is not drawn. A sky look
+  that depends on the sun is keyed on its elevation, not the clock (the day's rays and cirrus).
+
+- **2026-11-01 Load time after wave 4 (load-time-3, HANDOFF "Load time after wave 4").** Every
+  system a wave adds that first appears mid-play gets a stage in WarmRehearsal, measured with the
+  first-use probe's events for that wave (`EVENTS=wave4`); wave 4's are behind `WARM_WAVE4=0`.
+  The rehearsal is timed like every other loading-screen step. Bake-only memoisation is allowed
+  where it is proved byte-identical (the raw-height memo); LoadCache's key stays every script.
+
+- **2026-11-01 Traffic variety: five more everyday bodies, shares taken from what dominates (car-variety-4,
+  HANDOFF "Cars, the fourth wave").** A census of every car round the camera over a game minute
+  (Flower St at Olympic and the 110) put sedans and crossovers first among the everyday cars and the
+  exotics (Sports, Vantari, Kestrel) at one car in eight - a showroom, not Los Angeles. The wagon,
+  muscle coupe, luxury SUV, kei-style city van and 1970s sedan take 85 rolls from the ENDS of the
+  sedan, crossover, SUV, van, sports and three exotic ranges, never from the third wave's slices;
+  their rows name the old owner and the wave (`CARS_4=0` hands them back, bit for bit). The paint
+  palette (white ~22-30 %, but green, orange and purple together ~25 %) is noted, not changed: a
+  palette change moves every parked car's look on every seed.
+
+- **2026-11-01 Aliasing is judged in motion, by a measure, and fixed by footprint (specular-aliasing,
+  HANDOFF "Shimmer and crawl in motion").** A still hides shimmer, so the proof is a frame strip of a
+  slow pan scored by its second temporal difference, through a jittered TAA-like proxy (four
+  sub-pixel-turned renders a frame) so polygon edges the Mac's TAA takes do not drown it. Fixes widen
+  lobes and features to what a pixel can hold (geometric / Toksvig specular AA, widened road paint
+  blended by cover, LOD sooner) rather than blur the picture; dithered coverage only where a temporal
+  pass resolves it (Forward+), never a fixed screen pattern. SPECULAR_AA=0 the A/B.
+
+- **2026-11-01 The LA River from the bed: water mirrors what stands round it, and the channel is
+  lived in (rc2-river, HANDOFF "The LA River from the bed").** A new reference camera, la_river,
+  on the bed at the 6th St ribbon bridge. The low flow's mirror is the channel's own banks traced
+  analytically (the sky only over them), not a sky sheet; joints are filtered per axis so the
+  concrete keeps its pattern at a grazing angle; the shaded bank of the pale concrete canyon takes
+  a bounce; weeds, litter and a denser layer of graffiti are part of the river's look.
+  RIVER_LOOK=0 the A/B.
+
+- **2026-11-01 The airport apron refcam (rc2-airport, HANDOFF "The airport apron from 25 m").** A new
+  reference camera over the apron at noon with a jet taxiing below it. Decisions: the airport's
+  paint is lifted to stand proud of the pressed street paint's rule (it had been under the ground
+  at FULL); apron yellow on a black border, as on real light concrete; stands carry stains from the
+  street's own patch batch (no new draw); the liveries get names (invented) and close-up detail in
+  the shader, not a texture; ground equipment is bevelled rather than remodelled. AIRPORT_APRON=0
+  is the A/B.
+
+- **2026-11-01 The container terminal from the crane (rc2-port, HANDOFF "The container terminal
+  from the crane").** A new reference camera, `port_crane` (cameras_w5.json), and the four things
+  that gave the port away from 45 m: a yard a third empty and two boxes high (now 3-4 tiers, most
+  slots full, from PortFill's own stream after every old roll, so no box the yard had moves), a
+  yellow box for a mast head, clean candy-coloured roofs, and a ship with a slab for a bow lying
+  untied off the quay. PORT_FILL / PORT_ROOF / PORT_SHIP / PORT_MOORING =0 the A/Bs.
