@@ -26253,31 +26253,38 @@ triangles of bushes over MacArthur Park against 0.06 M in the camera pass.
    people wear from 50 m), made the first time it is wanted; inside 12 m the rig casts as before.
    Under the dummy renderer there is no welded body (no mesh data) and the rig keeps its shadow.
 
-### After: main plain against the branch plain (same box, warm caches)
+### After: the same tree, switches off against switches on
 
-| camera | main | branch | change |
+The first comparison (main bb03d731 against the branch before its main merge) read -4 to -12 %,
+but it crossed a main merge and the run-to-run noise, so it overstated the cuts. The fair pair is
+ONE tree (this branch merged with main a48fa02f), all ten cameras, warm caches, the four switches
+off (`WHEEL_SHADOW_LITE=0 WHEEL_LOD=0 KNEE_SHADOW_LOD=0 PED_SHADOW_LITE=0`) and then on:
+
+| camera | off | on | change |
 |---|---|---|---|
-| street_noon | 7.19 M / 3,530 | 6.89 M / 3,520 | -4.1 % (shadow 3.06 -> 2.80 M) |
-| street_night | 7.06 M / 3,620 | 6.93 M / 3,630 | -1.8 % |
-| sunset | 2.53 M / 1,195 | 2.44 M / 1,193 | -3.3 % |
-| golden_aerial | 5.07 M / 3,010 | 4.84 M / 2,995 | -4.5 % |
-| downtown_aerial | 3.56 M / 1,978 | 3.40 M / 1,962 | -4.6 % |
+| street_noon | 6.90 M / 3,505 | 6.70 M / 3,508 | -2.9 % |
+| street_night | 6.84 M / 3,589 | 6.72 M / 3,615 | -1.8 % |
+| sunset | 2.24 M / 1,192 | 2.14 M / 1,186 | -4.5 % |
+| golden_aerial | 4.78 M / 2,988 | 4.59 M / 2,990 | -3.9 % |
+| downtown_aerial | 3.28 M / 1,983 | 3.17 M / 1,944 | -3.3 % |
 | beach | 0.509 M | 0.509 M | 0 |
-| hills | 1.714 M | 1.709 M | -0.3 % |
-| freeway | 5.93 M / 2,775 | 5.22 M / 2,757 | **-11.9 %** (5.55-6.09 M on main across three runs) |
-| macarthur | 5.58 M (split run) | 5.18 M / 3,213 | -7 % |
-| pier_night | 1.19 M (split run) | 1.21 M | noise |
+| hills | 1.710 M | 1.710 M | 0 |
+| freeway | 5.45 M / 2,716 | 5.37 M / 2,820 | -1.4 % (on drew 104 more draws: more cars on the deck that run) |
+| macarthur | 4.39 M / 3,212 | 4.17 M / 3,238 | -4.9 % |
+| pier_night | 1.215 M | 1.198 M | -1.4 % |
 
-So every camera is back at or under Perf audit 4's "after" level, the freeway within 0.1 M of it
-with half again as many cars on the deck. `refcams.py compare`: street noon and freeway flagged on
-pixels only - the bus and the walkers moved between runs (`03_compare_street_noon.jpg`); the rest
-within tolerance.
+Peak RSS of the ten-camera run: 9.34 GB off, 8.64 GB on. The freeway is the noisiest camera
+(traffic); the cut's per-car size is the car_shot A/B above (-45 % of one car's frame). Draws flat.
+`compare` between the first main run and the branch flagged street noon and freeway on pixels only -
+the bus and the walkers that moved (`03_compare_street_noon.jpg`).
 
 ### Memory
 
 - **Refcams:** the first-ever run on a fresh box (empty Godot and Mesa shader caches) was
-  OOM-killed at camera 9 at 13.9 GB anon RSS; every later run of the ten peaked 8.5 GB (6.2 GB
-  after the load, +0.3-0.8 GB a camera hop). A launch with `LOAD_CACHE=0` (cold far city and bake)
+  OOM-killed at camera 9 at 13.9 GB anon RSS (the lead saw 13.6 GB at camera 8 on main); on the
+  same box with the caches warm, every later run of all ten finished: 8.5 GB (the branch before
+  the main merge), 9.34 GB (merged, switches off = main's behaviour), 8.64 GB (merged, on): 6.2 GB
+  after the load, then +0.3-0.8 GB a camera hop. A launch with `LOAD_CACHE=0` (cold far city and bake)
   peaked 6.2 GB after the load, the same as warm: the cold load path is not it. Run refcams once
   for a few cameras on a fresh box before a full set, or expect the kill.
 - **The gate:** see the table below (`SMOKE_PROFILE=1` + `tools/perf_audit_4/gate_rss.py`).

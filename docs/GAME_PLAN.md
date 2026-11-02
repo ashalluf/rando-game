@@ -4117,7 +4117,7 @@ none of either.
   cars, the knee-high plants' shadow twins at full LOD bias, the crowd's heavier rigs. Decisions:
   a near wheel casts from a plain 40-segment twin and draws through generated LODs; the knee-high
   plants follow the trees' shadow LOD scale; a person past 12 m casts from the welded middle body.
-  Proved per mesh and per car (car_shot A/B), and on the refcams: freeway -12 %, MacArthur -7 %.
+  Proved per car (car_shot A/B: -45 % of a sedan's frame) and as a same-tree refcam pair: -1.4 to -4.9 %.
   WHEEL_SHADOW_LITE / WHEEL_LOD / KNEE_SHADOW_LOD / PED_SHADOW_LITE =0 are the A/Bs.
 - **2026-10-31 Traffic that reads alive at eye level (traffic-behaviour-2, HANDOFF "Traffic that
   reads alive at eye level").** The street traffic's IDM queues stood like parked furniture at a
