@@ -21,6 +21,7 @@ uniform float lamp_energy = 5.0;
 
 global uniform float lamp_factor;
 global uniform float road_wetness;
+#include "res://shaders/port_flood.gdshaderinc"
 
 varying vec3 v_col;
 varying float v_part;
@@ -29,6 +30,7 @@ varying vec3 v_nrm;
 varying vec3 v_world;
 varying float v_fwd;
 varying flat float v_inst;
+varying vec3 v_wn;
 
 #include "res://shaders/port_lettering.gdshaderinc"
 
@@ -92,6 +94,7 @@ void vertex() {
 	v_ao = UV2.y;
 	v_nrm = NORMAL;
 	v_world = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
+	v_wn = normalize(mat3(MODEL_MATRIX) * NORMAL);
 	v_inst = float(INSTANCE_ID);
 }
 
@@ -119,7 +122,8 @@ void fragment() {
 		albedo = col(vec3(0.03, 0.03, 0.03));
 		rough = 0.8;
 	} else if (part == 5) {
-		albedo = col(vec3(0.6, 0.6, 0.58));
+		// PortNight: a dark housing round the lens, not a pale box (the lens is the down face).
+		albedo = col(port_night > 0.5 ? vec3(0.16, 0.16, 0.17) : vec3(0.6, 0.6, 0.58));
 		rough = 0.3;
 		emit = col(vec3(1.0, 0.93, 0.8)) * lamp_factor * lamp_energy * step(v_nrm.y, -0.5);
 	} else if (part == 6) {
@@ -143,7 +147,36 @@ void fragment() {
 		}
 	} else if (part == 9) {
 		// A ship's accommodation: rows of windows a deck apart, a few lit at night.
-		if (vertical) {
+		if (vertical && port_night > 0.5) {
+			// PortNight: framed windows 0.95 x 0.8 m with rounded corners, 1.7 m apart, a deck
+			// (2.8 m) apart; under a third lit, in a few tones and brightnesses, a blind drawn
+			// part way in some; antialiased, faded to its average under a pixel.
+			vec2 cell = vec2(UV.x / 1.7, (UV.y - 0.6) / 2.8);
+			vec2 f = fract(cell);
+			vec2 q = (f - vec2(0.5, 0.56)) * vec2(1.7, 2.8);
+			vec2 hs = vec2(0.475, 0.4);
+			vec2 dq = abs(q) - hs + vec2(0.12);
+			float sd = length(max(dq, vec2(0.0))) + min(max(dq.x, dq.y), 0.0) - 0.12;
+			float px = max(fwidth(UV.x), fwidth(UV.y));
+			float glass = 1.0 - smoothstep(-px, px, sd + 0.05);
+			float frame = (1.0 - smoothstep(-px, px, sd)) - glass;
+			float far = smoothstep(0.3, 0.8, px * 3.0);
+			float avg = 0.16;
+			glass = mix(glass, avg, far);
+			frame = mix(frame, 0.05, far);
+			vec2 id = floor(cell);
+			float h1 = hash12(id + 3.0);
+			float h2 = hash12(id * 1.7 + 11.0);
+			float lit = step(0.69, h1);
+			vec3 tone = h2 < 0.55 ? vec3(1.0, 0.8, 0.55) : (h2 < 0.85 ? vec3(0.85, 0.92, 1.0) : vec3(0.55, 0.7, 1.0));
+			float blind = step(0.5, hash12(id + 23.0)) * smoothstep(0.0, 0.02, q.y - mix(-0.1, 0.35, hash12(id + 31.0)));
+			float room = (0.55 + 0.6 * hash12(id + 41.0)) * (1.0 - 0.7 * blind) * (0.75 + 0.25 * smoothstep(-0.4, 0.4, q.y));
+			albedo = mix(albedo, albedo * 0.45, frame);
+			albedo = mix(albedo, col(vec3(0.04, 0.05, 0.06)), glass);
+			rough = mix(rough, 0.07, glass);
+			metal = mix(metal, 0.3, glass);
+			emit = col(tone) * lamp_factor * 0.85 * room * lit * glass;
+		} else if (vertical) {
 			vec2 cell = vec2(UV.x / 2.0, (UV.y - 0.6) / 2.8);
 			vec2 f = fract(cell);
 			float win = step(0.22, f.x) * step(f.x, 0.78) * step(0.38, f.y) * step(f.y, 0.74);
@@ -204,6 +237,12 @@ void fragment() {
 	float wet = clamp(road_wetness, 0.0, 1.0) * 0.6;
 	albedo *= (1.0 - wet * 0.2) * v_ao;
 	rough = mix(rough, 0.2, wet);
+	// The terminal's floodlights after dark (PortNight; PORT_NIGHT=0 leaves port_night 0). Not
+	// on the lamps themselves.
+	if (port_night > 0.5 && flood_count > 0 && lamp_factor > 0.01 && part != 5 && part != 8 && (part < 11 || part > 13)) {
+		float fl = min(port_flood(v_world + origin_shift, normalize(v_wn)), flood_cap);
+		emit += albedo * col(flood_tint) * fl * flood_gain * lamp_factor * (1.0 - metal * 0.5);
+	}
 	ALBEDO = albedo;
 	ROUGHNESS = rough;
 	METALLIC = metal;
