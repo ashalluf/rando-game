@@ -26136,6 +26136,9 @@ turned up a once-seen failure (1-2 checks of ~5,400), most of them a check leani
 system or on what an earlier file left, a few real game bugs (the stale pending build, the shop
 door's subclass walkers, CrowdFlow's camera). Each run's `FAIL` lines are in the tables above.
 
+Final gate on the branch merged with main (`afac849b`, batch 38+), unshuffled `SHARDS=3`: PASSED,
+5,624 checks, shards peaking at 3.1 / 3.7 / 3.8 GB RSS.
+
 **Still open** (seen once or twice, diagnostics added, not fixed): the follower lagging its
 leader (1303, 6101), ragdoll_feel's stair roll (15202), emergency's stretcher (15303), crowd_anim_2's bank (the lead, batch 35-37),
 and whether CrowdFlow's camera was the passing pair's cause (12202: the next failure's message
