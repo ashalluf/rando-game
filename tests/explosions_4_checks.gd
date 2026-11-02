@@ -157,16 +157,19 @@ func _fuel(parent: Node, at: Vector3) -> void:
 			lit = lit or Vector3(v.x, v.y, v.z).distance_to(pool.global_position) < 3.0
 		_t._check(lit, "explosions_4: the pool's fire lights the smoke")
 	# The pops went off by now (each makes a light at its bang).
-	var t0 := Time.get_ticks_msec()
+	# Counted in physics frames, not the wall clock: the pops are game-time timers, and a busy box
+	# (another render beside the gate) ran 15 wall seconds short of them.
+	var frames := 0
 	var seen := 0
-	while Time.get_ticks_msec() - t0 < 15000 and seen == 0:
+	while frames < 1200 and seen == 0:
+		frames += 1
 		for c in parent.get_children():
 			if String(c.name).begins_with("BlastPopLight") or (c is OmniLight3D and String(c.name).contains("OmniLight") and (c as OmniLight3D).light_color.is_equal_approx(Color(1.0, 0.62, 0.28))):
 				seen += 1
 		await _tree.physics_frame
 	_t._check(seen > 0, "explosions_4: a secondary pop goes off")
 	pool.life = pool.age + 0.1
-	t0 = Time.get_ticks_msec()
+	var t0 := Time.get_ticks_msec()
 	while is_instance_valid(pool) and Time.get_ticks_msec() - t0 < 20000:
 		await _tree.process_frame
 	_t._check(not is_instance_valid(pool), "explosions_4: the pool burns out and frees itself")
