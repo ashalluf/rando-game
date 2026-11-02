@@ -1078,6 +1078,7 @@ func _start_fire(size: float) -> void:
 			_fire_light.distance_fade_enabled = true
 			_fire_light.distance_fade_begin = 90.0
 			_fire_light.distance_fade_length = 30.0
+			RcMayhem.dress_fire_light(self, _fire_light)
 			add_child(_fire_light)
 		_fire_sound = Sfx.loop_player("fire_loop", -3.0)
 		_fire_sound.unit_size = 6.0

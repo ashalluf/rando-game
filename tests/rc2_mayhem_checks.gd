@@ -6,6 +6,7 @@ extends RefCounted
 ##   * the fireball volume has the depth-heat / soot look behind `rc_look`, and Blast3 hands it on;
 ##   * the police pool's soft falloff is gated and every cruiser glow takes it;
 ##   * the muzzle flash's light reaches a few metres, falling off steeply;
+##   * a burning car's light falls off by the inverse square, a little stronger close in;
 ## RC_MAYHEM=0 is the A/B: everything goes back, and the checks only say so.
 
 var _t: Node
@@ -22,6 +23,7 @@ func run(t: Node, _city: Node3D) -> void:
 	_volume()
 	_police()
 	_muzzle()
+	_fire_light()
 
 
 func _camera() -> void:
@@ -85,3 +87,19 @@ func _muzzle() -> void:
 	l.free()
 	_t._check(FileAccess.get_file_as_string("res://scripts/weapons/gunplay_feel.gd").contains("RcMayhem.dress_muzzle(main)"),
 		"rc2-mayhem: GunplayFeel's flash light is dressed")
+
+
+func _fire_light() -> void:
+	var l := OmniLight3D.new()
+	var cd := CarDamage.new()
+	var base := cd.fire_light_energy
+	RcMayhem.dress_fire_light(cd, l)
+	# Old: 3.4 at 3.6 m over d^1.4 = 0.57; new: the gain over d^2 = 0.42 there, 0.05 at 10 m.
+	var near_new := cd.fire_light_energy / pow(3.6, l.omni_attenuation)
+	var far_new := cd.fire_light_energy / pow(10.0, l.omni_attenuation)
+	_t._check(l.omni_attenuation >= 2.0 and l.omni_range > 11.0 and far_new < 0.1 and near_new > 0.3 and cd.fire_light_energy > base,
+		"rc2-mayhem: a burning car's light falls off by the inverse square (%.2f at 3.6 m, %.2f at 10 m)" % [near_new, far_new])
+	l.free()
+	cd.free()
+	_t._check(FileAccess.get_file_as_string("res://scripts/vehicles/car_damage.gd").contains("RcMayhem.dress_fire_light(self, _fire_light)"),
+		"rc2-mayhem: CarDamage dresses its fire light")

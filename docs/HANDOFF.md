@@ -25768,7 +25768,11 @@ What read fake, worst first, and what changed (`RcMayhem`, `scripts/weapons/rc_m
 3. **The police pool** (police_wash.gdshader `rc_soft`): a soft falloff at a third of the bank's
    HDR red instead of `pow(1 - d, 2.2)` at full - from a chase camera it stood at saturation over
    most of its 10 m.
-4. **A script error** under every staged blast: `Emergency._scan` ran `is` on a wreck the cap had
+4. **A flat red disc under a burning car.** CarDamage's fire light (11 m, attenuation 1.4) lit the
+   road in a saturated disc cut at its range (the opengl3 still; desktop only, the web has no
+   fire light). `RcMayhem.dress_fire_light()`: inverse square (2.0), range 14 m, energy x1.6 -
+   about as bright on the car's own flank, fading out long before the range.
+5. **A script error** under every staged blast: `Emergency._scan` ran `is` on a wreck the cap had
    just freed. Main fixed the same line meanwhile (wave 5 batch 33); the merge keeps main's.
 
 Found and left alone: the dark flat rectangle on the road under the fireball (every run, the
@@ -25777,6 +25781,6 @@ saves the frame again with each suspect hidden (scorch quad, contact shadows, ca
 vehicle, crash litter, debris) and none removed it, nor did Compatibility's lights-per-object cap
 (tried at 16, reverted) - it is street hardware in the parking lane (steel plates), dark and glossy
 under the fire. The officers stand stiff in the standoff; traffic differs run to run (a semi was
-launched in one run), and any traffic car within 13 m of the eye is hidden for the shot.
+launched in one run), and any car or truck whose body comes within 10 m of the eye is hidden for the shot.
 
 Stills on `shots/rc2-mayhem`. Checks `tests/rc2_mayhem_checks.gd`.

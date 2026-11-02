@@ -157,9 +157,9 @@ static func _runners(tree: SceneTree, scene: Node, eye: Vector3, fwd: Vector3) -
 		_made.append(w)
 
 
-## The foreground is the hero's: a traffic car that drove within FOREGROUND metres of the eye
-## while the scene played (a truck once filled a fifth of the frame) is hidden for the shot.
-const FOREGROUND := 13.0
+## The foreground is the hero's: a car or truck whose body comes within FOREGROUND metres of the
+## eye (a parked box truck filled a fifth of the frame in two runs) is hidden for the shot.
+const FOREGROUND := 10.0
 
 
 static func _clear_foreground(tree: SceneTree, eye: Vector3, keep: Array) -> void:
@@ -167,9 +167,23 @@ static func _clear_foreground(tree: SceneTree, eye: Vector3, keep: Array) -> voi
 		var car := v as Node3D
 		if car == null or keep.has(car) or car.is_in_group("police_car") or not car.is_visible_in_tree():
 			continue
-		if car.global_position.distance_to(eye) < FOREGROUND:
+		if car.global_position.distance_to(eye) > 40.0:
+			continue
+		var box := AABB()
+		var first := true
+		for mi in car.find_children("*", "MeshInstance3D", true, false):
+			var m := mi as MeshInstance3D
+			if m.mesh == null or not m.is_visible_in_tree():
+				continue
+			var b := m.global_transform * m.get_aabb()
+			box = b if first else box.merge(b)
+			first = false
+		if first:
+			continue
+		var near := Vector3(clampf(eye.x, box.position.x, box.end.x), clampf(eye.y, box.position.y, box.end.y), clampf(eye.z, box.position.z, box.end.z))
+		if near.distance_to(eye) < FOREGROUND:
 			car.visible = false
-			print("MAYHEM hid %s in the foreground" % car.name)
+			print("MAYHEM hid %s in the foreground (%.1f m)" % [car.name, near.distance_to(eye)])
 
 
 ## MAYHEM_PROBE=<dir>: the frame saved again with each suspect layer hidden in turn (which node
