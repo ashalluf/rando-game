@@ -900,6 +900,8 @@ func _port_kit(st: Dictionary) -> void:
 		# A gantry's shadow past the full ring is a smudge; skip its twin's draws.
 		_batch.set_no_shadow("rtg")
 	_batch.set_no_shadow("port_pool")
+	# The terminal at night (PortNight): the floods on the materials, halos on the lamps.
+	PortNight.dress(self, ix, iz)
 
 
 ## Diameters (m) of the night light pools under a high mast and under a crane's portal.
@@ -913,7 +915,7 @@ func _add_port_pool(at: Vector3, size: float) -> void:
 	var xf := Transform3D(Basis(Vector3.RIGHT, -PI * 0.5).scaled(Vector3(size, 1.0, size)), Vector3(at.x, PORT_YARD_TOP + 0.07, at.z))
 	# A soft falloff: floodlights 34 m up light the yard evenly, not in a hot spot like a street
 	# lamp's.
-	_batch.add("port_pool", PropFactory.light_pool(Color(1.0, 0.9, 0.74), 0.5, 1.5), xf)
+	_batch.add("port_pool", PortNight.pool_mesh(), xf, Color.WHITE, PortNight.pool_custom())
 
 
 ## One stack slot: the rolled `height` of boxes in the row line, a second pile abreast (most
@@ -2105,6 +2107,11 @@ func _plant_hills() -> bool:
 					# The code-built mound (HillShrub, hill-ground-3): its leaves carry their own grey-green,
 					# so the tint is only a per-shrub lightness.
 					var hs := lerpf(hill_brush_height.x, hill_brush_height.y, size * size) / HillShrub.HEIGHT
+					# Gathered into thickets with gaps, sized by the field (RcRidgeSign; after every roll).
+					var gather := RcRidgeSign.shrub_gather(p, size)
+					if gather <= 0.0:
+						continue
+					hs *= gather
 					_batch.add("hill_shrub_%d" % (int(tone * 30.0) % HillShrub.VARIANTS), HillShrub.mesh(int(tone * 30.0)), Transform3D(tilt.scaled(Vector3(hs * 1.45, hs, hs * 1.45)), at - Vector3(0.0, 0.1 + float(g.slope) * 1.2, 0.0)), Color(1.0, 1.0, 1.0).lerp(Color(1.18, 1.15, 1.08), tone), variety)
 				else:
 					_batch.add("hill_chaparral", chap, Transform3D(tilt.scaled(Vector3(s * 1.45, s, s * 1.45)), at - Vector3(0.0, 0.2 + float(g.slope) * 1.5, 0.0)), tint, variety)
@@ -3770,6 +3777,8 @@ func _build_plaza(rect: Rect2, rng: RandomNumberGenerator) -> void:
 	var center := inner.get_center()
 	_add_slab(Vector3(center.x, SIDEWALK_TOP + 0.02, center.y), Vector3(inner.size.x, 0.04, inner.size.y), style.plaza, false, PropFactory.road("paving", 2.5, Color(0.92, 0.89, 0.84), hash([plan.seed, ix, iz, "plaza"]), 3.0, 0.35))
 	if level != Level.FULL:
+		# LOD chunks and the far city: the four lawn beds (RcRidgeSign; no roll), not bare paving.
+		RcRidgeSign.plaza_far_beds(self, inner)
 		return
 	var basin_r := minf(inner.size.x, inner.size.y) * 0.12
 	var stone := Color(0.6, 0.58, 0.55)
@@ -4438,6 +4447,8 @@ func _add_tree(at: Vector3, rng: RandomNumberGenerator, lean_to: Vector2 = Vecto
 	# the carriageway and stood in the lanes. Skipped after every roll it makes, so the rng
 	# stream, and so everything planted after it, is the same as before.
 	if _under_freeway(Vector2(at.x, at.z), TREE_FREEWAY_MARGIN):
+		return
+	if BroadwayNight.keeps_tree_off(plan, at):
 		return
 	# Los Angeles' own species for a share of blocks, parks and planters (LaTrees, hashes only).
 	if LaTrees.street_or_park(self, at, yaw, tint, lean_to):

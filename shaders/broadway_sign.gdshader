@@ -39,6 +39,10 @@ uniform float soffit_night = 3.6;
 uniform float poster_night = 1.3;
 // Per palace (BroadwayTheatre sets a material per palace only for this): the sequence's phase.
 uniform float seed = 0.0;
+// The broadway_night pass (BroadwayNight, 2026-11-02; 0 = the old look bit for bit): the blade
+// sign holds its name lit most of the cycle (a still caught it half spelt or dark more often than
+// not), the marquee's bulbs and soffit blaze and its board glows like a real lightbox at night.
+uniform float look3 = 0.0;
 
 varying float v_kind;
 varying vec3 v_paint;
@@ -83,6 +87,21 @@ vec2 bulb_row(float u, float v, float width, float spacing, float phase_speed) {
 
 // The old blade-sign sequence for row `row`: 1 lit, 0 dark.
 float letter_sequence(float row) {
+	if (look3 > 0.5) {
+		// Spell down in 1.6 s, hold 11 s, three quick flashes, a breath of dark.
+		float c3 = 14.6;
+		float t3 = mod(TIME + seed * 31.0, c3);
+		if (t3 < 1.6) {
+			return t3 > row * 0.12 ? 1.0 : 0.0;
+		}
+		if (t3 < 12.6) {
+			return 1.0;
+		}
+		if (t3 < 14.4) {
+			return mod(floor((t3 - 12.6) / 0.3), 2.0) < 0.5 ? 0.0 : 1.0;
+		}
+		return 0.0;
+	}
 	float cyc = 9.0;
 	float t = mod(TIME + seed * 31.0, cyc);
 	float spell = row * 0.32;

@@ -156,19 +156,27 @@ func _events(amb: Ambience) -> void:
 		return
 	var cam := amb.get_viewport().get_camera_3d()
 	var eye := cam.global_position if cam else Vector3.ZERO
-	var c0: Dictionary = StreetSounds.counts.duplicate()
+	if node.has_method("_listener"):
+		eye = node.call("_listener")
+	# Counted right round each call (they are synchronous): across a frame the city's own shop
+	# doors and errand cars can ring too (batch 49 shard 0 counted 2 bells).
+	var b0 := int(StreetSounds.counts.bell)
 	StreetSounds.shop_door(eye + Vector3(4.0, -1.5, 3.0))
+	var b1 := int(StreetSounds.counts.bell)
 	StreetSounds.shop_door(eye + Vector3(node.event_reach + 60.0, 0.0, 0.0))
+	var b2 := int(StreetSounds.counts.bell)
 	var door := Node3D.new()
 	amb.get_parent().add_child(door)
 	door.global_position = eye + Vector3(-3.0, -1.0, 2.0)
+	var d0 := int(StreetSounds.counts.door)
 	StreetSounds.car_door_moved(door, 0.0, 0.1)  # starts to open
 	StreetSounds.car_door_moved(door, 0.5, 0.6)  # swinging: nothing
 	StreetSounds.car_door_moved(door, 0.1, 0.0)  # shut
+	var d1 := int(StreetSounds.counts.door)
 	door.queue_free()
 	await amb.get_tree().process_frame
-	var bells := int(StreetSounds.counts.bell) - int(c0.bell)
-	var doors := int(StreetSounds.counts.door) - int(c0.door)
+	var bells := (b1 - b0) + (b2 - b1) * 10
+	var doors := d1 - d0
 	_t._check(bells == 1 and doors == 2,
 		"street sound: a shop door rings its bell near the listener and not 100 m off (%d), a car door sounds opening and shutting (%d)" % [bells, doors])
 	# A far bark comes from a real dog when one is in earshot.

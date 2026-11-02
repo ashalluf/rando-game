@@ -83,6 +83,11 @@ uniform float stem_hold = 0.0;
 // this on the jitter is narrowed to `quiet4` of a step and the steps are 1.5x (Forward+); on
 // Compatibility (no TAA) the march takes each step's middle and twice the steps. 0 = off.
 uniform float quiet4 = 0.0;
+// Blast4 round 7: the first half second as a violent core, not a cream ball. The heat follows
+// the DEPTH into the ball (a small white-hot heart, orange flesh, a dull red skin) instead of
+// burning the whole surface white (through AgX every billow was the same cream), a fuel ball's
+// outside goes to soot from 0.15 s, and the dust skirt is lit by the flash. 0 = off.
+uniform float core4 = 0.0;
 uniform vec3 under_col = vec3(1.0, 0.42, 0.12);
 // The fires burning round it now (Blast3.push_fires(): xyz world, w = reach + strength / 2), so
 // the smoke over a burning wreck or a fuel pool is lit orange from below long after the fireball
@@ -113,6 +118,17 @@ vec3 blackbody(float k) {
 	c = mix(c, vec3(0.95, 0.27, 0.035), smoothstep(0.25, 0.55, k));
 	c = mix(c, vec3(2.6, 1.1, 0.2), smoothstep(0.5, 0.8, k));
 	c = mix(c, vec3(6.5, 4.8, 2.9), smoothstep(0.82, 1.0, k));
+	return c;
+}
+
+
+// Round 7 (core4): the same steps with green held near half of red once bright (the rule the car
+// fire follows), so the young ball reads orange and gold through AgX, not peach.
+vec3 blackbody4(float k) {
+	vec3 c = vec3(0.14, 0.02, 0.0) * smoothstep(0.0, 0.3, k) * smoothstep(0.0, 0.3, k);
+	c = mix(c, vec3(0.75, 0.26, 0.03), smoothstep(0.25, 0.55, k));
+	c = mix(c, vec3(2.3, 1.2, 0.22), smoothstep(0.5, 0.8, k));
+	c = mix(c, vec3(7.5, 6.0, 3.9), smoothstep(0.84, 1.0, k));
 	return c;
 }
 
@@ -280,6 +296,19 @@ vec3 field4(vec3 q) {
 	// A wide spread of temperature (white-hot crowns, orange, dull red, black soot in the creases):
 	// a fireball reads by its contrast. As it cools its skin goes first: the fire is seen deeper in.
 	float temp = clamp(heat * (0.5 + sh.y * 0.5 - 0.12 * gas + (n1 - 0.5) * (2.2 - 0.3 * gas) + (n2 - 0.5) * 1.4), 0.0, 1.0);
+	if (core4 > 0.0) {
+		float deep_t = clamp(heat * (0.3 + sh.y * 1.15 - 0.1 * gas + (n1 - 0.5) * (1.8 - 0.3 * gas) + (n2 - 0.5) * 1.0), 0.0, 1.0);
+		temp = mix(temp, deep_t, core4);
+		// Round 8: from 0.05 s the flesh cools faster than the heart (squared: the mid heats
+		// fall to orange-red and dull red, the white stays in the heart), so at 0.08-0.15 s the
+		// ball reads as burning fuel - saturated flame against soot - not a gold-lit cloud.
+		temp = mix(temp, temp * temp * 1.12, core4 * smoothstep(0.04, 0.14, t) * (1.0 - 0.6 * gas));
+		// Soot over a fuel ball's skin from 0.15 s, deepest in its creases (never for gas).
+		float shell = fuel * (1.0 - gas) * smoothstep(0.15, 0.6, t) * (1.0 - smoothstep(0.05, 0.45, sh.y)) * (0.75 + 0.5 * (1.0 - n2));
+		shell = min(shell, 0.9) * core4;
+		temp *= 1.0 - shell;
+		dens = min(1.0, dens * (1.0 + 0.6 * shell));
+	}
 	temp *= mix(1.0, 0.25 + 0.75 * smoothstep(0.0, 0.55 + 0.25 * fuel, f), smoothstep(0.1, 0.55, t) * (1.0 - 0.5 * gas));
 	// Fire still burning deep in the core while the cap rolls (a fuel ball's longer), seen in gaps.
 	float deep = clamp(sh.y * 1.6 - 0.35, 0.0, 1.0) * exp(-max(t - 0.6, 0.0) / (0.9 + 1.3 * fuel)) * (0.55 + 0.6 * n1);
@@ -444,8 +473,16 @@ void fragment() {
 				fl += u_alb / max(alb4, vec3(0.001)) * under_col * under4 * min(u_sum, 1.5) * t_dn * mix(0.25, 1.0, night_factor) * (1.0 - f4.z);
 			}
 			vec3 lit4 = alb4 * (fl + sun * sun_gain * 1.35 * (mix(t_sun4, 1.35 * pow(t_sun4, 0.75), value4) + lift * mix(0.6, 0.42, value4) + fwd_lobe * (1.0 - f4.x) * t_sun4) + amb4 + inner4) * (1.0 - 0.85 * smoothstep(0.15, 0.5, f4.y));
+			if (core4 > 0.0) {
+				// The flash lights the dust skirt and the smoke's underside for its first instant.
+				float fl4 = exp(-t / 0.09) * core4 * f4.z * (1.0 - up4 * 0.6);
+				lit4 += alb4 * vec3(5.0, 3.6, 2.2) * fl4;
+				// The young ball's unburnt soot is dark, so its fire stands out of black gaps
+				// (lit by the sun and sky it read as a milky tan ball).
+				lit4 *= mix(1.0, 0.35, core4 * (1.0 - smoothstep(0.1, 0.6, t)) * (1.0 - f4.z));
+			}
 			col += tr * a4 * lit4;
-			glow += tr * a4 * blackbody(f4.y) * heat_gain * (1.0 + 0.4 * gas * smoothstep(0.04, 0.25, t));
+			glow += tr * a4 * mix(blackbody(f4.y), blackbody4(f4.y), core4) * heat_gain * (1.0 + 0.4 * gas * smoothstep(0.04, 0.25, t));
 			tr *= 1.0 - a4;
 			if (tr < 0.01) {
 				break;

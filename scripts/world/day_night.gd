@@ -572,7 +572,8 @@ func _apply() -> void:
 		# The exposure follows the light down (GoldenHour.exposure_mix()): on moonlight alone it
 		# stayed at the day's while the sun fell to its night energy, and the sunset was the
 		# darkest frame of the evening, darker than the blue hour after it.
-		_env.tonemap_exposure = lerpf(day_exposure, night_exposure, GoldenHour.exposure_mix(elevation, moonlight))
+		_env.tonemap_exposure = lerpf(day_exposure, night_exposure, GoldenHour.exposure_mix(elevation, moonlight)) \
+			* CoastExposure.exposure_gain(self, moonlight)
 		_env.glow_intensity = lerpf(day_glow_intensity, night_glow_intensity, moonlight)
 		_env.glow_hdr_threshold = lerpf(day_glow_threshold, night_glow_threshold, moonlight)
 		if grade:
