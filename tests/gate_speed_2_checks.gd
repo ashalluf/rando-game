@@ -32,8 +32,11 @@ func run(t, city: Node3D) -> void:
 	var police: Node = city.get_node("Police")
 	var emergency: Node = city.get_node("Emergency")
 	var ws: Node = tree.root.get_node("WorldState")
-	var state_was := int(weather.get("state"))
-	var forced_was: bool = bool(weather.call("is_forced"))
+	# What the reset puts back is its SNAPSHOT's weather, not this moment's: Weather's auto roll may
+	# have moved on since (shuffled gate 4101 read "state 0" against a state rolled since).
+	var snap: Dictionary = reset.get("_weather")
+	var state_was := int(snap.get("state", weather.get("state")))
+	var forced_was: bool = bool(snap.get("_forced", weather.call("is_forced")))
 	var hour_was := float(dn.get("hour"))
 	var staged_was: bool = bool(traffic.get("staged"))
 	var cap_was := int(traffic.get("max_cars"))
@@ -50,7 +53,7 @@ func run(t, city: Node3D) -> void:
 	Onlookers.enabled = not onl_was
 	reset.full(tree)
 	t._check(int(weather.get("state")) == state_was and bool(weather.call("is_forced")) == forced_was,
-		"the full reset puts the weather back (state %d, forced %s)" % [int(weather.get("state")), weather.call("is_forced")])
+		"the full reset puts the weather back (state %d, forced %s; the snapshot's %d, %s)" % [int(weather.get("state")), weather.call("is_forced"), state_was, forced_was])
 	# (Back to the snapshot's hour: the clock runs on its own, so "before" is not the hour to expect.)
 	t._check(is_equal_approx(float(dn.get("hour")), float(reset._hour)), "the full reset puts the hour back to the snapshot's (%.2f)" % float(dn.get("hour")))
 	t._check(bool(traffic.get("staged")) == staged_was and int(traffic.get("max_cars")) == cap_was,
