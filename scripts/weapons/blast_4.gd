@@ -36,6 +36,13 @@ static var volume_steps: int = 40
 static var gas_next: bool = false
 ## Set while WeaponFX lays a gas blast (read by the volume and BlastFX).
 static var this_gas: bool = false
+## The blast BlastFX is laying out now was a fuel one (its flash's glow lasts longer).
+static var this_fuel: bool = false
+## The fire's glow after the flash: how much longer it lasts for a fuel / gas fireball.
+static var fuel_glow_stretch: float = 1.7
+static var gas_glow_stretch: float = 1.3
+## ... and how much longer again after dark.
+static var night_glow_stretch: float = 0.8
 
 ## Secondary pops after a fuel blast: how many (min, max), over how long, how far out (radii).
 static var secondary_count: Vector2i = Vector2i(2, 4)
@@ -252,3 +259,29 @@ static func chain(node: Node, at: Vector3, radius: float, gen: int = 1) -> int:
 			car.set_meta("chain_gen", gen)
 			n += 1
 	return n
+
+
+## BlastFX's glow light: how many times its old `glow_time` it lasts (1 without Blast4).
+static func glow_stretch() -> float:
+	if not enabled:
+		return 1.0
+	# At night the fire under the smoke is all that shows it: the glow lingers on.
+	var night := 1.0 + night_glow_stretch * clampf(DayNight.lamp_now, 0.0, 1.0)
+	return (fuel_glow_stretch if this_fuel else (gas_glow_stretch if this_gas else 1.0)) * night
+
+
+## BlastFX's glow light: how fast it dies (the power on 1 - t; softer at night).
+static func glow_fall() -> float:
+	if not enabled:
+		return 1.6
+	return lerpf(1.6, 0.9, clampf(DayNight.lamp_now, 0.0, 1.0))
+
+
+## BlastFX's glow light: its height in blast radii at the fraction `t` of its life, so the light
+## on the facades and the street rises with the fireball (the mushroom's cap, Blast4) instead of
+## a fixed climb. `base_time` is BlastFX.glow_time.
+static func glow_height(t: float, base_time: float) -> float:
+	if not enabled:
+		return 0.45 + 0.9 * t
+	# The light sits a little under the cap's centre (the fire is in its lower half).
+	return maxf(0.35, handover_height(t * base_time * glow_stretch()) * 0.85)

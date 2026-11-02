@@ -89,6 +89,8 @@ static func explosion(node: Node, at: Vector3, radius: float, power: float = 1.0
 	var big := radius * (1.25 if fuel or gas else 1.0)
 	var vol := Blast3.this_blast_volume
 	(WeaponFX._fire_material() as Material).set("shader_parameter/relief", 0.75)
+	Blast4.this_fuel = fuel
+	Blast4.this_gas = gas
 	_flash(node, parent, at, big)
 	_screen_flash(node, at, big)
 	if not WeaponFX._web():
@@ -143,9 +145,9 @@ static func _flash(node: Node, parent: Node, at: Vector3, radius: float) -> void
 	lt.tween_method(func(t: float):
 		if is_instance_valid(light):
 			var f := 0.82 + 0.18 * sin(t * 61.0) * sin(t * 23.0 + 1.3)
-			light.light_energy = glow_energy * pow(1.0 - t, 1.6) * f
-			light.global_position = at + Vector3.UP * radius * (0.45 + 0.9 * t),
-		0.0, 1.0, glow_time)
+			light.light_energy = glow_energy * pow(1.0 - t, Blast4.glow_fall()) * f
+			light.global_position = at + Vector3.UP * radius * Blast4.glow_height(t, glow_time),
+		0.0, 1.0, glow_time * Blast4.glow_stretch())
 	lt.tween_callback(light.queue_free)
 	# The white-hot flare: one additive billboard several radii across, gone in a tenth of a
 	# second. It is what the eye sees as "too bright to look at" before the fireball has a shape.

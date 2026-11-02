@@ -9,6 +9,7 @@ extends SceneTree
 ##     --audio-driver Dummy --path . --script tools/explosions_2/blast_room_shot.gd --resolution 960x540
 ##
 ## Env: OUT (stem; `_t<seconds>.png` each), TIMES, NIGHT=1 (no sun, a dark sky, night_factor 1),
+## GOLDEN=1 (a low warm sun, a peach horizon),
 ## CAR=1 (a parked car's own explosion: fuel fireball and toss), DIST (camera metres from the
 ## blast, default 34), HEIGHT (camera eye, 1.7), RADIUS (9), SCALE (slow motion before 1 s,
 ## 0.375 = 0.05 s a frame), LATE (after 1 s, 2.0), CAM_X (camera sideways, -4), LOOK_Y (aim height,
@@ -41,7 +42,18 @@ func _initialize() -> void:
 		env.fog_light_color = Color(0.03, 0.035, 0.05)
 		RenderingServer.global_shader_parameter_set("night_factor", 1.0)
 		RenderingServer.global_shader_parameter_set("lamp_factor", 1.0)
+		(load("res://scripts/world/day_night.gd") as GDScript).set("lamp_now", 1.0)
 		RenderingServer.global_shader_parameter_set("sky_tint", Color(0.05, 0.06, 0.09))
+	elif OS.get_environment("GOLDEN") == "1":
+		# Golden hour: a low sun behind the camera's left, warm, the sky's horizon peach.
+		sun.rotation_degrees = Vector3(-9.0, -60.0, 0.0)
+		sun.light_color = Color(1.0, 0.66, 0.4)
+		sun.light_energy = 1.6
+		RenderingServer.global_shader_parameter_set("sun_direction", sun.global_basis.z)
+		env.background_energy_multiplier = 0.7
+		env.fog_light_color = Color(0.85, 0.62, 0.45)
+		RenderingServer.global_shader_parameter_set("night_factor", 0.0)
+		RenderingServer.global_shader_parameter_set("sky_tint", Color(0.86, 0.66, 0.52))
 	else:
 		RenderingServer.global_shader_parameter_set("night_factor", 0.0)
 		RenderingServer.global_shader_parameter_set("sky_tint", Color(0.62, 0.70, 0.80))
