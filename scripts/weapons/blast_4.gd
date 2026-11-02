@@ -126,6 +126,7 @@ static func dress_volume(mat: ShaderMaterial, fuel: bool, gas: bool) -> Array:
 	mat.set_shader_parameter("stem_hold", 1.0 if stem_enabled else 0.0)
 	mat.set_shader_parameter("quiet4", quiet_jitter if quiet_enabled else 0.0)
 	mat.set_shader_parameter("core4", 1.0 if core_enabled else 0.0)
+	mat.set_shader_parameter("night4", 1.0 if night_enabled else 0.0)
 	if dark_dust:
 		mat.set_shader_parameter("dust", Vector3(0.085, 0.077, 0.066))
 	return [Vector3(2.3, 2.1, 2.3) * big, Vector3(0.0, 2.0, 0.0) * big, life]
@@ -365,6 +366,9 @@ static var night_enabled: bool = OS.get_environment("BLAST_NIGHT") != "0"
 static var night_flash: float = 0.45 # the flash's share left at full night
 static var night_fire_gain: float = 2.2
 static var night_fire_range: float = 1.7
+## Debris in flight streaks fire behind it; the tongues stand up once it lands
+## (BlastDebris._flames_air). BLAST_STREAKS=0 is the A/B.
+static var debris_streaks: bool = OS.get_environment("BLAST_STREAKS") != "0"
 
 
 static func dust_roll(parent: Node, ground: Vector3, normal: Vector3, reach: float) -> bool:
