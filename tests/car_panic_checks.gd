@@ -260,7 +260,7 @@ func _kerb(road: Array) -> void:
 		await _ticks(2)
 		Pedestrian.alarm(_tree, _beside(car, road, 10.0, -5.0), 45.0, 1, false, "")
 		var fell := car.traffic.has("cp") and int(car.traffic.cp.k) == CarPanic.Kind.SWERVE
-		_check(fell, "with no clear kerb near the spawn a driver told to mount it swerves instead (%s)" % fell)
+		_check(fell, "with no clear kerb near the spawn a driver told to mount it swerves instead (%s; cp %s)" % [fell, str(car.traffic.get("cp", {}).get("k", "none")) if car.traffic.get("cp") is Dictionary else "none"])
 		return
 	CarPanic.force_kind = CarPanic.Kind.KERB
 	var follower := _traffic.place_car(axis, index, dir, 0, at - 30.0, 9.0, false)

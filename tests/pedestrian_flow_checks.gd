@@ -165,7 +165,24 @@ func _strip(city: Node3D, chunk: Node3D, nearer: bool = false) -> Array:
 	var z := rect.position.y + 2.0
 	if nearer and absf(cw.z - (rect.end.y - 2.0)) < absf(cw.z - z):
 		z = rect.end.y - 2.0
-	return [rect, Vector2(x0, z)]
+	# A stretch with nothing on it at knee height: the walkers dodge a bin, a bench or a news box
+	# (CrowdFlow._dodge), and the strip moves with the camera, so some runs put it on furniture -
+	# a follower lagging 2.1 m behind its leader (shuffled gates 1303, 6101).
+	var space := chunk.get_world_3d().direct_space_state
+	var best := x0
+	for i in 12:
+		var x := clampf(x0 + (4.0 * ceilf(i * 0.5) * (1.0 if i % 2 == 0 else -1.0)), rect.position.x + 12.0, rect.end.x - 26.0)
+		var clear := true
+		for dz: float in [-0.9, 0.0, 0.9]:
+			var y: float = chunk.call("ground_y", x, z) + 0.45
+			var q := PhysicsRayQueryParameters3D.create(chunk.to_global(Vector3(x - 4.0, y, z + dz)), chunk.to_global(Vector3(x + 18.0, y, z + dz)), 1 | 4)
+			if not space.intersect_ray(q).is_empty():
+				clear = false
+				break
+		if clear:
+			best = x
+			break
+	return [rect, Vector2(best, z)]
 
 
 func _follower(city: Node3D, chunk: Node3D) -> void:
