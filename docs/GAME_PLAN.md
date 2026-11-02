@@ -4365,3 +4365,8 @@ none of either.
   and gantries but not the deck top (its own render layer: its light is the pools at every
   distance); freeway cars' lamps draw to 720 m. FREEWAY_NIGHT=0 is the A/B. New refcam
   `freeway_night` in cameras_w6.json, staged with the optional `freeway_cars` key.
+- 2026-11-02 (wave 6, rc3-chinatown): a new reference camera, chinatown_dusk (the Chinatown plaza,
+  its hall and gate at 19:15). Decisions: a lit lantern is held to a deep red-orange under AgX (a
+  bright red-heavy emission reads pale pink, so the silk stays under ~0.85 in red with green under
+  half of it); shop glass in Chinatown traces a lit room behind it, never a painted pane; the hall
+  is lit from inside through its screens rather than washed from the street. RC3_CHINATOWN=0 is the A/B.

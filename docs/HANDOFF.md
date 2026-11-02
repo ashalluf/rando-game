@@ -27643,3 +27643,54 @@ display_add one, the lights are ordinary `lamp_light`s), not seen. The pools' rh
 the air than at the driver's grazing angle. Seen and left: the right-of-way eucalyptus's pale limbs
 on opengl3, the gantry lettering's softness, no headlights of the viewer's own car (the camera has
 no car). Stills on `shots/rc3-freeway-night`.
+
+## 9lo. The Chinatown plaza at dusk (wave 6 refcam3 `rc3-chinatown`, 2026-11-02)
+
+A new reference camera, `chinatown_dusk` in `tools/refcams/cameras_w6.json`: the Chinatown plaza
+(JADE LANTERN PLAZA) from the walk near its east end, looking west-north-west at the HALL OF SPRING
+WIND with the lantern strings over the walk and the west plaza gate at its end - eye
+(2958, 1.7, -2096), yaw 72, pitch 7, fov 60, 19:15 clear. Run with
+`REFCAMS_JSON=tools/refcams/cameras_w6.json python3 tools/refcams/refcams.py run <dir> --only chinatown_dusk`.
+In the game's clock the sun sets at 18:00, so 19:15 is full night: the lanterns are on.
+
+**What gave it away** (in the order the eye lands on it), each fixed behind `Rc3Chinatown`
+(`scripts/world/rc3_chinatown.gd`; `RC3_CHINATOWN=0` is the A/B, the shader's `rc3` 0 is
+bit-identical to main):
+1. **The lanterns blew out to pale pink-white balls.** The silk emitted red x 6.5 with a peach core;
+   through AgX a bright red-heavy colour goes salmon-white (the CarDamage flame rule). Now the silk
+   is a deep red rim (green 0.035 of red) and a hot core with green ~0.24 of red (the gold lanterns
+   amber), x 1.9 at night (0.85 was right on opengl3 but matte on Forward+: no bloom), the ribs and
+   the gilt ends dark against it: lit silk, not paper balls. Proved on Forward+ (lavapipe,
+   `tools/glshot/fwd_block_shot.tscn` with `BLOCKS=home`; BLOCKS=1 is OOM-killed on a 15 GB box):
+   main's lanterns bloom with white-hot cores, these glow red-orange with a soft bloom.
+   12 sides instead of 8 (148 triangles a lantern, was 116; they are in the shadowless twin).
+2. **The shop glass was a flat pale slab** (a shelf pattern painted on the pane, glowing). It now
+   traces a room behind the glass, `shop_room()` in chinatown.gdshader: `shop_bay` 3 m bays,
+   `shop_depth` 4.2 m deep, shelves of goods on the back and side walls, a counter across the front
+   third of most bays, a ceiling of light panels, tiled floor, with true parallax from the face's
+   tangent frame (UV is metres along the face and over the pavement; `ChinatownGeo.tri()` writes
+   the tangents). The glass mirrors the sky by Fresnel on top. Walls are dark and the light warm,
+   so the room reads as a lit shop at night, not a lightbox.
+3. **The hall was a flat red box washed evenly by the street wash.** Its screens (UV2 =
+   (0, `LIT_FLAG`) on its lattice faces) are lit from inside every night - a warm glow peaking at
+   lamp height, the fretwork dark against it; the upper storeys got screens on their ends and back
+   (they were plain red walls); the shop-glass door became a screen. The lacquer keeps
+   `LACQUER_WASH` 0.45 of the street wash, so red walls are walls in the dark.
+4. **Upstairs windows were flat cream panels** (the lit-spreadsheet look): a lamp's warm pool high
+   in the pane falling to the sill, drawn curtains (thin, backlit red or cream) in half the rooms.
+5. **The plaza's masts were 16 cm square red sticks**: round lacquered posts on a stepped granite
+   foot with gilt rings and a finial. **The court held five people**: `PLAZA_PEOPLE` 30 (was 16),
+   each still through the crowd cap.
+
+**Not done / not verified**: the Mac itself (Forward+ judged on lavapipe only, the plaza block
+alone, 45 frames - SDFGI not fully settled); the far / LOD copies are unchanged (boxes); the plaza
+paving is still one even grid; the shop rooms are one generic shop for every trade (a kitchen
+traces shelves of goods too).
+
+Numbers (refcams, opengl3, `chinatown_dusk`): luma p5/p50/p95 12/33/175 -> 11/31/157; 4.62 M ->
+4.71 M triangles, 2,391 -> 2,427 draws. The ten original cameras with `RC3_CHINATOWN=0` vs on: nine
+within tolerance, `freeway` flagged by live traffic only (a car near the lens; Chinatown is not in
+that view). Gate: SHARDS=3, 5,446 checks, one failure in `pedestrian_flow_checks` ("somebody comes
+out of a shop door", a valet picked) that passes alone with this file (`SMOKE_PARTS=pedestrian_flow_checks,rc3_chinatown_checks`, 43 checks).
+On opengl3 the lanterns at the Forward+ level (x 1.9) read a little peach; tuned for the Mac.
+Stills: branch `shots/rc3-chinatown`.

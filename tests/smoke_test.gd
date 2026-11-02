@@ -2883,6 +2883,8 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	load("res://tests/rc3_vernon_industrial_checks.gd").new().run(self, city)
 	# The freeway at night refcam (tests/rc3_freeway_night_checks.gd, FreewayNight): pools, lights, tail lights.
 	await load("res://tests/rc3_freeway_night_checks.gd").new().run(self, city)
+	# The Chinatown refcam (tests/rc3_chinatown_checks.gd, Rc3Chinatown): shop rooms, lanterns, the hall.
+	load("res://tests/rc3_chinatown_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()
