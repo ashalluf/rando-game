@@ -49,7 +49,7 @@ func _check_meshes() -> void:
 	var cols: PackedColorArray = m.surface_get_arrays(0)[Mesh.ARRAY_COLOR]
 	for c in cols:
 		var r := floori(c.a * 16.0)
-		if r < 0 or r > BoatMesh.Region.ENGINE:
+		if r < 0 or r > BoatMesh.Region.WIRE:
 			regions_ok = false
 			break
 	_check(regions_ok and cols.size() > 0, "every vertex carries a boat shader region (COLOR.a)")

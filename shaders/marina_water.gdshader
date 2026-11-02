@@ -20,8 +20,13 @@ global uniform float lamp_factor;
 global uniform float wind_factor;
 global uniform float ground_detail;
 global uniform float rain_intensity;
+global uniform vec3 sun_direction;
+global uniform vec3 tree_sun;
+global uniform vec4 skyline_sky_top;
+global uniform vec4 skyline_sky_rim;
 
 #include "res://shaders/color_space.gdshaderinc"
+#include "res://shaders/marina_mirror.gdshaderinc"
 
 // LINEAR: the body of the water, and a lighter, greener tone in the shallows along the walls.
 uniform vec3 deep_color = vec3(0.012, 0.026, 0.028);
@@ -37,6 +42,7 @@ uniform float roughness_chop = 0.10;
 uniform vec3 night_glow = vec3(0.09, 0.05, 0.018);
 
 varying vec3 v_local;
+varying vec3 v_cam;
 
 float mw_hash(vec2 p) {
 	vec3 p3 = fract(vec3(p.xyx) * 0.1031);
@@ -69,6 +75,8 @@ vec3 wavelets(vec2 p, float t, float scale) {
 
 void vertex() {
 	v_local = VERTEX;
+	// The camera in the mesh's space (true world: the chunk only translates it).
+	v_cam = (inverse(MODEL_MATRIX) * vec4(INV_VIEW_MATRIX[3].xyz, 1.0)).xyz;
 }
 
 void fragment() {
@@ -78,6 +86,16 @@ void fragment() {
 	float patch = mw_noise(p * 0.03 + vec2(t * 0.015, -t * 0.01));
 	float wind = clamp(0.35 + 0.6 * wind_factor, 0.25, 2.0) * mix(0.25, 1.0, smoothstep(0.3, 0.75, patch));
 	vec3 w = wavelets(p, t, chop_scale);
+	if (mm_count > 0) {
+		// MarinaGolden: a second set of wavelets turned 1.1 rad, cross-faded in patches, so the
+		// chop never lines up into the long parallel bands five fixed directions draw at a grazing
+		// angle (turning one set's frame with a noise drew rings instead).
+		const mat2 TURN = mat2(vec2(0.4536, 0.8912), vec2(-0.8912, 0.4536));
+		vec3 wb = wavelets(TURN * p + vec2(17.0, 9.0), t * 1.07, chop_scale * 0.83);
+		wb.yz = transpose(TURN) * wb.yz;
+		float mixk = smoothstep(0.25, 0.75, mw_noise(p * 0.035 + vec2(5.3, 1.9)));
+		w = mix(w, wb, mixk);
+	}
 	vec2 grad = w.yz * chop * wind * 0.07;
 	if (ground_detail > 0.5) {
 		vec3 w2 = wavelets(p * 3.1 + vec2(11.3, 5.9), t * 1.3, chop_scale);
@@ -105,5 +123,22 @@ void fragment() {
 	// Mostly where the chop catches it: at 0.4 of it everywhere the whole basin drew as one flat
 	// orange-brown sheet on Forward+ at night (its night exposure lifts it).
 	vec3 glow = night_glow * lamp_factor * (0.08 + 0.92 * sparkle * sparkle);
-	EMISSION = cs_out(sky * fres * sky_emit + glow * fres);
+	vec3 emit = sky * fres * sky_emit + glow * fres;
+	if (mm_count > 0) {
+		// The boats in the water (MarinaGolden): the reflected ray traced against the nearest
+		// hulls, cabins and masts. Where one stands in it the renderer's own reflection (the sky,
+		// SSR) is taken away - SPECULAR 0 zeroes Godot's f0 and with it the ambient and direct
+		// specular - and the boat is emitted at the water's Fresnel.
+		vec3 vi = normalize(v_local - v_cam);
+		vec3 rr = reflect(vi, n_local);
+		rr.y = max(rr.y, 0.004);
+		rr = normalize(rr);
+		float px = 2.0 / (abs(PROJECTION_MATRIX[1][1]) * max(VIEWPORT_SIZE.y, 240.0));
+		vec4 hit = mm_trace(v_local, rr, v_local.y, px, distance(v_local, v_cam));
+		float fr = 0.02 + 0.98 * pow(1.0 - clamp(-vi.y, 0.0, 1.0), 5.0);
+		fr = max(fr, fres);
+		SPECULAR = 0.5 * (1.0 - hit.a);
+		emit = emit * (1.0 - hit.a) + hit.rgb * fr;
+	}
+	EMISSION = cs_out(emit);
 }
