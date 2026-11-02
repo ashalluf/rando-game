@@ -13,3 +13,7 @@ before / after pairs are the same build with `NIGHT_AERIAL=0` / on (one city loa
   brick / render) down to a fifth, cooler.
 - 06_refcams_all11_compare.jpg - the ten refcams + night_aerial, off over on (refcams.py compare):
   only freeway (traffic moved, noise) and night_aerial flagged.
+- 07_after_night_aerial_final.jpg - the final branch state (the helicopter searchlight fix included).
+- 08_before_after_helicopter_searchlight_crop.jpg - the police helicopter's shaft ~800 m off: a solid
+  white wedge before, a faint pale column after (its ground pool still the bright end).
+- 09_before_over_after_full.jpg - main (top) over the final branch (bottom).
