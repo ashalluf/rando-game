@@ -26853,6 +26853,18 @@ Checks: `_round8()`. Stills 54 on.
    floating candle flames; they should streak while the piece flies and stand up once it lands.
 Checks: `_round9()`. Stills 58 on.
 
+**Round 11: debris flames, the night cloud** (the lead's next list):
+1. **Flame tongues on debris still flying read as floating candle flames.** `BlastDebris._flames_air`
+   (Blast4 `debris_streaks`, `BLAST_STREAKS=0` the A/B): a piece in flight drops short fire puffs
+   (0.22 s, the fireball's material, no rise) behind it - in the debris node's own space they stay
+   where they were dropped, so they draw the flight path as a streak of fire - and only a landed
+   piece feeds the tongues. The smoke trail takes both.
+2. **The 8 s night cloud read flat brown-grey.** `night4` (blast_volume.gdshader): at night the
+   fires' underlight falls off three times faster up the smoke (the underside glows, the crowns do
+   not) and the crowns are darkened to half from 1.5-4 s, so the cloud reads as dark smoke against
+   the sky lit from below. Off with `BLAST_NIGHT=0`.
+Checks: `_round9()`'s last line. Stills 61 on.
+
 ## 9lb. The camera lens (wave 5, `camera-lens`)
 
 **What.** The camera itself: exposure adaptation, the sun's flare, grain, the bloom's spread.
