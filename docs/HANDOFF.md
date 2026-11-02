@@ -27969,3 +27969,69 @@ batch identical with the planters kept and left out.
 change was made: geometry, batching and a shader detail term). The garments on the racks are still
 simple lofted sacks (plain at 1 m); the paving's dark forecourt strip under the goods is LotFill's
 paving look, left as it is.
+
+## 9lu. The marina at golden hour, refcam3 `marina_golden`, 2026-11-02 (fleet session `rc3-marina-golden`, branch `wt/rc3-marina-golden`)
+
+**The camera.** A new wave-6 reference view, one row in `tools/refcams/cameras_w6.json`: the marina
+(9cb) from the EAST HEADWALK at 18:00, clear - eye (-621.5, 2.3, 136) true world, `agl` false (the
+floating headwalk is at `Marina.DOCK_Y` 0.62; the eye 1.7 m over it), yaw 110, pitch -1.5, fov 55:
+west down the open water between two main docks, the mast forest either side, the sun setting
+behind the palms of the west promenade, the channel and the coast highway's bridge at the vanishing
+point. Run it with `REFCAMS_JSON=tools/refcams/cameras_w6.json python3 tools/refcams/refcams.py run
+build/refcams/<label> --only marina_golden` (~8 min, 6 GB peak on a 15 GB box).
+
+**What gave it away** (the before, `shots/rc3-marina-golden` 01): (1) the water mirrored only the
+sky - a pink sheet with the boats pasted on it, where a harbour at sunset is mostly its boats upside
+down, wobbling; and its chop lined up into long parallel diagonal bands (five fixed wave directions
+at a grazing angle); (2) the rigging drew as dotted lines (1 cm ribbons and 8 mm lifeline tubes are
+a third of a pixel at 20 m); (3) the furled jibs were beige poles as thick as masts - two crossing
+ones read as a broken X; (4) the piles were 8-sided and flat-shaded: square posts with a lid.
+
+**What changed** (`MarinaGolden`, `scripts/world/marina_golden.gd`; `MARINA_GOLDEN=0` puts every
+piece back):
+- **The boats in the water.** A node under the root (made by MarinaBuild's commit step of a FULL
+  marina chunk, kept for the session) picks the `MAX_BOATS` (40) boats nearest the camera within
+  `REACH` 320 m every 0.2 s of the REAL clock and hands them to the shared water material
+  (`mm_a/b/c`, `mm_count`: centre, yaw, length; beam, hull, cabin and mast tops; paint, type).
+  `shaders/marina_mirror.gdshaderinc` follows the water's reflected ray (about the chop's normal,
+  so it wobbles) against each: a hull box narrowed to the bow, a cabin box with a dark band of
+  glass, the mast (or a tuna tower) as a line anti-aliased by the pixel's footprint at the
+  reflected distance; lit by DayNight's horizon / zenith (`skyline_sky_rim/top`) and the sun
+  (`tree_sun` x N.L), hazed out past `mm_haze`. Where a boat stands in the mirror the water's
+  SPECULAR goes to 0 - Godot's f0 then zeroes the ambient AND direct specular, on both renderers,
+  so the renderer's sky reflection (and SSR on Forward+) gives way - and the boat is emitted at the
+  water's Fresnel. Cost: a loop of up to 40 cheap rejects a water pixel.
+- **The chop** cross-fades a second set of wavelets turned 1.1 rad in 30 m patches (turning one
+  set's frame with a noise drew ring patterns instead - tried).
+- **Rigging** is its own region, `BoatMesh.Region.WIRE` (12, appended): `Acc.wire()` writes two
+  crossed strips whose vertices carry the offset from the centre line as NORMAL and the half width
+  in UV.x; every `line()` and every `tube()` of radius <= `WIRE_RADIUS` 2 cm is one.
+  boat_body.gdshaderinc widens them to `wire_px` (1) pixels in a perspective pass (never a
+  directional shadow's) and fades a wire toward the sky (`skyline_sky_rim`) by the share of the
+  pixel it really covers.
+- **Jib covers**: the furled jib's tube (region SAIL) wears a wound UV strip in the boat's canvas
+  (`jib_strip`).
+- **Round piles** (`MarinaBuild._pile_round()`): 14 sides, smooth normals, a dark growth band to
+  0.35 m over the water, a collar and domed white cap; collision on the shaft as before.
+
+**Frame cost** (refcam GEO, opengl3 1280x720): 1,306,020 tris / 955 draws -> 1,314,444 / 960
+(the rounder piles); the water's trace is ALU only.
+
+**Forward+** (lavapipe, `tools/glshot/fwd_block_shot.tscn BLOCKS=home EXTRA="-1,0"
+EYE=-621.5,0.4,136,110,-1.5 --hour=18`, ~6 GB; the default 3 x 3 blocks of the marina were
+OOM-killed at 14.3 GB, and `override.cfg` with `[threading] worker_pool/max_threads=1`): there SSR
+already mirrored the boats as dark smears; with MarinaGolden the traced hulls and masts take over
+where they stand (the same colours as the opengl3 still - the trace is linear on both) and SSR keeps
+the rest. Stills 03 / 04 on the shots branch.
+
+**The ten original cameras** (`refcams.py run` with `MARINA_GOLDEN=0` against on, same commit;
+refcams' 3600 s cap stopped each full run after eight shots on this 4-core box, so macarthur and
+pier_night were shot again with `--only`): nine unchanged (|d| <= 2 levels), freeway flagged at 10.5
+mean |d| for traffic placement alone (a non-strict run); triangles within +-1 %.
+
+**Checks**: `tests/rc3_marina_golden_checks.gd` (the pick, the packing, the shader's array size and
+the mm_count 0 path, the wires' centre line and levels, the boat material's switches, the camera row).
+
+**Not done.** Only the marina's own boats are mirrored (not the docks, the towers, the bridge, the
+moorings' player boats or MarinaTraffic's runabouts); the hull is a box in the mirror; the near
+docks still read as plain slabs; the boats' gelcoat has no wet waterline or reflection of the water.

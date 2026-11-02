@@ -13,6 +13,7 @@
 		{"name": "refinery_night", "label": "The refinery at 22:30 from the south street (Bay Works: flares, tanks, process units, steam)", "eye": [3180.0, 1.7, 5838.0, 40.0, 7.0], "agl": true, "hour": 22.5, "weather": "clear", "fov": 55},
 		{"name": "rooftop_golden", "label": "Downtown skyline from the black twins' helipad 17:45 clear", "eye": [2288.5, 218.3, 43.0, 165.0, -11.0], "agl": false, "hour": 17.75, "weather": "clear", "fov": 55},
 		{"name": "oil_field", "label": "The oil field's crest lease road among pumpjacks, downtown behind, 16:00", "eye": [611.4, 1.7, 1542.8, -56.6, -2.0], "agl": true, "hour": 16.0, "weather": "clear", "fov": 55},
-		{"name": "golf_morning", "label": "Valley Oaks golf course 08:30, behind a group on the 9th tee toward the clubhouse and the front range", "eye": [39.6, 1.75, -2858.2, 158.4, -3.0], "agl": true, "hour": 8.5, "weather": "clear", "fov": 55, "golf_group": "9:0:0:3"}
+		{"name": "golf_morning", "label": "Valley Oaks golf course 08:30, behind a group on the 9th tee toward the clubhouse and the front range", "eye": [39.6, 1.75, -2858.2, 158.4, -3.0], "agl": true, "hour": 8.5, "weather": "clear", "fov": 55, "golf_group": "9:0:0:3"},
+		{"name": "marina_golden", "label": "The marina at 18:00 clear, from the east headwalk west across the docks to the bridge", "eye": [-621.5, 2.3, 136.0, 110.0, -1.5], "agl": false, "hour": 18.0, "weather": "clear", "fov": 55}
 	]
 }

@@ -4408,3 +4408,10 @@ none of either.
   district's frontage has no forecourt planter in front of the goods (rolls kept); the frontage is
   dense and the pavement packed near the camera (2.6x walkers); folded stock carries creases.
   FD_CELLS / FD_PLANTERS / FD_DENSE / FD_FOLDS =0 are the A/Bs.
+- **2026-11-02 The marina at golden hour: a harbour mirrors its boats (rc3-marina-golden, HANDOFF
+  "The marina at golden hour").** A new reference camera (`marina_golden`, wave 6's table) judged
+  the marina from the east headwalk at 18:00. Decisions: the water traces its reflected ray against
+  the nearest boats (hull, cabin, mast) rather than a second render (a planar reflection is a whole
+  extra pass and nothing on the web); where a boat stands in the mirror the renderer's reflection is
+  taken away by zeroing SPECULAR, not darkened; thin rigging is drawn at least a pixel wide and faded
+  by its coverage rather than at its true width. MARINA_GOLDEN=0 the A/B.
