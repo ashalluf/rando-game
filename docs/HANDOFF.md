@@ -26143,7 +26143,7 @@ Final gate on the branch merged with main (`afac849b`, batch 38+), unshuffled `S
 5,624 checks, shards peaking at 3.1 / 3.7 / 3.8 GB RSS.
 
 **Still open** (seen once or twice, diagnostics added, not fixed): the follower lagging its
-leader (1303, 6101), ragdoll_feel's stair roll (15202),  
+leader (1303, 6101), ragdoll_feel's stair roll (15202),
 and whether CrowdFlow's camera was the passing pair's cause (12202: the next failure's message
 says CrowdFlow's own camera distance and grid size). `CHUNK_SWAP_LOG=1` prints any chunk swap
 near the player with the stack, should a spawn-chunk replacement come back.
