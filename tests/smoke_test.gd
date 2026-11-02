@@ -2826,6 +2826,8 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	# The glass at arm's length (tests/interiors_glass_checks.gd, InteriorsGlass): people in the shops,
 	# the fittings' light, the day mirror, the spill's window, the A/B.
 	load("res://tests/interiors_glass_checks.gd").new().run(self, city)
+	# Facades at mid distance, third pass (tests/facades_mid3_checks.gd, FacadeMid3): piers, raised parapets, gravel.
+	load("res://tests/facades_mid3_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()

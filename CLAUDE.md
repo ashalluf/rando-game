@@ -5162,6 +5162,14 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   kit window ACs, sleeve ACs, vents, dishes, open windows, window boxes, flashing, painted names, fire
   escapes on FLAT walk-ups. Hashes only. `FACADE_MID=0` the A/B; probe
   `tools/building_mid_detail/probe.gd`; checks `tests/building_mid_detail_checks.gd`.
+- Facades at mid distance, third pass (2026-11-01, docs/HANDOFF.md "Facades at mid distance, third
+  pass"): `FacadeMid3` (`scripts/world/facade_mid3.gd`) + `shaders/facade_mid3.gdshaderinc` in BOTH
+  building shaders (salts 120-129): punched / slot-window masonry walls get piers standing proud of
+  recessed window strips (`fm3_piers()`, fx_member coverage: face, side, sun shadow; the far box at
+  0.72 of the near darkening, measured with far_pair.py); `parapet_steps()` raises stepped parapets on
+  half the masonry blocks (roof plant near after `Rooftops.clear_plant()`, plant boxes far: no prop
+  index moves); `rw_gravel()` weathers gravel roofs. `FACADES_MID3=0` is the A/B; checks
+  `tests/facades_mid3_checks.gd`.
 - Shop fronts at arm's length (2026-10-31, docs/HANDOFF.md "Shop fronts at arm's length"):
   `ShopfrontDress` (`scripts/world/shopfront_dress.gd`, one hook beside
   `ShopfrontKit.storefront_face()`) puts mats, planters, a chalk sandwich board, a hanging sign on

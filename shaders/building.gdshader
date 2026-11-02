@@ -222,6 +222,9 @@ uniform bool facade_variety = false;
 // ShopfrontKit.curtain_face(); Building sets it to kit_mullion_distance where they are built): the
 // shader's analytic sides and shadows hand over to them there. 0: analytic everywhere.
 uniform float caps_real_until = 0.0;
+// The masonry walls' piers (facade_mid3.gdshaderinc; FacadeMid3, FACADES_MID3=0 in the environment
+// is the A/B): a punched or slot-window wall's piers standing proud of recessed window strips.
+uniform bool facade_mid3 = false;
 // Whichever of the two it is, flat so the numbers arrive untouched.
 varying flat vec3 pt_size;
 varying flat vec2 pt_pitch;
@@ -330,6 +333,8 @@ uint shop_frame_index(uint shop) {
 // Per-pane variety, the street opposite in the glass, the members' depth, roofline drips (shared
 // with the far boxes).
 #include "res://shaders/facade_variety.gdshaderinc"
+// The masonry walls' piers and recessed strips (shared with the far boxes).
+#include "res://shaders/facade_mid3.gdshaderinc"
 // The skyline's glass by day: the sky of this hour, its clouds, the towers round it, the sun.
 global uniform vec3 origin_shift;
 #include "res://shaders/skyline_glass.gdshaderinc"
@@ -889,6 +894,8 @@ void fragment() {
 			surface = rw_membrane(local_pos.xz, min(edge.x, edge.y), seed, roof_px, rough);
 		} else if (roof_weather && roof_style == 2) {
 			surface = rw_bitumen(local_pos.xz, min(edge.x, edge.y), seed, rough);
+		} else if (roof_weather && facade_mid3 && roof_style == 0) {
+			surface = rw_gravel(local_pos.xz, min(edge.x, edge.y), seed, facade_color, roof_px, rough);
 		} else if (roof_style == 1) {
 			// White single-ply membrane, rolled in strips and welded at the seams, weathered
 			// grey where water sits.
@@ -2179,6 +2186,40 @@ void fragment() {
 				float face_len = face_id < 2.5 ? pt_size.z : pt_size.x;
 				float cd = min(u, face_len - u);
 				albedo *= 1.0 - 0.14 * weathering * (1.0 - smoothstep(0.05, 0.7, cd)) * (glass ? 0.3 : 1.0);
+			}
+		}
+		// ---- The masonry walls' piers (facade_mid3.gdshaderinc) --------------------------------
+		// A punched or slot-window wall's windows set back in recessed strips between piers that
+		// stand proud from the base to the attic: the piers' faces, their sides from an angle and
+		// their shadows across the strips, as the far boxes draw them.
+		if (facade_mid3 && part_attributes && !uv_facade && !chamfer && !garage && !storefront && !dmg_in_hole
+				&& (window_style == 0 || window_style == 3)) {
+			int m3_sys = fm3_system(seed, window_style, facade_finish);
+			if (m3_sys > 0) {
+				vec3 dir_m = normalize(world_pos - (INV_VIEW_MATRIX * vec4(0.0, 0.0, 0.0, 1.0)).xyz);
+				vec3 tan_m = normalize(world_tangent - world_normal * dot(world_tangent, world_normal)) * u_sign;
+				vec3 vw_m = vec3(dot(dir_m, tan_m), dir_m.y, -dot(dir_m, world_normal));
+				vec3 sun_m = normalize(sun_direction);
+				vec3 sw_m = vec3(dot(sun_m, tan_m), sun_m.y, dot(sun_m, world_normal));
+				float crown_rel = pt_crown < 50000.0 ? pt_crown - pt_base_y : -1.0;
+				vec2 m3_run = fm3_run(pt_ground - pt_base_y, pt_base_h, pt_size.y, pt_floor, crown_rel);
+				vec4 pc = fm3_piers(m3_sys, window_style, facade_finish, pitch, u, v - pt_base_y, m3_run, px_m, vw_m, sw_m);
+				if (pc.x + pc.y + pc.z + pc.w > 0.0) {
+					float day_m = 1.0 - night_factor;
+					float lit_front_m = 0.38 + max(sw_m.z, 0.0) * day_m;
+					// The pier is the wall's own face; where its parallax lands over an opening, the
+					// wall's mean (the texture's mean times the facade, as the finish draws it).
+					bool on_wall = !glass && !reveal && !frame && !reveal_face && !fs_door_bay;
+					vec3 wall_mean = facade_color * (use_wall_texture ? wall_texture_mean * (facade_finish == 1 ? 1.35 : 1.3) : vec3(1.0));
+					vec3 pier_col = on_wall ? albedo : wall_mean;
+					float dxs = sign(-vw_m.x / vw_m.z);
+					vec3 side_col = wall_mean * fm3_side_light(dxs, sw_m, day_m, lit_front_m) * 0.86;
+					float rec = 1.0 - (1.0 - fm3_recess_mul(facade_finish)) * pc.w;
+					vec3 base_a = albedo * fm3_display(rec * (1.0 - 0.42 * pc.z * day_m));
+					float cov = clamp(pc.x + pc.y, 0.0, 1.0);
+					albedo = mix(base_a, (pier_col * pc.x + side_col * pc.y) / max(pc.x + pc.y, 1e-4), cov);
+					emission *= (1.0 - cov) * (1.0 - 0.25 * pc.z * day_m);
+				}
 			}
 		}
 		wet_wall = !dmg_in_hole;

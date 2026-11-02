@@ -25790,3 +25790,77 @@ not see the player or react to gunfire (they are shader-only: a blast in the str
 barista serving); clothes have no garment detail (a top is one colour); no kitchens behind a
 restaurant; the reflection over the glass by day is still the shader's fake street opposite
 (Forward+'s probes take over within their reach).
+
+## 9ko. Facades at mid distance, third pass (fleet wave 5, `wt/facades-mid-3`, 2026-11-01)
+
+The task: generated buildings from 30-150 m at noon and golden hour across downtown, midtown and
+the historic core - what still reads as a box with a window grid. Before stills (main `bb03d731`,
+opengl3, `still_shot.gd DIFF=1`, EYEs below): the punched-window blocks (most of the historic
+core, midtown and the east side) were one flat plane with a perfect grid of holes, every bay the
+same and no depth between the windows; the masonry blocks' rooflines were one straight line, the
+parapet a thin band; a third of the flat roofs (gravel ballast) one grey card from 45 m up. Three
+fixes, all `FacadeMid3` (`scripts/world/facade_mid3.gd`), `FACADES_MID3=0` the A/B, no roll of a
+Building's own streams moved (checked: parts, colours, roof plant, shop names off vs on):
+
+- **Piers and recessed window strips** (`shaders/facade_mid3.gdshaderinc`, included by
+  building.gdshader AND building_lod.gdshader after facade_variety, salts 120-129). A punched (0)
+  or slot (3) window wall on render, brick or panels rolls a pier system from the shader seed
+  (`fm3_system()`, `FacadeMid3.system()` the GDScript copy, checked against hand values and the
+  shares 337 / 387 / 276 on render): none, a pier on every bay line, or on every second one (the
+  windows paired in each strip). Piers 30 % of a bay wide (44 % for slots), standing 0.28 m proud
+  (brick 0.34) from the top of the base (storefront, base course, or the ground floor) to under
+  the attic (the crown floors or the top half storey) (`fm3_run()`). Worked out as coverage with
+  facade_variety's `fx_member()`: the pier face, its side seen from an angle lit by the sun's side,
+  its sun shadow across the strip (0.42 of the light) and the attic soffit's down the strip's top; the strip darker
+  (`fm3_recess_mul()`, 0.80 render / 0.70 brick / 0.78 panels). Box filtered, so it is depth at
+  any range and its average past a pixel. The far box applies 0.72 of the near darkening (and of
+  the shadow): the near building's kit (cornices, surrounds) stands in front of part of its wall
+  undarkened, and the same factor drew the far box 5 % darker (`far_pair.py` at 120 m: building 1
+  far/near 0.75 before, 0.70 with the same factor, 0.73 now).
+- **Stepped and raised parapets** (`FacadeMid3.parapet_steps()`, pure: hashes of the seed). Half
+  the masonry blocks (not glass, curtain walls or warehouses, 8-75 m) raise the parapet in the
+  middle of 72 % of their faces (never the alley's back face): one panel 1.1-1.7 m, two steps, or
+  three, each with a coping. Built near as roof plant (`Building._add_parapet_steps()`, called
+  after `Rooftops.clear_plant()` so no prop's primitives or index move) with a collision box each,
+  and far as plant boxes (FarBuilding); the far city keeps the panels and drops the 12 cm copings.
+- **Weathered gravel roofs** (`rw_gravel()` in roof_weather.gdshaderinc, both shaders, roof_style
+  0 under `roof_weather`): scours where the wind moved the ballast off the black membrane, patches
+  of fresh and old gravel, a drift at the parapet's foot, dark rings round the drains.
+
+**Checks:** `tests/facades_mid3_checks.gd` (4: the roll vs the shader, both shaders and materials
+wired, the parapets placed on a street face's parapet near and far with a collision box each, no
+roll moved). **Look:** `tools/glshot/building_shot.gd` with `FACADES_MID3=0|1 FINISH=0 STYLE=0
+SHAPE=0 BSEED=13 CAM_POS=40,12,48 CAM_LOOK=0,16,0` (piers), `BSEED=2 CAM_POS=30,30,40
+CAM_LOOK=0,28,0` (parapets); `far_building_shot.gd DIST=120` + `far_pair.py` for the LOD line.
+City EYEs (`EYE_AGL=1`): Spring St `3108,2,330,0,9` (FOV 62), the historic core from 28 m
+`3113,28,430,8,-5`, east of downtown `3300,45,720,25,-10`, Wilshire `1100,2,300,-92,7`, midtown
+from 70 m `1150,70,520,10,-16`, golden hour (17.3) the same plus `3400,30,350,-30,-4`.
+
+**Forward+.** The strips' darkening and the pier shadow are tuned on the opengl3 stills
+(Compatibility lights the albedo as it is); Forward+ lights linear albedo, where the same 0.8 reads
+like 0.9 and the piers all but vanished in a lavapipe still. `fm3_display()` raises the factor to
+2.2 there (`CURRENT_RENDERER`); `building_shot.gd` under lavapipe (`--rendering-driver vulkan`,
+an `override.cfg` with `[threading] worker_pool/max_threads=1`, never committed) shows the piers
+and the parapets (still 25 on `shots/facades-mid-3`). The whole city was not rendered on Forward+.
+
+**Frame cost** (opengl3, `still_shot.gd DIFF=1`, the same EYEs, main vs this branch before the far
+city dropped the copings): draws unchanged (+0..+6), triangles +1.3 % (Spring St 6.13 M -> 6.21 M),
++1.8 % (historic core from 28 m), +2.4 % (east side from 45 m), +2.8 % (Wilshire), +1.5 % (midtown
+from 70 m); golden hour +1.3 .. +2.5 %. Almost all of it is the far city's parapet boxes (12
+triangles a box over thousands of buildings); the copings (half the boxes) are LOD-ring only now.
+The piers and the gravel are shader work on wall and roof pixels: no triangles, nodes or draws.
+
+**Gate.** `SHARDS=3`: 5,072 checks, 3 failed, all re-run alone green or matching the gate's open
+flakes (9kd): traffic_ai "never drives into another car" / "a car climbs an on-ramp and merges"
+(both listed open in 9kd; "a car swerves round the player" is the same family), ragdoll_feel "then
+they go down" (a freed body in `_check_trailing`), night_atmos "every prop keeps its id" (passed
+alone). The final gate (after the merge with main `bb03d731`): 5,068 checks, 2 failed - traffic_ai
+"a fast freeway car moves over and passes a slow one" and street_clutter_2 "the same block built
+twice gets the same pieces" (passed alone). The `city_crowd` part (traffic_ai) alone: with the pass
+on 2 of 4 runs green (the other two one different traffic_ai check each), off 2 of 2 green; the
+pass touches no traffic, physics query or shared rng (its only headless effect is the parapets'
+roof plant and collision boxes on the roofs), so these are taken for the open traffic_ai flakes.
+
+**Not done / not verified.** Ribbon and curtain walls are untouched (the facade_variety pass has
+their depth). The parapet panels are the parapet's colour, not the wall texture, and carry no
+moulding. The landmark towers (`uv_facade`) get none of it. No Forward+ city still.

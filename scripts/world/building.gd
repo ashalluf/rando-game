@@ -316,6 +316,7 @@ func generate() -> void:
 	_build_plinth()
 	_build_roof_props()
 	Rooftops.clear_plant(self)
+	_add_parapet_steps(style)
 	_commit_roof()
 	Rooftops.build(self)
 	_finish_kit()
@@ -832,6 +833,7 @@ func _part_material(style: Dictionary) -> ShaderMaterial:
 	mat.set_shader_parameter("facade_variety", FacadeVariety.enabled)
 	var real_caps := kit_enabled and ShopfrontKit.enabled and window_style == WindowStyle.CURTAIN
 	mat.set_shader_parameter("caps_real_until", kit_mullion_distance if real_caps else 0.0)
+	mat.set_shader_parameter("facade_mid3", FacadeMid3.enabled)
 	_apply_wall_texture(mat, finish, shape == Shape.WAREHOUSE, style.wall_set, style.weathering)
 	_part_mat = mat
 	return mat
@@ -2833,6 +2835,14 @@ func _commit_roof() -> void:
 		units.multimesh = mm
 		add_child(units)
 	_roof_units.clear()
+
+
+## Stepped and raised parapets (FacadeMid3.parapet_steps()) as roof plant: after the plant and
+## its clearing, so no prop's primitives or index move.
+func _add_parapet_steps(style: Dictionary) -> void:
+	for piece: Array in FacadeMid3.parapet_steps(self, style):
+		_prop_box(piece[0], piece[2], piece[1], Vector3.ZERO, Transform3D.IDENTITY, 0.9)
+		_prop_collision(piece[0], piece[1])
 
 
 ## One primitive into a growing surface (`acc`, array index -> packed array): positions and

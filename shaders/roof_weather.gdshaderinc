@@ -68,3 +68,34 @@ vec3 rw_bitumen(vec2 p, float edge, float sd, out float rough) {
 	rough = mix(0.92, 0.55, patch);
 	return s;
 }
+
+// Gravel ballast, weathered (fleet wave 5 "facades-mid-3", the FACADES_MID3 switch): the old roof
+// was one flat grey with a 0.7 m speckle, so a third of the city's flat roofs read as grey card
+// from the air. Wind scours the ballast off the black membrane in long patches and drifts it up
+// against the parapet; the roof drains sit in dark rings where the fines wash to; fresh gravel
+// tops up bare spots a shade paler; a fine speckle until it is under a pixel. `facade` the
+// building's colour (the old ballast took a quarter of it).
+vec3 rw_gravel(vec2 p, float edge, float sd, vec3 facade, float px, out float rough) {
+	vec3 g = mix(vec3(0.40, 0.39, 0.37), facade, 0.22);
+	// Fine speckle of the stones, gone into the tone under a pixel.
+	g *= 1.0 + 0.10 * (rw_vnoise(p * 3.1 + sd) - 0.5) * (1.0 - smoothstep(0.15, 0.6, px));
+	// Patches of fresh ballast and of old dirty gravel.
+	float tone = rw_fbm(p * 0.11 + vec2(sd * 2.7, 1.3));
+	g *= mix(0.86, 1.12, smoothstep(0.30, 0.72, tone));
+	// Scours: the membrane bare and black where the wind has moved the stones off it.
+	float sc = rw_fbm(vec2(p.x * 0.05, p.y * 0.13) + vec2(3.7, sd * 1.9));
+	float bare = smoothstep(0.64, 0.70, sc);
+	g = mix(g, vec3(0.085, 0.082, 0.08), bare * 0.85);
+	// Drifted up against the parapet: a pale band of loose stone at its foot, dirt above it.
+	float drift = 1.0 - smoothstep(0.15, 1.4, edge);
+	g = mix(g, g * 1.12, drift * 0.6);
+	g *= 1.0 - 0.18 * (1.0 - smoothstep(0.0, 0.35, edge));
+	// The drains: two or three per roof on a 14 m grid, each in a dark ring of washed-down fines.
+	vec2 cell = floor(p / 14.0);
+	vec2 dc = (cell + 0.3 + 0.4 * vec2(hash21(cell + sd), hash21(cell + sd + 7.7))) * 14.0;
+	float dd = length(p - dc);
+	float sump = (1.0 - smoothstep(0.6, 2.2, dd)) * step(0.45, hash21(cell * 1.3 + sd));
+	g *= 1.0 - 0.35 * sump;
+	rough = mix(0.95, 0.75, bare);
+	return g;
+}
