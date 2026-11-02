@@ -396,6 +396,11 @@ wet_road_mirror={
 "value": 1.0
 }
 
+fwd_review_g={
+"type": "float",
+"value": 1.0
+}
+
 rain_day={
 "type": "float",
 "value": 0.0

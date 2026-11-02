@@ -175,6 +175,9 @@ uniform float cloud_sun = 1.55;
 /// How bright the shaded underside stays (x the ambient), and the haze that takes the far deck.
 uniform float cloud_ambient = 1.0;
 uniform float cloud_haze_km = 38.0;
+// fwd-review-g: 1 hands a closed deck past the march's 90 km reach over as its haze (no hard line
+// at the horizon under overcast on Forward+); 0 the old cut (FWD_REVIEW_G=0).
+uniform float far_deck = 1.0;
 /// Wind for the deck, km/s (about 8 m/s).
 uniform vec2 cloud_wind = vec2(0.0075, 0.0028);
 /// The march's step budget: its steps are distance x 0.024 x 48 / this (the more, the finer).
@@ -235,6 +238,10 @@ uniform vec3 day_cloud_tint = vec3(0.95, 0.98, 1.04);
 // The crepuscular rays by day: a high sun behind broken cumulus throws none across the sky (they
 // drew a beige blot round the noon sun, shaped like the clouds' weather map).
 uniform float day_rays = 0.2;
+// The sun's elevation (sine) over which the day's thin rays and wispy cirrus come in by the sun
+// itself, whatever the clock's weight: 09:00 (36 degrees up) and 16:00 (25) get them.
+uniform float high_sun_from = 0.3;
+uniform float high_sun_to = 0.5;
 // The painted mid deck by day: a smooth pale smudge next to the volume (a veil round the sun).
 uniform float day_mid = 0.15;
 // How much of the day look the radiance / ambient cubemap gets. The sky IS the city's fill light:
@@ -550,6 +557,16 @@ vec4 cumulus_march(vec3 dir, vec3 ldir, vec3 lcol, vec3 amb_top, vec3 amb_bot, v
 		t1 = tb > 0.0 ? tb : t0 + 6.0;
 	}
 	if (t0 < 0.0 || t1 <= t0 || t0 > 90.0) {
+		// fwd-review-g: from under a closed deck the march gives up at 90 km, a degree or less
+		// over the horizon - and there the far deck stopped dead and the city's light dome showed
+		// under it in its own saturated orange: a hard line along the horizon on Forward+ at a
+		// rainy night (Compatibility's painted deck runs on into its haze). The deck out there is
+		// all haze (cloud_haze_km): hand it over as that, and under the horizon too (the far land
+		// in the rain is that haze; the half-res pass runs there while the deck is closed).
+		if (far_deck > 0.5 && h0 > 0.0) {
+			float s = smoothstep(0.72, 0.95, coverage);
+			return vec4(airlight * s, 1.0 - s);
+		}
 		return vec4(0.0, 0.0, 0.0, 1.0);
 	}
 	t1 = min(t1, t0 + 30.0);
@@ -898,7 +915,7 @@ void sky() {
 	// The half-resolution pass carries the expensive part: the cumulus volume and the rays.
 	if (AT_HALF_RES_PASS) {
 		vec4 res = vec4(0.0, 0.0, 0.0, 1.0);
-		if (volume && up > -0.08) {
+		if (volume && (up > -0.08 || (far_deck > 0.5 && cloud_coverage > 0.72 && view_km.y < cloud_base - 0.06 * cloud_depth))) {
 			float coverage = clamp(cloud_coverage, 0.0, 0.98);
 			// The key light: the sun, which at 2 km still lights the deck from under the horizon
 			// for a few minutes after the street has lost it (pink bases), then the moon.
@@ -972,9 +989,13 @@ void sky() {
 					vec4 rs = sun_through(max(sdir.y, -0.03), 0.4);
 					ray_col = mix(low_sun, vec3(dot(sun_light, vec3(0.3333))) * rs.rgb * rs.a * 1.3, sunset);
 				}
+				// A high sun throws few: by its elevation, so 09:00 and 16:00 (outside the clock's
+				// day weight) lose the searchlight fan too.
+				float hi_rays = smoothstep(high_sun_from, high_sun_to, sdir.y);
 				if (sday > 0.0) {
-					shaft *= mix(1.0, day_rays, sday);
+					hi_rays = max(hi_rays, sday);
 				}
+				shaft *= mix(1.0, day_rays, hi_rays);
 				// Rays are the air lit between the shadows, so they sit behind any cloud.
 				res.rgb += ray_col * shaft * 0.32 * res.a;
 			}
@@ -1273,13 +1294,21 @@ void sky() {
 				cir_night = night_factor * (1.0 - c_lit * sunset);
 			}
 			cir *= smoothstep(0.03, 0.34, up) * cirrus_amount * (1.0 - cir_night * 0.85);
+			float hi_cir = smoothstep(high_sun_from, high_sun_to, sdir.y) * (1.0 - sunset);
+			// The ambient cubemap takes the same share the day weight gives it (sday).
+			if (AT_CUBEMAP_PASS) {
+				hi_cir *= day_cubemap;
+			}
 			if (sday > 0.0) {
+				hi_cir = max(hi_cir, sday);
+			}
+			if (hi_cir > 0.0) {
 				// By day the cirrus is wisps and hooks with blue between them: as one long-streaked
 				// veil it whitened the whole upper sky and, seen down its length, its east-west
 				// streaks fanned out of the horizon like searchlight beams.
 				float dwisp = smoothstep(0.38, 0.78, vnoise(vec2(cuv.x * 1.9, cuv.y * 0.8) + 3.7) * 0.6
 					+ vnoise(vec2(cuv.x * 4.3, cuv.y * 2.1) + 8.2) * 0.4);
-				cir *= mix(1.0, dwisp * day_cirrus * smoothstep(0.08, 0.5, up), sday);
+				cir *= mix(1.0, dwisp * day_cirrus * smoothstep(0.08, 0.5, up), hi_cir);
 			}
 			// After dark it is a veil lit by the moon and the city, not a white streak.
 			ccol = mix(ccol, ccol * night_cloud_light * 0.5 + night_glow, cir_night);
