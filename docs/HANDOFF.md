@@ -27034,3 +27034,61 @@ truck in one run, a red car in the other; the deck is freeway_deck.gdshader, not
 (one line in smoke_test.gd's city_files): street asphalt gets lane wear and pavements / car parks do
 not, the shader applies it and 0 is the old road, the switch, the camera row and its staging
 script. Stills on `shots/rc2-chase-cam`.
+
+## 9d?. The pier by day from the deck (fleet wave 6, `rc3-pier-day`, refcam pier_day)
+
+**The camera.** A new reference view, `pier_day` in `tools/refcams/cameras_w6.json`: Gullwing Park on
+Rando Pier at 15:00 clear, from the promenade at eye height (true world (-1020, 8.1, -352), yaw 115,
+pitch 6: park frame (-80, -2)), toward the wheel, the coaster's lift, the carousel and the KELP
+CRACKER station, the booths on the right and the sea at the pier's end. Framings from the sea end
+(the ocean over the rail, the park behind) were tried (`-1165,8.1,-347,-118,2`): they show more
+water but nobody is out there; the brief asked for the deck among the crowd.
+
+**What gave it away** (main 484a7897, the before on `shots/rc3-pier-day`), in the order the eye
+lands on it:
+1. **The deck** - 40 % of the frame - was one tiled plank photo (`PropFactory.pbr("planks")`): a
+   smooth tan sheet at a grazing angle, no boards, no gaps, no wear. A real pier deck is
+   transverse boards, grey-weathered, dark gaps, a polished path down the middle, grime at the rail.
+2. **Nobody there**: 48 PierGoers for 16,000 m2 of deck, eight people in the frame at 15:00.
+3. **Showroom-clean paint**: the white coaster steel, the stands, the canopies and rails as if
+   painted that morning; nothing salted, faded or rust-run.
+4. **Cut blocks**: the food stands and booths' boxes with knife-edge corners.
+
+**The fixes** (`PierDay`, `scripts/world/pier_day.gd`; `PIER_DAY=0` the A/B - the pier exactly as
+on main):
+- `shaders/pier_deck.gdshader` (the deck slot of `PierPark._static_mesh()`): worked out per pixel
+  from the mesh's own vertex coordinates, which ARE the park frame (no anchor uniform needed):
+  boards `BOARD_W` 0.145 m across the pier with an 11 mm gap, butt joints every 4.9 m staggered per
+  board, each board's tone by hash (silver-grey, a darker one, 7 % newer reddish replacements),
+  grain along the board, patches of silvered open grain, nail pairs over 0.61 m joists, a cup and a
+  tilt per board (into NORMAL, faded under a pixel), a polished wear path down the promenade, grime
+  within 1.6 m of the rail (the shader takes `PierPark.OUTLINE` as a uniform array of 12),
+  stains, gum. Gaps and joints are box-filtered by the pixel (`line_cover()`), so the far deck
+  goes to its mean, not moire. The deck's side faces are dark timber with seams. Linear on both
+  renderers (color_space.gdshaderinc); wet with `road_wetness`.
+- `pier_park.gdshader` gains `weathered` (0 by default; `PierMesh.material()` sets
+  `PierDay.weathered()`): on paint, steel, canvas, signs and boards - sun fade (16 % toward grey),
+  a blotchy tone over metres, salt grime within half a metre of the deck, rust runs and mottle on
+  the light paint and galvanised steel; each term to its mean under a pixel. Uses the REST
+  position (the rides' animation happens after), so the pattern turns with the wheel.
+- The crowd: `PierPark.people_steps()` adds `PierDay.extra_people(hour, weather)` after the 48's
+  rolls (own stream `pier_day_people`): up to `EXTRA_PEOPLE` 110 at the busiest hours
+  (`density()`: 12:00-20:00 full, thinning to 0.2 by midnight, 0.08 overnight; rain 5 %), 70 % on
+  the promenade's nodes (`PROMENADE`), 45 % in twos and threes. All in the crowd cap.
+  `PierDay.rail_spots()` (65) join the chunk's `vendor_queue`: people stop at the open rails and
+  the sea end facing out, clear of benches, lamps and stands.
+- Stands and booths chamfered (`PierDay.bevel()`, PierMesh.box's vertical-edge bevel).
+
+**Numbers** (refcams, opengl3 1280x720, pier_day): before p5/p50/p95 53/146/208 sat 0.351, 1.15 M
+triangles / 414 draws (shadows 0.37 M); after 40/155/208 sat 0.316, 1.46 M / 565 (shadows 0.48 M).
+The rise is the crowd (~25 more people in view; each near person is ~12 k triangles); the deck
+shader is no geometry. `PIER_DAY=0` gives the before. See the ten-camera compare below.
+
+**Tools.** `PIER_DEBUG=1` prints the people count (and a lost crowd-room) from people_steps;
+`tools/pier/compile.gd` still builds the park; checks `tests/rc3_pier_day_checks.gd` (one line in
+smoke_test.gd's city_files).
+
+**Not done / not verified.** The Mac (Forward+) - see the lavapipe note below. Nobody rides (the
+gondolas, coaster and carousel are empty: 9ca's gap). No anglers with rods at the sea end. The
+coaster station's grey gate blocks and the stands are still simple boxes. The sea under the pier
+is not in this view.

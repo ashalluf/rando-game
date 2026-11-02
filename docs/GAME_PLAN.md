@@ -295,6 +295,11 @@ already mapped so milestone 2 is script-only.
 
 ## Decisions log
 
+- **2026-11-02 The pier by day (rc3-pier-day, HANDOFF "The pier by day from the deck").** A deck
+  the camera stands on is worked out per board in its own shader (transverse boards, gaps,
+  weathering, wear) rather than a tiled plank photo, which smooths into a brown sheet at grazing
+  angles; a summer-afternoon pier is packed, so its crowd follows the hour (up to 110 more people)
+  and people stop at the rail. PIER_DAY=0 the A/B.
 - **2026-11-02 The chase camera's street (rc2-chase-cam, HANDOFF "The chase camera's street").** A
   driving view is a reference camera too: a camera row may stage the player's own car (`drive`) and
   shoot his DriveCam. The carriageway's wear is per lane in the road shader (wheel tracks, oil band,
