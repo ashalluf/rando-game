@@ -2151,6 +2151,11 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   branch: a dry road is bit-identical. `WET_ROAD_MIRROR=0` (global `wet_road_mirror`) is the old
   mirror; small Forward+ scene `tools/wet_road_mirror/mirror_shot.gd`; checks
   `tests/wet_road_mirror_checks.gd`.
+- Additive shaders and fog (2026-11-02, docs/HANDOFF.md "The pale box round the player's car"): a
+  `blend_add` shader is `fog_disabled` or writes a coverage alpha (`af_cover()`,
+  `shaders/additive_fog.gdshaderinc`); left at 1 the fog colour is added over the whole quad (the grey
+  squares round the car's tail lamps). Hiding NightLights does nothing (`_refresh_lights()` re-shows it):
+  toggle `layers`. Checks `tests/chase_box_bug_checks.gd`.
 - Car lights (GAME_PLAN G4 / G6, 2026-10-04): the lamp mesh is `PropFactory.vehicle_lights()`
   on `shaders/car_lights.gdshader` (it replaced light_pool for cars): head and tail glows, the
   beam fan, amber indicators at all four corners, reversing lamps and a red wash on the road

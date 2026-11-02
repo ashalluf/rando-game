@@ -4315,3 +4315,6 @@ none of either.
   comes in with distance; broad road-light pools have no hard rim and dim from the air; floodlit
   masonry is a fifth of the old brick and render, not most of it; a far searchlight seen from the air
   saturates softly and fades with distance. NIGHT_AERIAL=0 is the A/B.
+- 2026-11-02 (chase-box-bug): an additive (blend_add) shader must be `fog_disabled` or write a coverage
+  alpha (`af_cover()`, shaders/additive_fog.gdshaderinc): with ALPHA left at 1 the renderer adds the fog
+  colour over the whole quad, which drew a grey square round each tail lamp of the player's car.

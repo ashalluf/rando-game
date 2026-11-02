@@ -27034,3 +27034,43 @@ truck in one run, a red car in the other; the deck is freeway_deck.gdshader, not
 (one line in smoke_test.gd's city_files): street asphalt gets lane wear and pavements / car parks do
 not, the shader applies it and 0 is the old road, the switch, the camera row and its staging
 script. Stills on `shots/rc2-chase-cam`.
+## 9lg. The pale box round the player's car (wave 5, `chase-box-bug`, branch `wt/chase-box-bug`)
+
+This closes the open item 3 of the chase_cam refcam section (rc2-chase-cam).
+
+**The bug.** Every chase-camera still (shots/rc2-chase-cam 02_after_chase_cam.jpg, shots/driving-camera
+06_after_frame_30kmh.jpg) had a pale translucent "rectangle" across the rear of the player's car. Zoomed, it
+is TWO squares, each centred on a tail lamp, about 0.6 m across, in the haze colour.
+
+**The cause.** `car_lights.gdshader` parts 6 and 7 are the lamps' halos (NightAtmos). Their quads are
+collapsed in the vertex stage only when `night_atmos.z` (the halo gain) or the distance fade is ~0 - and
+the gain is 1 by day, so by day each halo is a live camera-facing square whose light is 0. The halo
+branch wrote only ALBEDO (the light can pass 1, so it stays out of the alpha), leaving ALPHA at 1. On an
+additive material both renderers still mix the fog colour in - albedo x (1 - fog) + fog colour x fog -
+and add it over the whole quad: a haze-grey square round each lamp of every car whose lamps run (a
+driver in), drawn ~0.3 m toward the camera so it lies over the bumper. The player's car was the only one
+close enough to notice. The street lamps' halos (night_halo.gdshader) never had it: they are
+`fog_disabled`.
+
+**Why the earlier search missed it.** It IS a child of the car (NightLights), but
+`Vehicle._refresh_lights()` sets `_night_lights.visible` back to "lamps running" whenever it differs, every
+tick - so hiding the node (CHASE_AB, the bisection) was undone before the frame was drawn. Toggle render
+`layers`, or swap the material, to take a scripted node out of a frame. The probe
+(`tools/chase_box_bug/probe.gd`) proves it in one load: the same paused frame with the fixed shader and
+with main's shader code swapped in at run time (`car_lights_old.txt`); `MODE=classes` / `MODE=bisect`
+toggle drawables by their layers.
+
+**The fix.** `shaders/additive_fog.gdshaderinc`: `af_cover(light)` returns the light with its coverage
+(max channel x 64, clamped) in the alpha and the colour divided by it, so ALBEDO x ALPHA is the light
+exactly, the fog still dims it, and the fog colour is added only where there is light - nothing where
+there is none. Used by car_lights' halo branch and the four other additive shaders that left ALPHA at 1
+(`fw_flare` - road flares burn by day too -, `muzzle_flash`, `tracer_streak`, `ballpark_glow`). Rule: an
+additive shader is `fog_disabled` or writes a coverage alpha.
+
+**Checks.** `tests/chase_box_bug_checks.gd`: every `blend_add` shader in shaders/ is fog_disabled or writes
+ALPHA; car_lights' halo branch uses af_cover; a GDScript copy of af_cover gives the light back exactly and
+no alpha for no light (its gain is the include's); a car's lamps still wear car_lights.gdshader.
+
+**Stills** on `shots/chase-box-bug` (01 before, 02 after, 03 the crop). Frame cost: unchanged (shader-only,
+no geometry or draws). Not verified on Forward+ (the same fog mix applies there; the fix is the alpha, which
+both renderers blend the same way).
