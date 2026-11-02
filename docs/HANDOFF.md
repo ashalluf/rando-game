@@ -27034,3 +27034,91 @@ truck in one run, a red car in the other; the deck is freeway_deck.gdshader, not
 (one line in smoke_test.gd's city_files): street asphalt gets lane wear and pavements / car parks do
 not, the shader applies it and 0 is the old road, the switch, the camera row and its staging
 script. Stills on `shots/rc2-chase-cam`.
+
+## 9d?. Palm crowns without the flecks (fleet wave 6, `palm-shimmer`, branch `wt/palm-shimmer`)
+
+The task: palm crowns flicker, dither and show dark blocky holes (the rain_day and suburb_morning
+refcams on opengl3; specular-aliasing's "not done"). Find the cause and make palms solid, softly
+lit crowns at every distance on both renderers, proved with strips of a slow pan.
+
+**The cause, first and biggest: every second leaflet was black.** A frond's two ranks of leaflets
+are built as mirror images (`_palm_frond()` runs `dir` +1 / -1), so their blades wind opposite
+ways: from any side one rank is front-facing and the other back-facing. foliage.gdshader is
+`cull_disabled` and the leaflets' normals lean hard UP (so a crown lights as one mass); Godot turns
+a back face's normal toward the camera, so for the back-facing rank it pointed at the ground, took
+no sun and drew near-black. Seen whole, the crown was lit / black / lit / black leaflet by leaflet:
+the dark flecks and "holes", and since those blades are 3-8 cm (under a pixel from ~40 m) the
+pattern crawled with any camera move. Close up it read as a striped paper fan (stills 07 / 08). la_tree
+and foliage_tex had already been given this fix (tree-light-2); the palms never were.
+
+**What changed** (all behind `PALM_SHIMMER=0`, `PalmShimmer`, `scripts/world/palm_shimmer.gd`):
+1. **Back faces keep the mesh's normal** in foliage.gdshader's fragment (`!FRONT_FACING` ->
+   `NORMAL = -NORMAL`), and the crown's underside is shaded from the NORMAL against the VIEW
+   (`leaf_under_shade` 0.24), never from FRONT_FACING - so both ranks agree and a crown shades as a
+   mass, lit over the top and deeper under it.
+2. **Sub-pixel leaflets widened by coverage.** Every leaflet vertex carries its offset from the
+   leaflet's centre line across the blade in CUSTOM0 (RGBA float, w 1; 0 on everything else;
+   `PropFactory._palm_leaf_vertex()`, every ladder level - a merged blade's offset is its group's
+   width). The vertex shader (at rest, before the wind) measures the blade's width square to the view
+   ray in pixels and widens one under `MIN_PX` (1.5) to it, at most `MAX_WIDEN` (4) times, handing the
+   fragment its true coverage `1 / k`: a per-frame dither on Forward+ (TAA resolves it to the share,
+   foliage_tex's rule), kept whole on Compatibility (a fixed dither crawls: specular-aliasing's
+   finding) - there a far crown is a touch denser instead. Never in an orthographic (shadow) pass.
+   The pixel uses `VIEWPORT_SIZE.y` with a 1080 fallback (the trap where it reads 0/1 in a vertex
+   stage) and `abs(PROJECTION_MATRIX[1][1])` (negative on Compatibility).
+3. **The palm's vertex colours decoded on Forward+** (`cs_as_uniform(COLOR.rgb)`): they are display
+   numbers tuned on Compatibility, and Forward+ reads a vertex colour as linear - on the Mac the whole
+   tree (fronds and the rope-grey trunk) drew about twice as bright and chalky. The black half of the
+   crown had hidden it; with it gone the crowns went milky on lavapipe Forward+ (still 12).
+4. **Frond specular 0.34 -> 0.18** (`LEAF_SPECULAR`): with every leaflet's normal now up, every one
+   caught the sky's grazing reflection; a low sun ahead (suburb_morning, 09:30 looking east) veiled
+   the crowns in a pale sheen (still 11: golden backlit A/B).
+5. The boots' undersides (sawn frond stubs on the trunk) faced into the trunk (-nt) and drew as black
+   triangles; they lean outward-down now (`BOOT_UNDER_OUT`).
+
+**The measure.** `tools/palm_shimmer/palm_strip.gd`: a street lined with the six variants on both
+kerbs to 300 m, built through MultiMeshBatch (the palm ladder's LOD bias and shadow twin as in a
+chunk), the city sun's four cascades, LIGHT=noon | golden | rain, VIEW=street | mid | up | far, a
+slow pan (0.02 degrees a frame) with SS=4 rotated-grid jitter, frames named for
+`tools/specular_aliasing/strip.py measure / compare`; seconds a frame on opengl3, Forward+ with
+`--rendering-driver vulkan` (lavapipe; RUN_TIME=1 TAA=1 WIND=0 for the dither). PARAMS="name=v,..."
+sets palm-shader uniforms, PALM_MIN_PX / PALM_MAX_WIDEN the floor for A/Bs.
+
+Strip numbers (opengl3, `--ss 4`, 8 frames, MEAN of |d2| /255 and FLICKER share; A = PALM_SHIMMER=0):
+
+| view | light | before (MEAN, FLICKER) | after | MEAN change |
+|---|---|---|---|---|
+| street | noon | 4.00, 18.8 % | 2.79, 16.6 % | -30 % |
+| street | rain | 3.15, 16.3 % | 2.33, 14.0 % | -26 % |
+| mid | noon | 5.57, 24.5 % | 3.96, 22.5 % | -29 % |
+| mid | rain | 4.40, 21.1 % | 3.21, 18.8 % | -27 % |
+| up | noon | 3.21, 16.4 % | 2.23, 13.0 % | -31 % |
+| up | rain | 2.90, 15.7 % | 2.32, 14.4 % | -20 % |
+| far | noon | 3.42, 11.9 % | 2.24, 11.3 % | -34 % |
+| far | rain | 2.65, 10.9 % | 1.66, 9.7 % | -38 % |
+
+Crowns only (cropped to a crown cluster): mid noon 12.47 -> 7.51 (-40 %, FLICKER 42.9 -> 38.1 %),
+street noon's near crown 8.10 -> 5.51 (-32 %, 40.5 -> 33.5 %), from under a crown 4.50 -> 3.00 (-33 %,
+25.5 -> 19.9 %); P99 down a third in each.
+
+The table is the whole frame, so the walls, road and sky (which do not change) dilute it; the crowns' own pixels
+fall more (the heat maps, stills 09 / 10). FLICKER (pixels over 6/255) moves less than MEAN: the
+crown silhouette against the sky still crosses that line at 4 samples; what goes is the leaflet-by-
+leaflet black / lit alternation inside the crown. The look: still 07 (street), 13 (from under a
+crown), 11 (golden, backlit), 12 (Forward+ on lavapipe: main's chalky trunks and milky crowns vs
+after).
+
+**Refcams.** rain_day and suburb_morning (cameras_w5.json), before (PALM_SHIMMER=0) / after (stills
+01-06): the near rain_day palms lose their striped lit / black fronds; the suburb's backlit crowns at
+09:30 go from black-flecked to solid green (their greenish pixels' mean 114/119/77 -> 122/132/78:
+lighter by the black half they lost, no paler - the specular cut holds the saturation). Frame cost:
+rain_day 4.716 -> 4.728 M triangles, 3,044 -> 3,050 draws; suburb 5.747 -> 5.766 M, 2,898 -> 2,901
+(traffic noise; the palm meshes are the same triangles, with 16 bytes more a vertex). The ten
+original cameras (cameras.json, before = PALM_SHIMMER=0 in the same build): 7 ok; street_noon,
+street_night and freeway flagged on pixel diffs, all from traffic standing differently (a bus, the
+freeway's cars) - street_noon's centre palm now a solid crown; triangles and draws within +-2 %.
+
+**Not done / not verified:** the remaining flicker in the strips is the crowns' silhouettes against
+the sky and the trunks' edges at 1-3 pixels, which four jittered samples do not fully resolve (the
+Mac's TAA integrates more). Forward+ was checked on lavapipe stills of the palm street (TAA on, the
+dither resolving), not in motion. The ten original refcams: see the compare line above.
