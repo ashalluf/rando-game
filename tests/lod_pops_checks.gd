@@ -82,26 +82,18 @@ func _watcher(city: Node3D) -> void:
 		"lod pops: the watcher softens a hard range added to the city within a few frames")
 	node.get_parent().remove_child(node)
 	node.free()
-	# A car built now keeps its hard near / far swap: the alpha fade showed the body's own
-	# underside and wheels through its paint (see LodFade._closed_body).
-	var car: Node3D = load("res://scripts/vehicles/vehicle.gd").new()
-	car.call("setup", 0, Color(0.5, 0.1, 0.1), 0)
-	car.position = Vector3(0.0, -500.0, 0.0)
-	car.set("gravity_scale", 0.0)
-	city.add_child(car)
-	for i in 4:
-		await city.get_tree().process_frame
-	var ranged := 0
-	for g in car.find_children("*", "GeometryInstance3D", true, false):
-		var gi := g as GeometryInstance3D
-		if gi.visibility_range_end > 0.0 or gi.visibility_range_begin > 0.0:
-			ranged += 1
-	_t._check(ranged > 0 and not LodFade.soften(car.find_children("*", "GeometryInstance3D", true, false)[0] as GeometryInstance3D),
-		"lod pops: a car's parts are never alpha-faded (%d ranged parts)" % ranged)
-	# Gone at once, not at the frame's end: a block the next file builds must not meet a budget
-	# (PhysicsBudget) still counting this car.
-	car.get_parent().remove_child(car)
-	car.free()
+	# Nothing under a vehicle is alpha-faded (it showed the body through itself), and the car's
+	# own crossfade (CarLodBlend) on free-standing meshes, never in the city: a Vehicle built here
+	# changed what the next file's twice-built block got.
+	var veh := Node3D.new()
+	veh.add_to_group("vehicle")
+	var part := MeshInstance3D.new()
+	part.visibility_range_end = 30.0
+	veh.add_child(part)
+	_t._check(not LodFade.soften(part) and part.visibility_range_end_margin == 0.0,
+		"lod pops: a vehicle's parts are never alpha-faded")
+	veh.free()
+	_car_blend()
 	if not had and is_instance_valid(LodFade._node):
 		var n2: Node = LodFade._node
 		n2.get_parent().remove_child(n2)
@@ -110,3 +102,48 @@ func _watcher(city: Node3D) -> void:
 	LodFade.force = was_force
 	await city.get_tree().process_frame
 	await city.get_tree().process_frame
+
+
+func _car_blend() -> void:
+	var was := LodFade.force
+	LodFade.force = true
+	var paint := ShaderMaterial.new()
+	paint.shader = Vehicle.PAINT_SHADER
+	var trim := StandardMaterial3D.new()
+	var box := BoxMesh.new()
+	var near := MeshInstance3D.new()
+	near.mesh = box
+	near.set_surface_override_material(0, paint)
+	near.visibility_range_end = 30.0
+	var near_trim := MeshInstance3D.new()
+	near_trim.mesh = box
+	near_trim.set_surface_override_material(0, trim)
+	near_trim.visibility_range_end = 30.0
+	var far := MeshInstance3D.new()
+	far.mesh = box
+	far.set_surface_override_material(0, paint)
+	far.visibility_range_begin = 30.0
+	var car := Node3D.new()
+	var nears: Array[MeshInstance3D] = [near, near_trim]
+	var fars: Array[MeshInstance3D] = [far]
+	CarLodBlend.apply(car, nears, fars, 30.0)
+	var fp := far.get_surface_override_material(0) as ShaderMaterial
+	var tm := near_trim.get_surface_override_material(0) as StandardMaterial3D
+	var lo := 30.0 - CarLodBlend.BAND * 0.5
+	var hi := 30.0 + CarLodBlend.BAND * 0.5
+	_t._check(near.visibility_range_end > hi and far.visibility_range_begin < lo and fp != paint and fp != null
+		and paint.get_shader_parameter("lod_blend") == Vector3(lo, hi, 0.0) and fp.get_shader_parameter("lod_blend") == Vector3(lo, hi, 1.0),
+		"lod pops: a car's near body and far twin overlap past the band, the far one on its own paint copy (far side)")
+	_t._check(tm != null and tm != trim and tm.distance_fade_mode == BaseMaterial3D.DISTANCE_FADE_OBJECT_DITHER
+		and is_equal_approx(tm.distance_fade_min_distance, hi) and is_equal_approx(tm.distance_fade_max_distance, lo),
+		"lod pops: the glTF parts fade out by the same dither (OBJECT_DITHER, %.0f -> %.0f m)" % [hi, lo])
+	CarLodBlend.revert(car)
+	_t._check(near.visibility_range_end == 30.0 and far.visibility_range_begin == 30.0 and far.get_surface_override_material(0) == paint
+		and near_trim.get_surface_override_material(0) == trim and paint.get_shader_parameter("lod_blend") == Vector3.ZERO,
+		"lod pops: the first hit puts the hard swap back (CarDamage copies the paint)")
+	for n in [near, near_trim, far, car]:
+		n.free()
+	var src := FileAccess.get_file_as_string("res://shaders/car_paint.gdshaderinc") + FileAccess.get_file_as_string("res://shaders/car_glass.gdshader")
+	_t._check(src.count("lod_blend_cut(") == 2 and FileAccess.get_file_as_string("res://shaders/lod_blend.gdshaderinc").contains("52.9829189"),
+		"lod pops: the paint and the cabin glass carry the screen door, StandardMaterial3D's noise")
+	LodFade.force = was
