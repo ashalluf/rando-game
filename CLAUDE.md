@@ -1623,8 +1623,11 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   (`scripts/weapons/blast_pool.gd`, `shaders/blast_pool.gdshader`) burning fuel where a car or pump
   went up; secondary pops; a chain fuse to the cars beside a fuel blast (`chain_depth`); a shot
   petrol pump is a gas blast (`gas_next`); the bang at the speed of sound with a thump, the shake with
-  the wave. `EXPLOSIONS_4=0` is the A/B; strips blast_room_shot.gd (`GAS=1`, `WEB=1`); checks
-  `tests/explosions_4_checks.gd`.
+  the wave; later rounds: a rolling lit dust front, the plume's value range, panel debris, the fires'
+  underlight on the cap, a held stem, fuel trails and flames up the wreck's sides, a soft crater.
+  `EXPLOSIONS_4=0` is the A/B (`BLAST_DUST_ROLL`, `BLAST_VALUE`, `BLAST_CHUNKS`, `BLAST_UNDERLIGHT`,
+  `BLAST_STEM`, `BLAST_WRECK_FIRE`, `BLAST_CRATER` =0 each part); strips blast_room_shot.gd (`GAS=1`,
+  `WEB=1`, `CAR=1 CHAIN=1`); checks `tests/explosions_4_checks.gd`.
 - The mayhem refcam (2026-11-01, docs/HANDOFF.md "The mayhem refcam"): `mayhem` in
   `tools/refcams/cameras_w5.json` is STAGED (`"stage": "mayhem"` -> `tools/refcams/mayhem_stage.gd`:
   hero firing, a car blast, a burning wreck, a police standoff, fleeing people). `RcMayhem`
@@ -2151,6 +2154,11 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   branch: a dry road is bit-identical. `WET_ROAD_MIRROR=0` (global `wet_road_mirror`) is the old
   mirror; small Forward+ scene `tools/wet_road_mirror/mirror_shot.gd`; checks
   `tests/wet_road_mirror_checks.gd`.
+- Additive shaders and fog (2026-11-02, docs/HANDOFF.md "The pale box round the player's car"): a
+  `blend_add` shader is `fog_disabled` or writes a coverage alpha (`af_cover()`,
+  `shaders/additive_fog.gdshaderinc`); left at 1 the fog colour is added over the whole quad (the grey
+  squares round the car's tail lamps). Hiding NightLights does nothing (`_refresh_lights()` re-shows it):
+  toggle `layers`. Checks `tests/chase_box_bug_checks.gd`.
 - Car lights (GAME_PLAN G4 / G6, 2026-10-04): the lamp mesh is `PropFactory.vehicle_lights()`
   on `shaders/car_lights.gdshader` (it replaced light_pool for cars): head and tail glows, the
   beam fan, amber indicators at all four corners, reversing lamps and a red wash on the road
@@ -7111,6 +7119,11 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   stratus ceiling between coverage `PAINTED_STRAT_LO` / `_HI` (sky.gdshader): rain had blue holes.
   web_build_checks also holds every material's uniform block under 16 KB and custom varyings
   under 40 components. A local export packs `build/` too unless it has a `.gdignore`.
+- The web build after wave 4 (2026-11-01, docs/HANDOFF.md "The web build after wave 4"): eight
+  bookmarks clean, pck 609 MB, wasm 821 MB. MacArthur Park's fountain plume is left out on the web
+  (`plume_allowed()`, `?fountain_plume=1`): it blew up into glare there. Bisect a web-only look on
+  the REAL build with `tools/web_probe/export_probe.sh` (an autoload probe: `ap_hide=` steps,
+  frames as PROBE_IMG); `tools/webshot/web_budget.gd` prints every shader's web budgets.
 - Forward+ review of small scenes (2026-10-05, docs/HANDOFF.md "Forward+ review A"): lavapipe
   renders `block_shot.tscn` (a few FULL blocks, ~10 min a run, ~12 GB) and the room tools
   (`hero_moves_shot.gd`, `photo_shot.gd ROOM=1`, ~2 min) with `--rendering-driver vulkan` and
