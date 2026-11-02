@@ -51,11 +51,12 @@ func _stance() -> void:
 	_t._check(relaxed.length == raw.get_animation("idle").length and relaxed.get_track_count() == raw.get_animation("idle").get_track_count(),
 		"IdleRelax: the relaxed clip keeps its length and tracks")
 	# Once per library: a second relax() of a relaxed library changes nothing.
-	ap.add_animation_library("gait", mine)
-	mine.set_meta(IdleRelax.META, true)
-	var kept := mine.get_animation("idle")
+	var done := AnimationLibrary.new()
+	done.add_animation("idle", relaxed)
+	done.set_meta(IdleRelax.META, true)
+	ap.add_animation_library("gait", done)
 	IdleRelax.relax(ap, "gait")
-	_t._check(mine.get_animation("idle") == kept, "IdleRelax: a library is relaxed once")
+	_t._check(done.get_animation("idle") == relaxed, "IdleRelax: a library is relaxed once")
 	inst.queue_free()
 	await _t.get_tree().process_frame
 
