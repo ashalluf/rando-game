@@ -28081,5 +28081,10 @@ is the water no longer near-white.
 real houses across the canal (no planar reflection on Compatibility); the stucco boxes on the
 right of the view are plain; no people on the walks at that moment; the front range behind is the
 hills' look (not this area). Forward+ (the Mac) not shot. Checks: `tests/rc4_canals_day_checks.gd`.
+The ten original cameras, this branch against `RC4_CANALS=0` from one tree: eight within tolerance
+(beach and pier_night bit-near-identical); street_noon and freeway flagged by live traffic only (a
+box truck vs an SUV in the freeway lane, the bus in another place), the scenery identical. Gate
+(SHARDS=3): 5,651 of 5,652, the one failure pedestrian_flow's "comes out of a shop door" (it took a
+valet), which passes alone (32 / 32): a shard-order flake.
 Stills on `shots/rc4-canals-day`.
 
