@@ -164,7 +164,7 @@ static func fire_list(tree: SceneTree) -> Array[Vector4]:
 		for c in CarDamage._burning:
 			if out.size() >= 4:
 				break
-			if c is Node3D and is_instance_valid(c) and (c as Node).is_inside_tree():
+			if is_instance_valid(c) and c is Node3D and (c as Node).is_inside_tree():
 				var p: Vector3 = (c as Node3D).global_position + Vector3.UP * 1.2
 				out.append(Vector4(p.x, p.y, p.z, 14.0 + 0.6 * 0.499))
 	return out

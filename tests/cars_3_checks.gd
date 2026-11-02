@@ -115,12 +115,21 @@ static func _wave2(roll: int) -> int:
 
 
 func _rolls() -> void:
+	# The fourth wave (Cars4) takes slices of its own: this file checks the third wave's table.
+	var c4 := Cars4.enabled
+	Cars4.enabled = false
+	_rolls_3()
+	Cars4.enabled = c4
+
+
+func _rolls_3() -> void:
 	var counts := {}
 	var last := 0
 	var ordered := true
 	for row: Array in Vehicle.ROLL_MAP:
 		ordered = ordered and int(row[0]) > last
-		counts[row[1]] = int(counts.get(row[1], 0)) + int(row[0]) - last
+		var owner := Cars4.row_type(row)
+		counts[owner] = int(counts.get(owner, 0)) + int(row[0]) - last
 		last = int(row[0])
 	var shares := ordered and last == 1000
 	for type: int in Cars3.TYPES:
@@ -150,6 +159,8 @@ func _rolls() -> void:
 		else:
 			stray += 1
 	for row: Array in Vehicle.ROLL_MAP:
+		if row.size() > 3:
+			continue
 		if row.size() > 2:
 			named = named and Cars3.is_cars_3(int(row[1])) and not Cars3.is_cars_3(int(row[2]))
 			named = named and _wave2(int(row[0]) - 1) == int(row[2])
@@ -165,6 +176,8 @@ func _rolls() -> void:
 
 ## CARS_3=0: every slice goes back to whoever had it, for all 1000 rolls.
 func _switch() -> void:
+	var c4 := Cars4.enabled
+	Cars4.enabled = false
 	var was := Cars3.enabled
 	Cars3.enabled = false
 	var same := 0
@@ -179,6 +192,7 @@ func _switch() -> void:
 		none = none and not Cars3.is_cars_3(car.body_type)
 		car.free()
 	Cars3.enabled = was
+	Cars4.enabled = c4
 	_check(same == 1000 and none, "CARS_3=0 rolls exactly the second wave's table (%d of 1000) and never a new body" % same)
 
 

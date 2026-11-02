@@ -245,6 +245,7 @@ varying float body_ny;
 varying vec3 wet_nrm;
 
 #include "res://shaders/wet_surface.gdshaderinc"
+#include "res://shaders/specular_aa.gdshaderinc"
 
 
 // A display (sRGB) colour in the space `paint` arrives in (a source_color uniform: decoded on
@@ -427,6 +428,11 @@ void fragment() {
 	// for fwidth inside a branch): metres on the body per pixel.
 	float p2_ms = length(MODEL_MATRIX[0].xyz);
 	float p2_fp = max(length(fwidth(paint_rest)) * p2_ms, 1e-6);
+	// How fast the body's normal turns across a pixel (specular_aa.gdshaderinc), for the lacquer's
+	// geometric AA at the end: a 0.035 coat on a wing's curve a few pixels wide is a sun glint
+	// that jumps pixel to pixel as the car or the camera moves.
+	vec3 saa_dnx = dFdx(NORMAL);
+	vec3 saa_dny = dFdy(NORMAL);
 #ifdef CAR_DAMAGE
 	float cr_stretch = length(cross(dFdx(cr_moved), dFdy(cr_moved))) / max(length(cross(dFdx(local_rest), dFdy(local_rest))), 1e-14);
 	if (cr_torn(cr_gap, cr_stretch)) {
@@ -1091,6 +1097,15 @@ void fragment() {
 #ifdef CAR_DAMAGE
 	CLEARCOAT *= cc_keep;
 #endif
+	// Specular AA: the lacquer lobe never narrower than the pixel's spread of normals. Godot's
+	// roughness limiter (Forward+) leaves CLEARCOAT_ROUGHNESS alone, so the coat is done here on
+	// both renderers; the base ROUGHNESS only where there is no limiter (Compatibility).
+	if (saa_on()) {
+		CLEARCOAT_ROUGHNESS = saa_geometric(CLEARCOAT_ROUGHNESS, saa_dnx, saa_dny, 0.5, 0.18);
+#if CURRENT_RENDERER != RENDERER_FORWARD_PLUS
+		ROUGHNESS = saa_geometric(ROUGHNESS, saa_dnx, saa_dny, 0.25, 0.18);
+#endif
+	}
 #ifdef CAR_OPEN_PANEL
 	if (!FRONT_FACING) {
 		// The inside of the skin: a lifted bonnet's underside, primer grey with its bracing dark.
