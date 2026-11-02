@@ -27034,3 +27034,61 @@ truck in one run, a red car in the other; the deck is freeway_deck.gdshader, not
 (one line in smoke_test.gd's city_files): street asphalt gets lane wear and pavements / car parks do
 not, the shader applies it and 0 is the old road, the switch, the camera row and its staging
 script. Stills on `shots/rc2-chase-cam`.
+
+## 9d?. The golf course at 08:30 (refcam golf_morning, 2026-11-02; agent branch `wt/rc3-golf-morning`)
+
+**The camera.** A new wave-6 reference view, `golf_morning` in `tools/refcams/cameras_w6.json`:
+Valley Oaks at 08:30 clear, eye height behind the 9th's back tee (39.6, -2858.2), looking down
+the hole (yaw 158.4) toward the clubhouse and the front range, a group of three staged on the tee
+(the seed rolls no group on the 9th): the row's optional `golf_group` key ("hole:stage[:tee[:count]]")
+is set by refcams_shot.gd as `GOLF_GROUP` before the city loads, read by `GolfLife.force_group`
+(groups() takes that hole whatever its roll; every other hole unchanged). `tools/golf/groups_probe.gd`
+prints which holes the seed puts groups on.
+
+**What read fake, in the order the eye lands on it, and what was done** (all behind
+`GolfMorning`, `scripts/world/golf_morning.gd`, the `golf_morning` shader global; `GOLF_MORNING=0`
+is the A/B and draws the course bit for bit as before):
+1. *The tee box's divots were 33 cm brown squares* on a hash grid, the first thing under the lens.
+   `tee_divots()` in golf_turf.gdshader: scars a hand long along the line of play in a tee-aligned
+   cell grid, packed in worn rows across the box (a slow noise along the line, the middle wears
+   most), two thirds filled with the sand-and-seed mix, the rest bare soil with the torn turf's rim;
+   under a couple of pixels the cell's average. The footprint is taken once in uniform control flow
+   (`px`): fwidth() inside the tee's branch is unreliable on llvmpipe.
+2. *A hard vertical seam down the middle of the frame*: the mown stripes' sheen was
+   `sign(facing)`, so the light and dark bands swapped exactly where the view crossed square to the
+   mower - which, on a tee seen down the line of play, is the screen's centre. Now the sheen fades
+   to nothing square to the mower and comes back the other way round (visible on Forward+ too).
+3. *Nothing said "morning"*: dew. `dew_amount(city_hour)` (= `GolfMorning.dew()`, checked) is 1
+   overnight and at dawn and burns off between 8:6 and 10:6, never in the rain; the turf goes a
+   little grey-silver at a grazing look and toward the low sun, glossier (roughness / specular -
+   kept gentle: at 0.7 roughness Forward+ lit a warm hot spot over the rough that read as straw),
+   fresh stripes stand out more, trails where people walked are dark (along the line of play,
+   wandering, starting and stopping; across the tee), the greens mown at first light keep only a
+   ring. No glints: 3 cm glint cells drew as paper litter in the stills.
+4. *Bunkers were flat white discs* from the tee and the air: `bunker_morning()` - a shade darker and
+   warmer, the lip's shadow a band inside the rim, raking done in metre-wide passes (a sheen change
+   that holds to ~100 m), damp patches, a scuffed walk-out.
+5. *Native areas were flat tan* under the trees and read as bare dirt: `native_grass()`, bunchgrass
+   clumps with dark gaps and straw tips leaning one way, averaged once under a few pixels; and the
+   rough's tone now varies in patches (yellower toward dormant warm-season grass, bluer in others).
+6. Smaller: the tee markers are painted balls (`GolfMorning.tee_ball()`), not tin cans; the fir
+   stands (mountain conifers on a valley course, grey skeletons from the tee) are LaTrees
+   sycamores and eucalyptus, after every roll (`GolfBuild._planting()`, a hash per spot).
+
+**Not done: the front range behind the course reads as smooth beige dunes from the valley.** The
+layer probe (`tools/aerial_review/layer_probe.gd`) pins it on the horizon plane (macro_ground), not
+a chunk. The brush is there: HillPlanting.ground() says ~80 % chaparral on those faces and the
+plane's own stand mask agrees (a debug render painted them almost all brush); dark olive brush
+under the 08:30 warm sun, the depth fog and the plane's range haze comes out tan, and the plane has
+no mid-scale texture at 1-2 km. Raising the plane's brush share in the painted band (tried) moved
+the mean by 3 levels. It wants a hills / atmosphere pass (morning fog colour and density over the
+valley, mid-scale texture on the plane); it is shared by every camera that sees a range.
+
+**How to judge it fast.** `tools/glshot/hill_ground_shot.tscn` with `GROUND=1 DAYNIGHT=1 BLOCKS=1`
+and the camera's EYE builds the course chunks round the tee plus the horizon plane in ~40 s on
+opengl3 and ~6 min on lavapipe Forward+ (the course's colours were checked there, ON and OFF). It
+spawns no golfers (use the refcam for those).
+
+**Checks**: `tests/rc3_golf_morning_checks.gd` (the camera row and its group, force_group touching
+only its hole, every pass gated, the dew hours mirrored, a FULL chunk planting sycamores and
+eucalyptus where the firs were). Stills on `shots/rc3-golf-morning`.

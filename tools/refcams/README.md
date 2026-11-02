@@ -105,3 +105,8 @@ use `--strict` on both sides when a change should be pixel-small.
 
 Opengl3 is the Compatibility renderer (the web build), not the Mac's Forward+: the numbers track
 change, they do not say what the Mac draws (CLAUDE.md, measurement trap 4).
+
+Wave 6's cameras are in `cameras_w6.json` (run with `REFCAMS_JSON=tools/refcams/cameras_w6.json`):
+`golf_morning` - the golf course at 08:30 from behind the 9th tee toward the clubhouse and the front
+range. Its optional `golf_group` key ("hole:stage[:tee[:count]]") stages a group of golfers there
+(GolfLife.force_group via the GOLF_GROUP environment variable, set before the city loads).

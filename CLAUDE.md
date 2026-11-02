@@ -4995,6 +4995,14 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   the environment removes the course (the A/B), `GOLF_LIFE=0` its life. Probe:
   `tools/golf/probe.gd` (`OUT=map.png` a top-down map of the fields); poses:
   `tools/golf/golfer_lab.tscn`; checks: `tests/golf_checks.gd`.
+- The golf course at 08:30 (wave 6, refcam `golf_morning` in `tools/refcams/cameras_w6.json`,
+  docs/HANDOFF.md "The golf course at 08:30"): `GolfMorning` (`scripts/world/golf_morning.gd`, the
+  `golf_morning` global) gates golf_turf.gdshader's tee divots (scars in worn rows), morning dew
+  (`dew_amount()` = `GolfMorning.dew()`; silver at a grazing look, glossier, walked trails),
+  stripe sheen that fades square to the mower (sign() drew a seam), bunkers (lip shadow, raking
+  passes, damp), bunchgrass native areas, the rough's tone patches; tee balls; the firs are LaTrees
+  sycamores / eucalyptus. `GOLF_GROUP=hole:stage[:tee[:count]]` (a row's `golf_group`) stages a
+  group. `GOLF_MORNING=0` is the A/B; checks `tests/rc3_golf_morning_checks.gd`.
 - Power plant (2026-10-30, docs/HANDOFF.md "The power plant on the coast"): `PowerPlant`
   (`scripts/world/power_plant.gd`, pure layout + line), `PowerPlantKit` (code-built pieces on ONE
   shader, `shaders/power_plant.gdshader`, kind in COLOR.a 32nds) and `PowerPlantBuild` (site
