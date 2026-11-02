@@ -30,6 +30,19 @@ static var enabled: bool = OS.get_environment("EXPLOSIONS_4") != "0"
 ## white, deep soot in the folds. BLAST_VALUE=0 is the A/B (the round-3 flat grey).
 static var value_enabled: bool = OS.get_environment("BLAST_VALUE") != "0"
 static var value_range: float = 1.0
+## The fires under the smoke light its underside (blast_volume.gdshader `under4`): the night cap
+## glows over a burning wreck. BLAST_UNDERLIGHT=0 is the A/B.
+static var underlight_enabled: bool = OS.get_environment("BLAST_UNDERLIGHT") != "0"
+static var underlight_gain: float = 0.5
+## The mushroom's stem holds to the end of its life (blast_volume.gdshader `stem_hold`).
+## BLAST_STEM=0 is the A/B.
+static var stem_enabled: bool = OS.get_environment("BLAST_STEM") != "0"
+## A car blast throws a trail of fuel out across the road (two stretched pools, `fuel_trail()`)
+## and flames climb the wreck's sides from the sills (`side_flames()`). BLAST_WRECK_FIRE=0 the A/B.
+static var wreck_fire_enabled: bool = OS.get_environment("BLAST_WRECK_FIRE") != "0"
+static var side_flame_seconds: float = 14.0
+## The crater's soot specks from a smooth noise (Blast3.crater_maps()): BLAST_CRATER=0 the A/B.
+static var crater_smooth: bool = OS.get_environment("BLAST_CRATER") != "0"
 
 ## The volume's life (seconds) by kind, and the march's steps (the mushroom's box is taller).
 static var volume_life: float = 9.0
@@ -82,6 +95,8 @@ static func dress_volume(mat: ShaderMaterial, fuel: bool, gas: bool) -> Array:
 	mat.set_shader_parameter("life", life)
 	mat.set_shader_parameter("steps", volume_steps)
 	mat.set_shader_parameter("value4", value_range if value_enabled else 0.0)
+	mat.set_shader_parameter("under4", underlight_gain if underlight_enabled else 0.0)
+	mat.set_shader_parameter("stem_hold", 1.0 if stem_enabled else 0.0)
 	return [Vector3(2.3, 2.1, 2.3) * big, Vector3(0.0, 2.0, 0.0) * big, life]
 
 
@@ -161,6 +176,10 @@ static func after_blast(node: Node, parent: Node, at: Vector3, radius: float, fu
 		return made
 	if fuel or gas:
 		made["pool"] = BlastPool.spawn(node, parent, at, radius * (1.25 if gas else 1.0), gas) != null
+		if fuel and wreck_fire_enabled:
+			made["trail"] = fuel_trail(node, parent, at, radius)
+			if node is Vehicle:
+				made["sides"] = side_flames(node as Node3D) != null
 		made["secondaries"] = secondaries(node, parent, at, radius, gas)
 	if fuel:
 		made["chain"] = chain(node, at, radius, int(node.get_meta("chain_gen", 0)) + 1)
@@ -371,3 +390,95 @@ static func panel_mesh() -> Mesh:
 		st.generate_normals()
 		_panel = st.commit()
 	return _panel
+
+
+## The fuel a car's tank threw: two long tongues of burning fuel running out from the pool, their
+## directions a hash of where it went up. Returns how many were laid.
+static func fuel_trail(node: Node, parent: Node, at: Vector3, radius: float) -> int:
+	var h := hash([int(floorf(at.x * 4.0)), int(floorf(at.z * 4.0)), "fuel_trail"])
+	var made := 0
+	for k in 2:
+		var a := float((h >> (k * 9)) & 511) / 511.0 * TAU + float(k) * PI * 0.8
+		var dir := Vector3(cos(a), 0.0, sin(a))
+		var reach := BlastPool.pool_radius * clampf(radius / 7.0, 0.6, 1.8) * (1.15 + 0.35 * float((h >> (20 + k * 4)) & 15) / 15.0)
+		var p := BlastPool.spawn(node, parent, at + dir * reach, radius * 0.5, false, a, 2.6)
+		if p != null:
+			p.life *= 0.6
+			made += 1
+	return made
+
+
+## Flames licking up the wreck's sides: a ring of points round the body at sill height, tall
+## narrow tongues rising up the doors and wings, riding the wreck wherever it was thrown, dying
+## down over `side_flame_seconds`.
+static func side_flames(car: Node3D) -> CPUParticles3D:
+	if car == null or not car.is_inside_tree():
+		return null
+	var d: Dictionary = car.call("_dims") if car.has_method("_dims") else {}
+	var hl := float(d.get("length", 4.6)) * 0.5 - 0.15
+	var hw := float(d.get("width", 1.85)) * 0.5 + 0.02
+	var y0 := float(d.get("road", -0.2)) + 0.22
+	var pts := PackedVector3Array()
+	var nrm := PackedVector3Array()
+	var n := 40
+	for i in n:
+		var u := float(i) / float(n)
+		# Round the rectangle by its perimeter: the long sides take most of the points.
+		var per := 2.0 * (hl + hw) * 2.0
+		var s := u * per
+		var p: Vector3
+		var o: Vector3
+		if s < 2.0 * hl:
+			p = Vector3(hw, 0.0, -hl + s); o = Vector3.RIGHT
+		elif s < 2.0 * hl + 2.0 * hw:
+			p = Vector3(hw - (s - 2.0 * hl), 0.0, hl); o = Vector3.BACK
+		elif s < 4.0 * hl + 2.0 * hw:
+			p = Vector3(-hw, 0.0, hl - (s - 2.0 * hl - 2.0 * hw)); o = Vector3.LEFT
+		else:
+			p = Vector3(-hw + (s - 4.0 * hl - 2.0 * hw), 0.0, -hl); o = Vector3.FORWARD
+		p.y = y0 + 0.25 * fposmod(float(i) * 0.618, 1.0)
+		pts.append(p)
+		nrm.append(o)
+	var f := CPUParticles3D.new()
+	f.name = "WreckSideFlames"
+	f.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	f.amount = WeaponFX._count(70)
+	f.lifetime = 0.85
+	f.lifetime_randomness = 0.45
+	f.local_coords = false
+	f.emission_shape = CPUParticles3D.EMISSION_SHAPE_DIRECTED_POINTS
+	f.emission_points = pts
+	f.emission_normals = nrm
+	f.direction = Vector3(0.25, 1.0, 0.0)
+	f.spread = 12.0
+	f.initial_velocity_min = 0.6
+	f.initial_velocity_max = 1.6
+	f.gravity = Vector3(0.0, 2.6, 0.0)
+	f.damping_min = 0.4
+	f.damping_max = 1.0
+	f.color_ramp = CarDamage._flame_ramp()
+	f.color_initial_ramp = CarDamage._flame_variety()
+	f.angle_min = -10.0
+	f.angle_max = 10.0
+	f.scale_amount_min = 0.55
+	f.scale_amount_max = 1.05
+	var curve := Curve.new()
+	curve.add_point(Vector2(0.0, 0.3))
+	curve.add_point(Vector2(0.2, 1.0))
+	curve.add_point(Vector2(0.65, 0.75))
+	curve.add_point(Vector2(1.0, 0.2))
+	f.scale_amount_curve = curve
+	var quad := QuadMesh.new()
+	quad.size = Vector2(0.55, 1.45)
+	quad.center_offset = Vector3(0.0, 0.45, 0.0)
+	quad.material = CarDamage.fire_material()
+	f.mesh = quad
+	f.custom_aabb = AABB(Vector3(-8.0, -2.0, -8.0), Vector3(16.0, 10.0, 16.0))
+	car.add_child(f)
+	var tw := f.create_tween()
+	tw.tween_interval(side_flame_seconds * 0.3)
+	tw.tween_property(f, "color", Color(1, 1, 1, 0.15), side_flame_seconds * 0.7)
+	tw.tween_callback(func(): f.emitting = false)
+	tw.tween_interval(1.2)
+	tw.tween_callback(f.queue_free)
+	return f
