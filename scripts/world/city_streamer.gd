@@ -199,6 +199,18 @@ var _lead: Vector2 = Vector2.ZERO
 static var STALE_BUILD_CANCEL: bool = OS.get_environment("STALE_BUILD_CANCEL") != "0"
 ## How many such builds were dropped (the checks read it).
 static var stale_builds_cancelled: int = 0
+## CHUNK_SWAP_LOG=1: every chunk replaced or retired within 2 blocks of the player is printed with
+## the stack (who swapped it), for the gate's "spawn chunk replaced mid-file".
+static var SWAP_LOG: bool = OS.get_environment("CHUNK_SWAP_LOG") == "1"
+
+
+func _log_swap(what: String, k: Vector2i, level: int) -> void:
+	if maxi(absi(k.x - _center_block.x), absi(k.y - _center_block.y)) > 2:
+		return
+	var calls := PackedStringArray()
+	for f: Dictionary in get_stack():
+		calls.append("%s:%d" % [String(f.function), int(f.line)])
+	print("CHUNK SWAP %s %d at %s (player block %s, frame %d): %s" % [what, level, k, _center_block, Engine.get_physics_frames(), " < ".join(calls)])
 var _view_dir: Vector2 = Vector2(0.0, -1.0)
 
 
@@ -456,6 +468,8 @@ func _free_retired(k: Vector2i) -> void:
 ## block; the chunk stays up until it has (lod_fade_time), then goes. Never an empty block.
 func _retire_chunk(k: Vector2i) -> void:
 	var chunk: CityChunk = chunks.get(k)
+	if SWAP_LOG and chunk != null:
+		_log_swap("retire", k, chunk.level)
 	chunks.erase(k)
 	if chunk == null:
 		return
@@ -965,6 +979,8 @@ func _finish_now(k: Vector2i) -> void:
 ## Puts a finished chunk in the window and takes down whatever stood in its place.
 func _install_chunk(k: Vector2i, chunk: CityChunk) -> void:
 	var old_chunk: CityChunk = chunks.get(k)
+	if SWAP_LOG and old_chunk != null and old_chunk != chunk:
+		_log_swap("replace %d ->" % old_chunk.level, k, chunk.level)
 	chunk.reveal()
 	chunks[k] = chunk
 	# The far city goes from under it (dissolving), and a chunk still retiring from this block is
