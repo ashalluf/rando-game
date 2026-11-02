@@ -80,7 +80,7 @@ func _throw(radius: float, push: float, count: int) -> void:
 			own.metallic = 0.4
 			own.roughness = 0.75
 			own.emission = Color(1.0, 0.28, 0.05)
-			own.emission_energy_multiplier = 0.5
+			own.emission_energy_multiplier = 0.28 if Blast4.enabled and Blast4.debris_chunks else 0.5
 			mi.material_override = own
 		mi.scale = Vector3(randf_range(0.25, 0.6), randf_range(0.15, 0.4), randf_range(0.25, 0.55)) * clampf(radius / 9.0, 0.6, 1.4)
 		if Blast4.enabled and Blast4.debris_chunks:
@@ -94,7 +94,7 @@ func _throw(radius: float, push: float, count: int) -> void:
 				own.cull_mode = BaseMaterial3D.CULL_DISABLED
 				mi.scale = Vector3(randf_range(0.7, 1.3), 1.0, randf_range(0.5, 1.0)) * clampf(radius / 9.0, 0.6, 1.4)
 			else:
-				mi.scale *= randf_range(1.2, 1.9)
+				mi.scale *= randf_range(0.95, 1.45)
 		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		add_child(mi)
 		_pieces.append({"node": mi, "pos": Vector3.ZERO, "vel": vel, "landed": false, "t": 0.0,
@@ -114,6 +114,12 @@ func _throw(radius: float, push: float, count: int) -> void:
 	_flames.color_ramp = WeaponFX._ramp([Color(3.2, 2.2, 1.2, 1.0), Color(2.0, 0.75, 0.16, 0.95),
 		Color(0.8, 0.22, 0.05, 0.6), Color(0.08, 0.06, 0.05, 0.0)])
 	_grow(_flames, 1.6)
+	if Blast4.tongues():
+		# Tongues licking up off each piece (Blast4 round 6), not round puffs.
+		Blast4.tongue_quad(_flames.mesh as QuadMesh, 1.5)
+		_flames.spread = 20.0
+		_flames.angle_min = 0.0
+		_flames.angle_max = 0.0
 	# The smoke trail: lit puffs left hanging where the piece was, growing and fading.
 	_trail = _emitter(count * (44 if Blast4.enabled and Blast4.debris_chunks else 26), 2.4, BlastFX.smoke_material())
 	_trail.scale_amount_min = 0.55 * k
