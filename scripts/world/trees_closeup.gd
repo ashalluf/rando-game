@@ -49,6 +49,7 @@ static func mark(mat: ShaderMaterial) -> void:
 		if not _marked.has(mat):
 			_marked.append(mat)
 		TreeLight.mark(mat)
+		CameraFade.mark(mat)
 
 
 ## The pass on or off for every tree material made so far, bark included (a still's A/B in one
@@ -81,6 +82,8 @@ static func dress(mesh: Mesh) -> void:
 				TreeLight.dress_material(sm, box)
 		elif mat is StandardMaterial3D and enabled:
 			_bark(mat as StandardMaterial3D)
+		if mat is StandardMaterial3D:
+			CameraFade.mark(mat)
 
 
 static func _bark(m: StandardMaterial3D) -> void:
