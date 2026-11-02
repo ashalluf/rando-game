@@ -4093,6 +4093,14 @@ none of either.
   material are merged (the knee-high plants: sunset -37 % draws); palm shadow twins follow the
   trees' shadow LOD rule (the one cut that moves pixels: frond-shadow speckle at 100+ m). All
   behind HORIZON_TILES / FAR_COVER_HIDE / PLANT_MERGE / PALM_SHADOW_LOD =0.
+- **2026-11-02 Perf audit 5: what casts a shadow is lighter than what is drawn (perf-audit-5,
+  HANDOFF "Perf audit 5").** Wave 4 put the frame back over Perf audit 4's numbers mostly through
+  shadows: the near car wheel (12-14k triangles, no LODs, every cascade) on a freeway now full of
+  cars, the knee-high plants' shadow twins at full LOD bias, the crowd's heavier rigs. Decisions:
+  a near wheel casts from a plain 40-segment twin and draws through generated LODs; the knee-high
+  plants follow the trees' shadow LOD scale; a person past 12 m casts from the welded middle body.
+  Proved per mesh and per car (car_shot A/B), and on the refcams: freeway -12 %, MacArthur -7 %.
+  WHEEL_SHADOW_LITE / WHEEL_LOD / KNEE_SHADOW_LOD / PED_SHADOW_LITE =0 are the A/Bs.
 - **2026-10-31 Traffic that reads alive at eye level (traffic-behaviour-2, HANDOFF "Traffic that
   reads alive at eye level").** The street traffic's IDM queues stood like parked furniture at a
   red; now drivers creep, inch, ease off the brake, signal out of a bus stop, wait in the box to

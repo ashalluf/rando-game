@@ -25728,3 +25728,111 @@ run 12.6 GB. Gate (SHARDS=3): 5,095 passed, 2 failed - "one shotgun blast throws
 and "explosions_2: debris lands on the deck" - both pass when run alone on this branch
 (`SMOKE_PARTS=room,explosions_2_checks`, 239 / 239), neither touches the port.
 
+
+## 9d?. Perf audit 5: the ten refcams after wave 4 (fleet wave 5, agent branch `wt/perf-audit-5`)
+
+**The ask.** Frame cost after wave 4's 45 branches at the ten reference cameras, against "Perf
+audit 4" (9ka): what grew, cut the biggest costs without a visible change, and the gate's peak RSS
+by part.
+
+**How it was measured.** `refcams.py run` plain on main (bb03d731) and on the branch (same box,
+warm caches), and `SPLIT=1 OSPLIT=1` runs of three cameras each (freeway / MacArthur / pier night,
+then street noon / golden aerial / freeway). OSPLIT now also splits the Vehicle and Pedestrian
+categories, and `OSPLIT_CATS=Vehicle,Trees,...` picks which categories to split (still_shot.gd).
+Two plain runs of one tree differ by +-0.4 M on the freeway and golden aerial (traffic, streaming
+order: golden aerial read 5.07 M as the fourth camera and 5.94 M as the second), so read single
+numbers with that in mind; the cuts below were also proved alone (car_shot A/B, counts per mesh).
+
+### What grew since Perf audit 4 (main, GEO triangles)
+
+| camera | PA4 after (est.) | main now | what grew |
+|---|---|---|---|
+| street_noon | 6.92 M | 7.19-7.24 M | Pedestrian 0.43 M (crowd-closeup-3's rigs, +22 %), wheels 0.22 M, bus body |
+| freeway | 5.14 M | 5.55-6.09 M | **Vehicle 0.85-1.40 M** (FreewayFill's cars): near wheels 0.78 M (0.56 M of it shadow), body shadow twins 0.30 M |
+| macarthur | 5.26 M | 5.58 M | palms 1.11 M (MacArthurLook's ring), knee-high bushes / shrubs 0.46 M (0.36 M shadow) |
+| golden_aerial | 4.74 M | 5.07-5.94 M | FarCity 1.1-2.0 M (streaming order), bushes / shrubs |
+| others | | within noise of PA4 | |
+
+The biggest single new cost is the **near car wheel**: `PropFactory.car_wheel(near)` is 12-14k
+triangles (96 segments, tread, moulded letters since car-detail), with no LODs, casting at full
+detail into every cascade it reaches, out to `wheel_lod_distance` (30 m). On the freeway refcam
+that was ~60 near wheels. The second: the knee-high plants' shadow twins (BUSHES, PLANTS, FLOWERS,
+GRASS_CLUMPS, the shrub kit) drew their proxy at the camera's full LOD bias - 0.19 M shadow
+triangles of bushes over MacArthur Park against 0.06 M in the camera pass.
+
+### What was cut (each behind its own switch)
+
+1. **The near car wheel casts from a plain twin** (`Vehicle._wheel_shadow_twin()`,
+   `PropFactory.car_wheel_shadow()`, `WHEEL_SHADOW_LITE=0`): a SHADOWS_ONLY child of the wheel's
+   mesh node (so it spins and steers with it), the far wheel's build at 40 segments (2.3-2.5k
+   triangles against 12.4-14.2k), shown exactly while the wheel is near; the near wheel itself
+   casts nothing. Car rigs only (trucks, lowriders, motorcycles keep theirs).
+2. **The near car wheel draws through generated LODs** (`PropFactory._with_lods()`, `WHEEL_LOD=0`):
+   13.6k -> 6.8k at 5 mm error, 3.4k at 7 cm; the renderer switches under a pixel.
+   One sedan alone in car_shot (`close`, `side`, `front3`): 171-207k -> 111-114k triangles,
+   195-295 pixels differ (`01_wheel_side_ab.jpg`).
+3. **The knee-high plants' shadow twins take the trees' shadow LOD scale**
+   (`PropFactory._mark_knee_shadow()`, meta `knee_shadow_lod`, read by MultiMeshBatch with the
+   palms' and trees' metas; `KNEE_SHADOW_LOD=0`).
+4. **A person between 12 m and the shadow range casts from the welded middle body**
+   (`Pedestrian._lite_shadow()`, `shadow_full_range` 12 m, `PED_SHADOW_LITE=0`): a skinned
+   SHADOWS_ONLY sibling sharing the rig's skeleton and skin (~2,100 triangles, the body the same
+   people wear from 50 m), made the first time it is wanted; inside 12 m the rig casts as before.
+   Under the dummy renderer there is no welded body (no mesh data) and the rig keeps its shadow.
+
+### After: main plain against the branch plain (same box, warm caches)
+
+| camera | main | branch | change |
+|---|---|---|---|
+| street_noon | 7.19 M / 3,530 | 6.89 M / 3,520 | -4.1 % (shadow 3.06 -> 2.80 M) |
+| street_night | 7.06 M / 3,620 | 6.93 M / 3,630 | -1.8 % |
+| sunset | 2.53 M / 1,195 | 2.44 M / 1,193 | -3.3 % |
+| golden_aerial | 5.07 M / 3,010 | 4.84 M / 2,995 | -4.5 % |
+| downtown_aerial | 3.56 M / 1,978 | 3.40 M / 1,962 | -4.6 % |
+| beach | 0.509 M | 0.509 M | 0 |
+| hills | 1.714 M | 1.709 M | -0.3 % |
+| freeway | 5.93 M / 2,775 | 5.22 M / 2,757 | **-11.9 %** (5.55-6.09 M on main across three runs) |
+| macarthur | 5.58 M (split run) | 5.18 M / 3,213 | -7 % |
+| pier_night | 1.19 M (split run) | 1.21 M | noise |
+
+So every camera is back at or under Perf audit 4's "after" level, the freeway within 0.1 M of it
+with half again as many cars on the deck. `refcams.py compare`: street noon and freeway flagged on
+pixels only - the bus and the walkers moved between runs (`03_compare_street_noon.jpg`); the rest
+within tolerance.
+
+### Memory
+
+- **Refcams:** the first-ever run on a fresh box (empty Godot and Mesa shader caches) was
+  OOM-killed at camera 9 at 13.9 GB anon RSS; every later run of the ten peaked 8.5 GB (6.2 GB
+  after the load, +0.3-0.8 GB a camera hop). A launch with `LOAD_CACHE=0` (cold far city and bake)
+  peaked 6.2 GB after the load, the same as warm: the cold load path is not it. Run refcams once
+  for a few cameras on a fresh box before a full set, or expect the kill.
+- **The gate:** see the table below (`SMOKE_PROFILE=1` + `tools/perf_audit_4/gate_rss.py`).
+
+**The gate** (`SHARDS=3`, `SMOKE_PROFILE=1`, this branch merged with main a48fa02f): 5,196 of
+5,197 passed in 2,208 s; the one failure, "a dispatch at five stars sends one of the agency's
+trucks onto the street", passes alone (`SMOKE_PARTS=wanted_escalation_checks`, 38 / 38) - an
+intermittent, not this branch (the agency's trucks wear BigVehicles' own wheel rigs, untouched).
+Shard peaks **2,902 / 3,763 / 3,792 MB**: two shards are now over the 3,600 MB target (under the
+4,000 MB budget). What raises RSS, by part (`tools/perf_audit_4/gate_rss.py`; the city load first):
+
+| shard | the load | then the parts that add most |
+|---|---|---|
+| 0 | city_polish 2,110 MB | city_crowd +286, masjid_checks +252, engine_audio +68 |
+| 1 | city_streaming 2,990 MB | freeway_incidents +257, garage_drive_in +239, hospital +139 |
+| 2 | city_cars 2,277 MB | **police_station +579**, **mac_verify_pack +473**, city_people +210 |
+
+The two new big ones are parts that teleport into areas their shard has not streamed:
+police_station_checks (the stations and the HQ) and mac_verify_pack_checks (wave 4: a real
+one-camera verify run, street_night downtown). RSS never comes back after a part (the allocator
+keeps the pages), so the next memory work is either these two staging nearer `stage_home()` or
+`PART_COST` dealing them to different shards (both landed on shard 2 here).
+
+### Not done / next
+
+(1) The car bodies' shadow twins (0.30 M on the freeway, cars 30-70 m: the far twin at LOD bias
+0.3) - a cheaper twin or a shorter `body_shadow_distance` would be the next car cut, but a car's
+shadow at 50 m is visible from a deck. (2) The facade kit's shadow twins (0.35 M at street noon,
+the roofline within its 80 m reach). (3) Golden aerial's FarCity (1.1-2.0 M depending on what
+streamed first). (4) The crowd cut was not shown in a still (the strict refcam mode hides people);
+it was judged by the welded body's own use from 50 m. (5) Forward+ not looked at (geometry-only cuts).

@@ -6313,6 +6313,14 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   per batch: merge it (`PropFactory.MERGE_BY_MATERIAL`, the knee-high plants via `PLANT_MERGE=0`).
   Palm shadow twins take the trees' shadow LOD scale (`PALM_SHADOW_LOD=0`). Gate memory by part:
   `SMOKE_PROFILE=1` + `tools/perf_audit_4/gate_rss.py`.
+- Perf audit 5 (2026-11-02, docs/HANDOFF.md "Perf audit 5"): what casts is lighter than what is
+  drawn - the near car wheel casts from `PropFactory.car_wheel_shadow()` (a SHADOWS_ONLY child of
+  the wheel mesh) and has generated LODs, the knee-high plants' twins carry meta `knee_shadow_lod`
+  (the trees' shadow LOD scale), a person between `Pedestrian.shadow_full_range` (12 m) and the
+  shadow range casts from the welded middle body (a skinned sibling). A new heavy code-built mesh
+  near the camera gets a shadow twin and LODs. `OSPLIT_CATS=` on still_shot / refcams splits any
+  category. The first refcams run on a fresh box (empty shader caches) peaks far higher (13.9 GB,
+  OOM) than later ones (8.5 GB).
 - Memory (2026-10-05, docs/HANDOFF.md "Memory audit"): the smoke test fails past a peak-RSS
   budget (`tests/memory_audit_checks.gd`, 4,000 MB, `MEMORY_BUDGET_MB`; it peaked at 2.94 GB; the
   shards' own target is 3,600 MB).
