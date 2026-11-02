@@ -80,7 +80,8 @@ func _watcher(city: Node3D) -> void:
 			break
 	_t._check(ok and node.visibility_range_fade_mode == GeometryInstance3D.VISIBILITY_RANGE_FADE_SELF,
 		"lod pops: the watcher softens a hard range added to the city within a few frames")
-	node.queue_free()
+	node.get_parent().remove_child(node)
+	node.free()
 	# A car built now keeps its hard near / far swap: the alpha fade showed the body's own
 	# underside and wheels through its paint (see LodFade._closed_body).
 	var car: Node3D = load("res://scripts/vehicles/vehicle.gd").new()
@@ -97,8 +98,15 @@ func _watcher(city: Node3D) -> void:
 			ranged += 1
 	_t._check(ranged > 0 and not LodFade.soften(car.find_children("*", "GeometryInstance3D", true, false)[0] as GeometryInstance3D),
 		"lod pops: a car's parts are never alpha-faded (%d ranged parts)" % ranged)
-	car.queue_free()
+	# Gone at once, not at the frame's end: a block the next file builds must not meet a budget
+	# (PhysicsBudget) still counting this car.
+	car.get_parent().remove_child(car)
+	car.free()
 	if not had and is_instance_valid(LodFade._node):
-		LodFade._node.queue_free()
+		var n2: Node = LodFade._node
+		n2.get_parent().remove_child(n2)
+		n2.free()
 		LodFade._node = null
 	LodFade.force = was_force
+	await city.get_tree().process_frame
+	await city.get_tree().process_frame
