@@ -134,6 +134,10 @@ func _run() -> void:
 		if stage == "mayhem":
 			_stager = load("res://tools/refcams/mayhem_stage.gd")
 			await _stager.stage(self, scene, _eye_cam, player, func() -> void: _place(player, fov))
+		elif stage == "person":
+			# cameras_w6.json's person_closeup: one pedestrian at arm's length (person_stage.gd).
+			_stager = load("res://tools/refcams/person_stage.gd")
+			await _stager.stage(self, scene, _eye_cam, player, func() -> void: _place(player, fov), cam)
 		Engine.time_scale = 0.0005
 		for i in _env_int("SETTLE", 6):
 			await process_frame
@@ -257,6 +261,8 @@ var _stager: GDScript = null
 
 ## After a staged camera: the hero hidden again, the aim let go, the police stood down.
 func _unstage(scene: Node, player: Node3D) -> void:
+	if _stager.has_method("unstage") or "unstage" in _stager.get_script_method_list().map(func(m): return m.name):
+		_stager.call("unstage")
 	_stager.set("hero_at", Vector3.INF)
 	_stager = null
 	Input.action_release("alt_fire")
