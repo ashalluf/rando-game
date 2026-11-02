@@ -66,6 +66,26 @@ func _run() -> void:
 							pl.local_coords = true
 						"restart":
 							pl.restart()
+			elif h.begins_with("env:") or h.begins_with("glob:"):
+				# env:refl / env:amb / env:fog / env:glow switch one Environment term off;
+				# glob:<name>=<v> sets a shader global (the hero in the rain on the web).
+				var we2 := get_tree().current_scene.find_child("WorldEnvironment", true, false) as WorldEnvironment
+				var e2: Environment = we2.environment if we2 else null
+				match h:
+					"env:refl":
+						if e2: e2.reflected_light_source = Environment.REFLECTION_SOURCE_DISABLED
+					"env:amb":
+						if e2: e2.ambient_light_source = Environment.AMBIENT_SOURCE_DISABLED
+					"env:fog":
+						if e2: e2.fog_enabled = false
+					"env:glow":
+						if e2: e2.glow_enabled = false
+					"env:skyq":
+						if e2 and e2.sky: e2.sky.process_mode = Sky.PROCESS_MODE_QUALITY
+					_:
+						if h.begins_with("glob:") and h.contains("="):
+							var kv := h.substr(5).split("=")
+							RenderingServer.global_shader_parameter_set(kv[0], kv[1].to_float())
 			else:
 				for n in get_tree().root.find_children("*", "GeometryInstance3D", true, false):
 					if str(n.get_path()).contains(h):
