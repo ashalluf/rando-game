@@ -27,3 +27,10 @@ Batch 2 (Forward+, lavapipe - the Mac's renderer - and a car in daylight):
   jitter, which TAA can't resolve at the harness's ~1 frame a second.
 - `15_gas_first_frames_0.05_0.1_0.15_0.5.jpg` - the pump's gas ball: structure from ~0.1 s.
 - `16_rocket_60m_new_0.5_2_4_8_old_2_6.jpg` - top and bottom-left new, bottom middle / right old.
+
+## Batch 5
+- `17_golden_car_0.3_1.5_4_9.jpg` - a car's blast at golden hour (GOLDEN=1, opengl3): the flash,
+  the fireball rolling, the sooty brown mushroom catching the low sun, the wreck's column.
+- `18_night_rocket_glow_old_top_new_bottom_1_2.5_5.jpg` - the flash's glow rising with the cap and
+  lingering after dark (bottom) against before (top); the room's night sky is pure black (no city
+  light dome), so the mushroom's silhouette shows less than in the game.
