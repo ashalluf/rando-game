@@ -9,3 +9,6 @@ refcam `refinery_night` (tools/refcams/cameras_w6.json), opengl3 stills.
 - 06_after_block_verge_ring_kerb.jpg - the ring visible, a kerb face, the weedy verge at the fence foot
 - 07_after_block_flare_smoke_west_street.jpg - the street toward the flares: soot off the flames, the road warm, continuous across junctions
 - 08_after_block_tanks_flood_fans.jpg - tanks: floods as fans on the paint, dark rims (was an even beige wash)
+- 09_after_refinery_night_final.jpg - refcam after, final (tanks' floods in fans too)
+- 10_before_over_after_refinery_night.jpg - before (top) over after (bottom)
+- 11_ten_cameras_compare_off_vs_on.jpg - the ten original cameras, RC4_REFINERY_ROAD=0 over on (street_noon's only difference: a bus in one run)
