@@ -25155,3 +25155,71 @@ Probes: `tools/rc_beach/sand_roads_probe.gd` (headless: every coast street stret
 beach; `LOOK=swim|wade|surf` saves a close look at the first one). Checks `tests/rc_beach_checks.gd`.
 Stills on `shots/rc-beach`.
 
+
+## 9d?. The camera lens (wave 5, `camera-lens`)
+
+**What.** The camera itself: exposure adaptation, the sun's flare, grain, the bloom's spread.
+`CameraLens` (`scripts/player/camera_lens.gd`), one node beside CameraPost under the player's
+CameraRig (`CameraLens.attach()`, one line in `CameraPost._ready()`), plus new paths in the lens
+pass (`shaders/vignette.gdshader`) whose defaults draw exactly what main drew. `CAMERA_LENS=0` is
+the A/B (the lens is never made; the shader's new uniforms stay at their defaults).
+
+**The finding that shaped it.** Godot's auto exposure divides `auto_exposure_scale` (0.4) by the
+frame's metered luminance clamped to [min, max] sensitivity x 0.00125 (200..620 ISO = 0.25..0.775).
+Measured on Forward+ with the probe (`LUM_OPEN=1` unclamps the meter; main vs unclamped p50 at
+noon 129 vs 144, in the underpass 20 vs 35, low sun 136 vs 142, night 21 vs 36): **by day and by
+night every frame meters UNDER the dark limit**, so main's adaptation was a constant 1.6x gain -
+the camera never adapted to anything, and an underpass was simply black. Lowering the dark limit
+(the first attempt) opens the underpass but brightens the open noon street too (p50 129 -> 143),
+and the whole day look was tuned on that 1.6x. So the clamps and Godot's speed stay main's and the
+lens adds its own compensation:
+
+- **Exposure.** An enclosure probe every `probe_interval` (0.12 s): one world-layer ray up
+  (`probe_up` 16 m), eight round (`probe_round` 14 m); 0.65 x lid + 0.35 x share of walls. A street
+  canyon reads 0.04-0.09, the underpass 0.64. `open_target()`: 1 below `open_from` 0.3, up to
+  `day_open_gain` 2.6 at `open_full` 0.75 by day, `night_open_gain` 1.3 at night (a lamp-lit garage).
+  `adapt()` heads there in log space with `open_seconds` 1.8 going in (the eye opening up) and
+  `close_seconds` 0.35 coming out (the short blow-out stepping into the sun), and the lens writes
+  `auto_exposure_scale` = main's x compensation. An open street is bit for bit main's.
+- **Flare** (Forward+ desktop and Compatibility desktop; off on the web and at Quality LOWEST,
+  `CameraPost.quality_level`): CameraLens projects DayNight's `sun_dir` into the frame and hands the
+  lens pass `sun_uv`, `aspect`, `sun_tint` (DayNight's sun colour toward white) and `flare_amount`
+  (`sun_weight()`: up in the sky, through clear air - weather_darken and the marine layer take it
+  away - and fading `flare_outside` 0.25 screen heights outside the frame). The shader takes ONE
+  tap of the screen's mip 3 at the sun: `vis` = smoothstep(0.5, 0.86, its brightest channel), so a
+  tower, a tree or a cloud over the sun covers the flare as it covers the sun. Parts (display
+  numbers, screen-blended so nothing clips): a glow round the sun (`flare_glow` 0.35, a tight
+  exponential and a long tail), six thin aperture spikes plus a fainter rotated set
+  (`flare_spikes` 0.16), five soft hexagonal ghosts with brighter rims on the line through the
+  centre, tinted by coatings (`flare_ghosts` 0.11), and a veil over the whole frame (`flare_veil`
+  0.045: shooting into the sun lifts the blacks). No tap and no cost while `flare_amount` is 0.
+- **Grain** (`lens_mode` 1): two hashes (triangular noise), strongest in the shadows and lower mids,
+  almost none in the highlights (film), times `grain_gain` = 1..`grain_dark_gain` 1.6 by how far
+  the camera has opened up (and 0.6 x the night's moonlight). The settings screen's grain toggle
+  still sets `grain` (0 turns it off).
+- **Bloom spread**: `CameraLens.GLOW_LEVELS` on the city's Environment (levels 2-7: 0.25, 0.55,
+  0.45, 0.4, 0.25, 0.1; main's Godot defaults are levels 3 and 5 at 1.0; same total, 2.0): a tight
+  core and a long tail like a real lens's point spread. DayNight keeps the intensity and threshold.
+- Chromatic fringe and the vignette: judged fine (cinematic review's numbers, GoldenAerial's halved
+  fringe), not changed.
+
+**Numbers** (Forward+, lavapipe, `tools/camera_lens/lens_probe.gd` at 640x360, luminance p5/p50/p95):
+noon street main 38/129/177 -> 39/130/177; inside the underpass after 5 s 13/20/163 -> 24/50/199;
+night 3/21/55 -> 3/21/57; low sun 17:18 51/136/189 -> 56/141/194 (the veil); sun at 10:00 in frame
+94/131/189 -> 99/137/192. The walk through the underpass at 6 m/s (`MODE=walk`): p50 at 1, 2, 3, 4 s
+in: main 20, 17, 23, 49; lens 29, 29, 56, 85; a second after coming out 125 / 130 (comp back to 1.07).
+Frame cost: no geometry, no draw (one more full-screen ALU path only while the sun is in or near the
+frame; Godot's glow levels are the same passes, two more blur levels sampled).
+
+**Tools.** `tools/camera_lens/lens_probe.gd` (usage in its header: `MODE=shots` with
+`SHOTS=name@hour@x,y,z@yaw,pitch@frames` - `sun,dx,dy` aims at the sun - or `MODE=walk`;
+`LUM=1` / `LUM_OPEN=1` the meter; `CAMERA_LENS=0` the before; run with `--fixed-fps`, ~4 min a
+set of five at 640x360). Checks: `tests/camera_lens_checks.gd`.
+
+**Not done / not verified.** The Mac (Forward+, a real GPU, 60 fps) has not seen it: the flare's
+strength at full resolution, the grain at 1440p, the adaptation's feel while playing. The probe
+measures enclosure, not light: a brightly lit covered place (a lit car park deck by day) opens up
+too, and a dark open place (a deep alley without a lid) does not. No flare from the moon, street
+lamps or headlights (the bloom carries those). Godot's own meter could be made useful by lowering
+`auto_exposure_scale` and both clamps together; that changes every frame's look and needs the
+grade re-tuned on the Mac first.

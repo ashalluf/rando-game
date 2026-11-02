@@ -4119,3 +4119,10 @@ none of either.
   people in the water are placed on the surfaces that are drawn - waders on the sand mesh's
   foreshore, swimmers and surfers on the ocean's own height model - rather than at a fixed level.
   A summer afternoon's water is busy (waders, more swimmers). SAND_ROADS=0 / WADERS=0 the A/B.
+- **2026-11-02 The camera lens: measure the meter before touching the clamps (camera-lens, HANDOFF
+  "The camera lens").** Godot's auto exposure meters every frame of this city under the camera's
+  dark limit, so the player camera never adapted (a constant 1.6x gain). Lowering the limit would
+  have re-exposed every day frame the grade was tuned on, so the clamps stay and the lens adds an
+  exposure compensation from an enclosure probe (slow to open up, fast to close down); the sun gets
+  a flare in the lens pass occluded by one screen tap, the grain follows the exposure, the bloom a
+  wider spread. CAMERA_LENS=0 the A/B.
