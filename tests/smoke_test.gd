@@ -2867,6 +2867,8 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	load("res://tests/rc2_night_aerial_checks.gd").new().run(self, city)
 	# The chase_cam review (tests/rc2_chase_cam_checks.gd, ChaseCamReview): lane wear on the asphalt.
 	load("res://tests/rc2_chase_cam_checks.gd").new().run(self, city)
+	# The pale box round the player's car (tests/chase_box_bug_checks.gd): additive shaders and the fog.
+	load("res://tests/chase_box_bug_checks.gd").new().run(self, city)
 	# The pier_day refcam (tests/rc3_pier_day_checks.gd, PierDay): the board deck, weathering, the crowd.
 	load("res://tests/rc3_pier_day_checks.gd").new().run(self)
 
