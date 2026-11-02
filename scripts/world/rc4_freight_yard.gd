@@ -69,3 +69,88 @@ static func ladder_ballast(kit: FreightKit, p0: Vector2, p1: Vector2, ya: float,
 		kit.quad(kit.track, Vector3(a0.x, ta, a0.y), Vector3(o0.x, minf(ga, ta) - 0.02, o0.y), Vector3(o1.x, minf(gb, tb) - 0.02, o1.y), Vector3(a1.x, tb, a1.y),
 			out, col, Vector2(s0, sg * 2.0), Vector2(s0, sg * 3.0), Vector2(s1, sg * 3.0), Vector2(s1, sg * 2.0), Vector2(0.0, 0.28))
 	kit.set("_track_any", true)
+
+
+## Weeds: a yard's ballast is never clean. Foxtail and wild oat tufts (VacantKit's) along the
+## toes of every bed and in the strips between them, a few up in the ballast by the rails, and
+## mustard and fennel where the ladder leaves dirt beside it - every one a hash of the seed and
+## the spot. Batched by 40 m cell (`fy_tuft_<v>_<cell>`), so a draw range is measured to a
+## cell's centre and not to a 520 m chunk's.
+const WEED_CELL := 40.0
+const WEED_STEP := 0.85
+const WEED_DISTANCE := 85.0
+const TALL_DISTANCE := 120.0
+const MAX_WEEDS := 1400
+
+
+static func weeds(y: FreightYard) -> void:
+	if not enabled or not y.full:
+		return
+	var ch := y.ch
+	var seed: int = y.plan.seed
+	var lines: Array = []
+	for j in (y.lay.tracks as Array).size():
+		var t: Dictionary = y.lay.tracks[j]
+		lines.append([Vector2(float(t.x), float(t.z0)), Vector2(float(t.x), float(t.z1)), j])
+	lines.append([y.lay.ladder[0], y.lay.ladder[1], 99])
+	# The two mains through the yard: only their outer shoulders.
+	var ax: float = y.fr.avenue_x
+	var gz0: float = y.fr.yard_rect.position.y
+	var gz1: float = y.fr.yard_rect.end.y
+	lines.append([Vector2(ax - FreightRail.TRACK_HALF, gz0), Vector2(ax - FreightRail.TRACK_HALF, gz1), 100])
+	var count := 0
+	var keys := {}
+	for ln: Array in lines:
+		var a: Vector2 = ln[0]
+		var b: Vector2 = ln[1]
+		var id: int = ln[2]
+		var d := b - a
+		var len := d.length()
+		if len < 1.0:
+			continue
+		var along := d / len
+		var side := Vector2(-along.y, along.x)
+		var n := int(len / WEED_STEP)
+		for i in n:
+			var s := (float(i) + 0.5) * WEED_STEP
+			for sg: int in [-1, 1]:
+				if id == 100 and sg > 0:
+					continue
+				var h := absi(hash([seed, "fy_weed", id, i, sg]))
+				var r := float(h % 1000) / 1000.0
+				# Thicker where the yard is quiet: the ladder's open side and the tracks' far ends.
+				var dens := 0.42 if id >= 99 else 0.3
+				if r > dens:
+					continue
+				var off := FreightKit.BALLAST_HALF + 0.1 + float((h >> 10) % 100) / 100.0 * 1.1
+				# Now and then up in the ballast, by the rail.
+				var inside := (h >> 17) % 11 == 0
+				if inside:
+					off = 0.95 + float((h >> 21) % 40) / 100.0
+				var p := a + along * s + side * float(sg) * off
+				if not y.area.has_point(p):
+					continue
+				count += 1
+				if count > MAX_WEEDS:
+					return
+				var v := (h >> 7) % 2
+				var sc := (0.55 if inside else 0.8) + float((h >> 12) % 60) / 100.0
+				var yaw := float((h >> 4) % 628) / 100.0
+				var top := CityChunk.SIDEWALK_TOP + Industrial.LIFT + (FreightRail.TRACK_DEPTH - FreightKit.BALLAST_DROP - 0.03 if inside else 0.0)
+				var cell := Vector2i(floori(p.x / WEED_CELL), floori(p.y / WEED_CELL))
+				var key := "fy_tuft_%d_%d_%d" % [v, cell.x, cell.y]
+				var dry := 0.85 + float((h >> 3) % 30) / 100.0
+				ch._batch.add(key, VacantKit.tuft(v), Transform3D(Basis(Vector3.UP, yaw).scaled(Vector3(sc, sc * (0.8 + float((h >> 9) % 50) / 100.0), sc)), Vector3(p.x, top, p.y)),
+					Color(dry, dry * 0.97, dry * 0.86))
+				keys[key] = WEED_DISTANCE
+				# A taller weed where the ground is open (the ladder's side, the mains' outer edge).
+				if id >= 99 and not inside and (h >> 14) % 9 == 0:
+					var fen := (h >> 15) % 3 == 0
+					var key2 := ("fy_fennel_%d_%d" if fen else "fy_mustard_%d_%d") % [cell.x, cell.y]
+					var q := p + side * float(sg) * 0.6
+					ch._batch.add(key2, VacantKit.fennel() if fen else VacantKit.mustard(), Transform3D(Basis(Vector3.UP, yaw * 1.7).scaled(Vector3.ONE * (0.7 + sc * 0.3)), Vector3(q.x, CityChunk.SIDEWALK_TOP + Industrial.LIFT, q.y)),
+						Color(0.9, 0.88, 0.8))
+					keys[key2] = TALL_DISTANCE
+	for k: String in keys:
+		ch._batch.set_no_shadow(k)
+		ch._batch.set_draw_distance(k, float(keys[k]))

@@ -145,6 +145,7 @@ static func track_material() -> ShaderMaterial:
 	if _track_mat == null:
 		_track_mat = ShaderMaterial.new()
 		_track_mat.shader = load("res://shaders/freight_track.gdshader")
+		_track_mat.set_shader_parameter("rc4", 1.0 if RcFreightYard.enabled else 0.0)
 	return _track_mat
 
 
