@@ -3220,6 +3220,14 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   `ALLEYS=0` in the environment is the A/B; `tools/alleys/probe.tscn` lists alleys (`WALLED=`
   walled-in ones, an EYE each) and builds one block (`BUILD=bx,bz`: props by kind, triangles;
   `ALLEY_TIME=1` the steps' times); checks `tests/alley_checks.gd`.
+- The Vernon industrial street (wave 6, refcam `vernon_industrial` in tools/refcams/cameras_w6.json,
+  docs/HANDOFF.md "The Vernon industrial street"): `RcVernon` (`scripts/world/rc3_vernon.gd`, the
+  `rc3` uniform on both industrial materials): more docks get a trailer (a second hash, `ind_trl2`),
+  trailers carry conspicuity tape and a fleet band, court asphalt is neutral with tyre tracks along
+  the axis a court piece carries in COLOR.b (`track_axis()`), office glass is framed and mirrors the
+  street by the reflected ray inside a tilt-up pop-out (`office_popout()`), painted steel rusts at
+  lips, feet and chips. ContactShadows skips a hidden body every frame. `RC3_VERNON=0` is the A/B;
+  checks `tests/rc3_vernon_industrial_checks.gd`.
 - The alley at night (2026-11-01, refcam `alley_night` in tools/refcams/cameras_w5.json,
   docs/HANDOFF.md "The alley at night"): `AlleyNight` (`scripts/world/alley_night.gd`, hook lines in
   AlleyKit and `Alleys.commit()`): standing water in alley_ground.gdshader (`wet_on`, the chunk's

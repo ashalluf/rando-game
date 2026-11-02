@@ -4315,3 +4315,10 @@ none of either.
   comes in with distance; broad road-light pools have no hard rim and dim from the air; floodlit
   masonry is a fifth of the old brick and render, not most of it; a far searchlight seen from the air
   saturates softly and fades with distance. NIGHT_AERIAL=0 is the A/B.
+- **2026-11-02 The Vernon industrial street: busy courts, framed glass, rust where steel rusts
+  (rc3-vernon-industrial, HANDOFF "The Vernon industrial street").** A new reference camera
+  (`vernon_industrial`, wave 6's table) judged a Vernon street at eye level at 14:00. Decisions:
+  most docks carry a trailer (an added hash, never moving the old ones); court asphalt is neutral
+  grey and driven along the court's axis; the office storefront is framed, mirrors the street by
+  the reflected ray and sits in a tilt-up pop-out; painted steel rusts along lips, feet and chips,
+  never in blotches; a contact shadow never outlives its hidden body. RC3_VERNON=0 is the A/B.

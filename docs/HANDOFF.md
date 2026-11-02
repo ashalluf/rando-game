@@ -27034,3 +27034,56 @@ truck in one run, a red car in the other; the deck is freeway_deck.gdshader, not
 (one line in smoke_test.gd's city_files): street asphalt gets lane wear and pavements / car parks do
 not, the shader applies it and 0 is the old road, the switch, the camera row and its staging
 script. Stills on `shots/rc2-chase-cam`.
+
+## 9d?. The Vernon industrial street (wave 6, refcam3 `rc3-vernon-industrial`)
+
+A new reference camera, `vernon_industrial` in `tools/refcams/cameras_w6.json`: a Vernon street at
+14:00 clear, eye level (1.7 m) on the corner at (2600, 2972) looking west-south-west (yaw 125):
+the truck courts of block (24, 19) behind chain-link, tilt-up warehouses with docks, the street
+climbing west with traffic and parked cars. Picked from ten candidate eyes (`tools/rc3_vernon/
+probe.gd` lists Vernon's blocks with spurs and courts; `DETAIL=1` their rects).
+
+**What gave it away, in the order the eye lands, and what changed** (all `RcVernon`,
+`scripts/world/rc3_vernon.gd`, plus hooks in Industrial / IndustrialKit and the two industrial
+shaders; `RC3_VERNON=0` is the A/B):
+1. **A car-shaped black blob on the road with no car.** The still hides a car that holds the lens
+   (`refcams_shot.gd`: `car.visible = false`), but ContactShadows checked visibility only at its
+   pick, every 0.25 s of SCALED time - never during the frozen settle - so the hidden car's
+   footprint and wheel blobs stayed. It now skips anything not visible in the tree every frame (one
+   condition in `ContactShadows._process`). In play this was a hidden or put-away car's shadow
+   lingering up to a quarter second.
+2. **Empty truck courts, flat khaki planes.** Of the docks the old roll left empty,
+   `MORE_TRAILERS` (55 %) more get a trailer (a second hash, `ind_trl2`: every old trailer stays,
+   the LOD far boxes follow the same rule) - 21 -> 37 of 46 docks round Vernon. The trailer skin
+   gets the red / white conspicuity tape every US trailer carries and, on three in four, a fleet
+   band (an invented colour, no lettering). The court asphalt is neutral cool grey (the asphalt
+   photo is brown), its 7 m long-crack net thinned to a few faint cracks, and a court's or apron's
+   piece carries the drive axis in COLOR.b (`RcVernon.track_axis()`: 0.25 along z, 0.75 along x;
+   0 elsewhere) so `industrial_ground.gdshader` lays rubber in dual-wheel paths every dock pitch,
+   skid streaks and oil drips down them.
+3. **The office storefront a flat grey slab.** `K_GLASS` (rc3): clear anodised frames round every
+   lite, sill, head and transom; the glass EMITS a mirror by the reflected ray - sky over a band of
+   far roofs, the sunlit street under the horizon - so a horizon line runs across the panes; a
+   third of the lites have a blind down to its own height. And the office stands in a tilt-up
+   POP-OUT (`RcVernon.office_popout()`, geometry in the walls mesh): two piers and a header 0.38 m
+   proud, rising 1.1 m over the parapet with a galvanised cap, in a contrast paint, so the glass
+   sits in a real reveal.
+4. **Yellow bins and roll-offs read as cheese** (painted steel rusted in big blotches on every
+   face). Rust now runs along the lip, a ragged band at the foot, runs down from the top and small
+   chips; the paint fades in broad patches with darker dents.
+5. **Tilt-up walls one even cast.** Each panel its own tone (cast on its own day), rain runs from
+   the coping either side of every joint and under the wall packs, splash-back soil at the foot.
+
+**Numbers** (opengl3, the camera): see the final table in the session's last message / the
+`shots/rc3-vernon-industrial` README.
+
+**Checks** `tests/rc3_vernon_industrial_checks.gd` (one line in smoke_test.gd's city_files): the
+shaders' rc3 branches and both materials' switch, the track axis per role and side, the trailer
+rule over Vernon's courts (more, none lost, about 80 %, the old rule exactly with the switch off),
+the pop-out's geometry (nothing when off).
+
+**Not done.** The camera does not frame the rail spur or a run of utility poles (no eye found that
+held them with the courts; c_e in the probe's candidates - `2610,1.7,3290,180` - has the poles);
+the office glass is still a shader trace, not a room; the LOD far boxes do not carry the pop-out.
+Forward+ (the Mac) not verified: the glass mirror is emitted in linear (sky_tint decoded), the
+rest are albedo in display numbers through the shaders' own disp()/to_lit().
