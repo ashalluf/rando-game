@@ -77,3 +77,55 @@ static func block_zone_fn(plan) -> Callable:
 			var b: Dictionary = plan.block(bi.x, bi.y)
 			cache[bi] = int(plan.zone_at((b.rect as Rect2).get_center()))
 		return cache[bi]
+
+
+## The tors a hill chunk claims stand on the terrain that chunk draws (RockBuild._claim ->
+## RockFar.claim): a LOD tile samples the ground every ~14 m and cuts a sharp summit tens of metres
+## low, so the summit crag RcHills beds in the crown, left at the true height, floated in the sky
+## over the drawn hill (a pale slab over the ridge west of the sign). id -> metres to move it
+## (clamped: a tor never goes up, and never further down than its own height under the true ground
+## would bury it whole). Empty when off.
+const TOR_DROP_MAX := 40.0
+
+
+static func tor_drops(ch, ids: Array) -> Dictionary:
+	var out := {}
+	if not on():
+		return out
+	var all: Array = RockOutcrops.tors(ch.plan)
+	for id: int in ids:
+		if id < 0 or id >= all.size():
+			continue
+		var t: Dictionary = all[id]
+		var p: Vector2 = t.pos
+		var drawn: float = ch._terrain_height(p)
+		var dy := drawn - float(ch.plan.height_at(p))
+		if bool(t.get("summit", false)):
+			dy = minf(dy, _overhang(ch, t))
+		dy = clampf(dy, -TOR_DROP_MAX, 0.0)
+		if dy < -0.5:
+			out[int(t.id)] = dy
+	return out
+
+
+
+## A summit crag is broad and low (RcHills) but the front range's summits are spikes: its far end
+## stood out over the falling ground, a pale slab in the sky. The drop that brings the tor's
+## footprint edges (eight points round its bounds, through its own basis) down to where the lowest
+## OVERHANG_SHARE of its height meets the ground the chunk draws there.
+const OVERHANG_SHARE := 0.3
+
+
+static func _overhang(ch, t: Dictionary) -> float:
+	var b: AABB = RockKit.bounds(int(t.kind))
+	var basis: Basis = t.basis
+	var origin := Vector3(t.pos.x, float(t.y), t.pos.y)
+	var lo := INF
+	var h := (basis * Vector3(0.0, b.size.y, 0.0)).y
+	for i in 8:
+		var a := TAU * float(i) / 8.0
+		var l := Vector3(b.get_center().x + cos(a) * b.size.x * 0.5, b.position.y, b.get_center().z + sin(a) * b.size.z * 0.5)
+		var w := origin + basis * l
+		var need: float = ch._terrain_height(Vector2(w.x, w.z)) - (w.y + h * OVERHANG_SHARE)
+		lo = minf(lo, need)
+	return minf(lo, 0.0)

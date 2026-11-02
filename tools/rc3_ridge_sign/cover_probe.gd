@@ -24,3 +24,16 @@ func _trees_ab(_path: String) -> void:
 					s += " node_vis %s" % (t.node as Node3D).visible
 			print(s)
 	print("SKYLINE ", sky)
+	var RF: Variant = load("res://scripts/world/rock_far.gd")
+	var RO: Variant = load("res://scripts/world/rock_outcrops.gd")
+	for a in OS.get_environment("TORS").split(",", false):
+		var id := int(a)
+		var claimed: Variant = RF.is_claimed(streamer.plan.seed, id)
+		var drop: Variant = (RF._drops.get(streamer.plan.seed, {}) as Dictionary).get(id, null)
+		var t: Dictionary = RO.tors(streamer.plan)[id]
+		var bi: Vector2i = streamer.plan.block_index_at(t.pos)
+		var ch: Node = streamer.chunks.get(bi)
+		var th: Variant = -1.0
+		if ch:
+			th = ch._terrain_height(t.pos)
+		print("TOR %d pos %s y %.1f claimed %s drop %s block %s chunk %s tile_h %.1f true_h %.1f" % [id, t.pos, float(t.y), claimed, drop, bi, ("L%d" % ch.level) if ch else "none", th, streamer.plan.height_at(t.pos)])

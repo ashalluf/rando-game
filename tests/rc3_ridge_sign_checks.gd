@@ -4,6 +4,7 @@ extends RefCounted
 ##   * the letters are one mesh of ribbons on the sheet-metal shader, across the old span, with no
 ##     two front faces of one letter in the same plane (no z-fighting);
 ##   * the shrub gathering field is pure, has gaps and scales what it keeps;
+##   * a tor a chunk claims is lowered to the ground that chunk draws, and put back on release;
 ##   * the bake paints a HILLS block's flat foot as hill ground, never as a city district;
 ##   * the camera row is in cameras_w6.json.
 ## RC3_SIGN=0 is the A/B: everything goes back, and the checks only say so.
@@ -21,6 +22,7 @@ func run(t: Node, city: Node3D) -> void:
 		_letters(plan)
 		_bake_zone(plan)
 	_shrubs()
+	_tors()
 	_camera()
 	_shader()
 
@@ -110,6 +112,20 @@ func _shrubs() -> void:
 			hi = maxf(hi, a)
 	_t._check(gaps > 40 and kept > 120, "rc3-ridge-sign: shrubs gather into thickets with gaps (%d kept, %d gaps)" % [kept, gaps])
 	_t._check(kept > 0 and hi - lo > 0.3, "rc3-ridge-sign: a thicket's shrubs are sized by the field (%.2f..%.2f)" % [lo, hi])
+
+
+func _tors() -> void:
+	# A claim's drops only ever lower a tor, never by more than TOR_DROP_MAX, and a tor that is let go
+	# stands at its planned height again (RockFar._drops forgets it).
+	var seed := -424242
+	RockFar.claim(seed, [7], {7: -12.5})
+	var held := float((RockFar._drops.get(seed, {}) as Dictionary).get(7, 0.0))
+	RockFar.release(seed, [7])
+	var gone := not (RockFar._drops.get(seed, {}) as Dictionary).has(7)
+	RockFar._claims.erase(seed)
+	RockFar._drops.erase(seed)
+	_t._check(is_equal_approx(held, -12.5) and gone, "rc3-ridge-sign: a claimed tor is lowered to the drawn ground and put back on release")
+	_t._check(RcRidgeSign.TOR_DROP_MAX > 0.0 and RcRidgeSign.TOR_DROP_MAX <= 60.0, "rc3-ridge-sign: a tor's drop is bounded")
 
 
 func _camera() -> void:

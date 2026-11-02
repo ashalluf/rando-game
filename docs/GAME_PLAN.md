@@ -4315,3 +4315,12 @@ none of either.
   comes in with distance; broad road-light pools have no hard rim and dim from the air; floodlit
   masonry is a fifth of the old brick and render, not most of it; a far searchlight seen from the air
   saturates softly and fades with distance. NIGHT_AERIAL=0 is the A/B.
+
+- **2026-11-02 The ridge sign refcam: the city's postcard reads built, not modelled (rc3-ridge-sign,
+  HANDOFF "The ridge sign refcam").** A new reference camera (`ridge_sign`, wave 6's table) judged the
+  big sign from ~120 m at 16:30. Decisions: the sign's letters are continuous mitred sheet-metal
+  ribbons with painted panels and weathering, never boxes per stroke; a hill's code-built shrubs are
+  gathered into thickets by a field, never an even scatter; whatever a chunk builds on a block, the
+  far tiers show the same kind of ground (a hill block's flat foot is hill on the horizon plane, a
+  plaza keeps its beds at LOD); a tor stands on the terrain its chunk draws, and a summit crag never
+  overhangs a spike. RC3_SIGN=0 is the A/B.

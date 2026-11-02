@@ -4252,6 +4252,15 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   the ridge sign `HillSignLetters` (strokes on a pipe frame, each letter on its own ground), the far
   sign's rigid seat held off inside the LOD ring (far_canopy `rigid_real_reach`).
   `RC_HILLS=0` is the A/B; probe `tools/rc_hills/sign_probe.tscn`; checks `tests/rc_hills_checks.gd`.
+- The ridge sign refcam (2026-11-02, docs/HANDOFF.md "The ridge sign refcam", camera `ridge_sign` in
+  `tools/refcams/cameras_w6.json`): `RcRidgeSign` (`scripts/world/rc_ridge_sign.gd`) - the letters as
+  mitred ribbons of sheet metal (`HillSignLetters._letters_v2()`, `shaders/ridge_sign.gdshader`: panels,
+  seams, streaks, dust at the foot; strokes of a letter a few cm apart in depth), the legs braced to
+  the slope, HillShrubs gathered into thickets (`shrub_gather()`), a plaza's lawn beds at LOD, the bake
+  painting a HILLS block's flat foot as hill (`MacroMap.bake_block_zone`), a claimed tor lowered to the
+  terrain its chunk draws and a summit crag's footprint onto the spike (`tor_drops()` ->
+  `RockFar.claim(..., drops)`). `RC3_SIGN=0` is the A/B; probes `tools/rc3_ridge_sign/`; checks
+  `tests/rc3_ridge_sign_checks.gd`.
 - The canyon road refcam (2026-11-02, docs/HANDOFF.md "The canyon road refcam"): `CanyonRoad`
   (`scripts/world/canyon_road.gd`, one hook in `_build_hill_roads()`) rebuilds drawn hill roads
   >= 5 m wide with a gravel shoulder and lateral metres in UV.x on `shaders/canyon_road.gdshader`
