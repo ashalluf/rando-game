@@ -1409,7 +1409,11 @@ func _geo_split(player: Node3D, anchor: Vector3, hold: Vector3, boost: bool, fov
 	if OS.get_environment("OSPLIT") == "1":
 		var stems := {}
 		var est := {}
-		for c in ["Other", "StreetProps", "LightRail", "River", "Parks", "Houses", "Industrial", "Trees", "FarCity", "Landmark"]:
+		var ocats: Array = ["Other", "StreetProps", "LightRail", "River", "Parks", "Houses", "Industrial", "Trees", "FarCity", "Landmark", "Vehicle", "Pedestrian"]
+		# OSPLIT_CATS=Vehicle,Building: split only those categories.
+		if OS.get_environment("OSPLIT_CATS") != "":
+			ocats = Array(OS.get_environment("OSPLIT_CATS").split(","))
+		for c in ocats:
 			for gi: GeometryInstance3D in nodes[c]:
 				if not is_instance_valid(gi):
 					continue

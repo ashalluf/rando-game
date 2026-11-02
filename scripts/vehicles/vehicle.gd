@@ -1468,6 +1468,7 @@ func _add_generated_wheels() -> void:
 			mi.visibility_range_end = _wheel_far_end
 			mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
 			steer.add_child(mi)
+			_wheel_shadow_twin(mi, float(pose.r), float(pose.w) if front else float(pose.get("rw", pose.w)))
 			# The caliper is bolted to the upright, so it steers but must NOT spin. Its own node
 			# is what buys that, and it is the detail that stops the whole assembly reading as
 			# one turned cylinder.
@@ -1485,6 +1486,29 @@ func _add_generated_wheels() -> void:
 	# Seeded now, or the first frame a traffic car comes into range reads its whole heading as
 	# one frame's turn and slams the front wheels onto full lock for that frame.
 	_last_yaw = rotation.y
+
+
+## The near car wheel (12-14k triangles: a 96-segment tyre with its tread and moulded letters)
+## casts its shadow from a plain 40-segment wheel instead (~2.5k), a SHADOWS_ONLY child of the
+## wheel's mesh node so it spins and steers with it (perf-audit-5: the wheels were 0.13 M of the
+## street camera's shadow triangles). The tread and the letters are millimetres; under the
+## cascades' texels the shadow is the same disc. WHEEL_SHADOW_LITE=0 is the A/B.
+static var wheel_shadow_lite := OS.get_environment("WHEEL_SHADOW_LITE") != "0"
+
+
+func _wheel_shadow_twin(mi: MeshInstance3D, radius: float, width: float) -> void:
+	if not wheel_shadow_lite:
+		return
+	var twin := MeshInstance3D.new()
+	twin.name = "WheelShadow"
+	twin.mesh = PropFactory.car_wheel_shadow(wheel_style, radius, width)
+	twin.material_override = mi.material_override
+	twin.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_SHADOWS_ONLY
+	twin.gi_mode = GeometryInstance3D.GI_MODE_DISABLED
+	twin.visibility_range_end = mi.visibility_range_end
+	twin.visible = _wheel_near
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	mi.add_child(twin)
 
 
 ## Where this car's generated wheels go. WHEEL_POSE when the body is a model (the arch is in a
@@ -1646,8 +1670,14 @@ func _update_wheels(delta: float) -> void:
 			mi.mesh = rig[6 if near else 7] if rig.size() > 7 else _wheel_meshes[0 if rig[4] else 1][0 if near else 1]
 			# The far wheel drops its shadow as well as its triangles: a shadow pass is a second
 			# draw call per wheel, and a wheel's own shadow at forty metres is under the car.
-			mi.cast_shadow = (GeometryInstance3D.SHADOW_CASTING_SETTING_ON if near
-					else GeometryInstance3D.SHADOW_CASTING_SETTING_OFF)
+			# A near car wheel casts from its lighter twin (_wheel_shadow_twin) when it has one.
+			var twin := mi.get_node_or_null(^"WheelShadow") as GeometryInstance3D
+			if twin != null:
+				twin.visible = near
+				mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+			else:
+				mi.cast_shadow = (GeometryInstance3D.SHADOW_CASTING_SETTING_ON if near
+						else GeometryInstance3D.SHADOW_CASTING_SETTING_OFF)
 	var speed := traffic_speed if is_traffic() else linear_velocity.dot(-global_basis.z)
 	_wheel_spin = fposmod(_wheel_spin - speed / maxf(_wheel_radius, 0.05) * delta, TAU)
 	var steer := steering

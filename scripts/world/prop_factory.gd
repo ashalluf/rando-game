@@ -1527,6 +1527,19 @@ const MERGE_BY_MATERIAL := ["prop_bench_kit.glb", "prop_trash_can.glb"]
 static var plant_merge := OS.get_environment("PLANT_MERGE") != "0"
 
 
+## The knee-high plants' shadow twins (bushes, shrubs, plants, flowers, grass clumps) run at
+## FoliageLod.SHADOW_LOD_SCALE of the batch's LOD bias, as the trees' and the palms' do: a shadow
+## map holds no leaf a metre off the ground under its penumbra, and the twins drew their proxy at
+## the camera's full bias - 0.19 M shadow triangles of bushes over MacArthur Park against 0.06 M
+## in the camera (perf-audit-5). MultiMeshBatch reads the meta. KNEE_SHADOW_LOD=0 is the A/B.
+static var knee_shadow_lod := OS.get_environment("KNEE_SHADOW_LOD") != "0"
+
+
+static func _mark_knee_shadow(mesh: Mesh) -> void:
+	if knee_shadow_lod and mesh != null:
+		mesh.set_meta("knee_shadow_lod", true)
+
+
 static func _knee_high(file: String) -> bool:
 	return BUSHES.has(file) or PLANTS.has(file) or FLOWERS.has(file) or GRASS_CLUMPS.has(file)
 
@@ -1806,6 +1819,7 @@ static func model_shrub(variant: int) -> Mesh:
 	var offsets: Array[Vector3] = [Vector3(-1.55, -0.01, -0.02), Vector3(0.0, -0.01, -0.02), Vector3(1.56, -0.01, -0.01), Vector3(3.26, 0.0, -0.01)]
 	var v := clampi(variant, 0, 3)
 	var mesh := model_mesh(MODEL_DIR + "prop_shrub.glb", ["shrub_02_" + "abcd"[v]], [], _shift(-offsets[v]))
+	_mark_knee_shadow(mesh)
 	for i in mesh.get_surface_count():
 		var mat := mesh.surface_get_material(i)
 		if mat is StandardMaterial3D:
@@ -2058,6 +2072,9 @@ static func _tree_mesh(file: String, blossom: Color = Color.TRANSPARENT, budget:
 				continue
 			sm.cull_mode = BaseMaterial3D.CULL_DISABLED
 	TreesCloseup.dress(mesh)
+	# The knee-high plants' shadow twins take the trees' shadow LOD rule too (perf-audit-5).
+	if _knee_high(file):
+		_mark_knee_shadow(mesh)
 	var proxy := shadow_proxy(mesh)
 	if proxy:
 		for i in mesh.get_surface_count():
@@ -3209,9 +3226,10 @@ static func _wheel_revolve(st: SurfaceTool, prof: Array, seg: int, inward: bool 
 ## tread). `near` builds the close-up mesh; false builds the far LOD, which Vehicle swaps in
 ## past wheel_lod_distance - the city runs a hundred and fifty traffic cars and the far mesh is
 ## what makes that affordable.
-static func car_wheel(style: int, radius: float, width: float, near: bool) -> Mesh:
+static func car_wheel(style: int, radius: float, width: float, near: bool, seg_override: int = 0) -> Mesh:
 	var letters := near and CarDetail.enabled
-	var key := "cw_%d_%d_%d_%d%s" % [style, roundi(radius * 500.0), roundi(width * 500.0), int(near), "_l" if letters else ""]
+	var key := "cw_%d_%d_%d_%d%s%s" % [style, roundi(radius * 500.0), roundi(width * 500.0), int(near), "_l" if letters else "",
+			("_s%d" % seg_override) if seg_override > 0 else ""]
 	if _cache.has(key):
 		return _cache[key]
 	var face: Dictionary = WHEEL_FACES[posmod(style, WHEEL_FACES.size())]
@@ -3222,7 +3240,7 @@ static func car_wheel(style: int, radius: float, width: float, near: bool) -> Me
 	# twenty-four blocks round a 2.2 m circumference - one every nine centimetres. At 72 they
 	# were twelve centimetres apart and the tread read as a tractor tyre. The count therefore
 	# has to stay a multiple of four or the pattern does not close round the ring.
-	var seg := 96 if near else 20
+	var seg := seg_override if seg_override > 0 else (96 if near else 20)
 	var st := SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
 	_wheel_tyre(st, radius, rim_r, hw, seg, near, letters)
@@ -3250,8 +3268,32 @@ static func car_wheel(style: int, radius: float, width: float, near: bool) -> Me
 	# round its circumference) - the smoothing survives, only the sign changes.
 	st.generate_normals()
 	var mesh := st.commit()
+	# The near wheel's triangles are for the last few metres: past that its generated LODs take
+	# over at the renderer's own pixel threshold (perf-audit-5: a near wheel was 12-14k triangles
+	# out to wheel_lod_distance, 30 m, where it is thirty pixels tall). WHEEL_LOD=0 is the A/B.
+	if near and wheel_lods:
+		mesh = _with_lods(mesh)
 	_cache[key] = mesh
 	return mesh
+
+
+static var wheel_lods := OS.get_environment("WHEEL_LOD") != "0"
+
+
+## `mesh` again with generated LODs (one surface or several, materials kept).
+static func _with_lods(mesh: ArrayMesh) -> ArrayMesh:
+	var im := ImporterMesh.new()
+	for s in mesh.get_surface_count():
+		im.add_surface(mesh.surface_get_primitive_type(s), mesh.surface_get_arrays(s), [], {},
+				mesh.surface_get_material(s), mesh.surface_get_name(s))
+	im.generate_lods(25.0, 60.0, [])
+	return im.get_mesh()
+
+
+## What a near car wheel casts its shadow from (Vehicle._wheel_shadow_twin): the far wheel's
+## plain build at 40 segments round, so its outline on the road is as round as the near one's.
+static func car_wheel_shadow(style: int, radius: float, width: float) -> Mesh:
+	return car_wheel(style, radius, width, false, 40)
 
 
 ## The brake caliper, as its own mesh. It is separate because it must NOT spin with the wheel:

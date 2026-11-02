@@ -1820,6 +1820,7 @@ static var _welds: Dictionary = {}
 const STRETCH_LIMIT := 2.5
 var _meshes: Array[MeshInstance3D] = []
 var _draw_tier: int = -1
+var _shadow_lite_on: bool = false
 ## Past this distance from the player (metres) a pedestrian walks without physics: no
 ## move_and_slide, no hit detector. Measured headless on a downtown block, the 625-strong crowd was
 ## 46 of 101 ms of physics a frame - a collision solve and an overlap test per person per step, to
@@ -1865,8 +1866,12 @@ func _update_lod() -> void:
 		if kinematic:
 			velocity = Vector3.ZERO
 	var tier := 0 if d < shadow_range else (3 if d >= lod_far else (2 if d >= mid_body_range else 1))
-	if tier != _draw_tier:
+	# Past shadow_full_range (still inside shadow_range) the shadow comes from the welded middle
+	# body, a skinned SHADOWS_ONLY twin (_lite_shadow()): tier 0 drawn, the shadow lighter.
+	var lite := tier == 0 and shadow_lite and d >= shadow_full_range
+	if tier != _draw_tier or lite != _shadow_lite_on:
 		_draw_tier = tier
+		_shadow_lite_on = lite
 		for mi in _meshes:
 			if is_instance_valid(mi) and is_hair(mi):
 				# The welded middle and far bodies have no cards: the scalp under them is
@@ -1874,7 +1879,7 @@ func _update_lod() -> void:
 				mi.visible = tier < 2 and not mi.has_meta("under_hat")
 				mi.lod_bias = LOD_BIAS[tier]
 			elif is_instance_valid(mi):
-				mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON if tier == 0 \
+				mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON if tier == 0 and not (lite and mi.skin) \
 					else GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 				mi.lod_bias = LOD_BIAS[tier]
 				if mi.skin:
@@ -1883,6 +1888,45 @@ func _update_lod() -> void:
 					var near: Mesh = mi.get_meta("near_mesh")
 					mi.mesh = near if tier < 2 \
 						else far_mesh(near, far_triangles if tier == 3 else mid_triangles)
+					_lite_shadow(mi, near, lite)
+
+
+## Shadows from the middle body (perf-audit-5): between shadow_full_range and shadow_range a
+## person's shadow is cast by the welded middle body (~2,100 triangles) instead of the rig itself
+## (15-23k since the third close-up pass, at full LOD bias in every cascade it reaches). Past 12 m
+## a person's shadow is under the cascades' texels and the penumbra; the silhouette is the same.
+## The street camera's crowd was 0.14 M shadow triangles. PED_SHADOW_LITE=0 is the A/B.
+static var shadow_lite := OS.get_environment("PED_SHADOW_LITE") != "0"
+static var shadow_full_range: float = 12.0
+
+
+## Shows (or hides) `mi`'s shadow twin: a sibling sharing its skeleton and skin, made the first
+## time it is wanted.
+func _lite_shadow(mi: MeshInstance3D, near: Mesh, on: bool) -> void:
+	var twin := mi.get_meta("shadow_twin") as MeshInstance3D if mi.has_meta("shadow_twin") else null
+	if twin == null:
+		if not on or mi.get_parent() == null:
+			return
+		var body := far_mesh(near, mid_triangles)
+		if body == null or body == near:
+			# No welded body for this mesh: keep the rig's own shadow.
+			mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+			return
+		twin = MeshInstance3D.new()
+		twin.name = "ShadowBody"
+		twin.mesh = body
+		twin.skin = mi.skin
+		twin.skeleton = mi.skeleton
+		twin.transform = mi.transform
+		twin.material_override = mi.material_override
+		if mi.get_surface_override_material_count() > 0 and mi.get_surface_override_material(0) != null:
+			twin.set_surface_override_material(0, mi.get_surface_override_material(0))
+		twin.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_SHADOWS_ONLY
+		twin.gi_mode = GeometryInstance3D.GI_MODE_DISABLED
+		twin.custom_aabb = mi.custom_aabb
+		mi.get_parent().add_child(twin)
+		mi.set_meta("shadow_twin", twin)
+	twin.visible = on and mi.visible
 
 
 ## A coarse body for people past mid_body_range / lod_far: the model welded to one vertex per
