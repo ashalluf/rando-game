@@ -52,14 +52,20 @@ uniform float rc3 = 0.0;
 // How deep the traced shop is (metres behind the glass) and how wide one bay of it.
 uniform float shop_depth = 4.2;
 uniform float shop_bay = 3.0;
+// How much of the street wash the lacquer keeps (rc3: less, so a red wall is a wall in the dark, not
+// a flat lit red sheet).
+uniform float lacquer_wash = 1.0;
 
 varying flat float v_kind;
 varying vec3 v_paint;
 varying vec3 v_world;
+varying flat float v_lit;
 
 void vertex() {
 	v_kind = floor(COLOR.a * 16.0 + 0.5);
 	v_paint = cs_srgb_to_linear(COLOR.rgb);
+	// A lattice face with UV2 (0, Rc3Chinatown.LIT_FLAG) is lit inside every night (the hall).
+	v_lit = (UV2.x < 0.0005 && UV2.y > 1.5) ? 1.0 : 0.0;
 	if (UV2.x > 0.001) {
 		float w = 0.6 + wind_factor * 1.4;
 		float t = TIME * (1.1 + fract(UV2.y * 7.3) * 0.5) + UV2.y * 6.2831853;
@@ -275,6 +281,20 @@ void fragment() {
 		vec3 glow = mix(v_paint * vec3(1.0, 0.32, 0.18), v_paint * vec3(1.0, 0.62, 0.32) + vec3(0.12, 0.04, 0.0), core);
 		float lit = mix(lantern_day, lantern_night, night) * (0.35 + 0.65 * bulge) * (1.0 - rib * 0.6) * (1.0 - clamp(bands, 0.0, 1.0) * 0.8);
 		emit = glow * lit;
+		if (rc3 > 0.5) {
+			// rc3: a silk lantern through AgX. Bright and red-heavy it went salmon-white (every
+			// lantern a pale ball); held under ~1.6 in red with green at ~0.4 of it in the core it
+			// stays the deep red-orange of lit silk, the ribs and the ends dark against it.
+			float gold = step(0.3, v_paint.g / max(v_paint.r, 0.01));
+			vec3 rim = gold > 0.5 ? vec3(1.0, 0.42, 0.06) : vec3(1.0, 0.10, 0.03);
+			vec3 hot = gold > 0.5 ? vec3(1.0, 0.62, 0.18) : vec3(1.0, 0.40, 0.12);
+			float view_c = pow(clamp(dot(NORMAL, VIEW), 0.0, 1.0), 1.5);
+			float c2 = pow(bulge, 1.5) * view_c;
+			vec3 glow2 = mix(rim * 0.55, hot, c2);
+			float lit2 = mix(0.12, 1.6, night) * (0.3 + 0.7 * bulge) * (1.0 - rib * 0.75) * (1.0 - clamp(bands, 0.0, 1.0) * 0.85);
+			emit = glow2 * lit2;
+			col = mix(col, col * 0.7, rib);
+		}
 		BACKLIGHT = cs_out(col * 0.6);
 		rough = 0.55;
 		spec = 0.3;
@@ -305,11 +325,18 @@ void fragment() {
 		bars = mix(bars, 0.45, avg);
 		vec3 frame = col;
 		float cell_h = hash21(floor(v_world.xz * 0.45) + floor(v_world.y / 3.0) * 7.1);
-		float lit = step(0.42, cell_h) * night;
+		float lit = max(step(0.42, cell_h), v_lit * rc3) * night;
 		vec3 room = vec3(1.0, 0.72, 0.42) * (0.5 + 0.5 * hash21(vec2(cell_h, 3.0)));
 		vec3 glass = k == 7 ? mix(vec3(0.03, 0.035, 0.04), cs_srgb_to_linear(sky_tint.rgb) * 0.3, 0.3) : vec3(0.025, 0.02, 0.018);
 		col = mix(glass, frame, bars);
 		emit = room * (k == 7 ? window_night : window_night * 0.5) * lit * (1.0 - bars) * (k == 7 ? 1.0 : 0.6);
+		if (rc3 > 0.5 && v_lit > 0.5) {
+			// The hall's screens: a warm hall behind the fretwork, brighter low (lamps inside),
+			// the timber itself catching a little of it.
+			vec3 hall = vec3(1.0, 0.55, 0.22) * (0.8 + 0.4 * noise2(v_world.xz * 0.7));
+			emit = hall * window_night * 0.85 * night * (1.0 - bars * 0.85);
+			emit += frame * vec3(1.0, 0.6, 0.3) * 0.25 * night * bars;
+		}
 		rough = mix(0.1, 0.5, bars);
 		spec = mix(0.6, 0.4, bars);
 	} else if (k == 8) {
@@ -411,6 +438,7 @@ void fragment() {
 	if (k == 0 || k == 6 || k == 9 || (k == 2 && uv.y < 0.0)) {
 		float h = (k == 2) ? 4.0 : uv.y;
 		float wash = street_wash * night * (1.0 - smoothstep(2.5, wash_top, h)) * step(-1.0, h);
+		wash *= (k == 0) ? lacquer_wash : 1.0;
 		emit += col * vec3(1.0, 0.72, 0.48) * wash;
 	}
 	ALBEDO = cs_out(col);
