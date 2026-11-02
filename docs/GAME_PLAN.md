@@ -4108,6 +4108,11 @@ none of either.
   Forward+ below MEDIUM) closes into a stratus ceiling from coverage 0.62 to 0.78, so rain and
   storms never fall from a blue sky there; a clear day is untouched. web_build_checks now also
   holds WebGL2's uniform-block (16 KB) and varying floors.
+- 2026-11-01 (web-build-5): the web build after wave 4 loads clean at all eight bookmarks (pck
+  609 MB of the 650 MB budget, wasm 821 MB). Decision: MacArthur Park's fountain particle plume is
+  not built on the web - in the browser it blew up into a park-wide glare (root not found; no
+  property of it fixed it); `?fountain_plume=1` is the A/B. CI warns past the pck budget and fails
+  past Pages' 1 GB. The hero reading blue in the rain on the web is open (not the radiance).
 - **2026-10-31 Perf audit 4: a mesh drawn whole everywhere is tiled, a model's surfaces merged
   (perf-audit-4, HANDOFF "Perf audit 4").** Judged at the ten refcams against wave 2's numbers,
   every cut proved with strict pairs against an A/A pair. Decisions: anything with a map-sized
@@ -4315,6 +4320,9 @@ none of either.
   comes in with distance; broad road-light pools have no hard rim and dim from the air; floodlit
   masonry is a fifth of the old brick and render, not most of it; a far searchlight seen from the air
   saturates softly and fades with distance. NIGHT_AERIAL=0 is the A/B.
+- 2026-11-02 (chase-box-bug): an additive (blend_add) shader must be `fog_disabled` or write a coverage
+  alpha (`af_cover()`, shaders/additive_fog.gdshaderinc): with ALPHA left at 1 the renderer adds the fog
+  colour over the whole quad, which drew a grey square round each tail lamp of the player's car.
 - 2026-11-02 (wave 6, rc3-chinatown): a new reference camera, chinatown_dusk (the Chinatown plaza,
   its hall and gate at 19:15). Decisions: a lit lantern is held to a deep red-orange under AgX (a
   bright red-heavy emission reads pale pink, so the silk stays under ~0.85 in red with green under
