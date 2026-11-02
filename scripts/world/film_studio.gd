@@ -489,6 +489,8 @@ static func site_steps(ch: CityChunk) -> Array[Callable]:
 	if ch.level == CityChunk.Level.FULL:
 		steps.append(_lights.bind(ch, lay, area))
 		steps.append(_crowd.bind(ch, lay, area))
+		if Rc4FilmLot.enabled:
+			steps.append(Rc4FilmLot.dress_crew.bind(ch))
 	steps.append(_commit.bind(ch))
 	return steps
 

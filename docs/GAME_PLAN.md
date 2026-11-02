@@ -4400,3 +4400,11 @@ none of either.
   edge crumbles in world-space grains, never a screen-space dither; a pad's service pickup is a real
   parked car, not a far twin, because it stands beside the road; a big site's planting is batched
   in cells, because a batch's range is measured to its centre. OIL_PLANTING=0 is the A/B.
+- **2026-11-02 The film lot refcam: a studio's basecamp is moulded vehicles on a kept street
+  (rc4-film-lot, HANDOFF "The film lot at 14:00").** A new reference camera (`film_lot`, wave 7's
+  table) stands in the SUNSPIRE lot's studio street at 14:00 toward the water tower. Decisions: a
+  production trailer, grip truck or golf cart is never a stack of boxes - a shell lofted round a
+  rounded section with its fittings - and a code-built vehicle repeated down a street is built once
+  per variant and batched, never per copy; a studio keeps its asphalt (the industrial ground with
+  `kept`, worn only by tyre tracks); the basecamp's gaps hold carts and the doors chairs, from the
+  layout alone, after every roll; the lot's walkers mostly wear crew blacks. RC4_FILM_LOT=0 is the A/B.

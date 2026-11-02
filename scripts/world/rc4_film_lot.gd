@@ -380,6 +380,14 @@ static func truck(st: SurfaceTool, xf: Transform3D, band: int, seed: int) -> voi
 		# Marker lamps along the top.
 		for k in 3:
 			FilmStudioKit.box(st, xf * Transform3D(Basis(), Vector3(s2 * 1.27, 4.15, bz0 + 0.6 + float(k) * 3.0)), Vector3(0.03, 0.06, 0.1), K_LAMP, Color(1.0, 0.6, 0.15))
+	# The rental house's name down both sides of the box, painted.
+	var names := ["SUNSPIRE GRIP & ELECTRIC", "BACKLOT LIGHTING CO.", "STAGE 9 RENTALS", "MAGPIE CAMERA SUPPLY"]
+	var label: String = names[absi(seed) % names.size()]
+	var lh := 0.32
+	var lw := float(FilmStudioKit.text2d(label, lh)[1])
+	for s2: float in [-1.0, 1.0]:
+		var face := Transform3D(Basis(Vector3(0.0, 0.0, -s2), Vector3.UP, Vector3(s2, 0.0, 0.0)), Vector3(s2 * 1.29, 3.35, (bz0 + bz1) * 0.5 - 0.6))
+		FilmStudioKit.letters(st, label, lh * minf(1.0, 6.0 / maxf(lw, 0.1)), xf * face, FilmStudioKit.K_SIGN, Color(0.1, 0.1, 0.12))
 	# The roll-up door (its slats) at the back, the folded lift gate under it, tail lamps.
 	FilmStudioKit.box(st, xf * Transform3D(Basis(), Vector3(0.0, 2.7, bz0 - 0.02)), Vector3(2.25, 2.85, 0.04), FilmStudioKit.K_DOOR, Color(0.88, 0.88, 0.86), 1.1)
 	FilmStudioKit.box(st, xf * Transform3D(Basis(), Vector3(0.0, 1.08, bz0 - 0.25)), Vector3(2.4, 0.12, 0.5), K_STEEL, Color(0.5, 0.5, 0.52))
@@ -606,3 +614,69 @@ static func _ramp_piece(st: SurfaceTool) -> void:
 ## FilmStudio's build step for the dressing (its own step: the lot mesh's accumulator).
 static func dressing_step(ch: CityChunk, lay: Dictionary, area: Rect2) -> void:
 	build_dressing(ch, lay, area, FilmStudio.BASE_Y)
+
+
+# --- The crew ---------------------------------------------------------------------------------
+
+## The tops a film crew wears (black, charcoal, deep navy, a faded olive) and their trousers
+## (black, charcoal work trousers, dark denim, khaki cargo): HSV for character.gdshader's recolour.
+const CREW_TOPS := [Vector3(0.62, 0.05, 0.07), Vector3(0.6, 0.06, 0.16), Vector3(0.63, 0.35, 0.16), Vector3(0.2, 0.25, 0.24), Vector3(0.0, 0.0, 0.1)]
+const CREW_TROUSERS := [Vector3(0.6, 0.04, 0.08), Vector3(0.6, 0.05, 0.2), Vector3(0.61, 0.3, 0.22), Vector3(0.11, 0.26, 0.4)]
+## Share of the lot's walkers who are crew (the rest are cast, producers, visitors).
+const CREW_SHARE := 0.75
+
+static var _crew_mats: Dictionary = {}
+
+
+## FilmStudio's step after its crowd: three in four of the chunk's walkers dressed as crew. Each
+## mesh's own look material is copied once per (material, outfit) with the top and trousers
+## recoloured; the copy rides material_override, which the middle and far bodies keep.
+## Walkers the street gets later (BusyStreets' top-ups, CrowdFlow's doors) are dressed as they
+## enter the chunk.
+static func dress_crew(ch: CityChunk) -> void:
+	for c in ch.get_children():
+		_crew_walker(ch, c)
+	if not ch.has_meta("rc4_crew_watch"):
+		ch.set_meta("rc4_crew_watch", true)
+		ch.child_entered_tree.connect(func(n: Node) -> void: _crew_walker(ch, n))
+
+
+static func _crew_walker(ch: CityChunk, c: Node) -> void:
+	if not (c is Pedestrian) or c.has_meta("rc4_crew") or (c.get_script() as Script) != Pedestrian:
+		return
+	var ped := c as Pedestrian
+	var roll := h01([ch.plan.seed, "rc4_crew", roundi(ped.position.x * 10.0), roundi(ped.position.z * 10.0)])
+	ped.set_meta("rc4_crew", roll < CREW_SHARE)
+	if roll >= CREW_SHARE:
+		return
+	var outfit := int(roll / CREW_SHARE * 20.0)
+	if ped.is_node_ready():
+		_dress(ped, outfit)
+	else:
+		ped.ready.connect(_dress.bind(ped, outfit), CONNECT_ONE_SHOT)
+
+
+static func _dress(ped: Pedestrian, outfit: int) -> void:
+	if not is_instance_valid(ped):
+		return
+	for mi: MeshInstance3D in ped._meshes:
+		if not is_instance_valid(mi) or Pedestrian.is_hair(mi):
+			continue
+		var base := mi.material_override as ShaderMaterial
+		if base == null or base.shader == null or not base.shader.resource_path.ends_with("character.gdshader"):
+			continue
+		var key := "%d_%d" % [base.get_instance_id(), outfit]
+		if not _crew_mats.has(key):
+			var m := base.duplicate() as ShaderMaterial
+			var top: Vector3 = CREW_TOPS[outfit % CREW_TOPS.size()]
+			var low: Vector3 = CREW_TROUSERS[(outfit / CREW_TOPS.size()) % CREW_TROUSERS.size()]
+			m.set_shader_parameter("cloth_hue", top.x)
+			m.set_shader_parameter("cloth_sat", top.y)
+			m.set_shader_parameter("cloth_value", top.z)
+			m.set_shader_parameter("cloth_strength", 0.9)
+			m.set_shader_parameter("pants_hue", low.x)
+			m.set_shader_parameter("pants_sat", low.y)
+			m.set_shader_parameter("pants_value", low.z)
+			m.set_shader_parameter("pants_strength", 0.9)
+			_crew_mats[key] = m
+		mi.material_override = _crew_mats[key]
