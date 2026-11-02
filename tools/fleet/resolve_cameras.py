@@ -2,7 +2,7 @@
 """Resolve a merge conflict in tools/refcams/cameras_w5.json by keeping every camera row.
 
 usage (inside the checkout with the conflicted merge):
-    python3 tools/fleet/resolve_cameras.py
+    python3 tools/fleet/resolve_cameras.py [tools/refcams/cameras_wN.json]
 
 Wave 5's refcam2 sessions each append one row to the same file, so every merge after the first
 conflicts there. This reads our side (:2:) and theirs (:3:), keeps the longer "_doc", the
@@ -11,8 +11,9 @@ writes one row a line and stages the file.
 """
 import json
 import subprocess
+import sys
 
-PATH = "tools/refcams/cameras_w5.json"
+PATH = sys.argv[1] if len(sys.argv) > 1 else "tools/refcams/cameras_w5.json"
 
 
 def side(n):
@@ -31,4 +32,4 @@ out = "{\n\t\"_doc\": %s,\n\t\"resolution\": %s,\n\t\"cameras\": [\n%s\n\t]\n}\n
 json.loads(out)
 open(PATH, "w").write(out)
 subprocess.run(["git", "add", PATH], check=True)
-print("cameras_w5.json: %d rows (%s)" % (len(rows), ", ".join(rows)))
+print("%s: %d rows (%s)" % (PATH, len(rows), ", ".join(rows)))
