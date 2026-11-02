@@ -60,7 +60,8 @@ func _shader() -> void:
 		"camera lens: the old grain is the default; film grain only behind lens_mode")
 	var mat := ShaderMaterial.new()
 	mat.shader = load("res://shaders/vignette.gdshader")
-	_t._check(float(mat.get_shader_parameter("flare_amount")) == 0.0, "camera lens: a fresh lens material has no flare")
+	var fresh: Variant = mat.get_shader_parameter("flare_amount")
+	_t._check(fresh == null or float(fresh) == 0.0, "camera lens: a fresh lens material has no flare")
 
 
 func _live(city: Node3D) -> void:
@@ -79,7 +80,8 @@ func _live(city: Node3D) -> void:
 	var mat := (layer.get_child(0) as CanvasItem).material as ShaderMaterial if layer and layer.get_child_count() > 0 else null
 	_t._check(mat != null and int(mat.get_shader_parameter("lens_mode")) == 1,
 		"camera lens: the city's lens layer takes film grain")
-	_t._check(mat != null and float(mat.get_shader_parameter("flare_amount")) == 0.0,
+	var flare: Variant = mat.get_shader_parameter("flare_amount") if mat else null
+	_t._check(mat != null and (flare == null or float(flare) == 0.0),
 		"camera lens: no flare where it is not supported (headless, the web)")
 	var env := cam.get_world_3d().environment if cam and cam.get_world_3d() else null
 	_t._check(env != null and is_equal_approx(env.get_glow_level(1), CameraLens.GLOW_LEVELS[1])
