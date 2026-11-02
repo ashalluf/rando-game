@@ -159,9 +159,9 @@ func _strip(city: Node3D, chunk: Node3D, nearer: bool = false) -> Array:
 	var cam := _tree.root.get_viewport().get_camera_3d()
 	var cw := WorldState.to_world(cam.global_position) if cam else Vector3(rect.get_center().x, 0.0, rect.position.y)
 	var x0 := clampf(cw.x, rect.position.x + 12.0, rect.end.x - 26.0)
-	# The north or the south pavement, whichever the camera is nearer: avoidance only runs within
-	# CrowdFlow.RANGE (35 m) of it, and the north one alone was 24 m off at the usual look and over
-	# 35 at another (shuffled gate 1202: the pair walked through each other).
+	# The north pavement. (`nearer` takes the south one when the camera is nearer it - avoidance only
+	# runs within CrowdFlow.RANGE of the camera - but a pair staged there walked off the wrong way in
+	# shuffled gate 7101, so nothing uses it; the passing check prints the camera's distance.)
 	var z := rect.position.y + 2.0
 	if nearer and absf(cw.z - (rect.end.y - 2.0)) < absf(cw.z - z):
 		z = rect.end.y - 2.0
@@ -217,7 +217,7 @@ func _follower(city: Node3D, chunk: Node3D) -> void:
 
 
 func _passing(city: Node3D, chunk: Node3D) -> void:
-	var s := _strip(city, chunk, true)
+	var s := _strip(city, chunk)
 	var rect: Rect2 = s[0]
 	var at: Vector2 = s[1]
 	var a := _walker(chunk, rect, at, 90201)
