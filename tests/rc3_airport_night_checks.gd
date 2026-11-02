@@ -99,8 +99,26 @@ func _materials() -> void:
 
 func _lights() -> void:
 	var src := FileAccess.get_file_as_string("res://shaders/aircraft_lights.gdshader")
-	_t._check(src.contains("uniform float landing_side") and AirportNight.LANDING_SIDE > 0.06,
-		"a landing light keeps a share of its glare off its axis (%.2f)" % AirportNight.LANDING_SIDE)
+	_t._check(src.contains("uniform float landing_side") and src.contains("uniform float landing_glare") and AirportNight.LANDING_SIDE > 0.06 and AirportNight.LANDING_GLARE > 0.0,
+		"a landing light keeps a share of its glare off its axis (%.2f) and flares down its beam" % AirportNight.LANDING_SIDE)
+	# The landing lights' pool: under a low jet with the lights on, gone when high or off.
+	var mat := ShaderMaterial.new()
+	mat.shader = load("res://shaders/aircraft_lights.gdshader")
+	mat.set_shader_parameter("landing_on", 1.0)
+	var holder := _LightHolder.new()
+	holder._light_mat = mat
+	_tree.root.add_child(holder)
+	holder.global_position = Vector3(0.0, 20.0, 0.0)
+	AirportNight.landing_pool(holder, 20.0, Vector3(-1.0, 0.0, 0.0))
+	var pool := holder.get_node_or_null("LandingPool") as MeshInstance3D
+	var low_ok := pool != null and pool.visible and pool.global_position.x < -40.0 and absf(pool.global_position.y - 0.08) < 0.01
+	AirportNight.landing_pool(holder, 300.0, Vector3(-1.0, 0.0, 0.0))
+	var high_off := pool != null and not pool.visible
+	mat.set_shader_parameter("landing_on", 0.0)
+	AirportNight.landing_pool(holder, 10.0, Vector3(-1.0, 0.0, 0.0))
+	var off_off := pool != null and not pool.visible
+	_t._check(low_ok and high_off and off_off, "a low jet's landing lights lay a pool down the runway ahead; none high up or with them off")
+	holder.queue_free()
 	var beam := FileAccess.get_file_as_string("res://scripts/vehicles/helicopter.gd")
 	_t._check(AirportNight.PATROL_BEAM < 0.6 and beam.contains("AirportNight.PATROL_BEAM"),
 		"a patrol helicopter's shaft is fainter than a pursuit's")
@@ -141,3 +159,8 @@ func _chunk(city: Node3D, macro: MacroMap) -> void:
 	player.global_position = was
 	city.call("update_streaming", true)
 	await _tree.physics_frame
+
+
+## Stands in for an AmbientJet: AirportNight.landing_pool() reads its `_light_mat`.
+class _LightHolder extends Node3D:
+	var _light_mat: ShaderMaterial = null

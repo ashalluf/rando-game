@@ -19,6 +19,8 @@ extends RefCounted
 ##   (aircraft_lights.gdshader) keeps a share of the glare off its axis, as a real one does.
 ## - A patrol helicopter's searchlight in clear air was a solid white wedge across the sky.
 ##   PATROL_BEAM: a helicopter on patrol (no stars) runs its shaft at a share of a pursuit's.
+## - ...and its light on the runway: a jet low on final or rolling out with its landing lights on
+##   throws a long pool down the runway ahead (landing_pool(), one additive quad a jet).
 ## Every number is a constant here; nothing rolls.
 
 static var enabled: bool = OS.get_environment("AIRPORT_NIGHT") != "0"
@@ -26,20 +28,28 @@ static var enabled: bool = OS.get_environment("AIRPORT_NIGHT") != "0"
 ## How far a mast's floods reach (metres, the pool's radius) and their strength on the concrete
 ## (display numbers added at the foot of the head).
 const REACH := 92.0
-const POOL_STRENGTH := 0.24
+const POOL_STRENGTH := 0.18
 ## Floods colour: warm LED white (linear).
 const TINT := Color(1.0, 0.88, 0.70)
 ## The floods' emitted share on a jet's and a vehicle's paint under the head.
 const JET_GAIN := 0.40
 const KIT_GAIN := 0.35
 ## Behind a mast, this share of the light.
-const BACK := 0.35
+const BACK := 0.3
 ## The fin's logo lights (airliner_livery.gdshader `logo_light`).
-const LOGO := 0.85
+const LOGO := 0.65
 ## An aimed landing light seen from off its axis keeps this much (aircraft_lights.gdshader).
 const LANDING_SIDE := 0.32
+## An aimed landing light's glare grows to this many times its size seen down its beam.
+const LANDING_GLARE := 5.0
+## The landing lights' pool on the runway: shown under this height (m), its size (across, along)
+## and how far ahead of the jet its middle lies, its strength.
+const LANDING_POOL_UNDER := 70.0
+const LANDING_POOL_SIZE := Vector2(34.0, 150.0)
+const LANDING_POOL_AHEAD := 70.0
+const LANDING_POOL_STRENGTH := 0.8
 ## A patrol helicopter's searchlight shaft against a pursuit's.
-const PATROL_BEAM := 0.35
+const PATROL_BEAM := 0.2
 
 ## The masts as the shaders take them: Vector4(x, ground y, z, facing angle), TRUE world.
 static var _masts: Array = []
@@ -119,3 +129,32 @@ static func mast_pool(ch: CityChunk, p: Vector2, fwd: Vector2, y: float) -> void
 
 static func pool_mesh() -> QuadMesh:
 	return _pool_mesh
+
+
+## The landing lights' pool on the runway ahead of a low jet (AmbientJet's tick): `above` its height
+## over the runway, `fwd` its heading (unit, world). Hidden while the lights are off or it is high.
+static func landing_pool(jet: Node3D, above: float, fwd: Vector3) -> void:
+	var pool := jet.get_node_or_null("LandingPool") as MeshInstance3D
+	var mat: ShaderMaterial = jet.get("_light_mat")
+	var on := mat != null and float(mat.get_shader_parameter("landing_on")) > 0.5 and above < LANDING_POOL_UNDER and above > -5.0
+	if not on:
+		if pool:
+			pool.visible = false
+		return
+	if pool == null:
+		pool = MeshInstance3D.new()
+		pool.name = "LandingPool"
+		pool.mesh = PropFactory.light_pool(Color(1.0, 0.95, 0.84), LANDING_POOL_STRENGTH, 1.4)
+		pool.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		pool.top_level = true
+		jet.add_child(pool)
+	pool.visible = true
+	var f := Vector3(fwd.x, 0.0, fwd.z).normalized()
+	var side := Vector3(-f.z, 0.0, f.x)
+	# Higher up, the beams land further ahead and spread.
+	var ahead := LANDING_POOL_AHEAD + clampf(above, 0.0, LANDING_POOL_UNDER) * 1.2
+	var at := jet.global_position + f * ahead
+	at.y = jet.global_position.y - above + 0.08
+	var long_side := LANDING_POOL_SIZE.y * (1.0 + clampf(above, 0.0, LANDING_POOL_UNDER) / LANDING_POOL_UNDER)
+	# The quad faces +Z: its x across the runway, its y along the heading, laid flat.
+	pool.global_transform = Transform3D(Basis(side * LANDING_POOL_SIZE.x, f * long_side, Vector3.UP), at)

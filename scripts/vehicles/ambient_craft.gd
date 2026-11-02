@@ -385,6 +385,7 @@ func _build_lights(specs: Array) -> void:
 	_light_mat.shader = _light_shader
 	if AirportNight.enabled:
 		_light_mat.set_shader_parameter("landing_side", AirportNight.LANDING_SIDE)
+		_light_mat.set_shader_parameter("landing_glare", AirportNight.LANDING_GLARE)
 	mesh.surface_set_material(0, _light_mat)
 	_lights = MeshInstance3D.new()
 	_lights.name = "Lights"

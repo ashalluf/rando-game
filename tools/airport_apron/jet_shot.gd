@@ -82,23 +82,24 @@ func _run() -> void:
 		mat.set_shader_parameter("af_masts", masts)
 		mat.set_shader_parameter("af_count", 1)
 		mat.set_shader_parameter("af_height", 28.0)
-		mat.set_shader_parameter("af_reach", 112.0)
+		mat.set_shader_parameter("af_reach", 92.0)
 		mat.set_shader_parameter("af_tint", Vector3(1.0, 0.88, 0.70))
-		mat.set_shader_parameter("af_back", 0.45)
-		mat.set_shader_parameter("af_gain", 0.55)
-		mat.set_shader_parameter("logo_light", 1.6)
+		mat.set_shader_parameter("af_back", 0.3)
+		mat.set_shader_parameter("af_gain", 0.40)
+		mat.set_shader_parameter("logo_light", 0.65)
 		var pool := MeshInstance3D.new()
 		var q := QuadMesh.new()
 		q.size = Vector2.ONE
 		var pm2 := ShaderMaterial.new()
 		pm2.shader = load("res://shaders/airport_flood.gdshader")
 		pm2.set_shader_parameter("tint", Color(1.0, 0.88, 0.70))
-		pm2.set_shader_parameter("strength", 0.34)
-		pm2.set_shader_parameter("h_over_r", 28.0 / 112.0)
+		pm2.set_shader_parameter("strength", 0.18)
+		pm2.set_shader_parameter("back", 0.3)
+		pm2.set_shader_parameter("h_over_r", 28.0 / 92.0)
 		q.material = pm2
 		pool.mesh = q
 		var f := Vector2(-mast.x, -mast.z).normalized()
-		pool.transform = Transform3D(Basis(Vector3.UP, atan2(-f.x, -f.y)) * Basis(Vector3.RIGHT, -PI * 0.5).scaled_local(Vector3(224, 224, 1)), Vector3(mast.x, 0.03, mast.z))
+		pool.transform = Transform3D(Basis(Vector3.UP, atan2(-f.x, -f.y)) * Basis(Vector3.RIGHT, -PI * 0.5).scaled_local(Vector3(184, 184, 1)), Vector3(mast.x, 0.03, mast.z))
 		root3.add_child(pool)
 	for mi in inst.find_children("*", "MeshInstance3D", true, false):
 		(mi as MeshInstance3D).material_override = mat

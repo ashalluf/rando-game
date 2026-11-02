@@ -61,6 +61,8 @@ uniform float field_day : hint_range(0.0, 1.0) = 0.0;
 // the eye is not behind it (AirportNight: a jet on short final seen from beside the approach was a
 // dark shape; a real landing light flares from well off its beam). 0 is the old 6 %.
 uniform float landing_side : hint_range(0.0, 1.0) = 0.0;
+// ...and seen down its beam its glare grows to (1 + landing_glare) times its size (0 the old size).
+uniform float landing_glare = 0.0;
 
 varying float v_kind;
 varying float v_phase;
@@ -79,8 +81,6 @@ void vertex() {
 		centre *= k;
 		size *= k;
 	}
-	vec2 corner = (UV - vec2(0.5)) * size;
-	VERTEX = centre + vec3(corner.x, -corner.y, 0.0);
 	vec3 n = (MODELVIEW_MATRIX * vec4(NORMAL, 0.0)).xyz;
 	NORMAL = vec3(0.0, 0.0, 1.0);
 	float nl = length(n);
@@ -96,8 +96,11 @@ void vertex() {
 		v_facing = 0.06 + 0.94 * pow(max(f, 0.0), 2.5);
 		if (landing_side > 0.0 && floor(code / 10.0 + 0.001) > 2.5 && floor(code / 10.0 + 0.001) < 3.5) {
 			v_facing = max(v_facing, landing_side * smoothstep(-0.25, 0.35, f));
+			size *= 1.0 + landing_glare * pow(max(f, 0.0), 2.5);
 		}
 	}
+	vec2 corner = (UV - vec2(0.5)) * size;
+	VERTEX = centre + vec3(corner.x, -corner.y, 0.0);
 	v_kind = floor(code / 10.0 + 0.001);
 	v_phase = (code - v_kind * 10.0) / 9.0;
 	// The eye's elevation over the light, in degrees (the PAPI's colour depends on it).

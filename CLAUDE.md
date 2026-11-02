@@ -1938,6 +1938,15 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   livery index from a varying is ROUNDED); chamfered AirportKit boxes and grime; the concourse glass
   lit by day; weathered roofs; a straw infield (lawn.gdshader `straw`). `AIRPORT_APRON=0` the A/B;
   the jet alone `tools/airport_apron/jet_shot.gd`; checks `tests/rc2_airport_checks.gd`.
+- The airfield at night (wave 6, refcam3 `airport_night` in `tools/refcams/cameras_w6.json`,
+  docs/HANDOFF.md "The airfield at night"): `AirportNight` (`scripts/world/airport_night.gd`): each
+  apron mast lays a point-source pool (`shaders/airport_flood.gdshader`, display-number add) and its
+  floods fall on the gate jets and ground equipment as emitted light (`airport_flood.gdshaderinc`,
+  masts as a uniform array in TRUE world via `origin_shift`, from `note_macro()` in
+  `Airport.build_chunk()`); logo lights wash every airliner's fin (`logo_light`); an aimed landing
+  light keeps `landing_side` of its glare off axis; a patrol helicopter's shaft is `PATROL_BEAM` of a
+  pursuit's. A refcam row's staged aircraft prints `REFCAM <name> air at x,y,z`. `AIRPORT_NIGHT=0`
+  is the A/B; `jet_shot.gd NIGHT=1 [AN=0]` both renderers; checks `tests/rc3_airport_night_checks.gd`.
 - Shop signs: storefront sign bands carry real names. `Building` picks how many window bays
   make one shop per face (`_shop_spans()`, hashed from the seed, never from `_rng`) and passes
   it to the shader as `shop_span`, so the bands the shader draws and the `TextMesh` names the

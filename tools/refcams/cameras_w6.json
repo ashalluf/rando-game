@@ -2,6 +2,6 @@
 	"_doc": "Wave 6 reference cameras (tools/refcams/README.md), the same format as cameras.json and cameras_w5.json. One row a camera, each on its own line. Run with REFCAMS_JSON=tools/refcams/cameras_w6.json.",
 	"resolution": [1280, 720],
 	"cameras": [
-		{"name": "airport_night", "label": "The airfield at 21:30 from a stand west of the concourse, a jet on final to 27L", "eye": [-600.0, 12.0, 770.0, -90.0, -3.0], "agl": true, "hour": 21.5, "weather": "clear", "fov": 55, "air": "final", "air_dist": 1030, "air_side": 185, "shot_frames": 120}
+		{"name": "airport_night", "label": "The airfield at 21:30 from a stand west of the concourse, a jet on final to 27L", "eye": [-600.0, 12.0, 770.0, -96.0, -3.0], "agl": true, "hour": 21.5, "weather": "clear", "fov": 55, "air": "final", "air_dist": 800, "air_side": 102, "shot_frames": 120}
 	]
 }
