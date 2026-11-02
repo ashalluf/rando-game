@@ -26744,6 +26744,29 @@ Checks: `_round5()` in tests/explosions_4_checks.gd.
 Still open: the pit itself is a flat dark disc at 5 m (no rubble in it, no depth); the burning
 pieces' fire reads as round puffs.
 
+**Round 7: flames, the pit, the dither** (the lead's next list):
+1. **Every fire read as round orange puffs.** `shaders/flame_tongue.gdshader` (`Blast4.flame_material()`,
+   `Blast4.tongue_quad()` makes a system's card a tall tongue with its root at the particle): an
+   upright card turned about world up to the camera, its silhouette cut from noise climbing it
+   (`climb`, `bend`), full through its lower half then drawn in, torn into licks near the tip; a
+   hot root (green held near half of red for AgX), orange flesh, red tips that thin into smoke;
+   each card its own noise (INSTANCE_ID) and height. On the car fire (`CarDamage._flame_system`),
+   the pools, the wreck's sides and the burning debris (those lick straight up, `spread` 20).
+   Desktop only (it reads the depth texture); the web keeps the puffs. `BLAST_FLAMES=0` the A/B.
+   Also: the debris chunks are smaller again (0.95-1.45) with dimmer embers (a near one read as a
+   plastic orange cube), and a burning pool is rough (its gloss mirrored a blue sky as lilac).
+2. **The pit at 5 m was a flat dark disc.** `Blast4.pit_dress()` (one line after `_heave_slabs`):
+   the road cannot be cut, so the bowl is TRACED (`shaders/blast_pit.gdshader`, a quad 11 cm over
+   the road: each pixel marches its view ray into a dish `pit_depth` x radius deep heaped with
+   rubble lumps, shades the hit through the field's normal, darker and sootier deeper in), a lip of
+   thrown earth round the opening (a ring mesh, `lip_height()`) and loose chunks on it (a
+   MultiMesh). It receives shadows (a first try with `shadows_disabled` lit it through the
+   building's shadow). Colours are linear and dark: the room's asphalt is ~0.02 linear.
+   `BLAST_PIT=0` the A/B. `SUN=pitch,yaw` on blast_room_shot.gd turns the sun for such stills.
+3. **The Forward+ screen door.** `FRAMES=n` on blast_room_shot.gd saves n frames after each time
+   with the clock all but stopped; their mean is what TAA integrates at 60 fps.
+Checks: `_round6()` in tests/explosions_4_checks.gd.
+
 ## 9lb. The camera lens (wave 5, `camera-lens`)
 
 **What.** The camera itself: exposure adaptation, the sun's flare, grain, the bloom's spread.

@@ -141,6 +141,7 @@ static func crater(node: Node, at: Vector3, normal: Vector3, radius: float, pit:
 		mark.add_child(q)
 	if pit:
 		_heave_slabs(mark, radius * crater_scale * 0.5)
+		Blast4.pit_dress(mark, radius * crater_scale * 0.5)
 	_craters.append(mark)
 	_trim_craters()
 	var tw := mark.create_tween()
