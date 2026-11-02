@@ -2631,6 +2631,15 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   Stills: `HOSPITAL=front|bay|roof|aerial` (`HOSPITAL_AT=medical`, `HOSPITAL_T` how far into the
   bay) on `still_shot.gd` (`HospitalStage`); probe `tools/hospital/probe.tscn` (every hospital
   and its EYEs); checks `tests/hospital_checks.gd`.
+- The ER at night (2026-11-02, refcam `hospital_er` in `tools/refcams/cameras_w7.json`, staged by
+  `"stage": "hospital"` -> `tools/refcams/hospital_stage.gd`; docs/HANDOFF.md "The ER's ambulance
+  court at night"): `RcHospitalEr` (`scripts/world/rc4_hospital_er.gd`, hooks in HospitalBuild
+  `_ground()` / `_er_bay()` and `EmergencyCar._bay_height()`): the court and the walk beside it are
+  a LEVEL deck at the campus floor (`court_y()`: the block's highest corner) with an eased ramp the
+  last `RAMP_FROM` m to the pavement, own mesh and collision (the relief-following slab sank 1.9 m
+  under the bays and the ambulances at the medical centre); a deep red light box raised clear of
+  the fascia, a lit soffit and LED panels, two floods on the fascia, the ER wall glazed.
+  `RC4_HOSPITAL=0` is the A/B; checks `tests/rc4_hospital_er_checks.gd`.
 - Service vehicles (2026-10-05, "the city's working vehicles doing their jobs"; HANDOFF 9dm):
   `ServiceVehicles` (`scripts/vehicles/service_vehicles.gd`) - a side-loader garbage truck, a
   street sweeper, a rollback tow truck, an ice-cream truck and a delivery van (BodyType
