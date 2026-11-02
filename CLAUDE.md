@@ -5703,6 +5703,15 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   cards' cut breaks into strands (crowd_hair.gdshader `closeup`). `CROWD_CLOSEUP_3=0` the runtime
   A/B, `CROWD_SHOES=0` the build's; close-ups `tools/crowd_closeup_3/closeup_shot.gd` (PARTS=
   rhand,feet,head,...); checks `tests/crowd_closeup_3_checks.gd`.
+- A person at arm's length (2026-11-02, refcam `person_closeup` in `tools/refcams/cameras_w6.json`,
+  docs/HANDOFF.md "A person at arm's length"): `IdleRelax` (`scripts/npc/idle_relax.gd`, hooks in
+  `CrowdGait.apply()` / `CrowdLife.attach()`) rebuilds the library idles (gait/idle, life/idle, nod,
+  shake, talk) once per library: arms slerped toward the rig's own Idle, thighs turned 5.5 degrees in,
+  feet turned back flat (the library tracks are COMPRESSED: no key can be set, so the clip is
+  resampled into a new Animation). The bag hangs from `CrowdLife.BAG_GRIP`, cords meeting there;
+  crowd_hair `strand_detail`, character `lip_tame`. `PERSON_CLOSEUP=0` the A/B (`IDLE_RELAX=0` the
+  stance alone); a row's `"stage": "person"` + `person` key (model, look, dist, turn, carry); checks
+  `tests/rc3_person_closeup_checks.gd`.
 - Crowd faces (2026-10-30, docs/HANDOFF.md "The crowd's faces up close"): a branch of
   `character.gdshader` (`face_pass`, set by `CrowdFaces.apply()` from `Pedestrian.character_material()`)
   that runs only within `CrowdFaces.REACH` (11 m) of the camera on the crowd rigs. Per rig,

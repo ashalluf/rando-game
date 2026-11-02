@@ -295,6 +295,13 @@ already mapped so milestone 2 is script-only.
 
 ## Decisions log
 
+- **2026-11-02 A person at arm's length (rc3-person-closeup, HANDOFF "A person at arm's length").**
+  A single crowd member is a reference camera (`person_closeup`, 1.6 m, 13:00, staged by
+  tools/refcams/person_stage.gd). Standing people stand like people: the library idles' arms are
+  blended toward the rig's own hanging Idle and their thighs turned in, at load, once per library
+  (IdleRelax), never per frame. Props hang from the fist, not the wrist. Close-up hair shine is
+  broken by strands and clumps; lips are toned toward the skin. PERSON_CLOSEUP=0 is the A/B.
+
 - **2026-11-02 The chase camera's street (rc2-chase-cam, HANDOFF "The chase camera's street").** A
   driving view is a reference camera too: a camera row may stage the player's own car (`drive`) and
   shoot his DriveCam. The carriageway's wear is per lane in the road shader (wheel tracks, oil band,
