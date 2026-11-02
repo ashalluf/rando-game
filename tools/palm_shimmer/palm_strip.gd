@@ -28,7 +28,10 @@ const SS_GRID := {1: [Vector2.ZERO], 4: [Vector2(-0.125, -0.375), Vector2(0.375,
 
 
 func _initialize() -> void:
-	ProjectSettings.set_setting("rendering/limits/time/time_rollover_secs", 0.000001)
+	# TIME held (only the camera moves) unless RUN_TIME=1 (Forward+ with TAA: its per-frame dither
+	# needs TIME to move to resolve; WIND=0 then keeps the crowns nearly still).
+	if OS.get_environment("RUN_TIME") != "1":
+		ProjectSettings.set_setting("rendering/limits/time/time_rollover_secs", 0.000001)
 	seed(4242)
 	var light := OS.get_environment("LIGHT") if OS.get_environment("LIGHT") != "" else "noon"
 	var stage := Node3D.new()
@@ -110,6 +113,10 @@ func _initialize() -> void:
 			batch.call("add", "palm_%d" % v, pf.call("palm", v), xf)
 			k += 1
 	batch.call("build", stage)
+	# PARAMS="name=v,...": foliage.gdshader uniforms on the palm material (tuning A/Bs).
+	for kv in OS.get_environment("PARAMS").split(",", false):
+		var p := kv.split("=")
+		(pf.call("foliage_material") as ShaderMaterial).set_shader_parameter(p[0], float(p[1]))
 	var view := OS.get_environment("VIEW") if OS.get_environment("VIEW") != "" else "street"
 	var d: Array = VIEWS[view]
 	var cam := Camera3D.new()

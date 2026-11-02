@@ -4,6 +4,7 @@ render_mode cull_disabled;
 #include "res://shaders/tree_wind.gdshaderinc"
 #include "res://shaders/tree_light.gdshaderinc"
 #include "res://shaders/camera_fade.gdshaderinc"
+#include "res://shaders/color_space.gdshaderinc"
 
 // Wind sway and light for the generated foliage (palms). Nothing in this city moved except the
 // grass, and a street of palms standing dead still is one of the things that reads as "model"
@@ -219,7 +220,11 @@ void fragment() {
 #endif
 	}
 	float wet = clamp(road_wetness, 0.0, 1.0);
-	vec3 albedo = COLOR.rgb * mix(1.0, 0.86, wet);
+	// The palm's vertex colours are display numbers (tuned on Compatibility, which lights them as
+	// they are); Forward+ reads a vertex colour as LINEAR, so there the whole tree drew about twice
+	// as bright - hidden while every second leaflet was black (palm-shimmer: decoded there now).
+	vec3 base_col = palm_shimmer > 0.5 ? cs_as_uniform(COLOR.rgb) : COLOR.rgb;
+	vec3 albedo = base_col * mix(1.0, 0.86, wet);
 	if (burnt > 0.0) {
 		// Burnt back from the tips: a leaflet out past the crown's first metre goes in 25 cm
 		// cells, the further out the likelier, leaving black ribs and stubs round the head.
