@@ -11,4 +11,4 @@ the 7th St terminus (`rail_at` "0:0").
 - `04_after_detail_floor_mirror_ad.jpg` - crop: the light lines in the polished terrazzo, a poster.
 - `05_after_escalator_riders_lift_car.jpg` - closer to the bank: people standing on the escalators,
   the lift car (canopy, posts, kick plates) and the slab band in the shaft.
-- `06_after_bullet_C_on_the_car.jpg` - the car's line bullet with its "C" (rail_shot crop).
+- `06_after_bullet_C_on_the_car.jpg` - the car's line bullet with its "C" (rail_shot, an earlier eye; ads and the C).
