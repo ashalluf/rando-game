@@ -4315,3 +4315,8 @@ none of either.
   comes in with distance; broad road-light pools have no hard rim and dim from the air; floodlit
   masonry is a fifth of the old brick and render, not most of it; a far searchlight seen from the air
   saturates softly and fades with distance. NIGHT_AERIAL=0 is the A/B.
+- 2026-11-02 (wave 6, rc3-chinatown): a new reference camera, chinatown_dusk (the Chinatown plaza,
+  its hall and gate at 19:15). Decisions: a lit lantern is held to a deep red-orange under AgX (a
+  bright red-heavy emission reads pale pink, so the silk stays under ~0.85 in red with green under
+  half of it); shop glass in Chinatown traces a lit room behind it, never a painted pane; the hall
+  is lit from inside through its screens rather than washed from the street. RC3_CHINATOWN=0 is the A/B.

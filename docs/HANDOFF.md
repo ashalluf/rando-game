@@ -27034,3 +27034,42 @@ truck in one run, a red car in the other; the deck is freeway_deck.gdshader, not
 (one line in smoke_test.gd's city_files): street asphalt gets lane wear and pavements / car parks do
 not, the shader applies it and 0 is the old road, the switch, the camera row and its staging
 script. Stills on `shots/rc2-chase-cam`.
+
+## 9d?. The Chinatown plaza at dusk (wave 6 refcam3 `rc3-chinatown`, 2026-11-02)
+
+A new reference camera, `chinatown_dusk` in `tools/refcams/cameras_w6.json`: the Chinatown plaza
+(JADE LANTERN PLAZA) from the walk near its east end, looking west-north-west at the HALL OF SPRING
+WIND with the lantern strings over the walk and the west plaza gate at its end - eye
+(2958, 1.7, -2096), yaw 72, pitch 7, fov 60, 19:15 clear. Run with
+`REFCAMS_JSON=tools/refcams/cameras_w6.json python3 tools/refcams/refcams.py run <dir> --only chinatown_dusk`.
+In the game's clock the sun sets at 18:00, so 19:15 is full night: the lanterns are on.
+
+**What gave it away** (in the order the eye lands on it), each fixed behind `Rc3Chinatown`
+(`scripts/world/rc3_chinatown.gd`; `RC3_CHINATOWN=0` is the A/B, the shader's `rc3` 0 is
+bit-identical to main):
+1. **The lanterns blew out to pale pink-white balls.** The silk emitted red x 6.5 with a peach core;
+   through AgX a bright red-heavy colour goes salmon-white (the CarDamage flame rule). Now the silk
+   is held to red under ~0.85 with green ~0.24-0.48 of red in the hot core (deeper red at the rim,
+   the gold lanterns amber), the ribs and the gilt ends dark against it: lit silk, not paper balls.
+   12 sides instead of 8 (148 triangles a lantern, was 116; they are in the shadowless twin).
+2. **The shop glass was a flat pale slab** (a shelf pattern painted on the pane, glowing). It now
+   traces a room behind the glass, `shop_room()` in chinatown.gdshader: `shop_bay` 3 m bays,
+   `shop_depth` 4.2 m deep, shelves of goods on the back and side walls, a counter across the front
+   third of most bays, a ceiling of light panels, tiled floor, with true parallax from the face's
+   tangent frame (UV is metres along the face and over the pavement; `ChinatownGeo.tri()` writes
+   the tangents). The glass mirrors the sky by Fresnel on top. Walls are dark and the light warm,
+   so the room reads as a lit shop at night, not a lightbox.
+3. **The hall was a flat red box washed evenly by the street wash.** Its screens (UV2 =
+   (0, `LIT_FLAG`) on its lattice faces) are lit from inside every night - a warm glow peaking at
+   lamp height, the fretwork dark against it; the upper storeys got screens on their ends and back
+   (they were plain red walls); the shop-glass door became a screen. The lacquer keeps
+   `LACQUER_WASH` 0.45 of the street wash, so red walls are walls in the dark.
+4. **Upstairs windows were flat cream panels** (the lit-spreadsheet look): a lamp's warm pool high
+   in the pane falling to the sill, drawn curtains (thin, backlit red or cream) in half the rooms.
+5. **The plaza's masts were 16 cm square red sticks**: round lacquered posts on a stepped granite
+   foot with gilt rings and a finial. **The court held five people**: `PLAZA_PEOPLE` 30 (was 16),
+   each still through the crowd cap.
+
+**Not done / not verified**: the Forward+ look on the Mac (the lantern colour was chosen against
+AgX by the rule, judged on opengl3 only - see the end of this section for whether a lavapipe
+check ran); the far / LOD copies are unchanged (boxes); the plaza paving is still one even grid.
