@@ -2,5 +2,6 @@
 	"_doc": "Wave 6 reference cameras (tools/refcams/README.md), the same format as cameras.json and cameras_w5.json. One row a camera, each on its own line. Run with REFCAMS_JSON=tools/refcams/cameras_w6.json.",
 	"resolution": [1280, 720],
 	"cameras": [
+		{"name": "fashion_district", "label": "The fashion district's goods-lined pavement 11:30, eye level among the shoppers", "eye": [3330.0, 1.7, 1021.0, -95.0, -4.0], "agl": true, "hour": 11.5, "weather": "clear", "fov": 55}
 	]
 }
