@@ -56,10 +56,10 @@ func _air() -> void:
 	for i in 3:
 		var r: float = float(e128[i + 1]) / float(e128[i])
 		_t._check(r > 1.6 and r < 3.2, "128 m up cascade %d is %.1f x cascade %d (none wasted, none starved)" % [i + 2, r, i + 1])
-	for lvl in [2, 3]:
+	for lvl in [1, 2, 3]:
 		var low := ShadowTuning.ends(lvl, 200.0)
 		_t._check(is_equal_approx(float(low[3]), float(ShadowTuning.DISTANCE[lvl])),
-			"level %d keeps its reach in the air (%.0f m): the cheap levels never draw more shadow" % [lvl, low[3]])
+			"level %d keeps its reach in the air (%.0f m): the stepped-down levels never draw more shadow" % [lvl, low[3]])
 
 
 ## SHADOW_TUNING=0: the old numbers exactly, nothing touched but the reach and blur.

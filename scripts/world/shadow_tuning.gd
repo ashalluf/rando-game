@@ -35,8 +35,10 @@ const AIR_GAIN := [0.55, 1.2, 2.2, 3.0]
 ## The longest reach in the air per level (0: the level does not follow the camera). At 1000 m
 ## (the LOD ring's reach) and at 750 m the golden aerial refcam's shadow passes went 1.9 M ->
 ## 3.6 M triangles and +1,660-1,770 draws, too much for a Quality stepper that never steps back
-## up; 600 m keeps the near cascades where the ground is and most of the look.
-const AIR_CAP := [600.0, 460.0, 0.0, 0.0]
+## up; 600 m keeps the near cascades where the ground is and most of the look (still +1.2 M
+## shadow triangles and +1,174 draws there: every cascade now holds ground). HIGH only: a
+## machine that stepped down to MEDIUM pays nothing.
+const AIR_CAP := [600.0, 0.0, 0.0, 0.0]
 ## Clearance under which the camera counts as on the ground, and the step it is rounded to (a
 ## hovering camera must not re-fit the cascades every frame: a new cascade radius re-snaps the
 ## texels and the shadow edges crawl).
