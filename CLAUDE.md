@@ -4829,6 +4829,16 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   Probe: `tools/stadium/probe.gd` (ground, cut and fill, the roads' earthwork), timing
   `tools/stadium/bench.gd`.
 
+- The night game from the hill (2026-11-02, refcam `stadium_night` in tools/refcams/cameras_w6.json,
+  docs/HANDOFF.md "The night game from the hill"): `StadiumNight` (`scripts/world/stadium_night.gd`,
+  one hook in `BallparkBuild.build()`, one in `_bank()`): a 22-triangle box car in every stall
+  `Ballpark.stall_car()` fills, both copies, to 560 m (`stadium_car.gdshader`, lit by the lot's pole
+  pools; the lot paints a contact shadow under them, `box_reach`); a bloom and a haze shaft per light
+  bank (`stadium_bank_glow.gdshader`); the stands' far average a crowd mosaic and the rows under each
+  deck shaded (ballpark_seats `night2`); players on the field; shrub medians (`planting2`); the far
+  copy's palms. From that eye the city draws the FAR copy. `STADIUM_NIGHT=0` is the A/B; the park
+  alone in a minute `tools/stadium_night/park_shot.tscn`; checks `tests/rc3_stadium_night_checks.gd`.
+
 - Historic core (2026-10-05, docs/HANDOFF.md "The historic core"): `HistoricCore`
   (`scripts/world/historic_core.gd`) dresses every Building fronting Spring St or Main St between
   2nd and 9th St (one line after `Broadway.dress()`: a SLAB filling its lot, terracotta or brick,

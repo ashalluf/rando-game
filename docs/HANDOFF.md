@@ -27034,3 +27034,74 @@ truck in one run, a red car in the other; the deck is freeway_deck.gdshader, not
 (one line in smoke_test.gd's city_files): street asphalt gets lane wear and pavements / car parks do
 not, the shader applies it and 0 is the old road, the switch, the camera row and its staging
 script. Stills on `shots/rc2-chase-cam`.
+
+## 9d?. The night game from the hill (refcam3 `stadium_night`, 2026-11-02, agent branch `wt/rc3-stadium-night`)
+
+Number is provisional (the lead renumbers on merge).
+
+**The camera.** A new wave-6 reference view, one row in `tools/refcams/cameras_w6.json`:
+`stadium_night`, eye (1965.6, 235, -3155.6), yaw -173.6, pitch -14, fov 48, 21:00 clear - on the
+bank 98 m over the north lot, 380 m out past centre field (Ballpark frame u 0, v 380), looking back
+over the outfield pavilions into the floodlit bowl with downtown's towers glowing beyond it: the
+famous view of the hillside ballpark. Run it with `REFCAMS_JSON=tools/refcams/cameras_w6.json
+python3 tools/refcams/refcams.py run build/refcams/<label> --only stadium_night`. **From this eye the
+city draws the ballpark's FAR copy** (the landmark's chunk is not FULL 380 m out), so every fix had
+to land in the far copy too.
+
+**What gave it away** (the before, `shots/rc3-stadium-night/01_before_stadium_night.jpg`), in the
+order the eye lands on it:
+1. The lot - two thirds of the frame - was stickers: past the 3D cars' 120 m (and everywhere in the
+   far copy) each car was a flat rectangle painted into its stall, blown white under the pools.
+2. The stands were four flat pastel stripes: no crowd at the hills' distance, the per-seat crowd
+   averaged away into the tier colour.
+3. The light banks were small dots that lit no air: no bloom, no haze shafts, the glow dome only
+   from 450 m.
+4. The field was empty: a night game with nobody on it.
+5. The planted medians and the planted slope were flat bright-green rectangles; the far copy had no
+   palms at all (CLAUDE.md's far-landmark rule: planting stays in the far copy).
+
+**The fixes** (`StadiumNight`, `scripts/world/stadium_night.gd`; one hook line in
+`BallparkBuild.build()` after the glow, one in `_bank()`; `STADIUM_NIGHT=0` is the A/B and every new
+shader uniform defaults to the old look):
+- **Box cars in every filled stall** (`far_cars()`): the stalls `Ballpark.stall_car()` fills (4,435
+  on the default seed) each get a 22-triangle box car (body with tumblehome, glasshouse) in both
+  copies, in 160 m tiles drawn to `FAR_DRAW` 560 m; in the detailed copy the tiles over the 3D cars
+  (q < CAR_REACH) are on BallparkBuild's 80 m grid and start at CAR_DRAW 120, where the 3D ones
+  stop. Shadowless. `shaders/stadium_car.gdshader` lights them with the lot's own pole pools (the
+  pole grid copied from ballpark_lot, Ballpark's numbers checked), tops more than flanks, glass
+  dark with a sheen, the rocker band dark. Within `box_reach` (440 m: inside every tile's range) the
+  lot shader paints a painted car as its box's soft contact shadow instead.
+- **Bank blooms and shafts** (`bank_mesh()`, `shaders/stadium_bank_glow.gdshader`): BallparkBuild
+  notes each of the ten banks (`note_bank()`); one mesh a copy, a camera-facing bloom per bank
+  (2.2x the bank's size, never under `min_angle`, a hot core and a soft skirt reaching zero inside
+  the quad, 0.15 from behind, 1 head-on) and a ribbon of lit haze from the bank toward the field,
+  turned to the eye and faded out for an eye inside the bowl (it veiled the top deck from the
+  field). Additive, unshaded, `bp_flood()` (nothing by day). The glow dome starts showing from 60 m
+  (`away_from`; its strength unchanged: at 1.8x the ground haze read as a disc on Forward+).
+- **The crowd from the hills** (ballpark_seats `night2`): a section between two aisles is fuller or
+  emptier than its tier, now and then a five-row block thin; where the per-seat detail is under a
+  pixel the average is a MOSAIC of 3-seat x 2-row groups (their own shirts, skin, occupancy) instead
+  of one tint; the hand-over to the average starts sooner (half-resolved rows beat into rings round
+  the bowl on the near copy); the rows under each deck's overhang (and the top deck's roof) take a
+  fifth of the flood plus a warm concourse light (the tiers are told apart by their fills, checked).
+- **Players on the field** (`players_mesh()`, `shaders/stadium_player.gdshader`): nine fielders in
+  home whites, the batter side-on with his bat, the umpire, two base coaches and a runner, ~60
+  triangles each, one mesh, lit by the flood after dark, to 1.4 km.
+- **Planting** (ballpark_lot `planting2`): medians and the planted slope are shrub clumps with ice
+  plant flowers over bark mulch, not a lawn; the far copy plants the lot's 398 palms
+  (`BallparkBuild._palms`, shadowless by `ArenaGrounds._far_shadows`, drawn to `PALM_DRAW` 900 m).
+
+**Look fast:** `tools/stadium_night/park_shot.tscn` builds the park alone (the city's Environment
+and DayNight, a dark ground plane, no terrain or city) at its real world place in a minute
+(opengl3) or ~3 minutes (lavapipe Forward+): `OUT`, `HOUR`, `EYE`, `FOV`, `FAR=1` the far copy,
+`SHOTS=` more views from one build.
+
+**Proof.** opengl3 refcam before/after (`01_before` / `02_after`), Forward+ (lavapipe) far copy A/B of
+the refcam eye on park_shot (`03`/`04`), and closer views. Numbers in the final message / the
+shots README. Frame cost at the refcam (opengl3 GEO): see the shots README.
+
+**Not done.** The box cars carry no headlights (a night game's lot is parked); the outfield pavilions'
+backs and the scoreboards' backs are still plain dark boxes; the near copy's 3D cars are unchanged;
+no ramp towers; no traffic on Stadium Way / Sunridge Dr (HillRoads are not driven); the players
+stand still (no pitch, no swing). The hills right of the bowl (terrain, not the park) still show
+faceted crags.

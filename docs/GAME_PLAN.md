@@ -4315,3 +4315,11 @@ none of either.
   comes in with distance; broad road-light pools have no hard rim and dim from the air; floodlit
   masonry is a fifth of the old brick and render, not most of it; a far searchlight seen from the air
   saturates softly and fades with distance. NIGHT_AERIAL=0 is the A/B.
+
+- **2026-11-02 The night game from the hill (rc3-stadium-night, HANDOFF "The night game from the
+  hill").** A new reference camera (`stadium_night`, wave 6's table) judged the ravine ballpark from
+  the bank above the north lot at 21:00. Decisions: a car park seen from the hills holds real (box)
+  cars in every stall it fills, never painted ones; a floodlight bank is the air round it (bloom,
+  shafts), not only its lenses; a crowd past the seat detail is a mosaic of groups, not the tier's
+  tint; a night game has players on the field; the ballpark's far copy keeps its planting.
+  STADIUM_NIGHT=0 is the A/B.
