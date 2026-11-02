@@ -37,8 +37,19 @@ const MAST_REACH := 70.0
 ## The share of a perimeter mast's floods that spills out over the fence onto the street.
 const MAST_SPILL := 0.35
 const DAMP := 0.5
-const GLINT := 1.0
+const GLINT := 1.3
 const MAX_MASTS := 32
+## The pavement ring's cells (metres).
+const RING_CELL := 6.0
+## The verge at the fence's foot: its width (metres, out from the fence), the weed tufts' spacing
+## and odds, the tall weeds' odds and the batches' cell (metres).
+const VERGE_W := 1.3
+const TUFT_STEP := 0.42
+const TUFT_ODDS := 0.8
+const TALL_ODDS := 0.05
+const WEED_CELL := 40.0
+## Puffs of soot a flare.
+const SMOKE_PUFFS := 14
 ## How far inside the fence a mast stands to count as the fence line's (its floods spill over it).
 const MAST_FENCE := 8.0
 
@@ -225,11 +236,26 @@ static func ring_piece(ch: CityChunk, st: SurfaceTool, r: Rect2, rect: Rect2, y:
 	var b := Vector3(r.end.x, y + gy.call(r.end.x, r.position.y), r.position.y)
 	var c := Vector3(r.end.x, y + gy.call(r.end.x, r.end.y), r.end.y)
 	var d := Vector3(r.position.x, y + gy.call(r.position.x, r.end.y), r.end.y)
-	for v: Vector3 in [a, b, c, a, c, d]:
-		st.set_color(Color.WHITE)
-		st.set_normal(Vector3.UP)
-		st.set_uv(Vector2(v.x, v.z))
-		st.add_vertex(v)
+	# In cells (Industrial._ground_rect()'s rule: on the Compatibility renderer every lamp is an
+	# additive pass that must land on the same depth, and a long triangle clipped at the near plane
+	# does not).
+	var nx := clampi(ceili(r.size.x / RING_CELL), 1, 64)
+	var nz := clampi(ceili(r.size.y / RING_CELL), 1, 64)
+	for j in nz:
+		for i in nx:
+			var x0 := r.position.x + r.size.x * i / nx
+			var x1 := r.position.x + r.size.x * (i + 1) / nx
+			var z0 := r.position.y + r.size.y * j / nz
+			var z1 := r.position.y + r.size.y * (j + 1) / nz
+			var qa := Vector3(x0, y + gy.call(x0, z0), z0)
+			var qb := Vector3(x1, y + gy.call(x1, z0), z0)
+			var qc := Vector3(x1, y + gy.call(x1, z1), z1)
+			var qd := Vector3(x0, y + gy.call(x0, z1), z1)
+			for v: Vector3 in [qa, qb, qc, qa, qc, qd]:
+				st.set_color(Color.WHITE)
+				st.set_normal(Vector3.UP)
+				st.set_uv(Vector2(v.x, v.z))
+				st.add_vertex(v)
 	var drop := y - CityChunk.ROAD_TOP
 	# The kerb faces: [edge start, edge end, outward normal] where the piece's edge is the kerb.
 	var edges: Array = []
@@ -257,3 +283,103 @@ static func ring_piece(ch: CityChunk, st: SurfaceTool, r: Rect2, rect: Rect2, y:
 			st.set_normal(n)
 			st.set_uv(Vector2(v.x + v.z, v.y))
 			st.add_vertex(v)
+
+
+## The verge along the fence's foot, outside it (FULL chunks): a strip of weedy dirt over the
+## pavement ring's inner edge and tufts of dry grass and the odd mustard along it - a perimeter is
+## never paved right up to its chain-link. Hashes of the seed and the place. Returns the tufts laid.
+static func verge(ch: CityChunk, lay: Dictionary, area: Rect2, ground: SurfaceTool) -> int:
+	if not enabled:
+		return 0
+	var inner: Rect2 = lay.inner
+	var g: Vector2 = lay.gate.at
+	var gate := Rect2(g.x - Refinery.GATE_W * 0.5 - 2.0, g.y - 8.0, Refinery.GATE_W + 4.0, 16.0)
+	# [piece, runs along x, the fence line's coordinate, which way is out from the fence].
+	var strips: Array = []
+	for r: Rect2 in Parks.minus(inner.grow(VERGE_W), [inner], 0.02):
+		var ax := r.size.x >= r.size.y
+		var fence := 0.0
+		var out := 1.0
+		if ax:
+			fence = inner.end.y if absf(r.position.y - inner.end.y) < 0.05 else inner.position.y
+			out = 1.0 if absf(r.position.y - inner.end.y) < 0.05 else -1.0
+		else:
+			fence = inner.end.x if absf(r.position.x - inner.end.x) < 0.05 else inner.position.x
+			out = 1.0 if absf(r.position.x - inner.end.x) < 0.05 else -1.0
+		for q: Rect2 in Parks.minus(r, [gate], 0.02):
+			var p := q.intersection(area)
+			if p.size.x > 0.05 and p.size.y > 0.05:
+				strips.append([p, ax, fence, out])
+	var seed: int = ch.plan.seed
+	var n := 0
+	var keys: Dictionary = {}
+	for sp: Array in strips:
+		var r: Rect2 = sp[0]
+		var along_x: bool = sp[1]
+		var fence_at: float = sp[2]
+		var out_dir: float = sp[3]
+		Industrial._ground_rect(ground, ch, r, CityChunk.SIDEWALK_TOP + 0.012, Industrial.G_WEEDS, 0.3 + 0.4 * h01([seed, r.position, "rr_vg"]), false)
+		var length := r.size.x if along_x else r.size.y
+		var steps := int(length / TUFT_STEP)
+		for k in steps:
+			var t := (float(k) + h01([seed, r.position, k, "rr_t"])) * TUFT_STEP
+			var off := h01([seed, r.position, k, "rr_o"]) * (VERGE_W - 0.15) + 0.08
+			# Measured out from the fence (the strip's inner edge is the fence line).
+			var p := Vector2(r.position.x + t, fence_at + out_dir * off) if along_x else Vector2(fence_at + out_dir * off, r.position.y + t)
+			if not area.has_point(p):
+				continue
+			var h := h01([seed, p.snapped(Vector2(0.01, 0.01)), "rr_w"])
+			# Thicker against the fence, in patches along it.
+			var patch := 0.45 + 0.9 * h01([seed, floorf(t / 6.0), r.position, "rr_p"])
+			if h > TUFT_ODDS * patch * (1.15 - 0.5 * off / VERGE_W):
+				continue
+			var y := CityChunk.SIDEWALK_TOP + 0.02 + ch._gy(p.x, p.y)
+			var cell := "%d_%d" % [floori(p.x / WEED_CELL), floori(p.y / WEED_CELL)]
+			var yaw := TAU * h01([seed, p, "rr_y"])
+			var sc := lerpf(0.7, 1.35, h01([seed, p, "rr_s"]))
+			var dry := h01([seed, p, "rr_d"])
+			var tint := Color(lerpf(0.8, 1.1, dry), lerpf(0.8, 1.05, dry), lerpf(0.7, 0.95, dry))
+			if h < TALL_ODDS:
+				var mustard := h01([seed, p, "rr_m"]) < 0.6
+				var key := "rr_%s_%s" % ["mustard" if mustard else "fennel", cell]
+				keys[key] = VacantLots.TALL_WEED_DISTANCE
+				ch._batch.add(key, VacantKit.mustard() if mustard else VacantKit.fennel(), Transform3D(Basis(Vector3.UP, yaw).scaled(Vector3(sc, sc, sc)), Vector3(p.x, y, p.y)), tint)
+			else:
+				var v := 0 if dry > 0.3 else 1
+				var key := "rr_tuft_%d_%s" % [v, cell]
+				keys[key] = VacantLots.TUFT_DISTANCE
+				ch._batch.add(key, VacantKit.tuft(v), Transform3D(Basis(Vector3.UP, yaw).scaled(Vector3(sc, sc * lerpf(0.8, 1.3, h), sc)), Vector3(p.x, y, p.y)), tint)
+			n += 1
+	for key: String in keys:
+		ch._batch.set_no_shadow(key)
+		ch._batch.set_draw_distance(key, float(keys[key]))
+	ch.set_meta("rr_verge", n)
+	return n
+
+
+static var _smoke_mat: ShaderMaterial
+
+
+## The flare smoke's material (shaders/refinery_flare_smoke.gdshader).
+static func smoke_material() -> ShaderMaterial:
+	if _smoke_mat == null:
+		_smoke_mat = ShaderMaterial.new()
+		_smoke_mat.shader = load("res://shaders/refinery_flare_smoke.gdshader")
+		_smoke_mat.set_shader_parameter("puff_tex", WeaponFX.puff_texture())
+	return _smoke_mat
+
+
+## The soot off the flames at `flames` (their tips, in `parent`'s space) as one node under `parent`:
+## camera-facing puffs placed in the shader from TIME (Refinery._puff_mesh()'s layout).
+static func add_smoke(parent: Node3D, flames: Array) -> void:
+	if not enabled or flames.is_empty():
+		return
+	var mi := MeshInstance3D.new()
+	mi.name = "RefineryFlareSmoke"
+	mi.mesh = Refinery._puff_mesh(flames, SMOKE_PUFFS if not OS.has_feature("web") else SMOKE_PUFFS / 2, false, "flare_smoke")
+	mi.material_override = smoke_material()
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	mi.gi_mode = GeometryInstance3D.GI_MODE_DISABLED
+	mi.custom_aabb = Refinery._fx_aabb(flames, 110.0, 130.0)
+	mi.extra_cull_margin = 2000.0
+	parent.add_child(mi)

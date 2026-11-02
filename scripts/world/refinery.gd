@@ -669,6 +669,8 @@ static func add_fx(parent: Node3D, flames: Array, plumes: Array) -> void:
 		mi.custom_aabb = _fx_aabb(flames, 95.0 if RefineryNight.enabled else 40.0, 95.0 if RefineryNight.enabled else 40.0)
 		mi.extra_cull_margin = 2000.0
 		parent.add_child(mi)
+		# The soot trailing off the flames (rc4-refinery-road).
+		RcRefineryRoad.add_smoke(parent, flames)
 	if not plumes.is_empty():
 		var mi := MeshInstance3D.new()
 		mi.name = "RefinerySteam"
@@ -796,6 +798,8 @@ static func _ground(ch: CityChunk, lay: Dictionary, area: Rect2) -> void:
 		else:
 			FilmStudio._flat(ch, acc.walk, r, CityChunk.SIDEWALK_TOP)
 		ch._add_shape(Vector3(r.size.x, 0.3, r.size.y), Vector3(r.get_center().x, CityChunk.SIDEWALK_TOP - 0.15 + ch._gy(r.get_center().x, r.get_center().y), r.get_center().y))
+	# The verge at the fence's foot (rc4-refinery-road).
+	RcRefineryRoad.verge(ch, lay, area, acc.ground)
 	for r: Rect2 in _parts([inner], area):
 		for piece: Rect2 in Parks.minus(r, hard, 0.05):
 			Industrial._ground_rect(acc.ground, ch, piece, BASE_Y, Industrial.G_GRAVEL, 0.4, true)

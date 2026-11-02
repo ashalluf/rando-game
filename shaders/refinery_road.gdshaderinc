@@ -36,7 +36,7 @@ uniform float rr_mast_half = 12.0;
 // The damp: how much darker and how much glossier the tarmac goes, and the glints' strength.
 uniform float rr_damp = 0.5;
 uniform float rr_glint = 1.0;
-uniform float rr_glint_power = 70.0;
+uniform float rr_glint_power = 160.0;
 global uniform vec3 origin_shift;
 
 
@@ -60,6 +60,13 @@ float rr_pool(vec3 s, vec3 tp, float half_d, float reach) {
 }
 
 
+// The damp tarmac's lobe round the mirror direction (a normalised Blinn on the half vector, up = the
+// surface's normal): a bright source standing in it reads as a streak toward the eye.
+float rr_lobe(vec3 h) {
+	return pow(max(h.y, 0.0), rr_glint_power) * (rr_glint_power + 2.0) * 0.125;
+}
+
+
 // Adds the plant's light on a road / pavement pixel: `albedo` in the material's own space (what
 // ALBEDO is set to), `rough` its roughness. Returns the emission to add and darkens / glosses the
 // surface through `albedo_io` and `rough_io`. `wpos` scene world position, `cam` the camera.
@@ -68,8 +75,10 @@ vec3 rr_light(vec3 wpos, vec3 cam, inout vec3 albedo_io, inout float rough_io, f
 	if (rr_on < 0.5 || distance(tp.xz, rr_centre.xz) > rr_centre.y) {
 		return vec3(0.0);
 	}
-	// Damp tarmac: darker, and smoother where it is not cracked or patched.
-	float damp = rr_damp * night;
+	// Damp tarmac: darker, and smoother where it is not cracked or patched; in patches (the camber,
+	// the low spots), never one even film.
+	float patches = smoothstep(0.3, 0.7, fbm(tp.xz * 0.07 + 13.0) + 0.25 * value_noise(tp.xz * 0.6));
+	float damp = rr_damp * night * mix(0.35, 1.0, patches);
 	albedo_io *= 1.0 - 0.32 * damp;
 	rough_io = mix(rough_io, min(rough_io, 0.42), damp);
 	vec3 v = normalize(cam - wpos);
@@ -84,7 +93,8 @@ vec3 rr_light(vec3 wpos, vec3 cam, inout vec3 albedo_io, inout float rough_io, f
 		fl_sum += rr_flare_color * e * rr_flare_gain;
 		vec3 l = normalize(f.xyz - tp);
 		vec3 h = normalize(l + v);
-		glint += rr_flare_color * pow(max(h.y, 0.0), rr_glint_power) * e * rr_flare_gain;
+		float gd = length(f.xyz - tp);
+		glint += rr_flare_color * rr_lobe(h) * flick * rr_flare_gain * (3600.0 / (3600.0 + gd * gd));
 	}
 	for (int i = 0; i < rr_mast_count; i++) {
 		vec4 m = rr_masts[i];
@@ -92,7 +102,8 @@ vec3 rr_light(vec3 wpos, vec3 cam, inout vec3 albedo_io, inout float rough_io, f
 		fl_sum += rr_mast_color * e * rr_mast_gain;
 		vec3 l = normalize(m.xyz - tp);
 		vec3 h = normalize(l + v);
-		glint += rr_mast_color * pow(max(h.y, 0.0), rr_glint_power) * e * rr_mast_gain;
+		float gd = length(m.xyz - tp);
+		glint += rr_mast_color * rr_lobe(h) * m.w * rr_mast_gain * (900.0 / (900.0 + gd * gd));
 	}
 	vec3 emit = albedo_io * cs_as_uniform(cs_linear_to_srgb(fl_sum));
 	// The glints only where the tarmac is smooth enough to hold them (a crack or a rough patch
