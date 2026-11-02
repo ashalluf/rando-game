@@ -38,6 +38,7 @@ func _initialize() -> void:
 	DirAccess.make_dir_recursive_absolute(_out_dir)
 	_golf_group()
 	_bonfire_lit()
+	_lowrider_meet()
 	# OCCLUSION=0: occlusion culling off (still_shot's switch), to tell what is culled in plain sight.
 	if OS.get_environment("OCCLUSION") == "0":
 		get_root().use_occlusion_culling = false
@@ -383,6 +384,21 @@ func _bonfire_lit_for(cam: Dictionary) -> void:
 		return
 	var bf: GDScript = load("res://scripts/world/bonfires.gd")
 	bf.set("force_lit", int(cam.get("bonfire_lit", -1)))
+
+
+## A row's optional "lowrider_meet" (wave 7's lowrider_meet): {"on": 1, "pose": "i:routine:s[:side],..."}
+## holds every meet on (LOWRIDER_MEET=1) and freezes row cars mid-routine (LOWRIDER_POSE). Set before
+## the city loads: the meet's row is parked as its chunk builds.
+func _lowrider_meet() -> void:
+	var only := OS.get_environment("ONLY").split(",", false)
+	for cam: Dictionary in _cameras().get("cameras", []):
+		if cam.get("lowrider_meet", null) is Dictionary and (only.is_empty() or String(cam.name) in only):
+			var lm: Dictionary = cam.lowrider_meet
+			if OS.get_environment("LOWRIDER_MEET") == "" and int(lm.get("on", 1)) == 1:
+				OS.set_environment("LOWRIDER_MEET", "1")
+				(load("res://scripts/world/lowrider_meet.gd") as GDScript).set("force", true)
+			if OS.get_environment("LOWRIDER_POSE") == "" and lm.has("pose"):
+				OS.set_environment("LOWRIDER_POSE", String(lm.pose))
 
 
 ## A row's optional "golf_group" ("hole:stage[:tee[:count]]", wave 6's golf_morning) puts a group

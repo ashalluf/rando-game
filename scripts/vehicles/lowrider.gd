@@ -415,6 +415,12 @@ class Hydraulics extends Node:
 	var reach: float = 140.0
 	## Holds the pose where it is (stills: a hop at its peak).
 	var frozen: bool = false
+	## How far a three-wheel's lifted front wheel leaves the road (m past the stroke; a show car's
+	## lifts 0.4-0.9 m).
+	var three_lift: float = 0.55
+	## A PARKED car's display stance (LowriderMeetLook.Stance) and, standing on three, its side.
+	var stance: int = 0
+	var stance_side: float = 1.0
 
 	var _car: Vehicle
 	var _body: Node3D
@@ -608,8 +614,9 @@ class Hydraulics extends Node:
 		match _routine:
 			"":
 				var down := laid if mode != Mode.CRUISE else laid * 0.6
+				var rest := _stance_targets() if mode == Mode.PARKED and LowriderMeetLook.enabled else PackedFloat32Array()
 				for i in 4:
-					_target[i] = down
+					_target[i] = rest[i] if not rest.is_empty() else down
 				if _left <= 0.0 and mode != Mode.PARKED:
 					var r := _rng.randf()
 					if mode == Mode.SHOW:
@@ -643,10 +650,9 @@ class Hydraulics extends Node:
 				var diag := 3 if up == 0 else 2
 				var same := 2 if up == 0 else 3
 				var k := smoothstep(0.0, 0.8, minf(_clock, _left))
-				_target[up] = lerpf(laid, stroke + 0.20, k)
-				_target[other] = lerpf(laid, stroke * 0.55, k)
-				_target[same] = lerpf(laid, stroke * 0.35, k)
-				_target[diag] = laid
+				var tw := _three_targets(up, other, same, diag)
+				for c in 4:
+					_target[c] = lerpf(laid, tw[c], k)
 				if _left <= 0.0:
 					_end()
 			"dance":
@@ -674,6 +680,49 @@ class Hydraulics extends Node:
 					_target[i] = laid * 0.3 + (amp if (i < 2) == (sin(ph2) > 0.0) else 0.0) * absf(sin(ph2))
 				if _left <= 0.0:
 					_end()
+
+	## A three-wheel's corner heights: the lifted front corner `up` past its stroke by
+	## `three_lift` (its wheel that far off the road), the other front at its stroke, the rear on
+	## the same side a little up and the one across laid on its bump stops (the car stands on
+	## three wheels). RC4_LOWRIDER_MEET=0 the old, smaller one (stroke + 0.2).
+	func _three_targets(up: int, other: int, same: int, diag: int) -> PackedFloat32Array:
+		var t := PackedFloat32Array([laid, laid, laid, laid])
+		if LowriderMeetLook.enabled:
+			t[up] = stroke + three_lift
+			t[other] = stroke
+			t[same] = stroke * 0.35
+		else:
+			t[up] = stroke + 0.20
+			t[other] = stroke * 0.55
+			t[same] = stroke * 0.35
+		t[diag] = laid
+		return t
+
+	## A PARKED car's display stance (LowriderMeetLook.Stance): laid out, locked up on all four,
+	## standing on three, or the nose up.
+	func _stance_targets() -> PackedFloat32Array:
+		match stance:
+			LowriderMeetLook.Stance.LOCKED:
+				return PackedFloat32Array([stroke * 0.9, stroke * 0.9, stroke * 0.85, stroke * 0.85])
+			LowriderMeetLook.Stance.THREE:
+				var up := 0 if stance_side < 0.0 else 1
+				return _three_targets(up, 1 - up, 2 if up == 0 else 3, 3 if up == 0 else 2)
+			LowriderMeetLook.Stance.NOSE:
+				return PackedFloat32Array([stroke, stroke, laid, laid])
+		return PackedFloat32Array()
+
+	## Sets a PARKED car's stance and snaps the corners to it at once (no spring up on screen).
+	func set_stance(s: int, side: float) -> void:
+		stance = s
+		stance_side = side
+		var t := _stance_targets()
+		if t.is_empty() or _body == null:
+			return
+		for i in 4:
+			_h[i] = t[i]
+			_target[i] = t[i]
+			_v[i] = 0.0
+		_apply()
 
 	func _begin(routine_name: String) -> void:
 		_routine = routine_name
