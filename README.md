@@ -9,3 +9,4 @@
 - 07_after_mayhem_final.jpg: the final mayhem camera (merged with main batch 34)
 - 08_after_mayhem_fire_light_disc_before_fix.jpg: one run earlier: the burning car's light as a flat red disc (fixed in 07)
 - 09_ten_cameras_main_vs_branch.jpg: the ten original refcams, main over branch (only traffic / people differ)
+- 10_after_mayhem_branch_final_blast_as_main.jpg: the branch's final state after the lead moved the blast to explosions-4: the fireball is main's again (white-hot; finding handed over in HANDOFF), muzzle / fire-light / police-pool fixes kept. 07 shows the reverted fireball look for comparison.
