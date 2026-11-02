@@ -167,3 +167,7 @@ terminal at 22:00 clear from the quay's apron. Its optional `port_t` key holds P
 (seconds) for the shot, so the cranes and tractors are where the row was framed (`_port_clock()` in
 refcams_shot.gd; rows without it leave the clock alone). `OCCLUSION=0` turns occlusion culling off
 for a run.
+Run with `REFCAMS_JSON=tools/refcams/cameras_w7.json`. `stack_aerial` (rc4-stack-aerial): the
+four-level stack from 150 m over the ground north-west of it, 17:30 clear, toward downtown;
+`shot_frames` 90 lets the connectors' traffic fill before the shot.
+

@@ -28701,3 +28701,71 @@ box truck vs an SUV in the freeway lane, the bus in another place), the scenery 
 valet), which passes alone (32 / 32): a shard-order flake.
 Stills on `shots/rc4-canals-day`.
 
+## 9md. The four-level stack from the air, 2026-11-02 (fleet wave 7, agent branch `wt/rc4-stack-aerial`)
+
+**The camera.** A new reference view, `stack_aerial`, the first row of `tools/refcams/cameras_w7.json`:
+the four-level stack (the 110 under the 101, section 9cm) from 150 m over the ground north-west of
+it (eye 1921, 150 agl, -1597, yaw -135, pitch -20, fov 50), at 17:30 clear, toward downtown: the
+low sun behind the lens lights the decks' faces and the skyline beyond. `shot_frames` 90 so the
+connectors' traffic has filled by the shot. Run it with
+`REFCAMS_JSON=tools/refcams/cameras_w7.json python3 tools/refcams/refcams.py run <dir> --only stack_aerial`.
+
+**What gave it away** (the before, `shots/rc4-stack-aerial` 01), in the order the eye lands:
+1. The ground inside the knot was bare brown dirt with flat squares of lawn: YardFill paints the
+   right of way bare in a deck's shade by the distance to the deck's edge alone, and inside the
+   stack nearly every point is near a deck - but the connectors stand 25-50 m up, where a low sun
+   and the sky reach under them. And nothing grew there: every tree and shrub keeps out of a
+   deck's footprint plus a margin, whatever its height.
+2. The connectors were nearly empty at rush hour (StackTraffic kept four cars a connector, at every
+   hour), so the stack read as a model rather than the busiest junction in the city.
+3. The columns read as toothpicks: 40 m single shafts drawn 2.3 m across.
+
+**The fixes** (`RcStack`, `scripts/world/rc4_stack.gd`; `RC4_STACK=0` is the A/B for all of them):
+- The shade (`bareness()`, called from `YardFill._bareness()` when the ground height is known):
+  YardFill's distance fade times how low each deck is over the ground - full shade under a deck
+  whose underside clears the ground by under `SHADE_LOW` (10 m: every main line, as before), none
+  by `SHADE_HIGH` (22 m).
+- The ground cover (`mixed_ground()`, the yard ground mesh's COLOR.b, lot_yard.gdshader's ivy
+  branch): inside `REACH` (700 m) of the stack's centre the ivy is lighter and broken by patches of
+  iceplant, juniper and dry grass tens of metres across - from 150 m a sheet of ivy in shadow drew
+  near black.
+- The groves (`spots()`, pure: hashes of seed + block + cell, cached): every right-of-way cell of
+  a block within `REACH` (the corridor lots' cells, less the maintenance yard; pocket gardens under
+  the decks get trees only, sparser) on a jittered `STEP` grid: a tree (fig 58 %, sycamore 27 %,
+  eucalyptus 15 %, LaTrees' species and heights) where its crown clears the deck over it by
+  `TREE_CLEAR` (the height cut down to fit, none under `TREE_MIN`), else an oleander mound where
+  there is `SHRUB_ROOM`. FULL chunks plant them for real (`dress()` from `YardFill.block_step()`:
+  LaTrees' batches, YardFill's shrubs, its own rng seeded by hash); the LOD ring and the far city
+  draw the very same spots as canopies (`far_trees()`, from `Skyline._add_city_trees()` beside
+  MidCity's yard trees), so a grove is there from every distance. Nothing under a main line.
+- The columns (`column_r()`, StackBuild's column and Skyline's far box): a tall column is drawn
+  and collides up to `COLUMN_GAIN` (1.4x) thicker at `COLUMN_TALL` (40 m), inside the 0.8 m
+  clearance FreewayStack's spot tests keep, so no plan or check moves.
+- The traffic (`cars_per_link()`, StackTraffic._maintain): the connectors' count follows the hour,
+  x2.6 in the evening peak (15:30-19:00), x2.4 in the morning, x1.4 by day, x0.6 at night.
+
+**Frame cost** (the refcam's own GEO, opengl3, 1280 x 720): before 5.55 M triangles / 4,213 draws,
+after 5.64 M / 4,190 (+1.5 % triangles, the groves; -0.6 % draws). FULL block_shot of the stack's
+blocks (EYE 2000,90,-1560): 3.07 M -> 3.10 M triangles, 2,382 -> 2,389 draws.
+
+**Two fixes outside the area, found by the gate.** `TrafficManager._maintain_freeway()` skips (and
+drops from `freeway_cars`) a car whose `traffic` has no `fw` key - StackTraffic takes main-line cars
+more often at rush hour and the gate hit `Invalid access to ... 'fw'` once. `LandmarkRoofs.enabled`
+read `RcRooftop.enabled` in its static initialiser, which can run before RcRooftop's: it came out
+false (the rooftop refcam's "on by default" failed alone too, so the towers' roof dressing was off);
+it reads `RC_ROOFTOP` from the environment now, the same switch.
+
+**Tools.** `tools/rc4_stack_aerial/block_probe.tscn` (headless, seconds: the blocks round the
+stack, their corridor lots and RcStack's spots; `AT=`, `RADIUS=`).
+
+**Checks** (`tests/rc4_stack_aerial_checks.gd`): the camera row, the shade rule (full under a main
+line as before, none under a 30 m connector), every planted crown clear of its deck and the spots
+pure, a FULL chunk at the stack planting groves and shrubs, the columns thicker inside their
+clearance, the rush hour fuller than noon fuller than night.
+
+**Not done / not verified.** Forward+ (the Mac) not seen: the colour work is a multiply in
+lot_yard's display-number ivy branch, which reads the same on both renderers, but the balance in
+shadow is opengl3's. The pocket gardens under the decks (yard lots, LotFill) keep their mown lawns
+and walks: diverting them to the right of way would move the block rng. The connectors' far boxes
+are still unbanked (9cm). Only the stack's own right of way is planted; the rest of the freeway's
+corridors keep YardFill's rows.
