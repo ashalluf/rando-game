@@ -4315,3 +4315,10 @@ none of either.
   comes in with distance; broad road-light pools have no hard rim and dim from the air; floodlit
   masonry is a fifth of the old brick and render, not most of it; a far searchlight seen from the air
   saturates softly and fades with distance. NIGHT_AERIAL=0 is the A/B.
+
+- **2026-11-02 The skyline from a tower's roof (rc3-rooftop-golden, HANDOFF "The skyline from a
+  tower's roof").** A new reference camera (`rooftop_golden`, wave 6's table) stands on the black
+  twins' helipad at 17:45. Decisions: a landmark tower's roof is never a blank cap with a concrete
+  block - its mechanical box is a louvred penthouse and its flat roof carries plant, worked out from
+  the tower's own tiers and boxes (no new table); the helipad deck is drawn as extruded planks up
+  close; the island against a low sun is haze, not land colour. RC_ROOFTOP=0 is the A/B.

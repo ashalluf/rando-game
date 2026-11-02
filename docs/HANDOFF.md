@@ -27034,3 +27034,73 @@ truck in one run, a red car in the other; the deck is freeway_deck.gdshader, not
 (one line in smoke_test.gd's city_files): street asphalt gets lane wear and pavements / car parks do
 not, the shader applies it and 0 is the old road, the switch, the camera row and its staging
 script. Stills on `shots/rc2-chase-cam`.
+
+## 9d?. The skyline from a tower's roof: the rooftop_golden refcam (fleet wave 6, `wt/rc3-rooftop-golden`)
+
+**The camera.** New reference view `rooftop_golden` in `tools/refcams/cameras_w6.json`: the black
+twins' north helipad (deck 215.55 m, eye 2.75 m over it at (2288.5, 218.3, 43.0)), 17:45 clear,
+yaw 165 pitch -11, fov 55 - the helipad's H and touchdown circle across the foreground, the south
+twin's roof, the sail tower and the green-crowned pyramid, the city running out to the peninsula,
+the sea and the island under the low sun. Run it with
+`REFCAMS_JSON=tools/refcams/cameras_w6.json python3 tools/refcams/refcams.py run <dir> --only rooftop_golden`.
+
+**Two traps found choosing it** (each cost a render):
+- **Bunker Hill lifts the towers.** `LaHills.landmark_lift()` puts the bronze slab (333 S Hope) on
+  21.9 m of hill, so its pad is at 248.4 m, not 0.25 + 222.9 + 3.4. An eye at the "table" height
+  is INSIDE the tower - and inside its occluder box, so the whole city is culled and the frame is
+  the horizon plane and the sky (it looked like a game bug: it was the camera). Get a landmark's
+  height from its node (`Occluder_<id>` / `Tower_<id>` y) or from `LaHills.landmark_lift()`.
+- **The bronze slab's pad cannot see the skyline**: its mechanical box stands between the pad and
+  every tower to the south. The black twins' pad has its penthouses to the east.
+
+**What read fake, in the order the eye lands** (before = `RC_ROOFTOP=0`, the same tree as main):
+1. **The deck** - half the frame - a plain blue-grey sheet, the H and the circle blotched by cloud
+   noise. Real pads are extruded aluminium planks with a gritty coat and worn paint.
+2. **The south twin's roof**: a blank black box with one featureless concrete block on it - the
+   builders' `detail.box(..., CONCRETE)` "mechanical" placeholder; the same blank block sits on every
+   flat-roofed downtown tower (from the bronze slab's pad it filled half the frame).
+3. **The windsock** in the middle of the frame: one 10-sided cone, faceted, rigid.
+4. **The island** (36 km offshore, sky shader): a hard dark-brown strip against the golden sky -
+   the land's colour let through the haze ("glare" cut the haze back), crisp-edged.
+Seen and left: the pyramid's green crown is lit at 17:45 (its night ramp comes on before sunset,
+by design); the far city's red-roof mosaic is MidCity's.
+
+**What changed** (`RcRooftop`, `scripts/world/rc_rooftop.gd`; `RC_ROOFTOP=0` is the A/B of all of
+it, bit for bit):
+- `LandmarkRoofs` (`scripts/world/landmark_roofs.gd`, one hook in `LandmarkDowntown.build()` beside
+  the helipad; `LANDMARK_ROOFS=0` alone): per tower, from its own data - `TowerMesh.boxes` (every
+  `box()` now recorded, one line) and its prism tiers - each concrete roof box over 60 m (>= 5 m
+  across, >= 1.2 m tall, unturned) is CLAD as a louvred penthouse (0.25 m outside it, 1.3 m taller:
+  posts, mullions, screens on Rooftops' K_LOUVRE, a capped roof, doors with steps, a fan, a flue
+  and a small unit on top), and the tier it stands on gets plant on a 4.4 m hashed grid (72 %):
+  packaged units on curbs (louvred coil face, two fan tops, a duct into the roof), cooling towers on
+  dunnage, mushroom exhaust fans, and duct runs on legs from the two nearest units to the
+  penthouse - inside the outline less 3.6 m (gondola davits), off the penthouse and the helipad's
+  deck + net + stair. Pure (hashes of the id); one mesh a tower on `Rooftops.material()`, cached and
+  shared by the far and detailed copies, drawn to 950 m; box collision on the detailed one. Dressed:
+  black twins, bronze slab, granite slab, dark glass, plaza one (~11 k triangles in all); crowns
+  and the unfinished tower (`SKIP`) are left alone. Probe `tools/landmark_roofs/probe.gd`.
+- `rooftop.gdshader` `pad_closeup` (set once in `Rooftops.material()`): the deck as 0.3 m planks
+  (seams, edge-rolled crowns tilting the normal across the planks, 6 m panel joints, a tone per
+  plank), a grit coat, tyre rubber streaking down the planks, the paint worn in streaks along them,
+  chipped at the seams and grainy over the grit; every part faded to its mean under a couple of
+  pixels. The plank axis comes from screen derivatives taken OUTSIDE the branch (`pad_u`).
+- `RcRooftop.windsock()`: the sock is a cloth of 8 rings x 18 sides sagging toward the tail (the
+  frame's +Z is down: Rooftops builds it as (up x wind) x wind), drawn both ways.
+- `offshore_island.gdshaderinc` `island_soft` (pushed by OffshoreIsland.setup()): against a low sun
+  the haze is no longer cut back, and the air is a greyer, cooler copy of the sky; the skyline
+  softened over three pixels. Noon and night unchanged (it scales with `low_sun`).
+
+**Numbers** (refcams, opengl3, `RC_ROOFTOP=0` -> on): rooftop_golden p5/p50/p95 42/93/187 ->
+35/92/187, saturation 0.311 -> 0.323; 3.19 M triangles / 1,076 draws -> 3.22 M / 1,079 (+1 %; the
+roof plant is ~11 k, the rest traffic noise). The ten original cameras: see the compare below.
+
+**Forward+** (lavapipe): the island with `tools/offshore_island/island_shot.gd` at the eye, 17:45
+(`shots/rc3-rooftop-golden` 05/06): a saturated brown band -> a hazy grey-violet silhouette. The
+deck and the roof plant are Rooftops' shader (linear on both renderers); NEEDS MAC CHECK: the plank
+crowns' shading at a grazing low sun on Forward+.
+
+**Checks**: `tests/rc3_rooftop_golden_checks.gd` (the plan pure, plant on the roof and off the
+penthouse and the pad, the flat roofs dressed and the crowns not, the clad box, one mesh on the
+rooftop shader, nothing when off; the deck and island uniforms behind their switches and pushed;
+the windsock's rings and sag).

@@ -51,6 +51,11 @@ and ignored by the ten originals:
   `2d:*`, `dbg:unshaded`...) renders the frame again with each hidden, `CHASE_BISECT=1` halves the
   drawables to find what draws a given pixel difference.
 
+## Wave 6's cameras (`cameras_w6.json`)
+
+Run with `REFCAMS_JSON=tools/refcams/cameras_w6.json`. `rooftop_golden`: the black twins' north
+helipad (deck 215.55 m), 17:45 clear, looking SSW over the skyline to the basin and the sea.
+
 ## Running
 
 ```
