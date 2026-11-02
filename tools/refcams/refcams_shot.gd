@@ -113,10 +113,16 @@ func _run() -> void:
 		var frames := 0 if drive else maxi(_env_int("SHOT_FRAMES", 30), int(cam.get("shot_frames", 0)))
 		var stage_at := frames - _env_int("SHOT_FRAMES", 30)
 		var traffic_staged := false
+		var park: RefCounted = null
 		for i in frames:
 			if i == stage_at:
 				_stage_air(scene, cam)
 				traffic_staged = _stage_street_cars(cam, scene, plan)
+				# A "park_car" row (cameras_w6.json, car_closeup): a parked car and the eye round it.
+				if cam.has("park_car"):
+					park = load("res://tools/refcams/park_stage.gd").new()
+					if not park.call("stage", self, cam, scene, plan):
+						park = null
 			await process_frame
 			_place(player, fov)
 			if day:
@@ -147,6 +153,8 @@ func _run() -> void:
 				_place(player, fov)
 		if not drive:
 			_clear_lens(cam.name)
+		if park and _eye_cam:
+			park.call("clear_people", self, _eye_cam.global_position)
 		await process_frame
 		if not _hero.is_empty():
 			_hero_report(player, cam.name)
@@ -174,6 +182,8 @@ func _run() -> void:
 			if _eye_cam:
 				_eye_cam.make_current()
 		_write_frames(load_ms, shots)
+		if park:
+			park.call("finish")
 		if _stager != null:
 			_unstage(scene, player)
 		print("REFCAM %s saved %s eye %s hour %.2f %s" % [cam.name, png, eye_text, float(cam.hour), cam.get("weather", "clear")])

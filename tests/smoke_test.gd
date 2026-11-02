@@ -2876,6 +2876,8 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	# The person close-up refcam (tests/rc3_person_closeup_checks.gd, IdleRelax, PersonCloseup): the
 	# idle's stance, the bag from the fist, hair strands and lips, the A/B, the camera row.
 	await load("res://tests/rc3_person_closeup_checks.gd").new().run(self, city)
+	# The parked car at arm's length (tests/rc3_car_closeup_checks.gd, CarCloseup): bumper trim, tyres, grime.
+	await load("res://tests/rc3_car_closeup_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()

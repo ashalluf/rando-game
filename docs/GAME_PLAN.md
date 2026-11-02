@@ -4344,3 +4344,11 @@ none of either.
   shafts), not only its lenses; a crowd past the seat detail is a mosaic of groups, not the tier's
   tint; a night game has players on the field; the ballpark's far copy keeps its planting.
   STADIUM_NIGHT=0 is the A/B.
+- **2026-11-02 The parked car at arm's length (rc3-car-closeup, HANDOFF "The parked car at arm's
+  length").** A new reference camera (`car_closeup`, wave 6's table) walks up to a parked crossover
+  on a midtown kerb at 15:00. Decisions: a raycast trim piece that the loft pokes through is drawn
+  again a little proud near the camera rather than the bodies rebuilt (the Blender rebuild of every
+  lofted body was judged too risky); road grime is a thin film that follows how dirty the car is,
+  never an opaque band; tyres sit on a contact patch drawn in the wheel shader at world down (the
+  physics and ride height untouched); on the Compatibility renderer the alloy mirrors a sky over a
+  street. CAR_CLOSEUP=0 is the A/B.

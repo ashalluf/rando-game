@@ -211,6 +211,10 @@ uniform float grime = 0.0;
 uniform float mud = 0.0;
 uniform float scratches = 0.0;
 uniform vec4 grime_arch = vec4(-1.4, 1.4, 0.2, 0.34);
+// 1: the close-up grime (CarCloseup, rc3-car-closeup): a thin film whose strength follows the
+// level, with soft graded edges and a tight spray behind each wheel; 0: the old opaque band and
+// wide ring round the arches, which read as tan camouflage on a dark car at two metres.
+uniform float grime_look = 0.0;
 uniform vec3 grime_frame = vec3(-0.2, 1.0, 1.0);
 
 // Paint, second pass (car-paint-2, docs/HANDOFF.md "Car paint that reads as photographed"). 0 on
@@ -609,8 +613,9 @@ void fragment() {
 		// Dust runs down the panels in streaks.
 		float streak = wear_noise(vec3(along * sc * 26.0, h * 1.4, across * sc * 26.0));
 		// The low band: higher on a dirtier car, its top edge ragged and run down in streaks.
-		float edge_h = 0.16 + 0.32 * grime + (n1 - 0.5) * 0.20 + (streak - 0.5) * 0.16;
-		float low = 1.0 - smoothstep(edge_h - 0.12, edge_h + 0.03, h);
+		float gl = grime_look;
+		float edge_h = mix(0.16, 0.24, gl) + mix(0.32, 0.42, gl) * grime + (n1 - 0.5) * mix(0.20, 0.07, gl) + (streak - 0.5) * mix(0.16, 0.10, gl);
+		float low = 1.0 - smoothstep(edge_h - mix(0.12, 0.34, gl), edge_h + mix(0.03, 0.06, gl), h);
 		// Spray round each arch, heavier behind the wheel; a cloud of fine dots past its edge.
 		float arch = 0.0;
 		float splash = 0.0;
@@ -620,8 +625,8 @@ void fragment() {
 			float r = length(d);
 			float rr = grime_arch.w * sc;
 			float behind = smoothstep(-0.4, 0.6, d.x / max(r, 1e-3));
-			float reach = rr + 0.12 + 0.30 * behind * grime + (n2 - 0.5) * 0.10;
-			float ring = (1.0 - smoothstep(reach - 0.06, reach + 0.02, r)) * smoothstep(rr - 0.04, rr + 0.02, r);
+			float reach = rr + mix(0.12, 0.10, gl) + mix(0.30, 0.26, gl) * behind * grime + (n2 - 0.5) * mix(0.10, 0.04, gl);
+			float ring = (1.0 - smoothstep(reach - mix(0.06, 0.24, gl), reach + mix(0.02, 0.04, gl), r)) * smoothstep(rr - 0.04, rr + 0.02, r);
 			arch = max(arch, ring * (0.55 + 0.45 * behind));
 			splash = max(splash, (1.0 - smoothstep(rr, rr + 0.9, r)) * smoothstep(-0.2, 0.7, d.x / max(r, 1e-3)) * (1.0 - smoothstep(0.2, 0.9, h)));
 		}
@@ -634,11 +639,12 @@ void fragment() {
 		float tail_u = grime_frame.z > 0.0 ? body_uv.x : 1.0 - body_uv.x;
 		float tail = smoothstep(0.90, 0.985, tail_u) * (1.0 - facing.x) * (1.0 - facing.y) * (1.0 - smoothstep(0.25, 1.0, h + (n1 - 0.5) * 0.3));
 		float dirt = max(max(low * (0.55 + 0.45 * n2), arch * (0.6 + 0.4 * n3)), tail * (0.25 + 0.4 * n1) * grime);
-		dirt = clamp(max(dirt * smoothstep(0.0, 0.35, grime), dots * 0.7) * side, 0.0, 0.95);
+		dirt = clamp(max(dirt * mix(smoothstep(0.0, 0.35, grime), 0.25 + 0.75 * smoothstep(0.0, 0.9, grime), gl), dots * 0.7) * side, 0.0, 0.95);
 		vec3 dust_c = grime_col(mix(vec3(0.50, 0.46, 0.40), vec3(0.62, 0.57, 0.49), n2));
 		// A wet road darkens the film to grey-brown sludge.
 		dust_c = mix(dust_c, dust_c * 0.45, road_wetness);
-		coat = mix(coat, dust_c, dirt * 0.9);
+		// The close-up film: the paint still reads through it (a haze, not a coat of tan paint).
+		coat = mix(coat, dust_c, dirt * mix(0.9, 0.58, gl));
 		// Mud: clumps and spatter thrown off the tyres, low and behind the arches.
 		float clump = smoothstep(0.52, 0.72, n2 * 0.55 + n3 * 0.45);
 		vec3 sp = floor(qm * 38.0);
@@ -672,8 +678,8 @@ void fragment() {
 			scr *= (1.0 - facing.y) * facing.x;
 		}
 		coat = mix(coat, coat * 0.55 + grime_col(vec3(0.62)), scr * 0.85);
-		grime_rough = max(dirt * 0.85, mudm);
-		grime_cc = max(max(dirt, mudm), scr * 0.8);
+		grime_rough = max(dirt * mix(0.85, 0.6, grime_look), mudm);
+		grime_cc = max(max(dirt * mix(1.0, 0.6, grime_look), mudm), scr * 0.8);
 	}
 	// A film of dust or pollen (paint2) settled on what faces the sky - roof, bonnet, boot - with a
 	// little on the flanks, thinner where the last rain ran it off in streaks; pollen in grains.
