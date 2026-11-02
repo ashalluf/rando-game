@@ -33,6 +33,7 @@ func run(t: Node, city: Node3D) -> void:
 		police.set("enabled", false)
 	var started_ms := Time.get_ticks_msec()
 	_moods()
+	_nose_order()
 	_turn_in_clear()
 	_traffic.staged = true
 	_clear_traffic()
@@ -170,6 +171,33 @@ func _overlap(a: Vehicle, b: Vehicle, axis: int) -> float:
 	if (fb.x - fa.x) * dir >= 0.0:
 		return (fb.x - fa.x) * dir - float(ta.get("half", 2.4)) - float(tb.get("rear", tb.get("half", 2.4)))
 	return (fa.x - fb.x) * dir - float(tb.get("half", 2.4)) - float(ta.get("rear", ta.get("half", 2.4)))
+
+
+## A lane group is ordered by the noses (TrafficAI.nose_ahead()), not the centres: a car beside
+## the front half of a bus dwelling at its stop (a lane change's ghost in the bus's lane) has its
+## centre ahead of the bus's and its nose behind - by the centres it never braked for the bus and
+## drove on into it (gate-flakes run 5757: -4.35 m).
+func _nose_order() -> void:
+	var bus := Vehicle.new()
+	var car := Vehicle.new()
+	bus.traffic = {"along": 100.0, "dir": 1, "half": 6.1, "rear": 6.1, "v": 0.0, "bus": 1}
+	car.traffic = {"along": 101.5, "dir": 1, "half": 2.3, "rear": 2.3, "v": 3.0, "lc_p": 0.37}
+	var key := 7
+	var group: Array = [bus, car]
+	group.sort_custom(func(a: Vehicle, b: Vehicle) -> bool: return TrafficAI.nose_ahead(a, b, 1.0))
+	var ahead := TrafficAI.ahead_in({key: [bus, car]}, key, 101.5, 1, 2.3, car)
+	var bus_ahead := TrafficAI.ahead_in({key: [bus, car]}, key, 100.0, 1, 6.1, bus)
+	var room := TrafficAI.gap_ok(_traffic, {key: [bus]}, key, car, 101.5, 1, 3.0)
+	# The same the other way: -x travel, the bus's nose further toward -x.
+	bus.traffic.along = -100.0
+	car.traffic.along = -101.5
+	var back := [bus, car]
+	back.sort_custom(func(a: Vehicle, b: Vehicle) -> bool: return TrafficAI.nose_ahead(a, b, -1.0))
+	_check(group[1] == bus and not ahead.is_empty() and ahead[0] == bus and float(ahead[1]) < 0.0 and bus_ahead.is_empty() and not room and back[1] == bus,
+		"a car beside a dwelling bus's front half has the bus ahead of it in the lane (bus last %s, car's ahead %s at %.1f m, bus's ahead %s, room to move in %s)" % [
+			group[1] == bus, "bus" if not ahead.is_empty() and ahead[0] == bus else "none", float(ahead[1]) if not ahead.is_empty() else 99.0, "none" if bus_ahead.is_empty() else "car", room])
+	bus.free()
+	car.free()
 
 
 ## Moods: the shares, and what they do - the pushy keep shorter gaps, run an amber a careful
@@ -409,6 +437,9 @@ func _swerve() -> void:
 	var logged := TrafficAI.honk_log.size()
 	var car := _traffic.place_car(axis, index, dir, lanes - 1, lo + 30.0, 11.0, false)
 	car.traffic.ai = true
+	# Not a car that rolls a double park on the way (2.5 % a block, a hash of the car: it stood
+	# at its kerb 4 m in and never reached the player).
+	car.traffic.no_dp = true
 	var swerved := false
 	var closest := INF
 	var slowest := INF
@@ -576,6 +607,7 @@ func _freeway_pass() -> void:
 		await _tree.physics_frame
 		_player.velocity = Vector3.ZERO
 		_player.global_position = _ws.to_local(at + Vector3(0.0, 40.0, 0.0))
+		_keep_freeway_clear(ri, 1, float(fast.traffic.t), float(slow.traffic.t))
 		var a: Dictionary = fast.traffic
 		var b: Dictionary = slow.traffic
 		moved = moved or a.has("lc_from")
@@ -586,6 +618,24 @@ func _freeway_pass() -> void:
 			break
 	_traffic.max_freeway_cars = max_was
 	_check(moved and passed and worst > 2.0, "a fast freeway car moves over and passes a slow one (moved %s, passed %s, closest in one lane %.1f m)" % [moved, passed, worst if worst < INF else 999.0])
+
+
+## FreewayFill refills the freeway round the player even while staged (16 cars a tick, ~42 m
+## apart a lane), and a 28 m/s car needs ~70 m clear to move over: in that traffic it rightly stays
+## behind (gate-flakes' final run, "moved false"). What the pass check measures is the pass, so
+## the stretch round its two cars is kept clear of everything not placed.
+func _keep_freeway_clear(ri: int, dir: int, t_a: float, t_b: float) -> void:
+	var lo := minf(t_a, t_b) - 160.0
+	var hi := maxf(t_a, t_b) + 160.0
+	for c in _traffic.freeway_cars.duplicate():
+		if not is_instance_valid(c):
+			continue
+		var ct: Dictionary = c.traffic
+		if ct.has("placed") or int(ct.get("fw", -1)) != ri or int(ct.get("dir", 0)) != dir or ct.has("ramp"):
+			continue
+		if float(ct.t) > lo and float(ct.t) < hi:
+			_traffic.freeway_cars.erase(c)
+			_traffic._retire(c)
 
 
 ## A car up an on-ramp merges into the outer lane; a car with an exit leaves by the off-ramp.
@@ -618,12 +668,40 @@ func _freeway_ramps() -> void:
 	var merged := false
 	var settled := false
 	var start_y: float = car.global_position.y
+	# A dense outer lane past the merge point, as FreewayFill makes it (a car every 40 m at
+	# 25 m/s): a gap a standing start may take hardly ever comes by itself (CI 399, gate-flakes
+	# run 7373: the ramp car stood at its merge point the whole window), so a car coming up the
+	# lane has to let it in (TrafficAI.merge_yielders()). Nothing else in that stretch.
+	var width_on := float(fw.routes[ri_on].width)
+	var ramp_t := float(on_ramp.t)
+	var stream: Array[Vehicle] = []
+	var put := func(at_t: float) -> void:
+		var s := _traffic.place_freeway_car(ri_on, at_t, -1, -1, 25.0)
+		s.traffic.li = Freeway.LANES - 1
+		s.traffic.lane = -Freeway.lane_fraction(width_on, Freeway.LANES - 1)
+		s.traffic.v = 25.0
+		stream.append(s)
+	_player.velocity = Vector3.ZERO
+	_player.global_position = _ws.to_local(hover)
+	_keep_freeway_clear(ri_on, -1, ramp_t - 60.0, ramp_t + 300.0)
+	for k in range(-1, 8):
+		put.call(ramp_t + 300.0 - 40.0 * float(k + 1) - 20.0)
+	var stream_left := 40.0 / 25.0
+	var waited := 0
 	for i in 60 * 20:
 		await _tree.physics_frame
 		_player.velocity = Vector3.ZERO
 		_player.global_position = _ws.to_local(hover)
 		if not is_instance_valid(car):
 			break
+		_keep_freeway_clear(ri_on, -1, ramp_t - 60.0, ramp_t + 300.0)
+		if car.traffic.has("ramp"):
+			stream_left -= 1.0 / 60.0
+			if stream_left <= 0.0:
+				stream_left = 40.0 / 25.0
+				put.call(ramp_t + 300.0)
+			if car.traffic.get("ramp_wait", false):
+				waited += 1
 		rose = rose or car.global_position.y > start_y + 3.0
 		if not car.traffic.has("ramp"):
 			merged = true
@@ -631,10 +709,14 @@ func _freeway_ramps() -> void:
 			if int(car.traffic.li) == Freeway.LANES - 1 and int(car.traffic.dir) == -1:
 				settled = true
 				break
+	for c in stream:
+		if is_instance_valid(c) and c != car:
+			_traffic.freeway_cars.erase(c)
+			_traffic._retire(c)
 	if not settled:
 		printerr("traffic ai: merging car never settled: valid %s in tree %s %s" % [is_instance_valid(car), is_instance_valid(car) and car.is_inside_tree(), str(car.traffic) if is_instance_valid(car) else ""])
 	_check(rose and merged and settled and int(TrafficAI.counts.get("fw_merge", 0)) > merges,
-		"a car climbs an on-ramp and merges into the outer lane of the freeway (climbed %s, merged %s, in lane %s)" % [rose, merged, settled])
+		"a car climbs an on-ramp and merges into the outer lane of the freeway, a car every 40 m in it (climbed %s, merged %s, in lane %s, waited %.1f s at the merge)" % [rose, merged, settled, waited / 60.0])
 	# Off: a car in the outer lane 160 m before an off-ramp, with an exit to make.
 	var t0 := float(off_ramp.t) - 160.0
 	var at: Vector3 = fw.point_at(ri_off, t0)[0]

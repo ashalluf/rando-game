@@ -247,6 +247,11 @@ road_drying={
 "value": 0.0
 }
 
+road_mist={
+"type": "float",
+"value": 0.0
+}
+
 rain_intensity={
 "type": "float",
 "value": 0.0
@@ -406,6 +411,10 @@ fwd_review_g={
 }
 
 river_look={
+"type": "float",
+"value": 1.0
+}
+interiors_glass={
 "type": "float",
 "value": 1.0
 }

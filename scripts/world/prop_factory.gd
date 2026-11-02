@@ -1138,7 +1138,9 @@ static func shop_spill() -> Mesh:
 	var mesh := QuadMesh.new()
 	mesh.size = Vector2.ONE
 	var mat := ShaderMaterial.new()
-	mat.shader = load("res://shaders/light_pool.gdshader")
+	# shop_spill.gdshader is light_pool's dot (the same numbers) until InteriorsGlass lays the
+	# window it comes through on the pavement.
+	mat.shader = load("res://shaders/shop_spill.gdshader")
 	mat.set_shader_parameter("tint", Color.WHITE)
 	mat.set_shader_parameter("strength", 1.0)
 	mat.set_shader_parameter("falloff", 1.7)
@@ -2142,6 +2144,7 @@ static func building_lod_material(far_city: bool = false) -> ShaderMaterial:
 	mat.set_shader_parameter("instance_color_is_srgb", has_reflections())
 	mat.set_shader_parameter("print_small_plant", far_city)
 	mat.set_shader_parameter("facade_variety", FacadeVariety.enabled)
+	mat.set_shader_parameter("facade_mid3", FacadeMid3.enabled)
 	mat.set_shader_parameter("mid_city", MidCity.enabled)
 	mat.set_shader_parameter("roof_weather", CivicGrounds.roof_weather)
 	mat.set_shader_parameter("house_nights", HouseNights.enabled)

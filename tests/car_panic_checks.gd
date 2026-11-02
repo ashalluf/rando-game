@@ -266,6 +266,21 @@ func _kerb(road: Array) -> void:
 	var follower := _traffic.place_car(axis, index, dir, 0, at - 30.0, 9.0, false)
 	await _ticks(2)
 	CarPanic.start(_traffic, car, _beside(car, road, 10.0, -5.0), 0.2, false)
+	# In a busy shard a walker or a parked car can fill the kerb in the ticks after it was found
+	# clear, and the driver rightly swerves instead: try the next stretch of the block then.
+	var tries := 0
+	while tries < 4 and not (car.traffic.has("cp") and int(car.traffic.cp.k) == CarPanic.Kind.KERB) and at + 9.0 < hi - 60.0:
+		tries += 1
+		for c: Vehicle in [car, follower]:
+			_traffic.cars.erase(c)
+			_traffic._retire(c)
+		at += 9.0
+		_stand(road, at + 40.0)
+		await _ticks(2)
+		car = _traffic.place_car(axis, index, dir, 0, at, 9.0, false)
+		follower = _traffic.place_car(axis, index, dir, 0, at - 30.0, 9.0, false)
+		await _ticks(2)
+		CarPanic.start(_traffic, car, _beside(car, road, 10.0, -5.0), 0.2, false)
 	var w2 := _plan.road_width(axis, index) * 0.5
 	var up := false
 	var out_of_lane := false

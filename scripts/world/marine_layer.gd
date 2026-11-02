@@ -126,3 +126,4 @@ func drive(weight: float, edge_x: float, bank: float, lit: Color, shade: Color, 
 		mat.set_shader_parameter("fog_k", fog_density)
 		mat.set_shader_parameter("deck_base", deck.x)
 		mat.set_shader_parameter("deck_top", deck.y)
+		mat.set_shader_parameter("look", MarineMorning.deck_look())

@@ -185,10 +185,18 @@ func _pick_building(player: Node3D) -> Building:
 	return best
 
 
+## Another building, clean now and not `b` under another node: a retiring chunk's copy of the same
+## building shares its key (and so its records), and an earlier file may have shot another one
+## (shuffled gate 3101: "another building stays clean" failed on one of those).
 func _other_building(b: Building) -> Building:
+	var key := BuildingDamage.key_of(b)
 	for n: Node in _tree.get_nodes_in_group("building"):
-		if n != b and n is Building and _walls_mat(n as Building) != null:
-			return n as Building
+		if n == b or not (n is Building) or not (n as Node).is_inside_tree():
+			continue
+		var o := n as Building
+		var m := _walls_mat(o)
+		if m != null and _n(m) == 0 and BuildingDamage.key_of(o) != key:
+			return o
 	return null
 
 

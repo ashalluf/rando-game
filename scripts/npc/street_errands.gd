@@ -28,6 +28,9 @@ extends RefCounted
 
 ## The whole layer on or off (STREET_ERRANDS=0 in the environment: the A/B for stills).
 static var enabled: bool = OS.get_environment("STREET_ERRANDS") != "0"
+## A shopper inside a door whose chunk was rebuilt comes out of the same door on the new chunk.
+## REVIVE_DOORS=0 in the environment is the A/B (the old: they waited for the player to leave).
+static var REVIVE_DOORS: bool = OS.get_environment("REVIVE_DOORS") != "0"
 ## ERRAND_DEBUG=1: every errand called off says where and why.
 static var debug: bool = OS.get_environment("ERRAND_DEBUG") == "1"
 
@@ -743,6 +746,11 @@ static func _do_inside(p: Pedestrian, step: Dictionary) -> void:
 	if _now() < int(step.until):
 		return
 	var door: Variant = step.get("door")
+	if door is Dictionary and not _door_alive(door) and (door as Dictionary).has("key"):
+		# The door's chunk was rebuilt while they were inside: the same door on the chunk that
+		# stands there now (a hidden shopper near the player otherwise waited for him to leave).
+		door = _revived_door(p, door)
+		step.door = door
 	if door is Dictionary and _door_alive(door):
 		var d: Dictionary = door
 		var out: Vector2 = d.out
@@ -1335,6 +1343,25 @@ static func _to_edge(r: Rect2, p: Vector2, o: Vector2) -> float:
 	elif o.y < -0.01:
 		t = minf(t, (r.position.y - p.y) / o.y)
 	return t
+
+
+## `door` (its chunk gone) as the chunk now standing on its block lists it: the same key at the
+## same spot, or `door` itself when that block has none.
+static func _revived_door(p: Pedestrian, door: Dictionary) -> Dictionary:
+	if not REVIVE_DOORS:
+		return door
+	var plan := p._city_plan()
+	var streamer := p.get_parent().get_parent() if p.get_parent() else null
+	if plan == null or streamer == null or not (streamer.get("chunks") is Dictionary):
+		return door
+	var at: Vector2 = door.p
+	var chunk: Variant = (streamer.get("chunks") as Dictionary).get(plan.chunk_index_at(at))
+	if not (chunk is Node) or int((chunk as Node).get("level")) != CityChunk.Level.FULL:
+		return door
+	for d: Dictionary in _doors(chunk):
+		if int(d.key) == int(door.key) and (d.p as Vector2).distance_to(at) < 0.5:
+			return d
+	return door
 
 
 static func _door_alive(door: Dictionary) -> bool:

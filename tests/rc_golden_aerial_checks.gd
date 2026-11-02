@@ -74,7 +74,17 @@ func _live(city: Node3D) -> void:
 		return
 	var held: float = day.get("hour")
 	var held_w: float = day.get("weather_darken")
+	# The weather's other hooks dim the sun too (a June-gloom deck cuts it by marine_sun_cut, a
+	# lightning flash adds to it): a file that left Weather on MARINE read gain 0.90 here.
+	var held_m: float = day.get("marine")
+	var held_sa: float = day.get("santa_ana")
+	var sun := day.get("_sun") as Node
+	var held_flash: float = sun.get_meta("weather_flash", 0.0) if sun else 0.0
 	day.set("weather_darken", 0.0)
+	day.set("marine", 0.0)
+	day.set("santa_ana", 0.0)
+	if sun:
+		sun.set_meta("weather_flash", 0.0)
 	day.set("hour", 12.5)
 	day.call("_apply")
 	var noon_gain := float(mat.get_shader_parameter("sun_gain"))
@@ -85,7 +95,7 @@ func _live(city: Node3D) -> void:
 	var gold_fill := float(mat.get_shader_parameter("fill_top_mix"))
 	var sc: Color = mat.get_shader_parameter("sun_color")
 	_t._check(noon_gain > 0.95 and noon_fill < 0.01,
-		"golden aerial: live, the noon far ground is unchanged (gain %.2f, fill %.2f)" % [noon_gain, noon_fill])
+		"golden aerial: live, the noon far ground is unchanged (gain %.2f, fill %.2f; marine %.2f, santa ana %.2f held at 0)" % [noon_gain, noon_fill, held_m, held_sa])
 	_t._check(gold_gain < 0.9 and gold_fill > 0.2 and sc.b < sc.r * 0.8,
 		"golden aerial: live, at 17:12 the far ground takes the low warm sun (gain %.2f, fill %.2f, sun %s)" % [gold_gain, gold_fill, sc])
 	var sky := day.get("_sky") as ShaderMaterial
@@ -93,4 +103,8 @@ func _live(city: Node3D) -> void:
 		"golden aerial: live, the sky draws its mid deck as cloudlets")
 	day.set("hour", held)
 	day.set("weather_darken", held_w)
+	day.set("marine", held_m)
+	day.set("santa_ana", held_sa)
+	if sun:
+		sun.set_meta("weather_flash", held_flash)
 	day.call("_apply")

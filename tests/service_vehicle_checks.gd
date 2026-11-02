@@ -493,8 +493,12 @@ func _tow(player: Player) -> void:
 	_fleet.spawn_clear = 0.0
 	_fleet.bed_seconds = 1.0
 	_fleet.winch_seconds = 1.5
+	# Nothing in the lane the truck is put in: a car a live system put on the street meanwhile (a
+	# parked car pulling out, shuffled gate 1707) left _place() refusing it.
+	_clear_traffic()
+	await _ticks(2)
 	var sent := _fleet.send_tow(wreck)
-	_check(sent, "a tow truck is sent for a burnt-out wreck")
+	_check(sent, "a tow truck is sent for a burnt-out wreck (%s)" % ("sent" if sent else _fleet.last_refusal))
 	var carried := false
 	var e := {}
 	for i in 2400:
