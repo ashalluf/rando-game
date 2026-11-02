@@ -2796,6 +2796,8 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	load("res://tests/rc_hills_checks.gd").new().run(self, city)
 	# The fourth perf audit (tests/perf_audit_4_checks.gd): the horizon tiles, the far city's hidden tiles.
 	load("res://tests/perf_audit_4_checks.gd").new().run(self, city)
+	# The fifth perf audit (tests/perf_audit_5_checks.gd): wheel, knee-high plant and crowd shadow twins.
+	load("res://tests/perf_audit_5_checks.gd").new().run(self, city)
 	# Traffic behaviour (tests/traffic_behaviour_2_checks.gd, TrafficBehaviour): creep at a red,
 	# inching queues, brake flicker, a bus pulling out, left turns' gaps, wrecks, heads turning.
 	await load("res://tests/traffic_behaviour_2_checks.gd").new().run(self, city)
