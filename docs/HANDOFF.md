@@ -27049,8 +27049,11 @@ In the game's clock the sun sets at 18:00, so 19:15 is full night: the lanterns 
 bit-identical to main):
 1. **The lanterns blew out to pale pink-white balls.** The silk emitted red x 6.5 with a peach core;
    through AgX a bright red-heavy colour goes salmon-white (the CarDamage flame rule). Now the silk
-   is held to red under ~0.85 with green ~0.24-0.48 of red in the hot core (deeper red at the rim,
-   the gold lanterns amber), the ribs and the gilt ends dark against it: lit silk, not paper balls.
+   is a deep red rim (green 0.035 of red) and a hot core with green ~0.24 of red (the gold lanterns
+   amber), x 1.9 at night (0.85 was right on opengl3 but matte on Forward+: no bloom), the ribs and
+   the gilt ends dark against it: lit silk, not paper balls. Proved on Forward+ (lavapipe,
+   `tools/glshot/fwd_block_shot.tscn` with `BLOCKS=home`; BLOCKS=1 is OOM-killed on a 15 GB box):
+   main's lanterns bloom with white-hot cores, these glow red-orange with a soft bloom.
    12 sides instead of 8 (148 triangles a lantern, was 116; they are in the shadowless twin).
 2. **The shop glass was a flat pale slab** (a shelf pattern painted on the pane, glowing). It now
    traces a room behind the glass, `shop_room()` in chinatown.gdshader: `shop_bay` 3 m bays,
@@ -27070,6 +27073,7 @@ bit-identical to main):
    foot with gilt rings and a finial. **The court held five people**: `PLAZA_PEOPLE` 30 (was 16),
    each still through the crowd cap.
 
-**Not done / not verified**: the Forward+ look on the Mac (the lantern colour was chosen against
-AgX by the rule, judged on opengl3 only - see the end of this section for whether a lavapipe
-check ran); the far / LOD copies are unchanged (boxes); the plaza paving is still one even grid.
+**Not done / not verified**: the Mac itself (Forward+ judged on lavapipe only, the plaza block
+alone, 45 frames - SDFGI not fully settled); the far / LOD copies are unchanged (boxes); the plaza
+paving is still one even grid; the shop rooms are one generic shop for every trade (a kitchen
+traces shelves of goods too).
