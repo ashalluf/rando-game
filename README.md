@@ -13,3 +13,7 @@ from tools/refcams.
   district block carrying 2.6x its walkers near the camera, folded stock with creases.
 - 05_before_after_side_by_side.jpg - main (left) against the branch (right), same eye.
 - 06_after_goods_close.jpg - the goods in the final still, cropped 2x.
+- 07_ten_cameras_compare_vs_main.jpg - the ten original cameras, main 484a7897 against this
+  branch: 9 ok, freeway flagged (p50 +9).
+- 08_freeway_flag_is_traffic.jpg - main (left) and branch (right) freeway: the difference is the
+  live traffic (other cars, a truck's shadow on main's lane); the deck, towers and sky are the same.
