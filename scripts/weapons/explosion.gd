@@ -97,6 +97,8 @@ static func blast(node: Node3D, at: Vector3, radius: float, launch_speed: float,
 	# Windows blown in, a hole in the wall (BuildingDamage).
 	BuildingDamage.blast(node, at, radius, launch_speed / maxf(reference_launch, 1.0))
 	# Blast4: the bang at the speed of sound with a thump under it, the shake with the wave.
+	# Blast4: the shock ring kicks loose bodies outside the radius as the wave reaches them.
+	Blast4.shock_kick(node, at, radius, exclude)
 	if not Blast4.punch(node, at, radius, fuel4):
 		Sfx.play("explosion", at, 4.0)
 	# Everyone for a block around runs; the ones nearest scream.

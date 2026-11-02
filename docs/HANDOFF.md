@@ -26832,6 +26832,24 @@ Checks: `_round7()` in tests/explosions_4_checks.gd. Stills 49 on.
    band across the frame).
 Checks: `_round8()`. Stills 54 on.
 
+**Round 10: the car blast at night, the shock ring** (the lead's next list):
+1. **A night car blast on Forward+** (`NIGHT=1 WET=1 CAR=1 DIST=20` on blast_room_shot.gd; `WET=1`
+   is a glossy dark road): at 0.1 s the flash, the screen flash and the flare blew the whole
+   dark-adapted frame out to white, and from 3 s the burning wreck barely lit the street. At night
+   (`DayNight.lamp_now`) `Blast4.flash_night()` holds the flash light and the screen flash to
+   `night_flash` (0.45) and the flare starts smaller and half faded; `fire_night_gain()` (2.2) and
+   `fire_night_range()` (1.7) lift the wreck's fire light (CarDamage) and the pools' lights, so the
+   facades glow orange and the wet road mirrors the fire. `BLAST_NIGHT=0` the A/B.
+2. **The shock ring** (`Blast4.shock_kick()`, after Explosion.blast()'s own pushes): every loose
+   body on the props layer between 1 and `shock_reach` (2.5) radii - bins, physics props, parked
+   cars, traffic cars within 1.6 radii (thrown out of traffic) - is kicked outward and spun as the
+   wave (343 m/s) reaches it, `shock_speed` 9 m/s at the radius falling off squared, cars at 0.7
+   of it. Measured (`PROPS=1` on blast_room_shot.gd prints MOVED lines): bins at 11-16 m from a
+   rocket move 0.2-2 m (0 before). `BLAST_SHOCK=0`.
+3. The worst thing left in a 3-second strip: the flame tongues on debris still flying read as
+   floating candle flames; they should streak while the piece flies and stand up once it lands.
+Checks: `_round9()`. Stills 58 on.
+
 ## 9lb. The camera lens (wave 5, `camera-lens`)
 
 **What.** The camera itself: exposure adaptation, the sun's flare, grain, the bloom's spread.
