@@ -39,6 +39,7 @@ func run(t: Node, city: Node) -> void:
 	_shaders()
 	_quality(city)
 	_rain_ceiling(city)
+	_fountain_plume()
 
 
 func _preset() -> void:
@@ -334,3 +335,12 @@ func _rain_ceiling(city: Node) -> void:
 func _const_f(src: String, name: String) -> float:
 	var m := RegEx.create_from_string("const\\s+float\\s+" + name + "\\s*=\\s*([0-9.]+)").search(src)
 	return float(m.get_string(1)) if m else -1.0
+
+
+## MacArthur Park's fountain plume (420 particles) blew up into a park-wide glare in the browser
+## (web-build-5) and is left out there; everywhere else it is built as before.
+func _fountain_plume() -> void:
+	var park: GDScript = load("res://scripts/world/landmark_macarthur_park.gd")
+	var src := FileAccess.get_file_as_string("res://scripts/world/landmark_macarthur_park.gd")
+	_t._check(park.call("plume_allowed") == true and src.contains("if plume_allowed():"),
+		"web: the fountain plume is built off the web and gated on it")

@@ -18,7 +18,8 @@ func _ready() -> void:
 		var search: Variant = JavaScriptBridge.eval("window.location.search", true)
 		if search is String:
 			for part in (search as String).trim_prefix("?").split("&", false):
-				var kv := part.split("=")
+				# Split at the first "=" only (glob:<name>=<v> carries one).
+				var kv := part.split("=", true, 1)
 				_q[kv[0]] = kv[1] if kv.size() > 1 else "1"
 	_run.call_deferred()
 
