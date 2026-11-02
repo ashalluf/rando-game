@@ -25216,12 +25216,30 @@ the `specular_aa` shader global; shaders/specular_aa.gdshaderinc):
 6. **Palms.** Their LOD ladder switched each merged-leaflet level in at a one-pixel departure, so the
    full crown's 3-4 cm leaflets were drawn out to ~230 m. Palm batches take
    `SpecularAA.PALM_LOD_BIAS` 0.33 (MultiMeshBatch.build(), one hook): each level comes in at about a
-   three-pixel departure - wider blades of the same leaf area sooner (and fewer triangles).
+   three-pixel departure - wider blades of the same leaf area sooner (and fewer triangles). 0.15 was
+   tried: a 50 m crown's flicker -8 % only, and its flatter merged blades caught brighter wet glints
+   under the lamps at night (still 04): left at 0.33, which changes crowns past ~70 m.
 
-Numbers (street_noon, `--ss 4`): see the table at the end of this section. Stills on
-`shots/specular-aliasing`.
+Numbers (`--ss 4`, opengl3, MEAN of |d2| /255 and FLICKER share, before -> after):
 
-**Not done / not verified:** Forward+ with real TAA in motion (lavapipe cannot hold the city; the
+| strip | region | before | after |
+|---|---|---|---|
+| car, dark sedan 22 m, orbit | the car | 0.71, 1.86 % | 0.43, 1.31 % (-40 % / -29 %) |
+| street_noon pan (window/paint/frame fixes, palm bias 0.33) | whole frame | 4.14, 18.7 % | 4.07, 18.3 % |
+| street_noon | far double-yellow | 3.54, 14.3 % | 3.38, 13.5 % |
+| street_night rain pan (palm bias 0.15, since put back to 0.33; before = SPECULAR_AA=0) | palm crown | 7.54, 36.3 % | 6.93, 33.9 % |
+| street_night | the wet road | 1.24, 4.2 % | 1.24, 4.2 % |
+
+Honest reading: at the city cameras most of what still scores is polygon and shader EDGES at 1-3
+pixels that four jittered samples cannot fully resolve (the Mac's TAA integrates more), and the
+palm crown, which stays the worst single thing (see Not done). The wet road at this camera was never
+a big offender. Frame cost goes DOWN: street_noon 6.93 M -> 6.62 M triangles, 3,083 -> 3,025 draws;
+street_night 7.14 M -> 6.77 M at the tried 0.15 palm bias. Stills on `shots/specular-aliasing`.
+
+**Not done / not verified:** the palm crowns still flicker most: their leaflets are separate
+opaque blades with no width the shader can see, so the only lever used is the LOD; a real fix is a
+coverage term per leaflet (its width in a vertex attribute from PropFactory._palm_frond, widened to
+a pixel and dithered on Forward+). Forward+ with real TAA in motion (lavapipe cannot hold the city; the
 compile is verified, the look is the opengl3 jittered proxy); the scooters' and bike racks' thin
 tubes, the street trees' cards beyond the dither foliage_tex already has, chain-link (already
 footprint-faded) and the ocean's glints (already footprint-handed) were left alone. The project's

@@ -13,10 +13,11 @@ static var enabled: bool = OS.get_environment("SPECULAR_AA") != "0"
 ## The palm batches' LOD bias (MultiMeshBatch.build()): a palm's ladder levels are its leaflets
 ## merged `stride` at a time (PropFactory.PALM_LEVELS), each switched in where its departure from
 ## the full crown is under a pixel - so the full crown's 3-4 cm leaflets were drawn out to ~230 m,
-## where each is a fifth of a pixel and the crown sparkled in any camera move. At 0.15 a level
-## comes in where its departure is about seven pixels (0.33, three, left a 50 m crown at full
-## detail, measured): wider blades of the same leaf area sooner.
-const PALM_LOD_BIAS := 0.15
+## where each is a fifth of a pixel and the crown sparkled in any camera move. At 0.33 a level
+## comes in where its departure is about three pixels: wider blades of the same leaf area sooner
+## past ~70 m. 0.15 (seven pixels) took a 50 m crown's flicker down only 8 % and its flatter blades
+## caught brighter wet glints under the lamps at night (measured, HANDOFF): not worth it.
+const PALM_LOD_BIAS := 0.33
 
 
 ## Pushes the switch to the shaders (Weather._ready(), beside PavingAA's).
