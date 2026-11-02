@@ -25155,3 +25155,47 @@ Probes: `tools/rc_beach/sand_roads_probe.gd` (headless: every coast street stret
 beach; `LOOK=swim|wade|surf` saves a close look at the first one). Checks `tests/rc_beach_checks.gd`.
 Stills on `shots/rc-beach`.
 
+
+## 9d?. June gloom at street level: the marine_morning refcam (fleet wave 5, `wt/rc2-marine`; VISUAL_ROADMAP "?")
+
+**The camera.** A new reference view, the first row of `tools/refcams/cameras_w5.json`
+(`REFCAMS_JSON=tools/refcams/cameras_w5.json python3 tools/refcams/refcams.py run ...`):
+`marine_morning`, the beach town at 08:00 under the MARINE layer, eye level on 11th St (-585, 1.7
+over the ground, 1205), looking west (yaw 91) down a palm-lined street with lamps and banners to the
+sand, fov 55. Candidates tried and not taken (Olympic Blvd: a concrete lot; Venice Blvd: a clean
+frame down to the sea but bare stucco boxes; a park lawn; the marina; the freeway over 2nd St) are in
+the stills branch. `refcams_shot.gd` now calls `Weather.settle_wet(state, hour, eye)` once the hour
+and the eye are set (it only differs from the old `_rain_level * 1.2` under the marine layer).
+
+**What gave it away** (main bb03d731), in the order the eye lands:
+1. **A flat painted ceiling.** The deck's underside (marine_layer.gdshader mode 0) varied by ~3 grey
+   levels: its rolls were +-5 % of a dim grey, and the deck fogged ITSELF with the whole scene haze
+   over its distance (~40-50 % even straight up). Under `look` 1 (MarineMorning.deck_look()) it is
+   stratocumulus: warped Worley cells stretched down the wind (430 x 250 m) with sub-cells and fine
+   lumps, the thick cores 0.74x and the thin seams 1.46x the shaded colour, a forward-scattering
+   glow toward the sun mostly through the seams, every scale faded to its mean once it is under a
+   few pixels (`fwidth`), and half the haze (the scene's fog is the low air's). Proven on Forward+
+   (lavapipe, `fwd_block_shot.tscn BLOCKS=0`, the stills `05` / `06`): the same cells, neutral cool
+   grey, no colour-space shift.
+2. **A bone-dry street.** A gloomy coastal morning leaves the streets damp. `MarineMorning.damp()`
+   (DAMP 0.3 x marine_here x `morning(hour)`: all night, through the morning, gone 10:00-11:30,
+   back from 20:30) is a floor under Weather's wetness target. Two looks were tried and dropped:
+   the drying patches (`road_drying` 1, then 0.35) read as hard-edged oil stains, and the even film
+   of a shower at 0.3 read LIGHTER than the dry street (the bright grey sky in a glossy film). So
+   road.gdshader takes a `road_mist` global (Weather, 1 while the mist and not rain holds the
+   water; 0 everywhere else, bit for bit): the soak darkens 2.3x as far, the film keeps 40 %
+   (a sheen at a grazing angle), the puddles a quarter, no gutter run. Road under the lens
+   105 -> 95 (mean, the lower half of the frame), the pavement darker too.
+3. **The end of the street as crisp as the kerb.** `MarineMorning.mist()` adds 0.001 depth-fog
+   density under the deck in the morning within COAST_NEAR (900 m) of the coast, fading out by
+   COAST_REACH (3.2 km): with the layer's own 0.00038, e^-1 at ~0.8 km at the beach - the sand at
+   the end of 11th St and the headland soften, the sea's horizon is lost in grey.
+
+`MARINE_MORNING=0` turns all three off (the A/B). Not done: the palms' frond cards still alias on
+opengl3 (no TAA there), the stucco boxes on Venice Blvd are not this camera's, Forward+'s volumetric
+fog under the deck was not tuned, and a full Forward+ street could not be shot here (lavapipe
+OOM-killed a one-block scene twice on this 15 GB box; the sky alone fits).
+
+Checks: `tests/rc2_marine_checks.gd` (12: the hour curve, damp and mist and their reaches, the
+switch, `settle_wet` damp at 08:00 / dry at 14:00, under a clear sky and above the deck, road_mist,
+the two shader gates, the camera row). Stills on `shots/rc2-marine`.
