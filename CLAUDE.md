@@ -1868,6 +1868,15 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   touchdown was at the far end). Stills: `AIR=taxi|pushback|apron` on still_shot.gd (`AIR_SIDE` the
   stand, `AIR_DIST` seconds in). Checks: `tests/airport_life_checks.gd` (alone in a minute:
   `tools/airport_life/run_checks.gd`).
+- The airport apron refcam (wave 5, `airport_apron` in `tools/refcams/cameras_w5.json`, docs/HANDOFF.md
+  "The airport apron from 25 m"): `AirportApron` (`scripts/world/airport_apron.gd`). The airport's
+  paint is lifted to `PAINT_LIFT` (road_paint's 4 mm press had put every line UNDER the apron; set at
+  paint time, never in a static initialiser - the two classes refer to each other); apron yellow on a
+  black border; oil / rubber / tyre-track stains per stand in the "patch" batch (`stain_list()`, pure);
+  airliner titles, registrations, seams, dark fans, grime (`detail` on airliner_livery.gdshader; the
+  livery index from a varying is ROUNDED); chamfered AirportKit boxes and grime; the concourse glass
+  lit by day; weathered roofs; a straw infield (lawn.gdshader `straw`). `AIRPORT_APRON=0` the A/B;
+  the jet alone `tools/airport_apron/jet_shot.gd`; checks `tests/rc2_airport_checks.gd`.
 - Shop signs: storefront sign bands carry real names. `Building` picks how many window bays
   make one shop per face (`_shop_spans()`, hashed from the seed, never from `_rng`) and passes
   it to the shader as `shop_span`, so the bands the shader draws and the `TextMesh` names the
@@ -2149,6 +2158,14 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   2 cm roof raise on the hatchback) can leave the body non-manifold - every later boolean is then
   "rolled back"; check the log's count. `car_shot.gd --each=30,31,32,33,34`; checks
   `tests/cars_3_checks.gd`.
+- Cars, the fourth wave (2026-11-01, docs/HANDOFF.md "Cars, the fourth wave"): `Cars4`
+  (`scripts/vehicles/cars_4.gd`) - WAGON, MUSCLE, LUX_SUV, KEI_VAN, CLASSIC, appended, built by
+  `tools/make_cars_4.py` (the same command as make_cars_3.py) as specs DERIVED by station maps
+  (`map_d()` moves a detail table with them; the kei van is scaled after the build). ROLL_MAP rows a
+  fourth entry 4 (`Cars4.row_type()`; older waves' checks run with `Cars4.enabled` off). Their own
+  paints off the look seed (`Cars4.paint_for()`). Census `tools/car_variety/census.tscn` (bodies and
+  paint families round the camera over a game minute). `CARS_4=0` the A/B; checks
+  `tests/car_variety_4_checks.gd`.
 - Lowriders (2026-10-06, docs/HANDOFF.md "Lowriders"): `Lowrider` (`scripts/vehicles/lowrider.gd`),
   `BodyType.LOWRIDER_HARDTOP` (a 1960s full-size hardtop) and `LOWRIDER_COUPE` (a 1980s coupe),
   appended, `BODY_ODDS` 0, built by `tools/make_lowriders.py` on the road-car loft (bpy 4.2 works:
@@ -3296,6 +3313,15 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   hidden and a chassis and box hitched instead (some bobtails). LOD / far: boxes. A/B:
   `PORT_LIFE=0`. Probe: `tools/port_life_probe.gd` (cranes, step times, poses at `T=`). Checks:
   `tests/port_life_checks.gd`.
+- The container terminal from the crane (wave 5, refcam2 `port_crane` in
+  `tools/refcams/cameras_w5.json`, docs/HANDOFF.md "The container terminal from the crane"):
+  `PortFill` (`scripts/world/port_fill.gd`) tops every yard pile up to 3-4 tiers and fills most
+  empty slots from its OWN stream after every old roll (`_port_stack()`'s `fill` argument); the
+  high mast's head is a lowering ring of ten floodlights; container roofs carry dust, stains and
+  rust (container.gdshader `roof_dust`); the ship's bow rakes and flares over a bulb with shell
+  plating (port_steel part 14, `PortKit._ship_rake()`); `PortMooring` hangs head, breast, spring and
+  stern lines from the quay's bollards. `PORT_FILL=0` / `PORT_ROOF=0` / `PORT_SHIP=0` /
+  `PORT_MOORING=0` the A/Bs; checks `tests/rc2_port_checks.gd`.
 - Map: `MacroMap` (`scripts/world/macro_map.gd`) decides zone (city, beach, ocean, hills, airport,
   port), land height and district for any world XZ. The city itself rolls: `relief_at()` is the
   gentle height field under the blocks (zero on beaches, flat zones, mountain hills and around
@@ -3744,6 +3770,13 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   crossings; seconds); timing `tools/la_river/river_bench.tscn`; stills
   `tools/la_river/river_shot.tscn` (CAR=1 a car down a ramp) and `still_shot.gd` EYEs (HANDOFF
   9bp). Checks: `tests/la_river_checks.gd`.
+- The LA River from the bed (wave 5, refcam `la_river` in `tools/refcams/cameras_w5.json`,
+  docs/HANDOFF.md "The LA River from the bed"): `RiverLook` (`scripts/world/river_look.gd`, the
+  `river_look` global): the low flow mirrors the channel's own banks (`rw_mirror()` /
+  `RiverLook.mirror_hit()`, change both; the water's vertex colour is `water_color()`), concrete
+  joints filtered per axis (`joint2()`), flow stains, a canyon bounce on what the sun misses, two
+  graffiti layers and pieces on the ramp walls; `RiverDebris` lays weeds and litter on FULL beds.
+  `RIVER_LOOK=0` is the A/B; checks `tests/rc2_river_checks.gd`.
 - The coast highway (2026-10-05, docs/HANDOFF.md "The coast highway"): north of the beach town,
   where the front range meets the sea. `CoastHighway` (`scripts/world/coast_highway.gd`,
   `MacroMap.coast_highway`, built in `setup()` before the hill roads) is a pure plan in
@@ -6747,6 +6780,16 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   its last mip once its module (`PavingAA.MODULE`, a share of the tile; `road()` passes
   `pattern_module`) is under two pixels (`paa_tex_fade`). `PAVING_AA=0` is the A/B; checks
   `tests/paving_aliasing_checks.gd`; probes `tools/paving_aa/`.
+- Shimmer in motion (2026-11-01, docs/HANDOFF.md "Shimmer and crawl in motion"): judge aliasing
+  with a frame strip, never a still: `tools/specular_aliasing/strip.py run|measure|compare` (a slow
+  pan from one load, DIFF=1; `--ss 4` averages four jittered renders a frame = what TAA integrates;
+  the score is the per-pixel second temporal difference). `shaders/specular_aa.gdshaderinc`:
+  `saa_geometric()` (geometric specular AA: car lacquer on both renderers - Godot's limiter skips
+  CLEARCOAT_ROUGHNESS - and base roughness on Compatibility), `saa_minified()` (a normal map's slope
+  variance lost in its mips, by footprint: the wet road), `saa_dither()` (temporal on Forward+, a
+  plain half on Compatibility: a FIXED dither crawls as much as the aliasing). Road paint under a
+  pixel is widened and blended by its cover; window frames fade by coverage (`thin_m`); palms take
+  `SpecularAA.PALM_LOD_BIAS`. `SPECULAR_AA=0` is the A/B; checks `tests/specular_aliasing_checks.gd`.
 - Road hardware (2026-10-05, docs/HANDOFF.md "Road hardware"): `RoadHardware`
   (`scripts/world/road_hardware.gd`, one hook line at the end of `StreetDetail.build_block`, FULL
   chunks) lays cast-iron manhole covers (four cast patterns, proud or sunk in a patched round or
