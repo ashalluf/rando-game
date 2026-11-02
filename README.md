@@ -5,3 +5,4 @@ opengl3 stills (the Compatibility renderer, not the Mac's Forward+), refcams.py,
 - 01_before_pier_day_1500.jpg - main 484a7897
 - 02_after_pier_day_1500.jpg - wt/rc3-pier-day (board deck, weathered paint, the afternoon crowd)
 - 03_before/after_deck_closeup_crop.jpg - the bottom of the same frames
+- 04_before / 05_after_forwardplus_pier_alone_1500.jpg - the pier alone on lavapipe Forward+ (tools/pier_night/pier_shot.tscn, HOUR=15, PIER_DAY=0 / 1; no crowd in that scene): the board deck on the Mac's renderer
