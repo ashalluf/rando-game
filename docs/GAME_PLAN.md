@@ -4323,3 +4323,12 @@ none of either.
 - 2026-11-02 (chase-box-bug): an additive (blend_add) shader must be `fog_disabled` or write a coverage
   alpha (`af_cover()`, shaders/additive_fog.gdshaderinc): with ALPHA left at 1 the renderer adds the fog
   colour over the whole quad, which drew a grey square round each tail lamp of the player's car.
+
+
+- **2026-11-02 The night game from the hill (rc3-stadium-night, HANDOFF "The night game from the
+  hill").** A new reference camera (`stadium_night`, wave 6's table) judged the ravine ballpark from
+  the bank above the north lot at 21:00. Decisions: a car park seen from the hills holds real (box)
+  cars in every stall it fills, never painted ones; a floodlight bank is the air round it (bloom,
+  shafts), not only its lenses; a crowd past the seat detail is a mosaic of groups, not the tier's
+  tint; a night game has players on the field; the ballpark's far copy keeps its planting.
+  STADIUM_NIGHT=0 is the A/B.

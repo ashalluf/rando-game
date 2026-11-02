@@ -2869,6 +2869,8 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	load("res://tests/rc2_chase_cam_checks.gd").new().run(self, city)
 	# The pale box round the player's car (tests/chase_box_bug_checks.gd): additive shaders and the fog.
 	load("res://tests/chase_box_bug_checks.gd").new().run(self, city)
+	# The night game from the hill (tests/rc3_stadium_night_checks.gd, StadiumNight): box cars, banks, players.
+	load("res://tests/rc3_stadium_night_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()
