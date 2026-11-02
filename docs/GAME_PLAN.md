@@ -4315,3 +4315,11 @@ none of either.
   comes in with distance; broad road-light pools have no hard rim and dim from the air; floodlit
   masonry is a fifth of the old brick and render, not most of it; a far searchlight seen from the air
   saturates softly and fades with distance. NIGHT_AERIAL=0 is the A/B.
+
+- **2026-11-02 The fashion district refcam: the goods are drawn and reachable (rc3-fashion-district,
+  HANDOFF "The fashion district refcam").** A new reference camera (`fashion_district`, wave 6's
+  table) judged the district's pavement at 11:30. Decisions: a batch with a draw range is cut into
+  stretches near the size of its range (a block-wide batch was never drawn beside its goods); the
+  district's frontage has no forecourt planter in front of the goods (rolls kept); the frontage is
+  dense and the pavement packed near the camera (2.6x walkers); folded stock carries creases.
+  FD_CELLS / FD_PLANTERS / FD_DENSE / FD_FOLDS =0 are the A/Bs.
