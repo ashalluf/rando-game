@@ -12,6 +12,9 @@ var _tree: SceneTree
 var _made: Array = []
 
 
+var _stagger_retried := false
+
+
 func run(t: Node, city: Node3D) -> void:
 	_t = t
 	_tree = t.get_tree()
@@ -31,11 +34,13 @@ func run(t: Node, city: Node3D) -> void:
 	RagdollJoints.leave_range = 100000.0
 	RagdollJoints.max_active = 6
 	RagdollFeel.enabled = true
-	await _check_stagger(city, chunk)
-	await _check_trailing(city, chunk)
-	await _check_car(city, chunk)
-	await _check_stairs(city, chunk)
-	await _check_switch(city, chunk)
+	# In a shard the spawn block's chunk is now and then replaced while this file runs (an open
+	# streaming bug, docs/HANDOFF.md "gate flakes"): take the live one before each check.
+	await _check_stagger(city, await _home(city, chunk))
+	await _check_trailing(city, await _home(city, chunk))
+	await _check_car(city, await _home(city, chunk))
+	await _check_stairs(city, await _home(city, chunk))
+	await _check_switch(city, await _home(city, chunk))
 	RagdollJoints.enabled = was[0]
 	RagdollJoints.joint_range = was[1]
 	RagdollJoints.max_active = was[2]
@@ -45,6 +50,18 @@ func run(t: Node, city: Node3D) -> void:
 		if is_instance_valid(n):
 			(n as Node).queue_free()
 	await _ticks(2)
+
+
+## The spawn block's chunk as it is now (a replaced one is freed, and its dolls with it).
+func _home(city: Node3D, was: Node3D) -> Node3D:
+	var c: Node3D = city.chunks.get(Vector2i(0, 0))
+	if c != null and is_instance_valid(c) and c.is_inside_tree():
+		if c != was:
+			print("RAGDOLL_FEEL the spawn chunk was replaced; using the new one")
+		return c
+	if _t.has_method("stage_home"):
+		await _t.stage_home()
+	return city.chunks.get(Vector2i(0, 0))
 
 
 ## A floor box `size` big whose top centre is `slot` floors along, 30 m over the junction
@@ -132,6 +149,12 @@ func _check_stagger(city: Node3D, chunk: Node3D) -> void:
 		var hips := doll._pelvis().y - ground.y
 		if down_at < 0 and hips < 0.45:
 			down_at = i + 15
+	if down_at < 0 and not is_instance_valid(doll) and not _stagger_retried:
+		# Freed under us (its chunk replaced in a shard), not a fall that never came: once more.
+		_stagger_retried = true
+		print("RAGDOLL_FEEL the stagger doll was freed before it fell; once more on the live chunk")
+		await _check_stagger(city, await _home(city, chunk))
+		return
 	_check(down_at > 20 and down_at < 150, "then they go down (hips under 0.45 m after %.2f s)" % (down_at / 60.0))
 	_check(worst < 0.1, "the joints hold through the stagger (worst gap %.3f m)" % worst)
 	if is_instance_valid(doll):

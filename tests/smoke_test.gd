@@ -2823,6 +2823,18 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	# The container terminal refcam (tests/rc2_port_checks.gd, PortFill, PortMooring): the yard's
 	# tiers, the mast's floodlights, the ship's bow and plating, the mooring lines, dusty roofs.
 	load("res://tests/rc2_port_checks.gd").new().run(self, city)
+	# The glass at arm's length (tests/interiors_glass_checks.gd, InteriorsGlass): people in the shops,
+	# the fittings' light, the day mirror, the spill's window, the A/B.
+	load("res://tests/interiors_glass_checks.gd").new().run(self, city)
+	# Facades at mid distance, third pass (tests/facades_mid3_checks.gd, FacadeMid3): piers, raised parapets, gravel.
+	load("res://tests/facades_mid3_checks.gd").new().run(self, city)
+	# The marine-morning refcam (tests/rc2_marine_checks.gd, MarineMorning): damp streets, the coast's mist, the deck's underside.
+	load("res://tests/rc2_marine_checks.gd").new().run(self, city)
+	# The suburb refcam (tests/rc2_suburb_checks.gd, RcSuburb): residents' cars, pale DG, the leaf dither.
+	load("res://tests/rc2_suburb_checks.gd").new().run(self, city)
+	# The crowd plaza refcam (tests/rc2_crowd_plaza_checks.gd, PlazaCrowd, CrowdDress): plazas by the
+	# hour and crossed, rigs dealt, outfits per rig, the A/Bs.
+	load("res://tests/rc2_crowd_plaza_checks.gd").new().run(self, city)
 	# The gate's intermittent failures, wave 5 (tests/gate_flakes_2_checks.gd): a stale pending build.
 	await load("res://tests/gate_flakes_2_checks.gd").new().run(self, city)
 

@@ -34,21 +34,23 @@ const OUT_DIR := "res://assets/models/crowd_life/"
 ## The settle turns the standing clips' legs that far back toward the rig's own rest (as
 ## retarget_lib's settle_legs does for the crowd's idle): the library stands every idle in a
 ## wide, knee-bent stance with one foot forward, a game character's ready stance, which on a
-## pavement read as somebody about to fight.
+## pavement read as somebody about to fight. 0.6 still left a crouch at eye level (the crowd
+## plaza refcam, 2026-11-01: people standing in a group read as squaring up), so `STAND_SETTLE`.
+const STAND_SETTLE := 0.88
 const CLIPS := [
-	["UAL1_Standard.glb", "Idle_Loop", "idle", true, 1.0, 0.6],
-	["UAL1_Standard.glb", "Idle_Talking_Loop", "talk", true, 1.0, 0.6],
+	["UAL1_Standard.glb", "Idle_Loop", "idle", true, 1.0, STAND_SETTLE],
+	["UAL1_Standard.glb", "Idle_Talking_Loop", "talk", true, 1.0, STAND_SETTLE],
 	["UAL1_Standard.glb", "Sitting_Enter", "sit_down", false],
 	["UAL1_Standard.glb", "Sitting_Idle_Loop", "sit", true],
 	["UAL1_Standard.glb", "Sitting_Talking_Loop", "sit_talk", true],
 	["UAL1_Standard.glb", "Sitting_Exit", "stand_up", false],
 	["UAL1_Standard.glb", "Jog_Fwd_Loop", "jog", true, 0.55],
 	["UAL1_Standard.glb", "Idle_Torch_Loop", "hold", true],
-	["UAL2_Standard.glb", "Idle_TalkingPhone_Loop", "phone", true, 1.0, 0.6],
-	["UAL2_Standard.glb", "Idle_FoldArms_Loop", "fold", true, 1.0, 0.6],
-	["UAL2_Standard.glb", "Consume", "drink", false, 1.0, 0.6],
-	["UAL2_Standard.glb", "Yes", "nod", false, 1.0, 0.6],
-	["UAL2_Standard.glb", "Idle_No_Loop", "shake", true, 1.0, 0.6],
+	["UAL2_Standard.glb", "Idle_TalkingPhone_Loop", "phone", true, 1.0, STAND_SETTLE],
+	["UAL2_Standard.glb", "Idle_FoldArms_Loop", "fold", true, 1.0, STAND_SETTLE],
+	["UAL2_Standard.glb", "Consume", "drink", false, 1.0, STAND_SETTLE],
+	["UAL2_Standard.glb", "Yes", "nod", false, 1.0, STAND_SETTLE],
+	["UAL2_Standard.glb", "Idle_No_Loop", "shake", true, 1.0, STAND_SETTLE],
 	["UAL2_Standard.glb", "Idle_Rail_Loop", "rail", true],
 ]
 

@@ -179,6 +179,13 @@ func _walk_check(chunk: Node3D, rect: Rect2, g: String) -> void:
 		for i in 120:
 			_steer(p, Vector2(p.position.x + 40.0, p.position.z))
 			await _tree.physics_frame
+		# In a busy shard CrowdFlow can sidestep it round someone else on the straight: give it
+		# up to four more seconds of straight road to come upright.
+		for i in 240:
+			if absf(p._visual.rotation.z) < 0.01:
+				break
+			_steer(p, Vector2(p.position.x + 40.0, p.position.z))
+			await _tree.physics_frame
 		_check(bank > 0.01 and bank <= CrowdGait.TURN_LEAN_MAX + 0.001 and absf(p._visual.rotation.z) < 0.01,
 			"a walker banks into a bend and straightens after it (%.1f degrees, then %.1f)" % [rad_to_deg(bank), rad_to_deg(p._visual.rotation.z)])
 	p.queue_free()

@@ -91,6 +91,9 @@ func _initialize() -> void:
 		RenderingServer.global_shader_parameter_set("city_hour", OS.get_environment("HOUR").to_float())
 	if OS.get_environment("WI") == "0":
 		RenderingServer.global_shader_parameter_set("window_interiors", 0.0)
+	# IG=0: the glass at arm's length off (InteriorsGlass: people in the shops, the spill's window).
+	if OS.get_environment("IG") == "0":
+		RenderingServer.global_shader_parameter_set("interiors_glass", 0.0)
 	for i in _env_int("SETTLE", 10):
 		await process_frame
 	# BENCH=n: n more frames timed, for the cost of a shader change on a frame full of facade

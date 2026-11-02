@@ -86,6 +86,11 @@ func _run() -> void:
 			day.call("_apply")
 		Engine.time_scale = 1.0
 		_place(player, fov)
+		# The marine layer's morning damp (MarineMorning) wants the hour and the eye: soaked at once.
+		if weather and weather.has_method("settle_wet"):
+			var keys: Array = weather.get_script().get_script_constant_map().get("STATE_KEYS", [])
+			weather.call("settle_wet", keys.find(String(cam.get("weather", "clear"))), float(cam.hour),
+				Vector3(float(eye[0]), y, float(eye[2])))
 		if scene.has_method("update_streaming"):
 			scene.call("update_streaming", true)
 		# A row may ask for more frames (cameras_w5.json "shot_frames": a view over big chunks that

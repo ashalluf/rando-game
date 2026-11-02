@@ -34,6 +34,9 @@ uniform float sky_through : hint_range(0.0, 2.0) = 0.45;
 
 // --- Close up (trees-closeup, 2026-10-30; TreesCloseup). 0 = the shader as it was (the A/B) ---
 uniform float closeup : hint_range(0.0, 1.0) = 1.0;
+// RcSuburb (RC2_SUBURB=0 sets 0): the Compatibility renderer's leaf dither waits for a real
+// sub-pixel leaf and uses a hash with no rows.
+uniform float sprig_dither_fix = 1.0;
 /// The crown's lean downwind as a gust front passes (multiples of its sway bend).
 uniform float gust_push : hint_range(0.0, 4.0) = 1.5;
 /// Bark relief: the bark patterns' own dark furrows bumped in (metres of depth at full dark).
@@ -58,6 +61,13 @@ uniform vec3 underside = vec3(1.1, 1.1, 1.0);
 varying float v_kind;
 varying float v_rnd;
 varying vec3 v_obj;
+
+// A pixel hash with no row or column structure (Dave Hoskins' hash12): RcSuburb's dither.
+float hash_px(vec2 p) {
+	vec3 p3 = fract(vec3(p.xyx) * 0.1031);
+	p3 += dot(p3, p3.yzx + 33.33);
+	return fract((p3.x + p3.y) * p3.z);
+}
 
 float h21(vec2 p) {
 	p = fract(p * vec2(123.34, 456.21));
@@ -390,11 +400,22 @@ void fragment() {
 		float px = max(fwidth(uv.y), fwidth(uv.x) * 0.35);
 		float feature = kind > 18.5 ? (style < 0.5 ? 0.07 : 0.035) : (kind < 11.5 ? 0.05 : 0.08);
 		float cover = kind > 18.5 ? (style < 0.5 ? 0.5 : (style < 1.5 ? 0.38 : 0.45)) : (kind < 11.5 ? 0.6 : fract(v_rnd) * 0.9);
-		float detail = smoothstep(feature * 0.5, feature * 2.0, px);
+		float dscale = 1.0;
 		float d1 = h21(FRAGCOORD.xy + rnd * 13.0);
+		float d2 = h21(FRAGCOORD.yx * 1.37 + rnd * 7.0 + 3.1);
+#if CURRENT_RENDERER == RENDERER_COMPATIBILITY
+		// RcSuburb: no TAA here to resolve the dither, so it waits until a leaf is really under a
+		// pixel (it started 4-8 m out), and h21's row-correlated pattern (horizontal streaks
+		// across every leaf) gives way to a hash with no rows in it.
+		if (sprig_dither_fix > 0.5) {
+			dscale = 2.2;
+			d1 = hash_px(FRAGCOORD.xy + rnd * 13.0);
+			d2 = hash_px(FRAGCOORD.yx * 1.37 + rnd * 7.0 + 3.1);
+		}
+#endif
+		float detail = smoothstep(feature * 0.5 * dscale, feature * 2.0 * dscale, px);
 		if (d1 < detail) {
 			float env = 1.0 - length(vec2(uv.x, (uv.y - 0.5) / 0.5));
-			float d2 = h21(FRAGCOORD.yx * 1.37 + rnd * 7.0 + 3.1);
 			k = (env > 0.0 && d2 < cover / 0.78) ? 1.0 : -1.0;
 		}
 	}

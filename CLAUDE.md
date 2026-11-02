@@ -584,6 +584,14 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   shown only at HIGH / MEDIUM. `RoofRain`: one MultiMesh of crown splashes animated in GDScript on
   the roofs (`Vehicle._model_top_y` over the cabin) of the nearest cars while it rains. Checks:
   `tests/weather_la_checks.gd`; stills in docs/HANDOFF.md 9ck.
+- June gloom at street level (wave 5, refcam `marine_morning` in `tools/refcams/cameras_w5.json`,
+  docs/HANDOFF.md "June gloom at street level"): `MarineMorning` (`scripts/world/marine_morning.gd`,
+  pure) - under the marine layer overnight and in the morning the streets are damp (`damp()`, a
+  floor under Weather's wetness; road.gdshader's `road_mist` global makes it soaked-in and matte, not
+  a shower's film), the air near the coast is misty (`mist()`, extra depth fog), and the deck's
+  underside is stratocumulus cells (marine_layer.gdshader `look`, taking half the low haze).
+  `Weather.settle_wet()` soaks a still at once. `MARINE_MORNING=0` is the A/B; checks
+  `tests/rc2_marine_checks.gd`.
 - Surf and beach (2026-10-04, owner: "the Pacific and the beach, AAA"). One wave model,
   `shaders/surf.gdshaderinc`, included by the ocean, the sand and the spray, mirrored in GDScript
   by `Surf` (`scripts/world/surf.gd`): crests parallel to the shore at `phi = TAU * ((s + wob) / L
@@ -4268,6 +4276,14 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   the same `ground_detail`-gated second rotated sample the road shader uses. Keep it subtle: the
   first pass used `sign()` for the stripes and a 1.6x albedo boost and the lawns came out
   candy-striped and blown out, which is louder than the flat green it replaced.
+- The suburban street refcam (wave 5, `suburb_morning` in tools/refcams/cameras_w5.json, docs/HANDOFF.md
+  "The suburban street at 09:30"): `RcSuburb` (`scripts/world/rc_suburb.gd`): residents' cars on
+  `RESIDENT_ODDS` of the suburb / beach-town kerb stalls left empty (`CityChunk._park_resident()`,
+  a hash per stall after every roll, every keep-clear; meta `rc2_resident`), lot_yard's DG a pale
+  crushed-granite tan (`dg_real`), la_tree's leaf dither on Compatibility only under a real
+  sub-pixel leaf with a hash with no rows (`sprig_dither_fix`), the parkway's soil edge a 45 degree
+  bevel. `RC2_SUBURB=0` is the A/B; probe `tools/rc2_suburb/yard_probe.tscn`; checks
+  `tests/rc2_suburb_checks.gd`.
 - Lawns close up (2026-10-30, docs/HANDOFF.md "Lawns close up"): `LawnsCloseup`
   (`scripts/world/lawns_closeup.gd`) and `shaders/lawn_field.gdshaderinc`, ONE field (dry, clover,
   brown spots, wear, stripes, morning sprinklers by `city_hour`) shared by lawn.gdshader and every
@@ -5168,6 +5184,14 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   kit window ACs, sleeve ACs, vents, dishes, open windows, window boxes, flashing, painted names, fire
   escapes on FLAT walk-ups. Hashes only. `FACADE_MID=0` the A/B; probe
   `tools/building_mid_detail/probe.gd`; checks `tests/building_mid_detail_checks.gd`.
+- Facades at mid distance, third pass (2026-11-01, docs/HANDOFF.md "Facades at mid distance, third
+  pass"): `FacadeMid3` (`scripts/world/facade_mid3.gd`) + `shaders/facade_mid3.gdshaderinc` in BOTH
+  building shaders (salts 120-129): punched / slot-window masonry walls get piers standing proud of
+  recessed window strips (`fm3_piers()`, fx_member coverage: face, side, sun shadow; the far box at
+  0.72 of the near darkening, measured with far_pair.py); `parapet_steps()` raises stepped parapets on
+  half the masonry blocks (roof plant near after `Rooftops.clear_plant()`, plant boxes far: no prop
+  index moves); `rw_gravel()` weathers gravel roofs. `FACADES_MID3=0` is the A/B; checks
+  `tests/facades_mid3_checks.gd`.
 - Shop fronts at arm's length (2026-10-31, docs/HANDOFF.md "Shop fronts at arm's length"):
   `ShopfrontDress` (`scripts/world/shopfront_dress.gd`, one hook beside
   `ShopfrontKit.storefront_face()`) puts mats, planters, a chalk sandwich board, a hanging sign on
@@ -5218,6 +5242,14 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   frame cost is ALU on storefront glass pixels only. Judge with `building_shot.gd` (`NIGHT=1`,
   `BENCH=n`) and `still_shot.gd` `EYE=`/`SHOTS=` from the pavement; `tools/glshot/shop_probe.gd`
   (headless) lists the storefronts near a point with an EYE for each face.
+- The glass at arm's length (2026-11-01, docs/HANDOFF.md "The glass at arm's length"):
+  `shaders/interior_people.gdshaderinc` ray-marches people (SDF bodies: stand, walk, sit, reach)
+  inside their box within `IP_NEAR` 34 m; `shop_person()` (shop_interior.gdshaderinc) lays up to four
+  per shop against the traced fittings from `shop_hash(key, 120..143)`; homes / offices use the same
+  bodies near. Shops get downlight scallops, floor pools and mirrored fittings; a stronger storefront
+  mirror by day (near only); the night spill is the window (`shaders/shop_spill.gdshader`, pools
+  carry `Color(pitch, bays, reach, 1)`). `INTERIORS_GLASS=0` the A/B (`InteriorsGlass`); checks
+  `tests/interiors_glass_checks.gd`.
 - Rooms behind the windows, second pass (2026-10-31, docs/HANDOFF.md "Rooms behind the windows,
   second pass"): `shaders/window_interiors.gdshaderinc` (integer rolls, salts 100-112, in BOTH
   building shaders; `WindowInteriors`, `scripts/world/window_interiors.gd`, the GDScript copy)
@@ -5601,6 +5633,14 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   shared look materials stay shared. BACKLIGHT is held to thin skin everywhere (it lit faces orange
   under a lamp behind). `CROWD_FACES=0` is the A/B; stills `tools/crowd_faces/face_shot.gd`; checks
   `tests/crowd_faces_checks.gd`.
+- The crowd plaza (2026-11-01, refcam `crowd_plaza` in `tools/refcams/cameras_w5.json`, docs/HANDOFF.md
+  "The crowd plaza refcam"): `PlazaCrowd` (`scripts/npc/plaza_crowd.gd`) makes a landmark crowd rect
+  14 m+ either way OPEN GROUND - count by the hour (`KEYS`, a person per 14 m2 at most), walkers
+  straight to points anywhere in it (`Pedestrian.open_ground`), rigs and looks dealt (`deal()`).
+  `CrowdDress` (`scripts/npc/crowd_dress.gd`): a look's colours seeded by look AND rig (they were
+  the look's alone: twelve recolours city-wide), one look in four plain, saturation muted (`tame()`).
+  life_clips.gd `STAND_SETTLE` 0.88. `PLAZA_CROWD=0` / `CROWD_DRESS=0` the A/Bs; checks
+  `tests/rc2_crowd_plaza_checks.gd`.
 - Crowd look (2026-10-29, "heads turn to what happens"; docs/HANDOFF.md "The crowd's heads"):
   `CrowdLook` (`scripts/npc/crowd_look.gd`), a SkeletonModifier3D a near pedestrian gets on its
   rig the first time it is within `look_range` of the player and the camera (one hook in

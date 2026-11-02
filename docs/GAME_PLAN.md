@@ -4175,6 +4175,48 @@ none of either.
   slots full, from PortFill's own stream after every old roll, so no box the yard had moves), a
   yellow box for a mast head, clean candy-coloured roofs, and a ship with a slab for a bow lying
   untied off the quay. PORT_FILL / PORT_ROOF / PORT_SHIP / PORT_MOORING =0 the A/Bs.
+- **2026-11-01 The glass at arm's length: shops have people in them, and their light lands where
+  the window says (interiors-glass, HANDOFF "The glass at arm's length").** People behind the glass
+  are shader-only bodies (ray-marched SDFs inside their own box, near the camera only) laid out from
+  the same integer rolls as the traced fittings, never geometry or nodes: they cost nothing past
+  34 m and nothing on a pane nobody looks through. They do not react to the world (no gunfire
+  response) - a deliberate trade for zero CPU. The night spill is the window's projection (riser
+  shade, mullion shadows) in display numbers; the stronger day mirror is near-only so the far boxes
+  keep step. INTERIORS_GLASS=0 is the A/B.
+
+
+- **2026-11-01 Facades at mid distance, third pass (facades-mid-3, HANDOFF "Facades at mid distance,
+  third pass").** From 30-150 m a punched-window block was a flat plane with a perfect grid of
+  holes and a straight roofline. Decisions: masonry walls are articulated in the shader, not in
+  geometry - piers and recessed strips as box-filtered coverage (fx_member), so the near walls and
+  the far boxes draw the same thing at any range for no triangles; the roofline is real geometry
+  (stepped parapets as roof plant near, plant boxes far), added after every existing roll and after
+  the rooftop pieces have cleared their plant, so nothing a seed builds moves. FACADES_MID3=0 the A/B.
+- **2026-11-01 June gloom at street level (rc2-marine, HANDOFF "June gloom at street level").** A new
+  reference camera, marine_morning (the beach town at 08:00 under the marine layer, the start of
+  cameras_w5.json). The marine layer is weather the street feels, not only a grey sky: under the
+  deck in the morning the streets are damp from the mist (soaked in and matte, never the rain's
+  glossy film), the air at the coast is misty, and the cloud base has the cells and rolls of real
+  stratocumulus. Decisions: the damp is a floor under Weather's wetness with its own `road_mist`
+  share in road.gdshader (an even rain film at the same wetness read lighter than a dry street,
+  the drying patches read as oil stains); the deck underside takes half the low air's haze, since
+  the scene's fog is the ground layer's. MARINE_MORNING=0 the A/B.
+- **2026-11-01 The suburban street refcam: a suburb reads by its lawns, its kerbs and its yards
+  (rc2-suburb, HANDOFF "The suburban street at 09:30").** A new reference camera, `suburb_morning`
+  (tools/refcams/cameras_w5.json): the pavement of a suburban residential street at 09:30. Fixed:
+  lawn tufts cut to mowing height (they stood up to 0.7 m: every lawn read as weeds), the
+  decomposed-granite gardens a pale crushed tan (they were orange clay), residents' cars on the
+  empty kerb stalls (a hash per stall after every roll, so nothing built moves), the parkway's soil
+  edge a bevel (it was a dark carpet-tile wall), and the code-built trees' leaf dither held off on
+  Compatibility until a leaf really is sub-pixel (no TAA there: it drew streaks). RC2_SUBURB=0 the A/B.
+- **2026-11-01 The crowd plaza refcam: a plaza is open ground, and no crowd has twins
+  (rc2-crowd-plaza, HANDOFF "The crowd plaza refcam").** A new reference view at eye level in
+  STARLIGHT PLAZA at lunch. Decisions: a landmark crowd rect 14 m+ either way is open ground whose
+  head-count follows the hour (PlazaCrowd, capped at a person per 14 m2) and whose walkers cross it
+  rather than walking its edges; a crowd look's colours are rolled per rig, a quarter of looks keep
+  the rig's own outfit, and recolours are muted (CrowdDress); on a plaza rigs and looks are dealt,
+  not rolled. The library's standing clips keep their legs near the rig's own stance (0.88).
+  PLAZA_CROWD=0 / CROWD_DRESS=0 the A/B.
 - **2026-11-01 A build that is no longer wanted is dropped, even half done (HANDOFF "The gate's
   intermittent failures, wave 5"):** the "spawn chunk replaced mid-file" flake was a real streaming
   bug - a build started at the other level while the player was elsewhere finished after he came
