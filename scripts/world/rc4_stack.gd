@@ -45,7 +45,7 @@ const SHRUB_ROOM := 4.0
 const TREE_MIN := 8.0
 ## Crown radius over height per species (LaTrees' meshes, measured from crown()).
 const SPECIES := [LaTrees.Species.EUCALYPTUS, LaTrees.Species.SYCAMORE, LaTrees.Species.FIG]
-const SPECIES_CUM := [0.32, 0.62, 1.0]
+const SPECIES_CUM := [0.15, 0.42, 1.0]
 const CROWN_RATIO := [0.28, 0.42, 0.46]
 ## Per FULL chunk.
 const MAX_TREES := 180
@@ -111,6 +111,15 @@ static func clearance(fw: Freeway, p: Vector2, reach: float, ground: float) -> f
 		var t := 0.0 if a.distance_squared_to(b) < 0.0001 else clampf((q - a).dot(b - a) / a.distance_squared_to(b), 0.0, 1.0)
 		best = minf(best, lerpf(float(s.ha), float(s.hb), t) - _thickness(s) - ground)
 	return best
+
+
+## True where the right of way is the stack's own (its ivy ground gets lot_yard's mixed cover:
+## lighter ivy, iceplant and juniper patches, dry grass - COLOR.b of the yard ground mesh).
+static func mixed_ground(plan: CityPlan, bx: int, bz: int) -> bool:
+	if not enabled:
+		return false
+	var st := _stack(plan)
+	return st != null and (plan.block(bx, bz).rect as Rect2).get_center().distance_to(st.centre) <= REACH
 
 
 # --- 2. The planting -------------------------------------------------------------------------------

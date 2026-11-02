@@ -3761,6 +3761,14 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   barriers, never the deck top (`DECK_LAYER`, out of their cull mask); freeway cars' lamps reach
   `FAR_LIGHTS`. refcams' `freeway_cars` key stages freeway traffic. `FREEWAY_NIGHT=0` is the A/B;
   checks `tests/rc3_freeway_night_checks.gd`.
+- The stack from the air (wave 7, refcam `stack_aerial` in `tools/refcams/cameras_w7.json`,
+  docs/HANDOFF.md "The four-level stack from the air"): `RcStack` (`scripts/world/rc4_stack.gd`):
+  a deck's shade on the right of way falls off with its clearance (`bareness()`: bare only under
+  low decks), the stack's right of way is a mixed ground cover (lot_yard COLOR.b) planted with
+  groves and oleander where crowns clear the deck over them (`spots()`, pure; FULL real trees,
+  LOD / far canopies from the same spots), tall stack columns drawn thicker (`column_r()`), the
+  connectors' cars by the hour (`cars_per_link()`). `RC4_STACK=0` is the A/B; checks
+  `tests/rc4_stack_aerial_checks.gd`.
 - Footbridges (2026-10-30, docs/HANDOFF.md "Footbridges"): `Footbridges` (pure placement: boulevards
   >= 22 m by schools / parks, one freeway slot of 36 segments at a time with caged stair towers on
   the corridor lots), `FootbridgeKit` (one mesh, `shaders/footbridge.gdshader`, kind in COLOR.a / 16),

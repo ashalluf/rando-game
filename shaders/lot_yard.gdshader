@@ -50,6 +50,8 @@ varying vec3 local_pos;
 varying vec3 local_normal;
 varying float kind;
 varying float variant;
+// 1 on the four-level stack's right of way (RcStack.mixed_ground): a mixed, lighter ground cover.
+varying float stack_ground;
 
 #include "res://shaders/color_space.gdshaderinc"
 
@@ -157,6 +159,7 @@ void vertex() {
 	local_normal = NORMAL;
 	kind = floor(COLOR.r * 16.0 + 0.5);
 	variant = COLOR.g;
+	stack_ground = COLOR.b;
 }
 
 void fragment() {
@@ -295,6 +298,20 @@ void fragment() {
 		vec3 g = tiled(grass_tex, p, 1.3);
 		float clumps = vnoise(p * 1.7) * 0.65 + vnoise(p * 5.3) * 0.35;
 		vec3 ivy = g * disp(ivy_tint) * (0.55 + 0.9 * clumps);
+		if (stack_ground > 0.5) {
+			// RcStack: the stack's planted slopes are not one black sheet of ivy from the air -
+			// a brighter, sunnier ivy, patches of yellow-green iceplant and blue-grey juniper, and
+			// dry grass in the open, each patch tens of metres across.
+			float pa = vnoise(p * 0.045 + 3.0);
+			float pb = vnoise(p * 0.07 + 17.0);
+			vec3 ice = g * vec3(0.30, 0.36, 0.13) * (0.75 + 0.5 * clumps);
+			vec3 juniper = g * vec3(0.16, 0.22, 0.17) * (0.7 + 0.6 * clumps);
+			vec3 dry = g * vec3(0.42, 0.36, 0.20) * (0.8 + 0.4 * vnoise(p * 0.9));
+			ivy *= 1.45;
+			ivy = mix(ivy, ice, smoothstep(0.55, 0.68, pa));
+			ivy = mix(ivy, juniper, smoothstep(0.62, 0.74, pb) * (1.0 - smoothstep(0.55, 0.68, pa)));
+			ivy = mix(ivy, dry, smoothstep(0.30, 0.20, pa) * 0.8);
+		}
 		vec3 dirt = tiled(dirt_tex, p, 2.4) * disp(dirt_tint) * mottle;
 		float bare = smoothstep(0.25, 0.75, variant + 0.35 * (vnoise(p * 0.6 + 9.0) - 0.5));
 		albedo = mix(ivy, dirt, bare);

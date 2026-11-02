@@ -1840,6 +1840,8 @@ static func _grid(st: SurfaceTool, ch: CityChunk, r: Rect2, top: float, kind: in
 	if segs != null or not LotFill._planar(ch, r):
 		nx = clampi(ceili(r.size.x / step), 1, 48)
 		nz = clampi(ceili(r.size.y / step), 1, 48)
+	# The four-level stack's right of way grows a mixed ground cover (RcStack; lot_yard reads COLOR.b).
+	var stack_b := 1.0 if segs != null and RcStack.mixed_ground(ch.plan, ch.ix, ch.iz) else 0.0
 	var pts := PackedVector3Array()
 	var cols := PackedColorArray()
 	pts.resize((nx + 1) * (nz + 1))
@@ -1852,7 +1854,7 @@ static func _grid(st: SurfaceTool, ch: CityChunk, r: Rect2, top: float, kind: in
 			var g := variant
 			if segs != null:
 				g = _bareness(segs as Array, Vector2(x, z), ch._gy(x, z))
-			cols[j * (nx + 1) + i] = Color(float(kind) / 16.0, g, 0.0, 1.0)
+			cols[j * (nx + 1) + i] = Color(float(kind) / 16.0, g, stack_b, 1.0)
 	for j in nz:
 		for i in nx:
 			var k00 := j * (nx + 1) + i

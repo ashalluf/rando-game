@@ -4400,3 +4400,10 @@ none of either.
   edge crumbles in world-space grains, never a screen-space dither; a pad's service pickup is a real
   parked car, not a far twin, because it stands beside the road; a big site's planting is batched
   in cells, because a batch's range is measured to its centre. OIL_PLANTING=0 is the A/B.
+- **2026-11-02 The four-level stack from the air (rc4-stack-aerial, HANDOFF "The four-level stack
+  from the air").** A new reference camera (`stack_aerial`, wave 7's table) looks down on the stack
+  from 150 m at 17:30. Decisions: a deck's shade on the ground depends on how high the deck is, not
+  only how near (under a 40 m connector the sun gets in, so ivy and trees grow); the stack's right
+  of way is planted from one pure list of spots that the FULL chunks plant as real trees and the
+  LOD ring and far city draw as canopies; a tall column is drawn thicker inside its existing
+  clearance; the connectors' traffic follows the hour. RC4_STACK=0 is the A/B.

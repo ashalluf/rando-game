@@ -149,3 +149,10 @@ Wave 6's cameras are in `cameras_w6.json` (run with `REFCAMS_JSON=tools/refcams/
 `golf_morning` - the golf course at 08:30 from behind the 9th tee toward the clubhouse and the front
 range. Its optional `golf_group` key ("hole:stage[:tee[:count]]") stages a group of golfers there
 (GolfLife.force_group via the GOLF_GROUP environment variable, set before the city loads).
+
+## Wave 7's cameras (`cameras_w7.json`)
+
+Run with `REFCAMS_JSON=tools/refcams/cameras_w7.json`. `stack_aerial` (rc4-stack-aerial): the
+four-level stack from 150 m over the ground north-west of it, 17:30 clear, toward downtown;
+`shot_frames` 90 lets the connectors' traffic fill before the shot.
+
