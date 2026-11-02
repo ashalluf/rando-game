@@ -132,6 +132,22 @@ func _apply(step: String, on: bool) -> void:
 				else:
 					env.fog_enabled = _saved["fog"]
 					env.volumetric_fog_enabled = _saved["vfog"]
+		"scan":
+			# Every visible geometry within 400 m whose material reads the screen, or whose box
+			# is over 150 m (web-build-5: the MacArthur Park glare), printed as PROBE_GEO lines.
+			if on:
+				_scan()
+		"hidescreen":
+			# Hides what "scan" lists as screen-reading.
+			if on:
+				for gi in _screen_readers():
+					gi.visible = false
+					_hidden.append(gi)
+			else:
+				for gi in _hidden:
+					if is_instance_valid(gi):
+						gi.visible = true
+				_hidden.clear()
 		"aerial":
 			if env:
 				if on:
@@ -183,6 +199,69 @@ func _apply(step: String, on: bool) -> void:
 					d.visible = false
 				elif _saved.has(d):
 					d.visible = _saved[d]
+
+
+func _materials(gi: GeometryInstance3D) -> Array:
+	var out: Array = []
+	if gi.material_override:
+		out.append(gi.material_override)
+	if gi is MeshInstance3D:
+		var mi := gi as MeshInstance3D
+		for i in mi.get_surface_override_material_count():
+			if mi.get_surface_override_material(i):
+				out.append(mi.get_surface_override_material(i))
+		if mi.mesh:
+			for i in mi.mesh.get_surface_count():
+				if mi.mesh.surface_get_material(i):
+					out.append(mi.mesh.surface_get_material(i))
+	elif gi is MultiMeshInstance3D and (gi as MultiMeshInstance3D).multimesh and (gi as MultiMeshInstance3D).multimesh.mesh:
+		var m := (gi as MultiMeshInstance3D).multimesh.mesh
+		for i in m.get_surface_count():
+			if m.surface_get_material(i):
+				out.append(m.surface_get_material(i))
+	elif gi is CPUParticles3D and (gi as CPUParticles3D).mesh:
+		var m2 := (gi as CPUParticles3D).mesh
+		for i in m2.get_surface_count():
+			if m2.surface_get_material(i):
+				out.append(m2.surface_get_material(i))
+	return out
+
+
+func _reads_screen(m: Material) -> bool:
+	return m is ShaderMaterial and (m as ShaderMaterial).shader != null \
+		and (m as ShaderMaterial).shader.code.contains("hint_screen_texture")
+
+
+func _screen_readers() -> Array:
+	var out: Array = []
+	for n in get_tree().root.find_children("*", "GeometryInstance3D", true, false):
+		var gi := n as GeometryInstance3D
+		if gi.is_visible_in_tree() and _materials(gi).any(func(m): return _reads_screen(m)):
+			out.append(gi)
+	return out
+
+
+func _scan() -> void:
+	var cam := get_viewport().get_camera_3d()
+	if cam == null:
+		return
+	var at := cam.global_position
+	for n in get_tree().root.find_children("*", "GeometryInstance3D", true, false):
+		var gi := n as GeometryInstance3D
+		if not gi.is_visible_in_tree():
+			continue
+		var box := gi.global_transform * gi.get_aabb()
+		var d := box.get_center().distance_to(at)
+		var screen := _materials(gi).any(func(m): return _reads_screen(m))
+		if (screen and d < 2000.0) or (box.size.length() > 600.0 and d < 300.0):
+			var shaders := []
+			for m in _materials(gi):
+				shaders.append(str((m as ShaderMaterial).shader.resource_path).get_file() if m is ShaderMaterial else m.get_class())
+			print("PROBE_GEO %s %s d=%.0f size=%s screen=%s %s" % [gi.get_class(), gi.get_path(), d, box.size.round(), screen, shaders])
+	for n in get_tree().root.find_children("*", "CanvasItem", true, false):
+		var ci := n as CanvasItem
+		if ci.is_visible_in_tree() and _reads_screen(ci.material):
+			print("PROBE_CANVAS %s %s" % [ci.get_path(), str((ci.material as ShaderMaterial).shader.resource_path).get_file()])
 
 
 func _report_lights() -> void:
