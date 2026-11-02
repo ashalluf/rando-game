@@ -26111,7 +26111,7 @@ into a running gate (check files are `load()`ed lazily, mid-run).
 **Runs** (each `SHARDS=3`, ~30 min, a shard peaking at ~3.4-3.5 GB): see the table at the end of
 this section.
 
-## 9??. The blast, fourth pass (2026-11-01, fleet wave 5, branch `wt/explosions-4`)
+## 9ky. The blast, fourth pass (2026-11-01, fleet wave 5, branch `wt/explosions-4`)
 
 The owner's top priority for wave 5 was "make the explosions EXTREMELY AAA quality". The third pass
 (9ix) made the fireball a ray-marched volume, but it died after ~3 s and the rest of the blast was
