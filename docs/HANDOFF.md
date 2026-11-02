@@ -27257,6 +27257,12 @@ stay apart, the hands come in, the head and feet stay put, the clip keeps its tr
 relaxed once; the bag's cords meet at the grip and the grip is in the fingers; the two uniforms are
 off by default and the hair material sets its one; the switch; the camera row and the seed search.
 
+**Numbers.** person_closeup (opengl3, 1280 x 720): before (`PERSON_CLOSEUP=0`) and after in the
+report.txt of each run: 7,233,583 -> 7,243,040 triangles (+0.13 %, the bag and a different crowd draw), 3,588 -> 3,589 draws, luminance p5 / p50 / p95 27 / 145 / 201 -> 27 / 145 / 202. The ten
+original cameras, `PERSON_CLOSEUP=0` vs on (`refcams.py compare`): eight ok (mean pixel difference
+0.0-2.5), street_noon and freeway flagged by traffic (a bus further along; a box truck in one run, a
+pickup in the other), not by anything on a person.
+
 **foot_ik_checks' kerb check changed.** "Both feet at the kerb stand on their own ground"
 compared BOTH kerb ankles to the LOWER of the flat-ground twin's ankles; the idle lifts one heel, so
 it measured the clip's heel lift (3.6 cm on main, 4.2 cm with the narrower stance, the limit 4).
