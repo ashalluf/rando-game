@@ -178,6 +178,7 @@ func _flame_system(sys_name: String, amount: int, quad_size: Vector2) -> CPUPart
 	quad.size = quad_size
 	quad.center_offset = Vector3(0.0, (quad_size.y - quad_size.x) * 0.5, 0.0)
 	quad.material = CarDamage.fire_material()
+	Blast4.tongue_quad(quad)
 	p.mesh = quad
 	p.custom_aabb = AABB(Vector3(-12.0, -2.0, -12.0), Vector3(24.0, 16.0, 24.0))
 	add_child(p)
