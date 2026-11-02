@@ -52,10 +52,17 @@ const MARKET_ODDS := 0.8
 ## front (m), the most sets a chunk lays, odds a set slot is left empty.
 const CORNER_CLEAR := 6.5
 const DOOR_GAP := 1.7
+## rc3-fashion-district: the gap a denser frontage leaves (FD_DENSE=0: DOOR_GAP and EMPTY_ODDS).
+const DENSE_GAP := 1.15
 const WALL_OFF := 0.08
 const MAX_WALL_DEPTH := 9.0
 const MAX_SETS := 40
 const EMPTY_ODDS := 0.18
+const DENSE_EMPTY_ODDS := 0.05
+static var dense: bool = OS.get_environment("FD_DENSE") != "0"
+## A district block near the camera carries this many times its planned walkers (ShopCrowd's
+## gain for it; the downtown default is 1.35): the real district is packed at lunch.
+const CROWD_GAIN := 2.6
 ## The walkers keep to the kerb half of a district pavement (CityChunk._pedestrian_steps()).
 const WALK_SIDEWALK := 3.0
 ## Sellers by the goods: one per this many sets, at most per chunk.
@@ -192,6 +199,14 @@ static func owns_face(plan: CityPlan, bx: int, bz: int, e: int) -> bool:
 	return not info.is_empty() and e in (info.faces as Array)
 
 
+## ShopCrowd.steps(): a district block's walker gain near the camera (`fallback` elsewhere, or
+## with FD_DENSE=0).
+static func crowd_gain(ch: Node3D, block: Dictionary, fallback: float) -> float:
+	if not dense or not (ch is CityChunk) or block_info((ch as CityChunk).plan, (ch as CityChunk).ix, (ch as CityChunk).iz).is_empty():
+		return fallback
+	return maxf(fallback, CROWD_GAIN)
+
+
 ## LotFill._planter(): a forecourt planter in the frontage band of a goods face (within
 ## MAX_WALL_DEPTH of the kerb) is not built - it stood as a bare concrete box between the pavement
 ## and the goods, walling the stock off from the shoppers (rc3-fashion-district). FD_PLANTERS=0
@@ -307,7 +322,7 @@ static func build_pavement(ch: CityChunk, block: Dictionary, sellers: Array) -> 
 			if t + len > length - CORNER_CLEAR:
 				break
 			var kerb := a + dir * mid
-			var ok := kerb.x <= east and h01([plan.seed, "fashion_empty", ch.ix, ch.iz, e, slot]) >= EMPTY_ODDS
+			var ok := kerb.x <= east and h01([plan.seed, "fashion_empty", ch.ix, ch.iz, e, slot]) >= (DENSE_EMPTY_ODDS if dense else EMPTY_ODDS)
 			# The wall along the set's whole length: a shop front, not a forecourt or a gap.
 			var depth := INF
 			if ok:
@@ -339,7 +354,7 @@ static func build_pavement(ch: CityChunk, block: Dictionary, sellers: Array) -> 
 				if (st.eyes as Array).size() < 6:
 					var eye := front - inward * 6.5 + dir * 3.0
 					(st.eyes as Array).append("%.1f,1.7,%.1f,%.0f,-4" % [eye.x, eye.y, rad_to_deg(atan2(-(inward.x - dir.x * 0.4), -(inward.y - dir.y * 0.4))) + 180.0])
-			t += len + DOOR_GAP
+			t += len + (DENSE_GAP if dense else DOOR_GAP)
 	st.stats.sets = int(st.stats.sets) + laid
 	sets_laid += laid
 	if OS.get_environment("FASHION_DEBUG") == "1":
