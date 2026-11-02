@@ -27087,6 +27087,20 @@ logo lights; `AN=0` the same night without them), opengl3 and Forward+ under lav
 (`--rendering-driver vulkan --display-driver x11` in xvfb-run, VK_ICD_FILENAMES lvp_icd.json; a
 minute): the floodlit fuselage and the pool come out within a few levels of each other on both.
 
+**Numbers.** airport_night (opengl3 GEO, `AIRPORT_NIGHT=0` -> on): 3,430,810 -> 3,431,930 triangles,
+1,532 -> 1,545 draws (the pool quads and the landing pool; the floods are shader work); luminance
+p5/p50/p95 5/36/70 -> 6/38/84. The ten original cameras, `AIRPORT_NIGHT=0` vs on (`refcams.py
+compare`): seven ok (pier_night, sunset, hills, beach bit for bit or near); street_noon, street_night
+and freeway flagged by traffic alone (a bus and cars in other places). Peak RSS of a refcam run here
+8.4 GB.
+
+**Checks**: `tests/rc3_airport_night_checks.gd` (11, one line in smoke_test.gd's city_files after the
+apron refcam's): the masts and their facing, the floods' curve (a GDScript copy, and the shaders'
+lines read back), a side facing a mast lit and the other not, the materials, the switch, the landing
+lights' uniforms and pool, the patrol beam, the camera row, a FULL airport chunk laying the pools.
+Gate (SHARDS=3): 5,446 passed, 1 failed - this file's own expectation under a mast (0.73, the
+mast's aim at its foot), fixed and the file rerun alone: 28 / 28. Stills on `shots/rc3-airport-night`.
+
 **Not done / next:** the hangar domes are unlit blue blobs at night (no door lights or apron floods on
 their fronts); the follow-me car's roof sign is a blank glowing slab; the head house's slatted soffit
 glows a saturated orange; the jet on final is ~55 px long at this distance (the approach is behind the
