@@ -43,6 +43,7 @@ static func material() -> ShaderMaterial:
 	if _material == null:
 		_material = ShaderMaterial.new()
 		_material.shader = load("res://shaders/airport_kit.gdshader")
+		_material.set_shader_parameter("grime", 1.0 if AirportApron.enabled else 0.0)
 	return _material
 
 
@@ -85,6 +86,9 @@ static func _quad(st: SurfaceTool, a: Vector3, b: Vector3, c: Vector3, d: Vector
 ## A box `size` at `centre`, turned by `basis` (rotation only), all six faces.
 static func _box(st: SurfaceTool, centre: Vector3, size: Vector3, col: Color, kind: float = METAL, basis: Basis = Basis(), bottom: bool = false) -> void:
 	var h := size * 0.5
+	if AirportApron.enabled and minf(size.x, minf(size.y, size.z)) >= AirportApron.BEVEL_MIN:
+		_bevel_box(st, centre, h, col, kind, basis, bottom)
+		return
 	for axis in 3:
 		for sgn: float in [-1.0, 1.0]:
 			if axis == 1 and sgn < 0.0 and not bottom:
@@ -105,6 +109,86 @@ static func _box(st: SurfaceTool, centre: Vector3, size: Vector3, col: Color, ki
 			var wn := (basis * n).normalized()
 			_tri(st, w[0], w[1], w[2], wn, col, kind)
 			_tri(st, w[0], w[2], w[3], wn, col, kind)
+
+
+## A box with its edges chamfered (AirportApron, the refcam's toy vehicles): every face inset by
+## the chamfer, a flat strip on each edge and a triangle on each corner, so the edges catch the
+## light like a pressed or welded panel's do instead of meeting in a knife line. Without a bottom
+## face the sides run straight down to it (no strip there, nothing open).
+static func _bevel_box(st: SurfaceTool, centre: Vector3, h: Vector3, col: Color, kind: float, basis: Basis, bottom: bool) -> void:
+	var c := clampf(minf(h.x, minf(h.y, h.z)) * 2.0 * AirportApron.BEVEL_SHARE, 0.006, AirportApron.BEVEL_MAX)
+	# The inset on each axis' low and high side (the low y side only with a bottom).
+	var lo := Vector3(c, c if bottom else 0.0, c)
+	var hi := Vector3(c, c, c)
+	var at := func(p: Vector3) -> Vector3: return centre + basis * p
+	var ins := func(axis: int, sgn: float) -> float: return hi[axis] if sgn > 0.0 else lo[axis]
+	for axis in 3:
+		for sgn: float in [-1.0, 1.0]:
+			if axis == 1 and sgn < 0.0 and not bottom:
+				continue
+			var u := (axis + 1) % 3
+			var v := (axis + 2) % 3
+			var n := Vector3.ZERO
+			n[axis] = sgn
+			var pts: Array[Vector3] = []
+			for corner: Vector2 in [Vector2(-1, -1), Vector2(1, -1), Vector2(1, 1), Vector2(-1, 1)]:
+				var p := n * h[axis]
+				p[u] = corner.x * (h[u] - ins.call(u, corner.x))
+				p[v] = corner.y * (h[v] - ins.call(v, corner.y))
+				pts.append(at.call(p))
+			var wn := (basis * n).normalized()
+			_tri(st, pts[0], pts[1], pts[2], wn, col, kind)
+			_tri(st, pts[0], pts[2], pts[3], wn, col, kind)
+	# Edge strips: between face (a, s1) and face (b, s2), along the third axis k.
+	for k in 3:
+		var a := (k + 1) % 3
+		var b := (k + 2) % 3
+		for s1: float in [-1.0, 1.0]:
+			for s2: float in [-1.0, 1.0]:
+				var ia: float = ins.call(a, s1)
+				var ib: float = ins.call(b, s2)
+				if ia <= 0.0 or ib <= 0.0:
+					continue
+				var p0 := Vector3.ZERO
+				p0[a] = s1 * h[a]
+				p0[b] = s2 * (h[b] - ib)
+				var p1 := Vector3.ZERO
+				p1[a] = s1 * (h[a] - ia)
+				p1[b] = s2 * h[b]
+				var k0 := -(h[k] - lo[k])
+				var k1 := h[k] - hi[k]
+				var q0 := p0
+				q0[k] = k0
+				var q1 := p1
+				q1[k] = k0
+				var q2 := p1
+				q2[k] = k1
+				var q3 := p0
+				q3[k] = k1
+				var n := Vector3.ZERO
+				n[a] = s1
+				n[b] = s2
+				var wn := (basis * n).normalized()
+				_tri(st, at.call(q0), at.call(q1), at.call(q2), wn, col, kind)
+				_tri(st, at.call(q0), at.call(q2), at.call(q3), wn, col, kind)
+	# Corner triangles.
+	for sx: float in [-1.0, 1.0]:
+		for sy: float in [-1.0, 1.0]:
+			for sz: float in [-1.0, 1.0]:
+				var sg := Vector3(sx, sy, sz)
+				var ok := true
+				for axis in 3:
+					if ins.call(axis, sg[axis]) <= 0.0:
+						ok = false
+				if not ok:
+					continue
+				var tri: Array[Vector3] = []
+				for axis in 3:
+					var p := Vector3.ZERO
+					for j in 3:
+						p[j] = sg[j] * (h[j] if j == axis else h[j] - ins.call(j, sg[j]))
+					tri.append(at.call(p))
+				_tri(st, tri[0], tri[1], tri[2], (basis * sg).normalized(), col, kind)
 
 
 ## A cylinder between `a` and `b` (any direction), radius r0 at a and r1 at b, `segs` sides,

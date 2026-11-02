@@ -111,6 +111,10 @@ func build(parent: Node3D) -> Dictionary:
 				var sc := x.basis.get_scale()
 				biggest = maxf(biggest, maxf(sc.x, maxf(sc.y, sc.z)))
 			node.lod_bias = maxf(biggest, 0.01)
+		# Palms' leaflets under a pixel crawl as the camera moves: their merged-leaflet levels (the
+		# same leaf area in wider blades) come in sooner (SpecularAA.PALM_LOD_BIAS).
+		if (batch.mesh as Mesh).has_meta("palm_ladder") and SpecularAA.enabled:
+			node.lod_bias = SpecularAA.PALM_LOD_BIAS
 		# Foliage casts its shadow from a lighter twin (PropFactory.shadow_proxy()): same
 		# instances, same materials, a quarter of the triangles, drawn into the shadow maps only.
 		var proxy: Mesh = null if batch.no_shadow else PropFactory.shadow_proxy(batch.mesh)
@@ -145,7 +149,7 @@ func build(parent: Node3D) -> Dictionary:
 			# The tree itself already feeds the global illumination; this is only its shadow.
 			twin.gi_mode = GeometryInstance3D.GI_MODE_DISABLED
 			twin.lod_bias = node.lod_bias * (FoliageLod.SHADOW_LOD_SCALE if (batch.mesh as Mesh).has_meta("foliage_ladder") \
-				or (batch.mesh as Mesh).has_meta("palm_ladder") else 1.0)
+				or (batch.mesh as Mesh).has_meta("palm_ladder") or (batch.mesh as Mesh).has_meta("knee_shadow_lod") else 1.0)
 			var shadow_distance: float = batch.get("shadow_distance", 0.0)
 			_set_draw_distance(twin, minf(draw_distance, shadow_distance) if draw_distance > 0.0 and shadow_distance > 0.0 else maxf(draw_distance, shadow_distance))
 			parent.add_child(twin)

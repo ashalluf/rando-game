@@ -274,6 +274,8 @@ static var _cars_prev: Dictionary = {}
 static var _arm_means: Dictionary = {}
 
 var ring: Rect2
+## On a plaza's open ground (PlazaCrowd): targets anywhere in `ring`, walked to straight.
+var open_ground := false
 var shirt: Color
 var pants: Color
 var skin: Color
@@ -389,12 +391,17 @@ func _add_model() -> bool:
 	if available.is_empty():
 		return false
 	var path: String = available[_style.randi() % available.size()]
+	var dealt: Array = PlazaCrowd.deal(self, available)
+	if not dealt.is_empty():
+		path = dealt[0]
 	var scene: PackedScene = load(path)
 	if scene == null:
 		return false
 	var inst := scene.instantiate() as Node3D
 	inst.rotation.y = PI # Meshy rigs face +Z; our visuals face -Z
 	_look = _style.randi() % CHARACTER_LOOKS
+	if not dealt.is_empty():
+		_look = int(dealt[1])
 	prepare_rig(inst, _look)
 	_visual.add_child(inst)
 	for mi in inst.find_children("*", "MeshInstance3D", true, false):
@@ -1170,7 +1177,8 @@ static func character_material(albedo: Texture2D, look: int) -> ShaderMaterial:
 	if _looks.has(key):
 		return _looks[key]
 	var rng := RandomNumberGenerator.new()
-	rng.seed = 4200 + (look % CHARACTER_LOOKS)
+	var info: Dictionary = _rig_info.get(albedo, {})
+	rng.seed = CrowdDress.look_seed(albedo, look % CHARACTER_LOOKS, not info.is_empty())
 	var mat := ShaderMaterial.new()
 	mat.shader = load("res://shaders/character.gdshader")
 	mat.set_shader_parameter("albedo_tex", albedo)
@@ -1178,7 +1186,6 @@ static func character_material(albedo: Texture2D, look: int) -> ShaderMaterial:
 	# (pedestrian_a_anim_texture_0.jpg -> pedestrian_a_nrm.png). Rigs without one keep
 	# normal_strength at the shader's 0.0 and render off the mesh normal exactly as before.
 	var nrm := _normal_map_for(albedo)
-	var info: Dictionary = _rig_info.get(albedo, {})
 	if not info.is_empty():
 		mat.set_shader_parameter("region_mask", 1.0)
 		var means: Vector3 = info.means
@@ -1199,7 +1206,7 @@ static func character_material(albedo: Texture2D, look: int) -> ShaderMaterial:
 	# Half the looks keep the model's own outfit. The recolour was the only source of variety
 	# when there were two models; with a real wardrobe of them, a photographed jacket beats a
 	# repainted one, so it now only has to stop two copies of a model dressing alike.
-	var plain := look % 2 == 0
+	var plain := CrowdDress.plain(look % CHARACTER_LOOKS, not info.is_empty())
 	# The top, rolled as a wardrobe rather than as one range. `cloth_value` is the garment's own
 	# brightness, 0 black to 1 white; the shader keeps the source texture's value as shading
 	# around it. It used to be a multiplier on that source value, which is why the whole city
@@ -1248,6 +1255,7 @@ static func character_material(albedo: Texture2D, look: int) -> ShaderMaterial:
 		mat.set_shader_parameter("pants_sat", rng.randf_range(0.30, 0.55))
 		mat.set_shader_parameter("pants_value", rng.randf_range(0.28, 0.58))
 	mat.set_shader_parameter("pants_strength", 0.0 if plain else rng.randf_range(0.82, 0.96))
+	CrowdDress.tame(mat, not info.is_empty())
 	mat.set_shader_parameter("hair_color", HAIR_COLORS[rng.randi() % HAIR_COLORS.size()])
 	# A look that keeps the model's own clothes keeps its own hair too. The hair swap was rolled
 	# for every look, so a Black woman in her own blazer came out blonde and a grey-haired man
@@ -1820,6 +1828,7 @@ static var _welds: Dictionary = {}
 const STRETCH_LIMIT := 2.5
 var _meshes: Array[MeshInstance3D] = []
 var _draw_tier: int = -1
+var _shadow_lite_on: bool = false
 ## Past this distance from the player (metres) a pedestrian walks without physics: no
 ## move_and_slide, no hit detector. Measured headless on a downtown block, the 625-strong crowd was
 ## 46 of 101 ms of physics a frame - a collision solve and an overlap test per person per step, to
@@ -1865,8 +1874,14 @@ func _update_lod() -> void:
 		if kinematic:
 			velocity = Vector3.ZERO
 	var tier := 0 if d < shadow_range else (3 if d >= lod_far else (2 if d >= mid_body_range else 1))
-	if tier != _draw_tier:
+	if tier != _draw_tier and _draw_tier >= 0 and LodFade.enabled:
+		tier = LodFade.tier_band(_draw_tier, tier, d, [shadow_range, mid_body_range, lod_far])
+	# Past shadow_full_range (still inside shadow_range) the shadow comes from the welded middle
+	# body, a skinned SHADOWS_ONLY twin (_lite_shadow()): tier 0 drawn, the shadow lighter.
+	var lite := tier == 0 and shadow_lite and d >= shadow_full_range
+	if tier != _draw_tier or lite != _shadow_lite_on:
 		_draw_tier = tier
+		_shadow_lite_on = lite
 		for mi in _meshes:
 			if is_instance_valid(mi) and is_hair(mi):
 				# The welded middle and far bodies have no cards: the scalp under them is
@@ -1874,7 +1889,7 @@ func _update_lod() -> void:
 				mi.visible = tier < 2 and not mi.has_meta("under_hat")
 				mi.lod_bias = LOD_BIAS[tier]
 			elif is_instance_valid(mi):
-				mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON if tier == 0 \
+				mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON if tier == 0 and not (lite and mi.skin) \
 					else GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 				mi.lod_bias = LOD_BIAS[tier]
 				if mi.skin:
@@ -1883,6 +1898,45 @@ func _update_lod() -> void:
 					var near: Mesh = mi.get_meta("near_mesh")
 					mi.mesh = near if tier < 2 \
 						else far_mesh(near, far_triangles if tier == 3 else mid_triangles)
+					_lite_shadow(mi, near, lite)
+
+
+## Shadows from the middle body (perf-audit-5): between shadow_full_range and shadow_range a
+## person's shadow is cast by the welded middle body (~2,100 triangles) instead of the rig itself
+## (15-23k since the third close-up pass, at full LOD bias in every cascade it reaches). Past 12 m
+## a person's shadow is under the cascades' texels and the penumbra; the silhouette is the same.
+## The street camera's crowd was 0.14 M shadow triangles. PED_SHADOW_LITE=0 is the A/B.
+static var shadow_lite := OS.get_environment("PED_SHADOW_LITE") != "0"
+static var shadow_full_range: float = 12.0
+
+
+## Shows (or hides) `mi`'s shadow twin: a sibling sharing its skeleton and skin, made the first
+## time it is wanted.
+func _lite_shadow(mi: MeshInstance3D, near: Mesh, on: bool) -> void:
+	var twin := mi.get_meta("shadow_twin") as MeshInstance3D if mi.has_meta("shadow_twin") else null
+	if twin == null:
+		if not on or mi.get_parent() == null:
+			return
+		var body := far_mesh(near, mid_triangles)
+		if body == null or body == near:
+			# No welded body for this mesh: keep the rig's own shadow.
+			mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+			return
+		twin = MeshInstance3D.new()
+		twin.name = "ShadowBody"
+		twin.mesh = body
+		twin.skin = mi.skin
+		twin.skeleton = mi.skeleton
+		twin.transform = mi.transform
+		twin.material_override = mi.material_override
+		if mi.get_surface_override_material_count() > 0 and mi.get_surface_override_material(0) != null:
+			twin.set_surface_override_material(0, mi.get_surface_override_material(0))
+		twin.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_SHADOWS_ONLY
+		twin.gi_mode = GeometryInstance3D.GI_MODE_DISABLED
+		twin.custom_aabb = mi.custom_aabb
+		mi.get_parent().add_child(twin)
+		mi.set_meta("shadow_twin", twin)
+	twin.visible = on and mi.visible
 
 
 ## A coarse body for people past mid_body_range / lod_far: the model welded to one vertex per
@@ -2183,6 +2237,8 @@ func _ring_origin() -> Vector2:
 
 
 func _random_ring_point(sidewalk: float) -> Vector2:
+	if open_ground:
+		return PlazaCrowd.point(self)
 	# A point on the sidewalk ring: pick an edge, then a spot 1..(sidewalk-1) m in from the curb.
 	var inset := _rng.randf_range(1.0, maxf(sidewalk - 1.0, 1.2))
 	var edge := _rng.randi() % 4
@@ -2299,6 +2355,8 @@ func _go_to(target: Vector2) -> void:
 ## straight through them). Empty when both are on the same side.
 func _ring_route(from: Vector2, to: Vector2) -> PackedVector2Array:
 	var out := PackedVector2Array()
+	if open_ground:
+		return out
 	var w := ring.size.x
 	var h := ring.size.y
 	if w < 4.0 or h < 4.0:

@@ -295,6 +295,11 @@ already mapped so milestone 2 is script-only.
 
 ## Decisions log
 
+- **2026-11-02 The chase camera's street (rc2-chase-cam, HANDOFF "The chase camera's street").** A
+  driving view is a reference camera too: a camera row may stage the player's own car (`drive`) and
+  shoot his DriveCam. The carriageway's wear is per lane in the road shader (wheel tracks, oil band,
+  kerb grit) rather than more stamps: it follows every street for free and costs no geometry.
+  CHASE_CAM_REVIEW=0 the A/B.
 - **2026-10-31 Gunplay at arm's length (gunplay-feel, HANDOFF "Gunplay at arm's length").** The flash
   is a volume of crossed flame cards in a shader, not a sprite (a sprite seen from the side is a
   ball); the tracer a streak in flight, not a line; the marks per surface painted in code from a
@@ -3703,6 +3708,24 @@ already mapped so milestone 2 is script-only.
   distance (wail, yelp, air horn, the agency's hi-lo), a synthesised police radio announces every
   new star and calls more often, and a line under the stars names the response. No real agency's
   name or livery; `WANTED_ESCALATION=0` restores the old response.
+- **2026-11-01 The alley at night (rc2-alley-night, HANDOFF "The alley at night").** A new
+  reference camera, a downtown service alley at 23:00. Decisions: the alleys are always wet in
+  patches (restaurant backs are hosed down; the alley shader's water does not wait for rain), and
+  the water's reflection is modelled (the alley as two facades lit round its own lamps, the sky
+  above) and EMITTED, so the web and the Compatibility renderer see it too; the bulkhead lamps get a
+  smaller halo than a street lamp's; steam comes from kitchen exhausts and drains, tags fill the
+  plain back walls. All behind ALLEY_NIGHT=0.
+
+- **2026-11-01 The on-foot camera never sits in a tree, and shopping pavements are busy near the
+  player (rc2-hero-foot, HANDOFF "The on-foot camera behind the hero").** A new reference camera,
+  hero_foot, is the game's own third-person view behind the hero on a midtown shopping street.
+  Decisions: trees dither out near the camera (like every modern third-person game) rather than
+  giving them collision for the spring arm, which would yank the camera in under every street tree;
+  never in the shadow pass. The crowd is made denser only where the player is - storefront blocks
+  within ~70 m of the camera carry up to 2.2x their walkers (midtown), the extras put down near him
+  at build - rather than raising every block's plan, which would move the seeded crowd and cost
+  people the player never sees. Planter soil is mulch, not lawn. The camera's own fov and distance
+  are the owner's feel and stay. CAMERA_FADE=0 / SHOP_CROWD=0 / PLANTER_MULCH=0.
 
 ## Correction: what build 135 (0ce833f) actually contained
 
@@ -3920,6 +3943,10 @@ none of either.
   not erase it - the flash's light is scaled by the night (the exposure is set for the moon) and
   the bolt stays the brightest thing in the frame. Forward+ lighting verdicts on lavapipe are taken
   only after the GI has converged (~90 frames). STORM_NIGHT_FLASH=0 is the A/B.
+- 2026-11-01 (Forward+ review g, wave 5): what the Mac draws differently is fixed at its colour-space
+  cause, not tuned per renderer - the traced room behind every window is display numbers and is
+  decoded on Forward+ like the wall and the glass round it; and a closed cloud deck on Forward+
+  runs into its own haze at the horizon like the painted one on the web. FWD_REVIEW_G=0 is the A/B.
 - **2026-10-31 The first minute is part of the load (loading-first-frame, HANDOFF "The first
   minute").** Whatever play would build in its first seconds - the traffic, the streamer's own
   window, wave 3's first-use pipelines - is built behind the shade, and nothing the loading screen
@@ -4089,6 +4116,14 @@ none of either.
   material are merged (the knee-high plants: sunset -37 % draws); palm shadow twins follow the
   trees' shadow LOD rule (the one cut that moves pixels: frond-shadow speckle at 100+ m). All
   behind HORIZON_TILES / FAR_COVER_HIDE / PLANT_MERGE / PALM_SHADOW_LOD =0.
+- **2026-11-02 Perf audit 5: what casts a shadow is lighter than what is drawn (perf-audit-5,
+  HANDOFF "Perf audit 5").** Wave 4 put the frame back over Perf audit 4's numbers mostly through
+  shadows: the near car wheel (12-14k triangles, no LODs, every cascade) on a freeway now full of
+  cars, the knee-high plants' shadow twins at full LOD bias, the crowd's heavier rigs. Decisions:
+  a near wheel casts from a plain 40-segment twin and draws through generated LODs; the knee-high
+  plants follow the trees' shadow LOD scale; a person past 12 m casts from the welded middle body.
+  Proved per car (car_shot A/B: -45 % of a sedan's frame) and as a same-tree refcam pair: -1.4 to -4.9 %.
+  WHEEL_SHADOW_LITE / WHEEL_LOD / KNEE_SHADOW_LOD / PED_SHADOW_LITE =0 are the A/Bs.
 - **2026-10-31 Traffic that reads alive at eye level (traffic-behaviour-2, HANDOFF "Traffic that
   reads alive at eye level").** The street traffic's IDM queues stood like parked furniture at a
   red; now drivers creep, inch, ease off the brake, signal out of a bus stop, wait in the box to
@@ -4119,3 +4154,164 @@ none of either.
   people in the water are placed on the surfaces that are drawn - waders on the sand mesh's
   foreshore, swimmers and surfers on the ocean's own height model - rather than at a fixed level.
   A summer afternoon's water is busy (waders, more swimmers). SAND_ROADS=0 / WADERS=0 the A/B.
+- **2026-11-01 Cloud shadows come from the clouds the sky draws (sky-clouds-3, HANDOFF "Cloud
+  shadows from the real clouds").** On Forward+ one screen pass multiplies the lit picture by the
+  volume's own weather-map columns seen up the sun (no new texture, no per-material code); the old
+  noise shadows on the far plane and the sea stay only where the volume is not drawn. A sky look
+  that depends on the sun is keyed on its elevation, not the clock (the day's rays and cirrus).
+
+- **2026-11-01 Load time after wave 4 (load-time-3, HANDOFF "Load time after wave 4").** Every
+  system a wave adds that first appears mid-play gets a stage in WarmRehearsal, measured with the
+  first-use probe's events for that wave (`EVENTS=wave4`); wave 4's are behind `WARM_WAVE4=0`.
+  The rehearsal is timed like every other loading-screen step. Bake-only memoisation is allowed
+  where it is proved byte-identical (the raw-height memo); LoadCache's key stays every script.
+
+- **2026-11-01 Traffic variety: five more everyday bodies, shares taken from what dominates (car-variety-4,
+  HANDOFF "Cars, the fourth wave").** A census of every car round the camera over a game minute
+  (Flower St at Olympic and the 110) put sedans and crossovers first among the everyday cars and the
+  exotics (Sports, Vantari, Kestrel) at one car in eight - a showroom, not Los Angeles. The wagon,
+  muscle coupe, luxury SUV, kei-style city van and 1970s sedan take 85 rolls from the ENDS of the
+  sedan, crossover, SUV, van, sports and three exotic ranges, never from the third wave's slices;
+  their rows name the old owner and the wave (`CARS_4=0` hands them back, bit for bit). The paint
+  palette (white ~22-30 %, but green, orange and purple together ~25 %) is noted, not changed: a
+  palette change moves every parked car's look on every seed.
+
+- **2026-11-01 Aliasing is judged in motion, by a measure, and fixed by footprint (specular-aliasing,
+  HANDOFF "Shimmer and crawl in motion").** A still hides shimmer, so the proof is a frame strip of a
+  slow pan scored by its second temporal difference, through a jittered TAA-like proxy (four
+  sub-pixel-turned renders a frame) so polygon edges the Mac's TAA takes do not drown it. Fixes widen
+  lobes and features to what a pixel can hold (geometric / Toksvig specular AA, widened road paint
+  blended by cover, LOD sooner) rather than blur the picture; dithered coverage only where a temporal
+  pass resolves it (Forward+), never a fixed screen pattern. SPECULAR_AA=0 the A/B.
+
+- **2026-11-01 The LA River from the bed: water mirrors what stands round it, and the channel is
+  lived in (rc2-river, HANDOFF "The LA River from the bed").** A new reference camera, la_river,
+  on the bed at the 6th St ribbon bridge. The low flow's mirror is the channel's own banks traced
+  analytically (the sky only over them), not a sky sheet; joints are filtered per axis so the
+  concrete keeps its pattern at a grazing angle; the shaded bank of the pale concrete canyon takes
+  a bounce; weeds, litter and a denser layer of graffiti are part of the river's look.
+  RIVER_LOOK=0 the A/B.
+
+- **2026-11-01 The airport apron refcam (rc2-airport, HANDOFF "The airport apron from 25 m").** A new
+  reference camera over the apron at noon with a jet taxiing below it. Decisions: the airport's
+  paint is lifted to stand proud of the pressed street paint's rule (it had been under the ground
+  at FULL); apron yellow on a black border, as on real light concrete; stands carry stains from the
+  street's own patch batch (no new draw); the liveries get names (invented) and close-up detail in
+  the shader, not a texture; ground equipment is bevelled rather than remodelled. AIRPORT_APRON=0
+  is the A/B.
+
+- **2026-11-01 The container terminal from the crane (rc2-port, HANDOFF "The container terminal
+  from the crane").** A new reference camera, `port_crane` (cameras_w5.json), and the four things
+  that gave the port away from 45 m: a yard a third empty and two boxes high (now 3-4 tiers, most
+  slots full, from PortFill's own stream after every old roll, so no box the yard had moves), a
+  yellow box for a mast head, clean candy-coloured roofs, and a ship with a slab for a bow lying
+  untied off the quay. PORT_FILL / PORT_ROOF / PORT_SHIP / PORT_MOORING =0 the A/Bs.
+- **2026-11-01 The glass at arm's length: shops have people in them, and their light lands where
+  the window says (interiors-glass, HANDOFF "The glass at arm's length").** People behind the glass
+  are shader-only bodies (ray-marched SDFs inside their own box, near the camera only) laid out from
+  the same integer rolls as the traced fittings, never geometry or nodes: they cost nothing past
+  34 m and nothing on a pane nobody looks through. They do not react to the world (no gunfire
+  response) - a deliberate trade for zero CPU. The night spill is the window's projection (riser
+  shade, mullion shadows) in display numbers; the stronger day mirror is near-only so the far boxes
+  keep step. INTERIORS_GLASS=0 is the A/B.
+
+
+- **2026-11-01 Facades at mid distance, third pass (facades-mid-3, HANDOFF "Facades at mid distance,
+  third pass").** From 30-150 m a punched-window block was a flat plane with a perfect grid of
+  holes and a straight roofline. Decisions: masonry walls are articulated in the shader, not in
+  geometry - piers and recessed strips as box-filtered coverage (fx_member), so the near walls and
+  the far boxes draw the same thing at any range for no triangles; the roofline is real geometry
+  (stepped parapets as roof plant near, plant boxes far), added after every existing roll and after
+  the rooftop pieces have cleared their plant, so nothing a seed builds moves. FACADES_MID3=0 the A/B.
+- **2026-11-01 June gloom at street level (rc2-marine, HANDOFF "June gloom at street level").** A new
+  reference camera, marine_morning (the beach town at 08:00 under the marine layer, the start of
+  cameras_w5.json). The marine layer is weather the street feels, not only a grey sky: under the
+  deck in the morning the streets are damp from the mist (soaked in and matte, never the rain's
+  glossy film), the air at the coast is misty, and the cloud base has the cells and rolls of real
+  stratocumulus. Decisions: the damp is a floor under Weather's wetness with its own `road_mist`
+  share in road.gdshader (an even rain film at the same wetness read lighter than a dry street,
+  the drying patches read as oil stains); the deck underside takes half the low air's haze, since
+  the scene's fog is the ground layer's. MARINE_MORNING=0 the A/B.
+- **2026-11-01 The suburban street refcam: a suburb reads by its lawns, its kerbs and its yards
+  (rc2-suburb, HANDOFF "The suburban street at 09:30").** A new reference camera, `suburb_morning`
+  (tools/refcams/cameras_w5.json): the pavement of a suburban residential street at 09:30. Fixed:
+  lawn tufts cut to mowing height (they stood up to 0.7 m: every lawn read as weeds), the
+  decomposed-granite gardens a pale crushed tan (they were orange clay), residents' cars on the
+  empty kerb stalls (a hash per stall after every roll, so nothing built moves), the parkway's soil
+  edge a bevel (it was a dark carpet-tile wall), and the code-built trees' leaf dither held off on
+  Compatibility until a leaf really is sub-pixel (no TAA there: it drew streaks). RC2_SUBURB=0 the A/B.
+- **2026-11-01 The crowd plaza refcam: a plaza is open ground, and no crowd has twins
+  (rc2-crowd-plaza, HANDOFF "The crowd plaza refcam").** A new reference view at eye level in
+  STARLIGHT PLAZA at lunch. Decisions: a landmark crowd rect 14 m+ either way is open ground whose
+  head-count follows the hour (PlazaCrowd, capped at a person per 14 m2) and whose walkers cross it
+  rather than walking its edges; a crowd look's colours are rolled per rig, a quarter of looks keep
+  the rig's own outfit, and recolours are muted (CrowdDress); on a plaza rigs and looks are dealt,
+  not rolled. The library's standing clips keep their legs near the rig's own stance (0.88).
+  PLAZA_CROWD=0 / CROWD_DRESS=0 the A/B.
+- **2026-11-01 A build that is no longer wanted is dropped, even half done (HANDOFF "The gate's
+  intermittent failures, wave 5"):** the "spawn chunk replaced mid-file" flake was a real streaming
+  bug - a build started at the other level while the player was elsewhere finished after he came
+  back and replaced the chunk standing there. CityStreamer now cancels a pending build once the
+  block stands at the wanted level (STALE_BUILD_CANCEL=0 the A/B); a hidden shopper whose door was
+  rebuilt finds it again (REVIVE_DOORS=0). Gate loops run from their own worktree.
+- **2026-11-01 The fireball lives on as the mushroom, and fuel keeps burning (explosions-4, HANDOFF
+  "The blast, fourth pass").** The third pass's ray-marched fireball died after a few seconds and
+  handed over to card smoke, which is where every blast read as a game effect. Decision: the volume
+  itself lives on for 9-12 s and rolls up into a vortex-ring cap over a stem (curl-advected noise,
+  three shadow taps, lit from below by the fires actually burning), and the card column only takes
+  over at half its life. A car or a pump is a fuel blast: a pool of burning fuel where it went up,
+  two to four secondary pops, and a chain fuse to the cars beside it (depth-limited). The bang
+  arrives at the speed of sound and the shake with the wave. All behind EXPLOSIONS_4=0; the web
+  keeps the cards.
+
+- **2026-11-02 The canyon road refcam: hill roads read as roads (rc2-canyon-road, HANDOFF "The
+  canyon road refcam").** A new reference view on a front-range switchback (cameras_w5.json,
+  `canyon_road`). Decisions: every drawn hill road at least 5 m wide is a marked two-lane canyon
+  road with a gravel shoulder (one shader, the lateral metres in the strip's UVs; everything else
+  off true world XZ, so chunks meet); a fill side whose ground falls 1.6 m within 4.5 m of the edge
+  gets a W-beam guardrail on timber posts with buried ends (pure, off the plan's ground; off
+  driveways and junctions); the hill boulders are gathered and bedded after their rolls, so no
+  seed's layout moves. CANYON_ROAD=0 the A/B. Occlusion culling hangs the opengl3 stills on this
+  box (an engine lost wakeup in RaycastOcclusionCull); shots are taken with it off.
+
+- **2026-11-01 The mayhem refcam: a staged combat moment is judged like the other cameras
+  (rc2-mayhem, HANDOFF "The mayhem refcam").** The eleventh view lives in cameras_w5.json and is
+  staged by a script the row names, so effects, police and crowd are judged where a player sees
+  them. A muzzle flash lights a few metres, a burning car's light falls off by the inverse square,
+  the police pool falls off softly; the fireball's look belongs to explosions-4. RC_MAYHEM=0 is the A/B.
+
+- **2026-11-01 Shadows: fit the cascades to what the camera can see, not to its depth alone
+  (shadows-review, HANDOFF "Shadows across the game").** Godot fits the sun's four cascades by view
+  depth, which from the air spends three of them on sky and stops at 500 m; ShadowTuning slides
+  them out with the camera's clearance over whatever is under it (a roof counts), the reach capped
+  at 600 m at HIGH (1000 m doubled an aerial's shadow passes). The bias stays (lower values brought acne at golden hour in the lab), the fade is
+  20 %, and far landmark planting casts within 450 m. SHADOW_TUNING=0 is the A/B.
+- **2026-11-02 The camera lens: measure the meter before touching the clamps (camera-lens, HANDOFF
+  "The camera lens").** Godot's auto exposure meters every frame of this city under the camera's
+  dark limit, so the player camera never adapted (a constant 1.6x gain). Lowering the limit would
+  have re-exposed every day frame the grade was tuned on, so the clamps stay and the lens adds an
+  exposure compensation from an enclosure probe (slow to open up, fast to close down); the sun gets
+  a flare in the lens pass occluded by one screen tap, the grain follows the exposure, the bloom a
+  wider spread. CAMERA_LENS=0 the A/B.
+- **2026-11-01 Popping: fade what alpha can fade, dissolve what it cannot (lod-pops, HANDOFF
+  "Popping while driving and flying").** Godot's visibility-range fade is an alpha blend on
+  Forward+ and nothing on Compatibility, so it is given to flat things only (LodFade, Forward+
+  desktop); a car's near body and far twin crossfade by a complementary screen door in their own
+  shaders (CarLodBlend), which is opaque and needs TAA; the web keeps every cut. LOD_POPS=0 /
+  CAR_LOD_BLEND=0 the A/B.
+- **2026-11-01 The rainy day is lit by the sky, not the sun (rc2-rain-day, HANDOFF "The rainy day").**
+  Daylight rain was the clear day with a grey sky drawn over it. Decisions: under a rain deck by day
+  the sun keeps about a third of its key and its shadows fade (RainDay); a wet road by day mirrors
+  the sky down its middle and the fronts along its sides, worked out from the plan like the night
+  mirror, and the night city's mirror and sky emission belong to the night only; things that burn
+  only after dark (searchlights, premiere beams) follow the lamps' night level, not the weather's
+  share (street and car lamps still come on under a storm at noon). New refcam `rain_day` in
+  tools/refcams/cameras_w5.json. RAIN_DAY=0 the A/B.
+
+- **2026-11-01 The night aerial refcam: light from the air is points, not slabs (rc2-night-aerial,
+  HANDOFF "The night aerial review").** A new reference camera (`night_aerial`, wave 5's table)
+  judged the city from 350 m at 22:30. Decisions: a lane's averaged traffic light is drawn as the
+  cars it averages wherever a pixel can still tell them apart, and its far-distance bloom only
+  comes in with distance; broad road-light pools have no hard rim and dim from the air; floodlit
+  masonry is a fifth of the old brick and render, not most of it; a far searchlight seen from the air
+  saturates softly and fades with distance. NIGHT_AERIAL=0 is the A/B.

@@ -18,7 +18,7 @@ import re
 import subprocess
 import sys
 
-KEEP_BOTH = ["tests/smoke_test.gd", "scripts/world/day_night.gd", "tools/glshot/still_shot.gd", "scripts/world/city_chunk.gd", "scripts/world/city_plan.gd", "project.godot", "scripts/ui/loading_screen.gd", "scripts/util/sfx.gd", "scripts/ui/minimap.gd"]
+KEEP_BOTH = ["tests/smoke_test.gd", "scripts/world/day_night.gd", "tools/glshot/still_shot.gd", "scripts/world/city_chunk.gd", "scripts/world/city_plan.gd", "project.godot", "scripts/ui/loading_screen.gd", "scripts/util/sfx.gd", "scripts/ui/minimap.gd", "tools/refcams/README.md", "tools/refcams/refcams_shot.gd"]
 DOCS = ["docs/HANDOFF.md", "VISUAL_ROADMAP.md", "docs/GAME_PLAN.md", "CLAUDE.md", "docs/ASSETS.md"]
 
 
@@ -110,6 +110,10 @@ def main():
                 print("  ours:  ", " | ".join(x.strip() for x in o.strip().splitlines()[-2:])[:150])
                 print("  theirs:", " | ".join(x.strip() for x in t.strip().splitlines()[-2:])[:150])
             conflicted = [c for c in conflicted if c != f]
+    for cam_file in [c for c in conflicted if re.match(r"tools/refcams/cameras_w\d+\.json$", c)]:
+        # A wave's refcam rows (cameras_w5.json, cameras_w6.json ...): keep every camera.
+        sh(sys.executable, os.path.join(os.path.dirname(os.path.abspath(__file__)), "resolve_cameras.py"), cam_file)
+        conflicted = [c for c in conflicted if c != cam_file]
     others = [c for c in conflicted if c not in DOCS]
     for f in conflicted:
         if f not in DOCS:

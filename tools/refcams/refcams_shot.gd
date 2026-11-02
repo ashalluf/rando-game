@@ -74,21 +74,49 @@ func _run() -> void:
 	for cam: Dictionary in cams:
 		var t0 := Time.get_ticks_msec()
 		var eye: Array = cam.eye
+		# A "hero" row (cameras_w5.json's hero_foot) stages the player on foot at the eye's x, z and
+		# shoots through his own CameraRig: the default third-person view, not a free camera.
+		_hero = cam.get("hero", {}) if cam.get("hero", null) is Dictionary else {}
 		var y := float(eye[1])
 		if cam.get("agl", false) and plan != null:
 			y += float(plan.height_at(Vector2(float(eye[0]), float(eye[2]))))
 		var eye_text := "%.2f,%.2f,%.2f,%.2f,%.2f" % [float(eye[0]), y, float(eye[2]), float(eye[3]), float(eye[4])]
-		OS.set_environment("EYE", eye_text)
+		OS.set_environment("EYE", "" if not _hero.is_empty() else eye_text)
 		var fov := float(cam.get("fov", 55.0))
+		if not _hero.is_empty():
+			_hero_start(player, eye, y)
 		_set_weather(weather, String(cam.get("weather", "clear")))
 		if day:
 			day.set("hour", float(cam.hour))
 			day.call("_apply")
 		Engine.time_scale = 1.0
-		_place(player, fov)
-		if scene.has_method("update_streaming"):
-			scene.call("update_streaming", true)
-		for i in _env_int("SHOT_FRAMES", 30):
+		# A "drive" row (cameras_w5.json, chase_cam): the player drives his own car and the shot is
+		# his chase camera (tools/refcams/chase_stage.gd), not the free eye.
+		var drive: RefCounted = null
+		if cam.has("drive"):
+			OS.set_environment("EYE", "")
+			drive = load("res://tools/refcams/chase_stage.gd").new()
+			await drive.call("run", self, cam, player)
+			fov = player.get("camera").fov
+		else:
+			_place(player, fov)
+			# The marine layer's morning damp (MarineMorning) wants the hour and the eye: soaked at once.
+			if weather and weather.has_method("settle_wet"):
+				var keys: Array = weather.get_script().get_script_constant_map().get("STATE_KEYS", [])
+				weather.call("settle_wet", keys.find(String(cam.get("weather", "clear"))), float(cam.hour),
+					Vector3(float(eye[0]), y, float(eye[2])))
+			if scene.has_method("update_streaming"):
+				scene.call("update_streaming", true)
+		# A row may ask for more frames (cameras_w5.json "shot_frames": a view over big chunks that
+		# the FULL ring has not finished building after the default). What it stages is staged
+		# the default count before the shot, so it is where the row says whatever the wait.
+		var frames := 0 if drive else maxi(_env_int("SHOT_FRAMES", 30), int(cam.get("shot_frames", 0)))
+		var stage_at := frames - _env_int("SHOT_FRAMES", 30)
+		var traffic_staged := false
+		for i in frames:
+			if i == stage_at:
+				_stage_air(scene, cam)
+				traffic_staged = _stage_street_cars(cam, scene, plan)
 			await process_frame
 			_place(player, fov)
 			if day:
@@ -100,12 +128,26 @@ func _run() -> void:
 			if day:
 				day.set("hour", float(cam.hour))
 				day.call("_apply")
+		# A staged camera ("stage": "mayhem" in cameras_w5.json): the scene is set up now, once
+		# the chunks round the eye stand, and the effect clock stepped to its moment.
+		var stage := String(cam.get("stage", ""))
+		if stage == "mayhem":
+			_stager = load("res://tools/refcams/mayhem_stage.gd")
+			await _stager.stage(self, scene, _eye_cam, player, func() -> void: _place(player, fov))
 		Engine.time_scale = 0.0005
 		for i in _env_int("SETTLE", 6):
 			await process_frame
-			_place(player, fov)
-		_clear_lens(cam.name)
+			if drive:
+				drive.call("hold")
+			else:
+				_place(player, fov)
+		if not drive:
+			_clear_lens(cam.name)
 		await process_frame
+		if not _hero.is_empty():
+			_hero_report(player, cam.name)
+		if traffic_staged:
+			scene.get_node("Traffic").set("staged", false)
 		var png := _out_dir.path_join("%s.png" % cam.name)
 		get_root().get_texture().get_image().save_png(png)
 		var c: Array = await _geo_report("GEO_%s" % cam.name)
@@ -121,10 +163,64 @@ func _run() -> void:
 				"shadow_tris": c[4], "camera_draws": c[5], "shadow_draws": c[6]},
 			"shot_ms": Time.get_ticks_msec() - t0,
 		})
+		if drive:
+			await drive.call("debug", _out_dir)
+			drive.call("finish")
+			Engine.time_scale = 1.0
+			if _eye_cam:
+				_eye_cam.make_current()
 		_write_frames(load_ms, shots)
+		if _stager != null:
+			_unstage(scene, player)
 		print("REFCAM %s saved %s eye %s hour %.2f %s" % [cam.name, png, eye_text, float(cam.hour), cam.get("weather", "clear")])
 	print("REFCAMS done, %d shots in %d ms" % [shots.size(), Time.get_ticks_msec() - started])
 	quit()
+
+
+## A camera row's optional `street_cars` (wave 5, rain_day): {"axis": "z" (a road of constant z) or
+## "x", "at": the road's coordinate (the nearest road there is taken), "cars": [[along, dir, lane,
+## speed], ...]} - street traffic placed through TrafficManager.place_car() as the camera starts
+## (along = the TRUE world coordinate down the road; dir +1 runs toward +along), with the upkeep
+## held (`staged`) until the shot is taken, so the view always has its traffic (and its tyre spray)
+## whatever the load's own traffic did. Rows without the key place nothing.
+func _stage_street_cars(cam: Dictionary, scene: Node, plan: Variant) -> bool:
+	var spec: Variant = cam.get("street_cars")
+	var traffic := scene.get_node_or_null("Traffic")
+	if not spec is Dictionary or traffic == null or plan == null:
+		return false
+	var axis := 1 if String(spec.get("axis", "z")) == "z" else 0  # CityPlan.AXIS_Z / AXIS_X
+	var at := float(spec.get("at", 0.0))
+	var probe := Vector2(0.0, at) if axis == 1 else Vector2(at, 0.0)
+	var start: Vector2i = plan.block_index_at(probe)
+	var i0 := start.y if axis == 1 else start.x
+	var best := i0
+	for i in range(i0 - 1, i0 + 3):
+		if absf(float(plan.road_pos(axis, i)) - at) < absf(float(plan.road_pos(axis, best)) - at):
+			best = i
+	traffic.set("staged", true)
+	var placed := 0
+	for c: Array in spec.get("cars", []):
+		var car: Variant = traffic.call("place_car", axis, best, int(c[1]), int(c[2]), float(c[0]), float(c[3]))
+		if car != null:
+			placed += 1
+	print("REFCAM %s: placed %d street cars on road %d (axis %d at %.1f)" % [cam.name, placed, best, axis, float(plan.road_pos(axis, best))])
+	return true
+
+
+## A camera row's optional "air" key (cameras_w5.json): AirTraffic.stage() of that kind with
+## "air_dist" / "air_side", as still_shot.gd's AIR / AIR_DIST / AIR_SIDE (the airport's ground:
+## "taxi" is a landed jet `air_dist` seconds along its way to stand `air_side`). No key, nothing.
+func _stage_air(scene: Node, cam: Dictionary) -> void:
+	var kind := String(cam.get("air", ""))
+	if kind == "":
+		return
+	var air := scene.get_node_or_null("AirTraffic")
+	var lens := get_root().get_camera_3d()
+	if air == null or lens == null:
+		print("REFCAM %s: no AirTraffic to stage %s" % [cam.name, kind])
+		return
+	var placed: Node = air.call("stage", kind, lens, float(cam.get("air_dist", 300.0)), float(cam.get("air_side", 0.0)))
+	print("REFCAM %s: staged %s (%s)" % [cam.name, kind, placed.name if placed else "nothing"])
 
 
 ## A traffic car the shot's clock left with the lens inside or just against its body (the freeway
@@ -155,6 +251,21 @@ func _clear_lens(shot: String) -> void:
 			print("REFCAM %s: hid %s, its body held the lens" % [shot, car.name])
 
 
+## The staging script of the camera being shot (null for a plain camera).
+var _stager: GDScript = null
+
+
+## After a staged camera: the hero hidden again, the aim let go, the police stood down.
+func _unstage(scene: Node, player: Node3D) -> void:
+	_stager.set("hero_at", Vector3.INF)
+	_stager = null
+	Input.action_release("alt_fire")
+	var police := scene.get_node_or_null("Police")
+	if police:
+		police.call("set_wanted", 0)
+	player.visible = false
+
+
 ## frames.json, rewritten after every shot so a run that dies part way keeps what it shot.
 func _write_frames(load_ms: int, shots: Array) -> void:
 	var out := {"renderer": RenderingServer.get_current_rendering_driver_name(),
@@ -178,10 +289,22 @@ func _cameras() -> Dictionary:
 ## The free camera at EYE, and the player parked hidden on it so streaming centres there and
 ## nothing he does (falling, the fall-through recovery) moves the frame.
 func _place(player: Node3D, fov: float) -> void:
+	if not _hero.is_empty():
+		_hero_place(player, fov)
+		return
+	if _eye_cam and get_root().get_camera_3d() != _eye_cam:
+		_eye_cam.make_current() # back from a hero camera
 	_eye(player, fov)
 	if _eye_cam:
 		player.global_position = _eye_cam.global_position
 	player.set("velocity", Vector3.ZERO)
+	# A staged camera puts the hero in the shot, at the stage's spot, facing down the street.
+	if _stager != null and _stager.get("hero_at") != Vector3.INF:
+		player.visible = true
+		player.global_position = _stager.get("hero_at")
+		var vis := player.get_node_or_null("Visual") as Node3D
+		if vis:
+			vis.rotation.y = float(_stager.get("hero_yaw"))
 
 
 ## The weather held for the shot, with the streets as wet as that weather leaves them (a clear
@@ -201,4 +324,80 @@ func _set_weather(weather: Node, key: String) -> void:
 
 ## still_shot's _geo_split re-poses the player before its base count: here that is the free camera.
 func _pose(player: Node3D, _anchor: Vector3, _hold: Vector3, _boost: bool, fov: float) -> void:
+	if player.get("vehicle") != null:
+		return
 	_place(player, fov)
+
+
+## The hero camera's row ({"hero": {...}} in a camera; every key optional): the player stands at
+## the eye's x, z on the ground (eye y is unused), faces and looks along the eye's yaw, the rig
+## pitched by the eye's pitch, at the rig's own distance unless "distance"; "walk" (0..1, default
+## 0.35) holds move_forward at that strength so he walks away from the lens (put back to the start
+## every frame, so the frame never moves); "weapon" the WeaponManager slot (default 0, the rifle).
+var _hero: Dictionary = {}
+var _hero_at := Vector3.ZERO
+
+
+func _hero_start(player: Node3D, eye: Array, ground_y: float) -> void:
+	var ws := root.get_node_or_null("/root/WorldState")
+	var off: Vector3 = ws.get("world_offset") if ws else Vector3.ZERO
+	var gy := ground_y - float(eye[1])
+	if current_scene and current_scene.get("plan") != null:
+		gy = float(current_scene.get("plan").height_at(Vector2(float(eye[0]), float(eye[2]))))
+	# Kept in TRUE world: the streaming re-centres the origin while the shot settles.
+	_hero_at = Vector3(float(eye[0]), gy + 0.3, float(eye[2]))
+	player.visible = true
+	player.global_position = _hero_at - off
+	var vis := player.get_node_or_null("Visual") as Node3D
+	if vis:
+		vis.rotation.y = deg_to_rad(float(eye[3]))
+	var wm: Node = player.get("weapon_manager")
+	if wm and wm.has_method("equip"):
+		wm.call("equip", int(_hero.get("weapon", 0)))
+	var rig := player.get_node_or_null("CameraRig")
+	if rig:
+		rig.call("set_look", float(eye[3]), float(eye[4]))
+		if _hero.has("distance"):
+			rig.set("camera_distance", float(_hero.distance))
+		var cam := rig.get("camera") as Camera3D
+		if cam:
+			cam.make_current()
+
+
+func _hero_place(player: Node3D, fov: float) -> void:
+	var walk := float(_hero.get("walk", 0.35))
+	if walk > 0.0 and Engine.time_scale > 0.5:
+		Input.action_press("move_forward", walk)
+	else:
+		Input.action_release("move_forward")
+	# The ground under him is real (he stands on it); only x, z go back to the start.
+	var ws := root.get_node_or_null("/root/WorldState")
+	var at: Vector3 = ws.call("to_local", _hero_at) if ws else _hero_at
+	player.global_position = Vector3(at.x, player.global_position.y, at.z)
+	var rig := player.get_node_or_null("CameraRig")
+	if rig:
+		rig.set("camera_fov", fov)
+		rig.set("boost_fov_boost", 0.0)
+		var cam := rig.get("camera") as Camera3D
+		if cam and get_root().get_camera_3d() != cam:
+			cam.make_current()
+
+
+func _hero_report(player: Node3D, shot: String) -> void:
+	Input.action_release("move_forward")
+	var ws := root.get_node_or_null("/root/WorldState")
+	var cam := get_root().get_camera_3d()
+	var near := 0
+	var within := 0
+	for p in get_nodes_in_group("pedestrian"):
+		var n := p as Node3D
+		if n == null or not n.is_visible_in_tree():
+			continue
+		var d := n.global_position.distance_to(player.global_position)
+		if d <= 12.0:
+			within += 1
+			if d >= 3.0:
+				near += 1
+	print("REFCAM %s hero at %s speed %.2f, camera %s, %d people within 12 m (%d at 3-12 m)" % [shot,
+		str(ws.call("to_world", player.global_position)) if ws else "?", float(player.call("horizontal_speed")),
+		str(ws.call("to_world", cam.global_position)) if ws and cam else "?", within, near])

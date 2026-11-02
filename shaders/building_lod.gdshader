@@ -177,9 +177,12 @@ uniform float junction_glow = 0.75;
 #include "res://shaders/window_interiors.gdshaderinc"
 // The facade pass, as the near walls draw it (building.gdshader's facade_variety).
 #include "res://shaders/facade_variety.gdshaderinc"
+#include "res://shaders/facade_mid3.gdshaderinc"
 // The skyline's glass by day (building.gdshader has the same): sky, clouds, towers, the sun.
 #include "res://shaders/skyline_glass.gdshaderinc"
 uniform bool facade_variety = false;
+// The masonry walls' piers and recessed strips, as building.gdshader draws them (FacadeMid3).
+uniform bool facade_mid3 = false;
 // building.gdshader's window_recess (its punched and slot windows' depth), for the far reveal.
 uniform float window_recess_far = 0.20;
 #include "res://shaders/far_traffic.gdshaderinc"
@@ -261,6 +264,13 @@ float detail(float period, float mpp) {
 // The weathered flat roofs, the very function the near building draws (rc-downtown-aerial).
 #include "res://shaders/roof_weather.gdshaderinc"
 
+
+// Forward+ review g (FwdReviewG): the near pane's traced room is decoded on Forward+ (building.gdshader,
+// fx_srgb_in()); the far pane's stand-ins for it are display numbers too, so they follow. 0 the A/B.
+global uniform float fwd_review_g;
+vec3 fg_room(vec3 c) {
+	return fwd_review_g > 0.5 ? cs_as_uniform(c) : c;
+}
 
 // --- Building's palettes, as it wrote them (sRGB numbers; cs_as_uniform() them before use).
 // tests/far_city_checks.gd reads these back out of this source and compares them with Building.
@@ -602,6 +612,8 @@ void fragment() {
 					surface = rw_membrane(p, edge, sd, mpp, rough);
 				} else if (roof_weather && roof_kind == 2) {
 					surface = rw_bitumen(p, edge, sd, rough);
+				} else if (roof_weather && facade_mid3 && roof_kind == 0) {
+					surface = rw_gravel(p, edge, sd, c, mpp, rough);
 				} else if (roof_kind == 1) {
 					// White single-ply membrane in welded strips, grey where water sits.
 					surface = vec3(0.78, 0.78, 0.76);
@@ -860,9 +872,9 @@ void fragment() {
 			// traced paint, blinds and desks (about 0.4 on average) at the interior exposure (0.4),
 			// seen through the building's own glass tint, darker toward the frame and where the
 			// head shades the recess (its 0.45 inset and 0.5 recess shade, about 0.8 over a pane).
-			vec3 room = mix(vec3(0.16, 0.155, 0.15), tint_c * 0.19, 0.28) * 0.8 * (0.55 + 0.9 * hash31(vec3(col * 1.7, row, sd * 31.0)));
+			vec3 room = mix(fg_room(vec3(0.16, 0.155, 0.15)), tint_c * 0.19, 0.28) * 0.8 * (0.55 + 0.9 * hash31(vec3(col * 1.7, row, sd * 31.0)));
 			if (storefront) {
-				room = vec3(0.22, 0.20, 0.17) * (0.7 + 0.6 * shop_seed);
+				room = fg_room(vec3(0.22, 0.20, 0.17)) * (0.7 + 0.6 * shop_seed);
 			} else if (facade_variety) {
 				// The pane's tone and its floor's coating, and the blind the near pane hangs at the
 				// same height (fx_pane(): the near room traces it), at their averages once a pane is
@@ -874,9 +886,9 @@ void fragment() {
 				if (wi_home(sd, ws)) {
 					// A home hangs its own (window_interiors.gdshaderinc), seen at its average.
 					vec4 cm = wi_cover_mean(wi_key(sd, face_id, row, col));
-					room = mix(room, cm.rgb * 0.245, cm.a * 0.85);
+					room = mix(room, fg_room(cm.rgb * 0.245), cm.a * 0.85);
 				} else {
-					room = mix(room, vec3(0.20, 0.195, 0.18) * 1.15, blind * 0.85);
+					room = mix(room, fg_room(vec3(0.20, 0.195, 0.18) * 1.15), blind * 0.85);
 				}
 			}
 			// No glare lobe: the near glass has none, its flare is the renderer's own specular.
@@ -1143,6 +1155,29 @@ void fragment() {
 			} else {
 				albedo = cell;
 				emission += e_cell;
+			}
+			// The masonry walls' piers standing proud of recessed window strips
+			// (facade_mid3.gdshaderinc), as building.gdshader draws them, box filtered.
+			if (facade_mid3 && !plinth && !parapet_band && !pier && !storefront && !parking && (ws == 0 || ws == 3)) {
+				int m3_sys = fm3_system(sd, ws, fin);
+				if (m3_sys > 0) {
+					vec2 m3_run = fm3_run(sf_h, base_hp, part_h, floor_hp, has_crown ? part_h - 1.6 * floor_hp : -1.0);
+					vec4 pc = fm3_piers(m3_sys, ws, fin, pitch, uq, vp, m3_run, mpp, vw, sw);
+					if (pc.x + pc.y + pc.z + pc.w > 0.0) {
+						float lit_front_m = 0.38 + max(sw.z, 0.0) * day;
+						vec3 pier_col = mix(wall, (glass || reveal) ? wall : albedo, band_fade);
+						float dxs = sign(-vw.x / max(vw.z, 1e-3));
+						vec3 side_col = wall * fm3_side_light(dxs, sw, day, lit_front_m) * 0.86;
+						// Held to about three quarters of the near wall's: the near building's kit (cornices,
+						// surrounds, sills) stands in front of a share of its wall and is not darkened, so
+						// the same factor drew the far box 5 % darker than the near one (far_pair.py).
+						float rec = 1.0 - (1.0 - fm3_recess_mul(fin)) * pc.w * 0.72;
+						vec3 base_a = albedo * fm3_display(rec * (1.0 - 0.30 * pc.z * day));
+						float cov = clamp(pc.x + pc.y, 0.0, 1.0);
+						albedo = mix(base_a, (pier_col * pc.x + side_col * pc.y) / max(pc.x + pc.y, 1e-4), cov);
+						emission *= (1.0 - cov) * (1.0 - 0.25 * pc.z * day);
+					}
+				}
 			}
 			if (facade_variety && !plinth) {
 				// The dirt washed down from the coping (at its average once a streak is under a

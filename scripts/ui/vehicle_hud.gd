@@ -65,6 +65,11 @@ const MODELS := [
 	["Velmara", "Tessa", "Compact SUV"],
 	["Haldric", "Sawtooth Work", "Work truck"],
 	["Bravent", "Vesper Coupe", "Coupe"],
+	["Orivo", "Ventra Estate", "Wagon"],
+	["Haldric", "Brutano 6.4", "Muscle"],
+	["Quentis", "Sovrana", "Luxury SUV"],
+	["Sundale", "Minimo", "City van"],
+	["Velmara", "Cordale '74", "Classic"],
 ]
 
 var _player: Node

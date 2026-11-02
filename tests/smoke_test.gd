@@ -118,7 +118,7 @@ const PART_COST := {
 	"shop_vinyl_checks": 0.0, "sky_checks": 0.0, "bonfires_checks": 3.0,
 	"cinematic_review_checks": 0.1, "sunset_clouds_checks": 0.0, "night_street_review_checks": 0.1,
 	"downtown_street_closeup_checks": 1.5, "golden_hour_review_checks": 0.1,
-	"night_flight_checks": 0.0, "mac_verify_pack_checks": 1.0, "fwd_review_f_checks": 0.0, "web_hero_rain_checks": 0.1, "skyline_glass_day_checks": 0.1, "sky_day_checks": 0.0, "rc_golden_aerial_checks": 0.1, "rc_sunset_checks": 0.1, "rc_street_noon_checks": 0.1, "dawn_review_checks": 0.1
+	"night_flight_checks": 0.0, "mac_verify_pack_checks": 1.0, "fwd_review_f_checks": 0.0, "web_hero_rain_checks": 0.1, "skyline_glass_day_checks": 0.1, "sky_day_checks": 0.0, "rc_golden_aerial_checks": 0.1, "rc_sunset_checks": 0.1, "rc_street_noon_checks": 0.1, "dawn_review_checks": 0.1, "sky_clouds_3_checks": 0.0, "fwd_review_g_checks": 0.0, "rc_alley_night_checks": 2.0
 }
 const DEFAULT_COST := 6.0
 ## Every share pays for its own city load on top of its parts.
@@ -2437,6 +2437,8 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	load("res://tests/load_time_checks.gd").new().run(self, city)
 	# The first minute (tests/loading_first_frame_checks.gd): the warm-up list, the rehearsal's purge, the preload, FirstFill.
 	load("res://tests/loading_first_frame_checks.gd").new().run(self, city)
+	# Load time after wave 4 (tests/load_time_3_checks.gd): the rehearsal's stages, freed list entries.
+	load("res://tests/load_time_3_checks.gd").new().run(self, city)
 	# The extra occluders (tests/occluders_checks.gd): hill terrain, decks, banks, sound walls and
 	# the far mountains, each inside what it stands for.
 	await load("res://tests/occluders_checks.gd").new().run(self, city)
@@ -2736,6 +2738,9 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	# The explosion's third pass (tests/explosions_3_checks.gd, Blast3): the volume fireball, bits
 	# that land, debris that settles, fire-lit smoke, the haze, the scorch's maps.
 	await load("res://tests/explosions_3_checks.gd").new().run(self, city)
+	# The explosion's fourth pass (tests/explosions_4_checks.gd, Blast4): the mushroom volume, the
+	# fuel pool, the secondary pops, the chain fuse, the bang at the speed of sound.
+	await load("res://tests/explosions_4_checks.gd").new().run(self, city)
 	# The pier at night (tests/rc_pier_night_checks.gd, PierNight): the wheel's glow, the halos.
 	load("res://tests/rc_pier_night_checks.gd").new().run(self, city)
 	# The sky's radiance catches up with a jump (tests/web_hero_rain_checks.gd, SkySettle): the
@@ -2796,6 +2801,8 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	load("res://tests/rc_hills_checks.gd").new().run(self, city)
 	# The fourth perf audit (tests/perf_audit_4_checks.gd): the horizon tiles, the far city's hidden tiles.
 	load("res://tests/perf_audit_4_checks.gd").new().run(self, city)
+	# The fifth perf audit (tests/perf_audit_5_checks.gd): wheel, knee-high plant and crowd shadow twins.
+	load("res://tests/perf_audit_5_checks.gd").new().run(self, city)
 	# Traffic behaviour (tests/traffic_behaviour_2_checks.gd, TrafficBehaviour): creep at a red,
 	# inching queues, brake flicker, a bus pulling out, left turns' gaps, wrecks, heads turning.
 	await load("res://tests/traffic_behaviour_2_checks.gd").new().run(self, city)
@@ -2804,6 +2811,62 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	# The beach refcam (tests/rc_beach_checks.gd, SandRoads, Waders): no traffic on the streets the
 	# sand covers, people standing in the shallows.
 	load("res://tests/rc_beach_checks.gd").new().run(self, city)
+	# Cloud shadows from the real clouds (tests/sky_clouds_3_checks.gd, CloudShadows).
+	load("res://tests/sky_clouds_3_checks.gd").new().run(self, city)
+	# Forward+ review g (tests/fwd_review_g_checks.gd, FwdReviewG): wave 4's look work on the Mac's renderer.
+	load("res://tests/fwd_review_g_checks.gd").new().run(self, city)
+	# The fourth wave of everyday bodies (tests/car_variety_4_checks.gd, Cars4): rolls, the switch, builds, traffic.
+	await load("res://tests/car_variety_4_checks.gd").new().run(self, city)
+	# Shimmer and crawl in motion (tests/specular_aliasing_checks.gd, SpecularAA): the lobes widened by
+	# the pixel's spread of normals, the windows' coverage, the paint's widening, the switch.
+	load("res://tests/specular_aliasing_checks.gd").new().run(self, city)
+	# The LA River from the bed (tests/rc2_river_checks.gd, RiverLook, RiverDebris): the water's
+	# bank mirror, the concrete's A/B, weeds and litter on a FULL chunk's bed.
+	load("res://tests/rc2_river_checks.gd").new().run(self, city)
+	# The airport apron refcam (tests/rc2_airport_checks.gd, AirportApron): paint over the ground, stains, liveries.
+	await load("res://tests/rc2_airport_checks.gd").new().run(self, city)
+	# The container terminal refcam (tests/rc2_port_checks.gd, PortFill, PortMooring): the yard's
+	# tiers, the mast's floodlights, the ship's bow and plating, the mooring lines, dusty roofs.
+	load("res://tests/rc2_port_checks.gd").new().run(self, city)
+	# The glass at arm's length (tests/interiors_glass_checks.gd, InteriorsGlass): people in the shops,
+	# the fittings' light, the day mirror, the spill's window, the A/B.
+	load("res://tests/interiors_glass_checks.gd").new().run(self, city)
+	# Facades at mid distance, third pass (tests/facades_mid3_checks.gd, FacadeMid3): piers, raised parapets, gravel.
+	load("res://tests/facades_mid3_checks.gd").new().run(self, city)
+	# The marine-morning refcam (tests/rc2_marine_checks.gd, MarineMorning): damp streets, the coast's mist, the deck's underside.
+	load("res://tests/rc2_marine_checks.gd").new().run(self, city)
+	# The suburb refcam (tests/rc2_suburb_checks.gd, RcSuburb): residents' cars, pale DG, the leaf dither.
+	load("res://tests/rc2_suburb_checks.gd").new().run(self, city)
+	# The crowd plaza refcam (tests/rc2_crowd_plaza_checks.gd, PlazaCrowd, CrowdDress): plazas by the
+	# hour and crossed, rigs dealt, outfits per rig, the A/Bs.
+	load("res://tests/rc2_crowd_plaza_checks.gd").new().run(self, city)
+	# The gate's intermittent failures, wave 5 (tests/gate_flakes_2_checks.gd): a stale pending build.
+	await load("res://tests/gate_flakes_2_checks.gd").new().run(self, city)
+	# The alley at night (tests/rc_alley_night_checks.gd, AlleyNight): water mirroring the lamps,
+	# halos, steam, tags on the back walls.
+	load("res://tests/rc_alley_night_checks.gd").new().run(self, city)
+	# The canyon road refcam (tests/rc2_canyon_road_checks.gd, CanyonRoad): markings, shoulder, guardrail, boulders.
+	load("res://tests/rc2_canyon_road_checks.gd").new().run(self, city)
+	# The mayhem refcam (tests/rc2_mayhem_checks.gd, RcMayhem): the staged camera, the fireball's look.
+	load("res://tests/rc2_mayhem_checks.gd").new().run(self, city)
+	# The shadows review (tests/shadows_review_checks.gd, ShadowTuning): the cascades on the ground
+	# and in the air, the fade, the A/B, the clearance follow.
+	await load("res://tests/shadows_review_checks.gd").new().run(self, city)
+	# The on-foot camera refcam (tests/rc2_hero_foot_checks.gd, CameraFade, ShopCrowd): no tree in
+	# the lens, busier shopping pavements near the camera, the hero_foot row.
+	load("res://tests/rc2_hero_foot_checks.gd").new().run(self, city)
+	# The camera lens (tests/camera_lens_checks.gd, CameraLens): exposure range and speed, flare, grain, bloom.
+	await load("res://tests/camera_lens_checks.gd").new().run(self, city)
+	# Popping while driving and flying (tests/lod_pops_checks.gd, LodFade).
+	await load("res://tests/lod_pops_checks.gd").new().run(self, city)
+	# The rainy day (tests/rc2_rain_day_checks.gd, RainDay): the overcast light, the wet road's day
+	# mirror, soaked lawns, no searchlights by day, nights and clear days untouched, the A/B.
+	await load("res://tests/rc2_rain_day_checks.gd").new().run(self, city)
+	# The night aerial refcam (tests/rc2_night_aerial_checks.gd, NightAerial): fewer floodlit boxes,
+	# the freeway's pools from the air, the far searchlights, the A/B.
+	load("res://tests/rc2_night_aerial_checks.gd").new().run(self, city)
+	# The chase_cam review (tests/rc2_chase_cam_checks.gd, ChaseCamReview): lane wear on the asphalt.
+	load("res://tests/rc2_chase_cam_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()

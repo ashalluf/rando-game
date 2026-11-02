@@ -620,6 +620,30 @@ static func _rect_fade(pos: Vector2, r: Rect2, margin: float) -> float:
 ## into, so the inland valley floor is deliberately NOT part of it - the valley is a plateau the
 ## city is built on, not a mountain.
 func raw_height_at(pos: Vector2) -> float:
+	# Inside bake() the same pixel's raw height is asked for up to three times (height_at(),
+	# zone_at(), district_at()): handed back from a one-entry memo there (load-time-3), with the
+	# drainage it left. Outside the bake this is one bool.
+	if _bake_memo:
+		if pos == _memo_pos:
+			last_drain = _memo_drain
+			return _memo_raw
+		var mh := _raw_height_at(pos)
+		_memo_pos = pos
+		_memo_raw = mh
+		_memo_drain = last_drain
+		return mh
+	return _raw_height_at(pos)
+
+
+## The bake's raw-height memo (see raw_height_at()); `bake_memo` false turns it off (the probe's A/B).
+static var bake_memo: bool = true
+var _bake_memo: bool = false
+var _memo_pos: Vector2 = Vector2(INF, INF)
+var _memo_raw: float = 0.0
+var _memo_drain: float = 0.0
+
+
+func _raw_height_at(pos: Vector2) -> float:
 	if _noise == null:
 		setup()
 	last_drain = 0.0
@@ -1155,6 +1179,8 @@ func bake(centre: Vector2, span: float, size: int) -> Image:
 	bake_height = Image.create(res, res, false, Image.FORMAT_RGH if OS.has_feature("web") else Image.FORMAT_RGF)
 	var step := span / float(res)
 	var origin := centre - Vector2(span, span) * 0.5
+	_bake_memo = bake_memo
+	_memo_pos = Vector2(INF, INF)
 	for py in res:
 		for px in res:
 			var pos := origin + Vector2((float(px) + 0.5) * step, (float(py) + 0.5) * step)
@@ -1230,4 +1256,5 @@ func bake(centre: Vector2, span: float, size: int) -> Image:
 				var jitter := 1.0 + (n - 0.5) * 2.0 * BAKE_JITTER
 				col = Color(col.r * jitter, col.g * jitter, col.b * jitter, col.a)
 			img.set_pixel(px, py, col)
+	_bake_memo = false
 	return img

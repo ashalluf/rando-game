@@ -51,6 +51,10 @@ const PASS_LOOK := 60.0
 const JUNCTION_KEEP := 10.0
 ## A car with a turn rolled heads for its turn lane within this distance of the junction (m).
 const TURN_LANE_REACH := 140.0
+## A car still in the wrong lane for its turn this close to the junction's centre (m: before the
+## drawn fillet starts, TrafficMotion.ARC_MAX plus a lane) turns only if the lane it cuts across
+## has room beside it, and is then a ghost in that lane until it has turned (turn_cross_key()).
+const TURN_COMMIT := 24.0
 ## The player on foot this far ahead in the lane makes a car swerve if the next lane is clear.
 const SWERVE_REACH := Vector2(5.0, 30.0)
 
@@ -80,6 +84,14 @@ const RAMP_OFF_SPEED := 13.0
 const RAMP_ON_SPEED := 21.0
 ## Where along an on-ramp (0 the deck edge, 1 the street) a joining car merges.
 const MERGE_AT := 0.02
+## How far up the outer lane a car may be to let a waiting ramp car in (m), and the braking it
+## will take to do it (m/s^2).
+const MERGE_YIELD_REACH := 220.0
+const MERGE_YIELD_BRAKE := 2.6
+## How much further back than the following rule a yielding car stops (m).
+const MERGE_YIELD_ROOM := 12.0
+## The outer lane lets a waiting ramp car in (merge_yielders()); MERGE_YIELD=0 is the A/B.
+static var merge_yield: bool = OS.get_environment("MERGE_YIELD") != "0"
 
 ## Honking: the most honks city-wide in HONK_WINDOW seconds, how far from the player a horn is
 ## worth playing (m), and each car's quiet time after it honks (s).
@@ -223,7 +235,9 @@ static func gap_ok(tm: TrafficManager, groups: Dictionary, key: int, car: Vehicl
 			continue
 		var ov := float(ot.get("v", 0.0))
 		var d := (float(ot.along) - along) * float(dir)
-		if d >= 0.0:
+		# Ahead or behind by the noses, not the centres: a short car beside the front half of a
+		# long bus has its centre ahead of the bus's, and its nose behind (nose_ahead()).
+		if d + float(ot.get("half", 2.4)) - half >= 0.0:
 			var gap := d - half - float(ot.get("rear", ot.get("half", 2.4)))
 			var need := tm.min_gap * 0.8 + v * tm.time_gap * 0.6 * tg + maxf(0.0, v - ov) * maxf(0.0, v - ov) / (2.0 * tm.brake_comfort)
 			if gap < maxf(need, 1.6):
@@ -245,13 +259,40 @@ static func ahead_in(groups: Dictionary, key: int, along: float, dir: int, half:
 		if other == me or not is_instance_valid(other):
 			continue
 		var ot: Dictionary = (other as Vehicle).traffic
-		var d := (float(ot.get("along", along)) - along) * float(dir)
+		# Ahead means its nose is ahead of mine (a long vehicle beside me counts, with a gap < 0).
+		var d := (float(ot.get("along", along)) - along) * float(dir) + float(ot.get("half", 2.4)) - half
 		if d > 0.0 and d < bd:
 			bd = d
 			best = other
 	if best == null:
 		return []
-	return [best, bd - half - float(best.traffic.get("rear", best.traffic.get("half", 2.4)))]
+	var bt: Dictionary = best.traffic
+	return [best, (float(bt.get("along", along)) - along) * float(dir) - half - float(bt.get("rear", bt.get("half", 2.4)))]
+
+
+## The order of a lane group: `a` before `b` (further back) when a's nose is behind b's. By the
+## centres, a short car beside the front half of a long bus sorted AHEAD of it, so neither had
+## the other as its leader and the car drove on into the bus (gate-flakes run 5757, -4.35 m).
+static func nose_ahead(a: Vehicle, b: Vehicle, dir: float) -> bool:
+	var ta: Dictionary = a.traffic
+	var tb: Dictionary = b.traffic
+	return float(ta.along) * dir + float(ta.get("half", 2.4)) < float(tb.along) * dir + float(tb.get("half", 2.4))
+
+
+## The lane group a car turning `t.turn` at the junction ahead cuts across, or -1: none when it is
+## in its turn lane (right from the kerb lane, left from the inner one) or on a one-lane road.
+static func turn_cross_key(tm: TrafficManager, t: Dictionary, axis: int, index: int, dir: int) -> int:
+	var side := turn_side(axis, dir, int(t.get("turn", 0)))
+	if side == 0 or int(t.turn) == 2:
+		return -1
+	var plan := tm.plan
+	var lanes := lanes_of(plan, axis, index)
+	if lanes < 2:
+		return -1
+	var n := lanes - 1 if side > 0 or tm._rail_street(axis, index) else 0
+	if lane_n(plan, axis, index, float(t.lane)) == n:
+		return -1
+	return TrafficManager.lane_key(axis, index, dir, lane_offset_n(plan, axis, index, dir, n))
 
 
 ## Starts the move to lane offset `to` (the car's queue changes at once: TrafficManager groups
@@ -399,7 +440,7 @@ static func street_think(tm: TrafficManager, car: Vehicle, leader: Vehicle, grou
 			reason = "pass"
 	if want < 0:
 		# Now and then double-park instead (the kerb lane, a quiet mid-block stretch).
-		if cur == lanes - 1 and side == 0 and not BigVehicles.is_big(car.body_type) and room > 60.0 and v > 3.0:
+		if cur == lanes - 1 and side == 0 and not BigVehicles.is_big(car.body_type) and room > 60.0 and v > 3.0 and not t.has("no_dp"):
 			var node: Vector2i = t.get("node", Vector2i.ZERO)
 			var h := absi(hash([car.get_instance_id(), node, "double_park"]))
 			if t.get("dp_node", Vector2i(-999999, 0)) != node:
@@ -914,11 +955,16 @@ static func ramp_tick(tm: TrafficManager, fw: Freeway, car: Vehicle, groups: Dic
 		var to_merge := (u - MERGE_AT) * length
 		var key := Vector3(float(t.fw), -1.0, float(Freeway.LANES - 1))
 		var room := fw_gap_ok(tm, groups, key, car, float(ramp.t), -1, maxf(v, 8.0))
+		t.erase("ramp_wait")
 		if to_merge <= 0.3:
 			if room:
 				_merge(fw, car, ramp, v)
 				return
-			# No gap: wait at the merge point, indicator on.
+			# No gap: wait at the merge point, indicator on, and the lane lets it in
+			# (merge_yielders()). With the freeway filled lane by lane (FreewayFill, ~42 m apart)
+			# the gap a standing start needs (~70 m) hardly ever came by itself: CI 399's ramp car
+			# stood at its merge point the whole 20 s.
+			t.ramp_wait = true
 			v = move_toward(v, 0.0, 6.0 * delta)
 			t.u = MERGE_AT
 			t.sig = -1
@@ -933,6 +979,43 @@ static func ramp_tick(tm: TrafficManager, fw: Freeway, car: Vehicle, groups: Dic
 	t.v = v
 	car.traffic_speed = v
 	car.global_transform = ramp_xform(car)
+
+
+## Which cars of a sorted outer-lane `group` (driving `dir`) let a waiting ramp car in: for each
+## merge point in `merge_ts`, the nearest car coming up to it that can still stop comfortably
+## short of it (freeway_gap * 0.6 back) -> {car: the merge point's t}. Cars behind it follow it.
+static func merge_yielders(tm: TrafficManager, group: Array, merge_ts: Array, dir: int) -> Dictionary:
+	var out := {}
+	if not merge_yield:
+		return out
+	for mt in merge_ts:
+		var best: Vehicle = null
+		var bd := INF
+		# The car already letting it in keeps doing it: braking along the curve it is picked on, it
+		# would drop out of the pick and leave it to the next car back, and that to the next.
+		for c in group:
+			if is_instance_valid(c) and absf(float((c as Vehicle).traffic.get("yield_t", INF)) - float(mt)) < 0.01 \
+					and (float(mt) - float((c as Vehicle).traffic.t)) * float(dir) > 0.0:
+				best = c
+				break
+		if best != null:
+			out[best] = mt
+			continue
+		for c in group:
+			if not is_instance_valid(c):
+				continue
+			var ct: Dictionary = (c as Vehicle).traffic
+			var behind := (float(mt) - float(ct.t)) * float(dir)
+			if behind <= 0.0 or behind > MERGE_YIELD_REACH or behind >= bd:
+				continue
+			var v := float(ct.get("v", ct.get("speed", 20.0)))
+			if behind - tm.freeway_gap * 0.6 - float(ct.get("half", 2.4)) - MERGE_YIELD_ROOM < v * v / (2.0 * MERGE_YIELD_BRAKE):
+				continue
+			bd = behind
+			best = c
+		if best != null:
+			out[best] = mt
+	return out
 
 
 ## A ramp car joins the -t carriageway's outer lane at the merge point, moving over from the

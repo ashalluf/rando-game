@@ -98,10 +98,17 @@ func _people(city: Node3D) -> void:
 		var space := player.get_world_3d().direct_space_state
 		var under := GroundContact.ground_drop(space, player)
 		if not is_nan(under):
-			probe.global_position = player.global_position + Vector3.UP * 1.0
+			# A metre over the surface the player's ray hits, not over his origin: half on a kerb (or
+			# still settling) his feet stood 0.19 m under the pavement top it found, which ground_drop
+			# clamps to 0, and the probe read 0.81 (shuffled gate 2303).
+			var q := PhysicsRayQueryParameters3D.create(player.global_position + Vector3.UP * 0.4, player.global_position + Vector3.DOWN * 6.0, 1)
+			q.exclude = [(player as CollisionObject3D).get_rid()]
+			var hit := space.intersect_ray(q)
+			var ground_y: float = (hit.position as Vector3).y if not hit.is_empty() else player.global_position.y - under
+			probe.global_position = Vector3(player.global_position.x, ground_y + 1.0, player.global_position.z)
 			var drop := GroundContact.ground_drop(space, probe)
-			_t._check(not is_nan(drop) and absf(drop - (under + 1.0)) < 0.15,
-				"ground_drop() finds the ground a metre under a point a metre up (%.2f, %.2f)" % [drop, under])
+			_t._check(not is_nan(drop) and absf(drop - 1.0) < 0.15,
+				"ground_drop() finds the ground a metre under a point a metre up (%.2f, the player's %.2f)" % [drop, under])
 	var cs := ContactShadows.instance()
 	if cs and cs._mm:
 		_t._check(cs._mm.instance_count >= ContactShadows.budget + GroundContact.people_budget,

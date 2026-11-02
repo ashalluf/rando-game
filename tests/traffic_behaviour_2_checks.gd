@@ -461,8 +461,14 @@ func _wreck_two_lane() -> void:
 		if d < -8.0:
 			passed = true
 			break
+	# Where the car got to (shuffled gate 6101: it never came within 77 m of the wreck).
+	var why := "gone"
+	if is_instance_valid(car):
+		var tt: Dictionary = car.traffic
+		why = "traffic %s, %.0f m short, v %.1f, lane %s, keys %s" % [car.is_traffic(), _along(wreck, axis) - _along(car, axis),
+			float(tt.get("v", -1.0)), str(tt.get("lane", "?")), ",".join(PackedStringArray(tt.keys().filter(func(k): return str(k) in ["park_at", "cp", "valet", "dp_at", "work", "forced", "turn", "held", "pull", "lc_key"]).map(func(k): return str(k))))]
 	wreck.queue_free()
-	_check(int(TrafficBehaviour.counts.get("wreck_lane_change", 0)) > c0, "a car behind a wreck asks for the other lane")
+	_check(int(TrafficBehaviour.counts.get("wreck_lane_change", 0)) > c0, "a car behind a wreck asks for the other lane (%s)" % why)
 	_check(passed and worst > -0.5, "and passes it in the other lane without touching it (passed %s, closest in lane %.2f)" % [passed, worst])
 	_check(pass_speed < TrafficBehaviour.RUBBERNECK_SPEED + 0.6, "slowly, to look (%.1f m/s beside it)" % pass_speed)
 

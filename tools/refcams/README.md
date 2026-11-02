@@ -19,8 +19,37 @@ number, not by someone happening to look.
 | macarthur | MacArthur Park from the south, 120 m up | 11:00 | clear |
 | pier_night | the pier and its wheel from the beach | 21:00 | clear |
 
+Wave 5's new cameras are in `cameras_w5.json` (same format; run with
+`REFCAMS_JSON=tools/refcams/cameras_w5.json`): `la_river` (the LA River bed at the 6th St ribbon
+bridge, 15:30 clear); `rain_day` (Wilshire in midtown at 14:00 in rain, six street cars staged by its
+`street_cars` key).
+
+Wave 5 adds cameras of its own in `cameras_w5.json` (same format, one row a line; run them with
+`REFCAMS_JSON=tools/refcams/cameras_w5.json`): `marine_morning` - the beach town at 08:00 under the
+marine layer, 11th St toward the sand (the street damp from the mist: refcams_shot calls
+`Weather.settle_wet()` once the hour and the eye are set).
+
 The table is `cameras.json` (eye = TRUE world x, y, z, yaw, pitch; `agl` = y over the plan's
 ground). **Change a camera only on purpose**: the runs before stop being comparable for it.
+
+Wave 5's new cameras are in `cameras_w5.json` (run with `REFCAMS_JSON=tools/refcams/cameras_w5.json`).
+A row with `"hero": {"walk": 0.35, "weapon": 0, "distance": ...}` (every key optional) is shot through
+the player's own CameraRig instead of a free camera: he stands at the eye's x, z walking away from
+the lens, the eye's yaw / pitch is the rig's look (`hero_foot`, docs/HANDOFF.md "The on-foot camera
+behind the hero").
+
+## Wave 5's cameras (`cameras_w5.json`)
+
+Each wave-5 refcam2 session adds ONE row to `cameras_w5.json` (same format; one row a line). Run
+them with `REFCAMS_JSON=tools/refcams/cameras_w5.json`. A row may carry staging keys, all optional
+and ignored by the ten originals:
+
+- `drive` (chase_cam): the player at the wheel of his own car on a street at a steady speed, a few
+  placed traffic cars round him, the shot from his chase camera (DriveCam) instead of the free eye.
+  Keys and their meaning in the header of `chase_stage.gd`. `CHASE_DEBUG=1` prints what is drawn
+  round the car and its contacts, `CHASE_AB=a,b,...` (names, `car:*`, `under:*`, `box:*`, `fx:*`,
+  `2d:*`, `dbg:unshaded`...) renders the frame again with each hidden, `CHASE_BISECT=1` halves the
+  drawables to find what draws a given pixel difference.
 
 ## Running
 

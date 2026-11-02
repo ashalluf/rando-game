@@ -36,6 +36,9 @@ uniform float patch_amount = 0.30;
 uniform float crack_amount = 0.5;
 uniform float stain_amount = 0.32;
 uniform float normal_depth = 0.75;
+// The normal map's mean squared slope at full detail (Asphalt033: 0.041, measured from the 1K
+// NormalGL; nearly all of it is texel-scale and gone by mip 3). Specular AA's Toksvig term.
+uniform float normal_slope_var = 0.041;
 // Spacing of expansion joints in metres (0 = none). Pavements are poured in slabs; the grid of
 // joints between them is the single most recognisable thing about a concrete sidewalk.
 uniform float joint_spacing = 0.0;
@@ -79,6 +82,8 @@ uniform float mirror_sky = 1.0;
 const float CITY_PARKING_LANE = 2.6;
 
 global uniform float road_wetness;
+// MarineMorning's mist share of the wetness (0..1; 0 = the rain's wet street, bit for bit).
+global uniform float road_mist;
 global uniform vec4 sky_tint;
 // How hard it is raining right now (Weather.rain_level, 0..1): drops ring the puddles.
 global uniform float rain_intensity;
@@ -97,6 +102,7 @@ varying vec2 slab_uv;
 #include "res://shaders/street_glow.gdshaderinc"
 #include "res://shaders/color_space.gdshaderinc"
 #include "res://shaders/pattern_aa.gdshaderinc"
+#include "res://shaders/specular_aa.gdshaderinc"
 // Which way this road's lamps run (CityChunk._road_look): 0 no glow, 1 along Z, 2 along X. Seen
 // from past `street_glow_near` metres the road wears the same lamp glow the far chunks do
 // (far_ground.gdshader); closer in, the real lamps and their light pools take over.
@@ -143,6 +149,8 @@ float fbm(vec2 p) {
 
 #include "res://shaders/wet_drying.gdshaderinc"
 #include "res://shaders/wet_road_mirror.gdshaderinc"
+#include "res://shaders/rain_day_mirror.gdshaderinc"
+#include "res://shaders/road_lane_wear.gdshaderinc"
 
 
 // Raindrop rings on standing water, as a tangent-space slope (xy). Three offset layers of cells,
@@ -244,6 +252,10 @@ void fragment() {
 	vec2 w = mix(world_pos.xz, vec2(dot(world_pos.xz, along), -world_pos.y), side);
 	vec2 uv = w / tex_scale;
 	vec2 joint_fw = fwidth(w);
+	// The normal map's texels one pixel covers (specular_aa.gdshaderinc), taken here in uniform
+	// control flow: past one, its slopes are averaged away in the mips while the wet lobe stays
+	// a mirror's, and each texel that still bends it flashes as the camera moves.
+	float saa_texels = max(length(fwidth(uv)), 1.0e-6) * float(textureSize(normal_tex, 0).x);
 	vec3 base = road_desat(texture(albedo_tex, uv).rgb) * tint;
 	float rough = texture(rough_tex, uv).r;
 	// A laid pattern (setts, pavers) under two pixels is its average, not moire (pattern_aa): the
@@ -313,6 +325,13 @@ void fragment() {
 	float stain = smoothstep(0.82, 0.98, fbm(w * 1.15 + 41.0 + seed)) * stain_amount;
 	base *= 1.0 - 0.15 * stain;
 	rough = mix(rough, 0.45, stain * 0.5);
+
+	// The lanes' own wear: wheel tracks, the oil band, kerb grit (road_lane_wear.gdshaderinc; only
+	// where ChaseCamReview gives a material `lane_wear`).
+	vec4 lane_w = road_lane_wear(plan_pos, slab_uv, ground_detail > 0.5 ? lamp_axis : 0, seed);
+	lane_w = mix(lane_w, vec4(1.0, 1.0, 0.0, 0.0), side);
+	base *= lane_w.x;
+	rough = mix(rough * lane_w.y, 1.0, lane_w.z);
 
 	// Expansion joints, with each slab cast at a slightly different shade.
 	if (joint_spacing > 0.01) {
@@ -432,12 +451,25 @@ void fragment() {
 			pw = mix(wet, sqrt(wet) * smoothstep(0.01, 0.1, wet), drying);
 			gutter *= smoothstep(0.03, 0.2, wet);
 		}
+		// Mist, not rain (MarineMorning, the `road_mist` global, 0 everywhere else): soaked in -
+		// dark and nearly matte, a sheen only at a grazing angle, no running gutter, water standing
+		// only in the deepest hollows. An even film of 0.3 read lighter than the dry street.
+		if (road_mist > 0.0) {
+			film *= 1.0 - 0.6 * road_mist;
+			damp = min(1.0, damp * (1.0 + 1.3 * road_mist));
+			pw *= 1.0 - 0.75 * road_mist;
+			gutter *= 1.0 - road_mist;
+		}
 		float cover = mix(0.80, 0.52, pw) + (joint_spacing > 0.01 ? 0.08 : 0.0);
 		puddle = smoothstep(cover, cover + 0.05, pn) * pw;
 	}
 	puddle *= 1.0 - side;
 	gutter *= 1.0 - side;
 	base *= mix(1.0, 0.62, damp);
+	// A soaked pavement by day (RainDay's rain_day, 0 at night): paving darkens further than tarmac
+	// (porous concrete drinks the water) and keeps a sheen, never asphalt's mirror.
+	float pave_day = joint_spacing > 0.01 ? rain_day * damp : 0.0;
+	base *= 1.0 - 0.22 * pave_day;
 	float standing = max(puddle, gutter);
 	base *= 1.0 - 0.35 * standing;
 
@@ -445,7 +477,7 @@ void fragment() {
 	// 0.07, not 0.18: at 0.18 the screen-space reflections blur into a warm smear, and a soaked
 	// street at night is nearly a mirror - the lit windows and tail lights standing in it are
 	// the whole look.
-	ROUGHNESS = clamp(mix(mix(rough, 0.07, film), 0.02, standing), 0.02, 1.0);
+	ROUGHNESS = clamp(mix(mix(rough, mix(0.07, 0.2, pave_day), film), 0.02, standing), 0.02, 1.0);
 	METALLIC = 0.0;
 	SPECULAR = mix(0.5, 0.85, max(film, gutter));
 	// The gutter keeps a ripple of its own: running water is never mirror-flat, and its streaky
@@ -464,6 +496,19 @@ void fragment() {
 	}
 	// Godot rebuilds z from xy, so keep the slope inside the unit circle.
 	slope *= min(1.0, 0.95 / max(length(slope), 1.0e-4));
+	// Specular AA: the slope variance the mips threw away (normal_slope_var at full detail, scaled
+	// by the depth the map was drawn at) widens the lobe instead; then, on Compatibility (no
+	// roughness limiter), the slope's own turn across the pixel. Dry tarmac at 0.8+ is untouched
+	// in effect; the wet film (0.07) and the gutter run are what it is for.
+	vec2 sdx = dFdx(slope);
+	vec2 sdy = dFdy(slope);
+	if (saa_on()) {
+		float nd = normal_depth * (1.0 - 0.6 * film) * (1.0 - puddle) * mix(0.3, 1.0, pattern_keep);
+		ROUGHNESS = saa_minified(ROUGHNESS, normal_slope_var * nd * nd, saa_texels);
+#if CURRENT_RENDERER != RENDERER_FORWARD_PLUS
+		ROUGHNESS = saa_geometric(ROUGHNESS, vec3(sdx, 0.0), vec3(sdy, 0.0), 0.25, 0.18);
+#endif
+	}
 	NORMAL_MAP = vec3(slope * 0.5 + 0.5, 1.0);
 	NORMAL_MAP_DEPTH = 1.0;
 	vec3 glow = vec3(0.0);
@@ -529,11 +574,27 @@ void fragment() {
 			// The film is broken up where the tarmac is rough, so a streak runs in lengths.
 			film_break = smoothstep(0.35, 0.75, value_noise(w * 0.7 + seed));
 		}
-		float gain = mirror_night * lamp_factor * fres * max(standing, film * mirror_film * film_break);
+		// The lit city and the night sky are the night's mirror: by day (a rain deck brings the lamps
+		// on at noon) the canyon below is (RainDay's rain_day, 0 at night).
+		float night_k = lamp_factor * (1.0 - rain_day);
+		float gain = mirror_night * night_k * fres * max(standing, film * mirror_film * film_break);
 		glow += city * gain * near_mirror(length(VERTEX));
 		// The night sky in the water, everywhere the city's lights are not: the horizon's colour.
-		float sky_k = mirror_sky * lamp_factor * fres * max(standing, film * film_break);
+		float sky_k = mirror_sky * night_k * fres * max(standing, film * film_break);
 		glow += cs_as_uniform(sky_tint.rgb) * sky_k * near_mirror(0.0);
+	}
+	// By day the wet road mirrors the sky down the middle and the fronts along its sides
+	// (rain_day_mirror.gdshaderinc): the sky's specular taken away where a front stands in it.
+	if (wet > 0.01 && rain_day > 0.001 && side < 0.5) {
+		vec3 td = normalize(world_pos - CAMERA_POSITION_WORLD);
+		vec3 nd = normalize(vec3(-slope.x * 0.6, 1.0, -slope.y * 0.6));
+		vec3 rd = reflect(td, nd);
+		float fres_d = 0.02 + 0.98 * pow(1.0 - clamp(-td.y, 0.0, 1.0), 5.0);
+		float tone;
+		float cover = rdm_cover(rd, wrm_st, mix(0.08, 0.014, standing), seed, tone);
+		float k = rain_day * cover * max(standing, film);
+		SPECULAR *= 1.0 - rdm_spec_cut * k;
+		glow += cs_as_uniform(sky_tint.rgb) * (rdm_wall * tone * fres_d * k);
 	}
 	EMISSION = glow;
 }

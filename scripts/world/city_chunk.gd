@@ -562,7 +562,8 @@ func _build_landmarks() -> void:
 		for crowd: Array in Landmarks.crowds(lm, plan):
 			var rng := RandomNumberGenerator.new()
 			rng.seed = hash([plan.seed, lm.id, crowd[0]])
-			for step in _crowd_steps(crowd[0], crowd[1], crowd[2], rng):
+			PlazaCrowd.mark(self, crowd[0])
+			for step in _crowd_steps(crowd[0], crowd[1], PlazaCrowd.count(crowd[0], crowd[2], BusyStreets.hour_now(self)), rng):
 				_steps.insert(_steps.size() - 1, step)
 		for step in Landmarks.people_steps(lm, self):
 			_steps.insert(_steps.size() - 1, step)
@@ -643,7 +644,7 @@ func _add_shop_spill() -> void:
 			for pool: Array in b.shop_pools:
 				var xf: Transform3D = b.transform * (pool[0] as Transform3D)
 				xf.origin.y = SIDEWALK_TOP + 0.06
-				_batch.add("shop_spill", mesh, xf, pool[1])
+				_batch.add("shop_spill", mesh, xf, pool[1], pool[2] if pool.size() > 2 else Color.BLACK)
 				var glow: Variant = NightAtmos.shop_part(xf, pool[1], SIDEWALK_TOP)
 				if glow != null:
 					_batch.add(glow[0], glow[1], glow[2], glow[3], glow[4])
@@ -815,7 +816,7 @@ func _port_yard(st: Dictionary) -> void:
 	var area := owned_rect()
 	var c := area.get_center()
 	_port_lift = _gy(c.x, c.y)
-	_add_slab(Vector3(c.x, 0.1, c.y), Vector3(area.size.x, 0.2, area.size.y), style.concrete, level == Level.FULL, PropFactory.road("concrete", 5.0, PORT_YARD_TINT, hash([plan.seed, ix, iz, "yard"]), 6.0, 0.6))
+	_add_slab(Vector3(c.x, 0.1, c.y), Vector3(area.size.x, 0.2, area.size.y), style.concrete, level == Level.FULL, PropFactory.road("concrete", 5.0, PORT_YARD_TINT, hash([plan.seed, ix, iz, "yard"]), 6.0, PortFill.YARD_WEAR if PortFill.enabled else 0.6))
 	var rng := RandomNumberGenerator.new()
 	rng.seed = block.seed
 	var kit := RandomNumberGenerator.new()
@@ -829,6 +830,7 @@ func _port_yard(st: Dictionary) -> void:
 	st.cols = int(area.size.x / 14.0)
 	st.origin = Vector2(area.position.x + 8.0, area.position.y + 6.0)
 	st.gate = PortLife.is_gate(plan, ix, iz)
+	var fill := PortFill.rng_for(plan.seed, ix, iz)
 	_port_piles.clear()
 	var lanes: Array[int] = []
 	st.lanes = lanes
@@ -841,21 +843,25 @@ func _port_yard(st: Dictionary) -> void:
 				lanes.append(r) # an empty lane for trucks
 				continue
 			for col in cols:
+				var filled := false
 				if rng.randf() < 0.35:
-					continue
-				var height := rng.randi_range(1, 3)
+					# An empty slot: PortFill's own stream may stack one (after the old rolls).
+					if not PortFill.fills_slot(fill):
+						continue
+					filled = true
+				var height := fill.randi_range(1, 3) if filled else rng.randi_range(1, 3)
 				var p := origin + Vector2(col * 14.0, r * 9.0)
 				if p.x + 6.0 > area.end.x - 4.0 or p.y + 1.2 > area.end.y - 4.0:
 					continue
 				var picks: Array[int] = []
 				for h in height:
-					picks.append(rng.randi() % PORT_COLOR_ROLLS)
+					picks.append((fill if filled else rng).randi() % PORT_COLOR_ROLLS)
 				if p.y + PORT_ROW_OFFSET + PortKit.W * 0.5 > float(st.apron_z):
 					continue
 				# The gate's chunk holds no stacks (PortLife / PortGate; after the rolls).
 				if st.gate:
 					continue
-				_port_stack(p, height, picks, kit))
+				_port_stack(p, height, picks, fill if filled else kit, fill))
 
 
 func _port_paint(st: Dictionary) -> void:
@@ -913,7 +919,7 @@ func _add_port_pool(at: Vector3, size: float) -> void:
 ## One stack slot: the rolled `height` of boxes in the row line, a second pile abreast (most
 ## slots) a box higher or lower, each pile 40 ft boxes or pairs of 20s, some of them high-cubes.
 ## `picks` are the old per-box colour rolls, which choose the first pile's liveries.
-func _port_stack(p: Vector2, height: int, picks: Array[int], kit: RandomNumberGenerator) -> void:
+func _port_stack(p: Vector2, height: int, picks: Array[int], kit: RandomNumberGenerator, fill: RandomNumberGenerator = null) -> void:
 	var single := kit.randf() < 0.15
 	var offsets: Array[float] = [0.0]
 	if not single:
@@ -938,6 +944,17 @@ func _port_stack(p: Vector2, height: int, picks: Array[int], kit: RandomNumberGe
 			else:
 				top_index = _add_container(Vector3(p.x, y + hgt * 0.5, z), true, hc, row_flip != (kit.randf() < 0.15), _port_livery(pick, kit), kit)
 			y += hgt
+		if fill != null:
+			# PortFill: topped up to a terminal's tiers, every roll on its own stream.
+			for h in PortFill.target(n, fill) - n:
+				var hgt := PortKit.H_HC if fill.randf() < (0.1 if twenty else 0.45) else PortKit.H_STD
+				if twenty:
+					for e: float in [-1.0, 1.0]:
+						var cx := p.x + e * (PortKit.L20 + PortKit.PAIR_GAP) * 0.5
+						_add_container(Vector3(cx, y + hgt * 0.5, z), false, hgt > PortKit.H_STD, row_flip != (fill.randf() < 0.2), _port_livery(fill.randi() % PORT_COLOR_ROLLS, fill), fill)
+				else:
+					top_index = _add_container(Vector3(p.x, y + hgt * 0.5, z), true, hgt > PortKit.H_STD, row_flip != (fill.randf() < 0.15), _port_livery(fill.randi() % PORT_COLOR_ROLLS, fill), fill)
+				y += hgt
 		if level == Level.FULL and not capturing:
 			# Each pile's top for PortLife's gantries (a 40 ft box on top can be lifted off).
 			_port_piles.append(PortLife.pile(_batch, top_index if not twenty else -1, p.x, z, y + _port_lift))
@@ -1057,12 +1074,17 @@ func _build_quay(area: Rect2, kit: RandomNumberGenerator) -> void:
 	_add_slab(Vector3(cx, PORT_YARD_TOP + cope_h * 0.5, qz - 0.6), Vector3(w, cope_h, 1.2), Color(0.64, 0.63, 0.6))
 	_port_line(Vector2(area.position.x, qz - 0.15), Vector2(area.end.x, qz - 0.15), 0.25, PORT_PAINT_YELLOW)
 	var x := area.position.x + 8.0
+	var moor: Array = []
 	while x < area.end.x - 2.0:
 		var at := Vector3(x, PORT_YARD_TOP + cope_h, qz - 0.75)
+		moor.append(at + Vector3(0.0, _pgy(x, at.z), 0.0))
 		_batch.add("port_bollard", PortKit.bollard_mesh(), Transform3D(Basis(), at))
 		_add_shape(Vector3(0.6, 0.8, 0.6), at + Vector3(0.0, 0.4 + _pgy(x, at.z), 0.0))
 		_batch.add("port_fender", PortKit.fender_mesh(), Transform3D(Basis(), Vector3(x + 8.0, PORT_YARD_TOP + 0.1, qz)))
 		x += 16.0
+	var lines := PortMooring.build(moor, ship)
+	if lines:
+		add_child(lines)
 	# The apron: the yellow keep-clear line inside the waterside rail and the truck lanes'
 	# dashed lines between the rails.
 	var lane_x0 := area.position.x + 1.0
@@ -1806,9 +1828,13 @@ func _scatter_hills() -> bool:
 			var v := rng.randi() % 2
 			var sc := rng.randf_range(0.6, 1.7)
 			var tilt := Basis(Vector3.UP, yaw) * Basis(Vector3.RIGHT, rng.randf_range(-0.25, 0.25))
-			_batch.add("rock_%d" % v, RockKit.mesh(RockKit.BOULDER_A + v) if RockOutcrops.enabled else PropFactory.model_rock(v), Transform3D(tilt.scaled(Vector3(sc, sc, sc)), at - Vector3(0.0, 0.15 * sc, 0.0)))
-			var size := (Vector3(2.4, 0.8, 1.2) if v == 0 else Vector3(2.4, 1.8, 2.4)) * sc
-			_add_shape(size, at + Vector3(0.0, size.y * 0.5 - 0.15 * sc, 0.0), yaw)
+			var rock_xf := Transform3D(tilt.scaled(Vector3(sc, sc, sc)), at - Vector3(0.0, 0.15 * sc, 0.0))
+			# Bedded and gathered (CanyonRoad.bed_rock(), after the rolls): [] leaves this one out.
+			var bed: Array = CanyonRoad.bed_rock(p, v, sc, rock_xf)
+			if not bed.is_empty():
+				_batch.add("rock_%d" % v, RockKit.mesh(RockKit.BOULDER_A + v) if RockOutcrops.enabled else PropFactory.model_rock(v), bed[0])
+				var size := (Vector3(2.4, 0.8, 1.2) if v == 0 else Vector3(2.4, 1.8, 2.4)) * sc
+				_add_shape(size, at + Vector3(0.0, size.y * 0.5 - 0.15 * sc - float(bed[1]), 0.0), yaw)
 		elif roll < 0.38:
 			var v := rng.randi() % 4
 			var sc := rng.randf_range(0.6, 1.2)
@@ -2152,6 +2178,8 @@ func _near_pad(p: Vector2, pads: Array[Dictionary], margin: float) -> bool:
 func _build_hill_roads() -> void:
 	var segs := _hill_segments()
 	if segs.is_empty():
+		return
+	if CanyonRoad.build(self, segs):
 		return
 	var area := owned_rect()
 	var st := SurfaceTool.new()
@@ -2772,6 +2800,8 @@ func _block_steps(block: Dictionary) -> Array[Callable]:
 		steps.append_array(LowriderMeet.steps(self, plan, ix, iz, rect))
 		steps.append_array(_park_car_steps(rect, rng, params))
 		steps.append_array(_pedestrian_steps(rect, rng, params, FashionDistrict.walk_sidewalk(self, block, Encampment.PATH_KEEP + 1.0 if camps & Encampment.FACES else -1.0)))
+		# A shopping block near the camera is busier (ShopCrowd; hash-seeded, after the walkers).
+		steps.append_array(ShopCrowd.steps(self, block))
 		# The rec park's or school's people (Parks; their own stream, after the block's walkers).
 		steps.append_array(Parks.people_steps(self, block))
 	return steps
@@ -2913,6 +2943,7 @@ func _spawn_walker(rect: Rect2, sidewalk: float, rng: RandomNumberGenerator) -> 
 	var ped := Pedestrian.new()
 	ped.setup(rect, sidewalk, rng.randi())
 	FashionDistrict.walker(self, ped)
+	PlazaCrowd.walker(self, ped, rect)
 	var start := ped._random_ring_point(sidewalk)
 	ped.position = Vector3(start.x, SIDEWALK_TOP + 0.1 + _gy(start.x, start.y), start.y)
 	add_child(ped)
@@ -2975,6 +3006,10 @@ func _park_car_steps(rect: Rect2, rng: RandomNumberGenerator, params: Dictionary
 	if BusyStreets.enabled:
 		for spot in spots:
 			steps.append(_park_extra.bind(spot))
+	# Residents' cars on a suburb's kerbs (RcSuburb: a hash per stall, after every roll).
+	if RcSuburb.residential(int(plan.block(ix, iz).district)):
+		for spot in spots:
+			steps.append(_park_resident.bind(spot))
 	return steps
 
 
@@ -3018,6 +3053,30 @@ func _park_extra(spot: Array) -> void:
 		return
 	# Fills whatever the pass left empty, so it moves with anything that takes a kerb spot.
 	car.set_meta("busy_extra", true)
+	var holder: Node = get_parent() if get_parent() else self
+	var spot_pos: Vector3 = at + Vector3(0.0, 0.3 + _gy(at.x, at.z), 0.0)
+	car.position = WorldState.to_local(spot_pos) if holder != self else spot_pos
+	car.rotation.y = float(spot[1]) + (PI if r.randf() < 0.5 else 0.0)
+	holder.add_child(car)
+	car.visible = visible
+	_cars.append(car)
+	spot.append(true) # taken: RcSuburb's residents leave it
+
+
+## A resident's car on a suburb kerb stall nobody decided (RcSuburb; a hash of seed + stall, every
+## keep-clear of the block's own pass).
+func _park_resident(spot: Array) -> void:
+	if spot.size() > 3 or not RcSuburb.resident_roll(plan.seed, spot) or not PhysicsBudget.can_spawn():
+		return
+	var at: Vector3 = spot[0]
+	if _kerb_reserved(spot):
+		return
+	var r := RcSuburb.resident_rng(plan.seed, spot)
+	var car := Vehicle.random_car(r)
+	if _kerb_taken(spot, car):
+		car.free()
+		return
+	car.set_meta("rc2_resident", true)
 	var holder: Node = get_parent() if get_parent() else self
 	var spot_pos: Vector3 = at + Vector3(0.0, 0.3 + _gy(at.x, at.z), 0.0)
 	car.position = WorldState.to_local(spot_pos) if holder != self else spot_pos
@@ -3629,6 +3688,8 @@ func _add_grass(rect: Rect2, density: float = 1.0, keep_out: float = 0.0, blocke
 			var sc := rng.randf_range(0.55, 1.6)
 			var basis := Basis(Vector3.UP, rng.randf_range(0.0, TAU)).scaled(Vector3(sc * rng.randf_range(0.85, 1.2), sc * rng.randf_range(0.7, 1.35), sc * rng.randf_range(0.85, 1.2)))
 			var tint := Color(rng.randf_range(0.85, 1.1), rng.randf_range(0.9, 1.1), rng.randf_range(0.85, 1.05))
+			# Mowing height (RcSuburb: the tufts stood up to 0.7 m in 2-3 cm blades, a lawn of weeds).
+			basis = basis.scaled(RcSuburb.TUFT_SCALE) if RcSuburb.enabled else basis
 			var key := "grass_%d_%d" % [floori(p.x / GRASS_CELL), floori(p.y / GRASS_CELL)]
 			keys[key] = true
 			if closeup:

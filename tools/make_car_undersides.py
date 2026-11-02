@@ -41,13 +41,14 @@ import make_road_cars as rc  # noqa: E402
 import make_more_cars  # noqa: E402,F401  (registers hatchback, suv, minivan, beater, taxi)
 import make_cars_3 as c3  # noqa: E402
 import make_lowriders  # noqa: E402,F401
+import make_cars_4  # noqa: E402,F401  (the fourth wave)
 
 # Kinds (vertex colour r = kind / 16; shaders/car_underside.gdshader K_*).
 K_LINER, K_STEEL, K_EXHAUST, K_TIP, K_RUBBER, K_SPRING, K_ALU, K_TANK, K_SOOT, K_SHIELD = range(10)
 
 BODIES = ["sedan", "crossover", "pickup", "van", "hatchback", "suv", "minivan", "taxi", "beater",
           "ev_hatch", "lux_sedan", "compact_suv", "work_truck", "coupe", "lowrider_hardtop",
-          "lowrider_coupe"]
+          "lowrider_coupe", "wagon", "muscle", "lux_suv", "kei_van", "classic"]
 
 # Exhaust per body: tips as (x, radius) pairs ([] = none: the EV), and the chassis kind:
 # "unibody" (front struts, twist beam / multilink rear) or "frame" (ladder frame, live axle on
@@ -61,10 +62,13 @@ EXHAUST = {
     "coupe": [(0.46, 0.036), (0.37, 0.036), (-0.37, 0.036), (-0.46, 0.036)],
     "lowrider_hardtop": [(0.48, 0.034), (-0.48, 0.034)],
     "lowrider_coupe": [(0.46, 0.034), (-0.46, 0.034)],
+    "wagon": [(0.38, 0.034)], "muscle": [(0.50, 0.040), (0.40, 0.040), (-0.40, 0.040), (-0.50, 0.040)],
+    "lux_suv": [(0.62, 0.040), (0.52, 0.040), (-0.52, 0.040), (-0.62, 0.040)],
+    "kei_van": [(0.40, 0.026)], "classic": [(0.48, 0.034), (-0.48, 0.034)],
 }
-FRAME_BODIES = {"pickup", "work_truck", "van", "lowrider_hardtop", "lowrider_coupe"}
+FRAME_BODIES = {"pickup", "work_truck", "van", "lowrider_hardtop", "lowrider_coupe", "classic"}
 # A share of cars wear red / yellow springs; the rest painted black. Per body, fixed.
-SPRING_VARIANT = {"coupe": 0.5, "lux_sedan": 0.0, "lowrider_hardtop": 1.0, "lowrider_coupe": 1.0}
+SPRING_VARIANT = {"coupe": 0.5, "muscle": 1.0, "lux_sedan": 0.0, "lowrider_hardtop": 1.0, "lowrider_coupe": 1.0}
 
 CLEAR = 0.006          # a part's top stands this far under the floor it hangs from
 

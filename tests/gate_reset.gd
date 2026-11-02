@@ -40,6 +40,10 @@ var _hour := 9.0
 var _quality := {}
 var _traffic := {}
 var _player_masks := Vector2i(-1, -1)
+## The camera the city set up with (the player's): a file that made its own camera current and
+## left it (or freed it, leaving none) turned off everything that works round the camera - the
+## crowd's local avoidance (CrowdFlow.RANGE of it), BusyStreets' focus, the LOD tiers.
+var _camera: WeakRef = null
 var _crowd := -1 # live pedestrians at the snapshot
 var _max_peds := -1 # the streamer's crowd cap at the snapshot
 var leaks := OS.get_environment("SMOKE_LEAKS") == "1"
@@ -115,6 +119,8 @@ func snapshot(city: Node) -> void:
 	var player := city.get_tree().get_first_node_in_group("player") as CollisionObject3D
 	if player:
 		_player_masks = Vector2i(player.collision_layer, player.collision_mask)
+	var cam := city.get_viewport().get_camera_3d()
+	_camera = weakref(cam) if cam else null
 
 
 ## Statics only: synchronous, no node freed.
@@ -202,6 +208,11 @@ func full(tree: SceneTree) -> void:
 				last["player:downed"] = true
 			health.set("downed", false)
 			health.set("health", float(health.get("max_health")))
+	# The camera: the setup's own one current again.
+	var cam0: Camera3D = _camera.get_ref() as Camera3D if _camera else null
+	if cam0 and is_instance_valid(cam0) and cam0.is_inside_tree() and tree.root.get_viewport().get_camera_3d() != cam0:
+		cam0.make_current()
+		last["camera"] = true
 	# The police: no stars, no units.
 	var police: Node = _city.get_node_or_null("Police")
 	if police and (int(police.get("stars")) > 0 or not (police.get("cruisers") as Array).is_empty() or not (police.get("officers") as Array).is_empty()):

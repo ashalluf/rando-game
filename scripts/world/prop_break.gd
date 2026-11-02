@@ -95,6 +95,8 @@ static func broke(ch: CityChunk, record: Dictionary, dir: Vector3) -> bool:
 		var who: Variant = record.get("smasher")
 		print("PROP_BREAK %s %s/%s at %s by %s" % [record.kind, ch.key, record.id, WorldState.to_world(ch.to_global(record.position)),
 				("%s layer %d meta %s" % [who.name, (who as CollisionObject3D).collision_layer, str((who as Node).get_meta_list())]) if who is CollisionObject3D and is_instance_valid(who) else "damage"])
+	if record.kind == "pump":
+		Blast4.pump_break(ch, record) # a petrol pump goes up as a gas blast (then breaks as before)
 	match String(record.kind):
 		"hydrant":
 			_hydrant(ch, record, dir)

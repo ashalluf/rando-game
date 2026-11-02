@@ -62,6 +62,29 @@ float lines(float x, float pitch, float w) {
 	return mix(l, w * 2.0 / pitch, smoothstep(0.3, 1.0, fw * 4.0 / pitch));
 }
 
+// The ship's shell plating (parts 10 and 14; refcam port_crane): strakes 2.6 m high, butts
+// staggered strake by strake, a tone per plate, rust weeping from the scuppers under the deck
+// edge and a tide-worn band at the waterline. UV is (metres along the hull, metres up).
+vec3 hull_plates(vec3 albedo, vec2 uv, float deck_y) {
+	float strake = floor(uv.y / 2.6);
+	float butt = lines(uv.x + strake * 4.7, 11.5, 0.02);
+	float seam = max(lines(uv.y, 2.6, 0.018), butt) * 0.55;
+	vec2 plate = vec2(floor((uv.x + strake * 4.7) / 11.5), strake);
+	albedo *= (0.93 + 0.12 * hash12(plate + 5.0)) * (1.0 - seam * 0.35);
+	// Rust runs from the scuppers every 9 m, a metre or three down from the deck edge.
+	float lane = floor(uv.x / 9.0);
+	float sx = abs(uv.x - (lane + 0.5) * 9.0);
+	float len = mix(1.0, 4.0, hash12(vec2(lane, 3.0)));
+	float from_top = deck_y - 0.8 - uv.y;
+	float run = (1.0 - smoothstep(0.08, 0.35, sx)) * step(0.0, from_top) * (1.0 - smoothstep(0.0, len, from_top));
+	run *= smoothstep(0.3, 0.7, noise(vec2(uv.x * 12.0, uv.y * 1.5)));
+	albedo = mix(albedo, col(vec3(0.3, 0.13, 0.06)), run * 0.55);
+	// The waterline: the boot-top scrubbed paler by the tide, a green-brown film just over it.
+	float wl = 1.0 - smoothstep(0.15, 0.9, uv.y);
+	albedo = mix(albedo, col(vec3(0.17, 0.17, 0.12)), wl * 0.45 * step(0.0, uv.y));
+	return albedo;
+}
+
 void vertex() {
 	v_fwd = color_space_probe.r < 0.35 ? 1.0 : 0.0;
 	v_col = v_fwd > 0.5 ? to_linear(COLOR.rgb) : COLOR.rgb;
@@ -143,7 +166,11 @@ void fragment() {
 		if (abs(mc.x) < 1.2 && abs(mc.y) < 1.2) {
 			cov = max(cov, mark(0, mc, max(fwidth(mc.x), fwidth(mc.y))));
 		}
+		albedo = hull_plates(albedo, UV, 8.4);
 		albedo = mix(albedo, col(vec3(0.92, 0.92, 0.9)), cov);
+	} else if (part == 14) {
+		albedo = hull_plates(albedo, UV, 8.4);
+		rough = 0.62;
 	} else if (part == 11) {
 		// A rotating amber beacon seen from anywhere: two sharp pulses a turn.
 		float ph = fract(TIME * 1.1 + v_inst * 0.37);

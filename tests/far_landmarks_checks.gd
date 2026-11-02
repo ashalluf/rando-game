@@ -3,7 +3,8 @@ extends RefCounted
 ## tests/smoke_test.gd. Each landmark below is built detailed and far, as the chunk and
 ## CityStreamer._build_far_landmarks() build them, into holders that are freed again: the far copy
 ## plants the same palms and trees as the detailed one (the same meshes, whose LOD ladders thin
-## them at range) and none of its planting casts a shadow. Loaded at run time so it can name the
+## them at range) and its planting casts no shadow, or (ShadowTuning) only from a twin within
+## FAR_PLANT_REACH of the camera. Loaded at run time so it can name the
 ## landmark classes freely. The look itself is judged with tools/glshot/far_landmark_shot.gd.
 
 ## Landmarks whose far copy carries the detailed copy's planting.
@@ -53,7 +54,7 @@ func run(t: Node, city: Node3D) -> void:
 		far.free()
 	_t._check(empty == "", "every planted landmark plants palms or trees near (none:%s)" % empty)
 	_t._check(parity == "", "far landmark copies plant the detailed copies' palms and trees (differ:%s)" % parity)
-	_t._check(shadows == "", "far landmark copies' planting casts no shadow (casting:%s)" % shadows)
+	_t._check(shadows == "", "far landmark copies' planting casts no shadow past its reach (casting everywhere:%s)" % shadows)
 
 
 ## Palms and trees under `root` (MultiMesh instances and single nodes alike), and how many of the
@@ -79,6 +80,10 @@ func _count(root: Node, foliage: Dictionary, far: bool) -> Dictionary:
 		var is_twin := name.begins_with("BatchShadow_palm_") or name.begins_with("BatchShadow_tree_")
 		if foliage.has(mesh) and not name.begins_with("BatchShadow_"):
 			count += k
-		if far and (foliage.has(mesh) or is_twin) and gi.cast_shadow != GeometryInstance3D.SHADOW_CASTING_SETTING_OFF:
+		# With ShadowTuning on, a far copy's planting casts from its lighter twin within
+		# FAR_PLANT_REACH of the camera (a twin with a visibility range); anything else casting is
+		# a fault.
+		var ranged := ShadowTuning.enabled and is_twin and gi.visibility_range_end > 0.0
+		if far and (foliage.has(mesh) or is_twin) and gi.cast_shadow != GeometryInstance3D.SHADOW_CASTING_SETTING_OFF and not ranged:
 			shadowed += k
 	return {"count": count, "shadowed": shadowed}

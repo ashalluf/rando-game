@@ -32,6 +32,12 @@ uniform float metallic : hint_range(0.0, 1.0, 0.01) = 0.0;
 // walls behind it take (facade_street.gdshaderinc's fs_plinth()); far under, it is off.
 uniform float street_foot = -100000.0;
 varying vec3 true_pos;
+// Thin geometry (specular-aliasing pass): the width (m) of the thinnest member of this node's mesh
+// (Building sets it on the window frames; 0 everything else). Once that is under a pixel the
+// member is kept by dithered coverage (specular_aa.gdshaderinc): a 6 cm frame 150 m off no longer
+// flicks on and off pixel to pixel as the camera moves, it fades to its share.
+uniform float thin_m = 0.0;
+#include "res://shaders/specular_aa.gdshaderinc"
 
 // A smooth 1D value noise for the damp line's ragged top.
 float fd_noise(float x) {
@@ -54,6 +60,13 @@ void vertex() {
 }
 
 void fragment() {
+	float saa_px = length(fwidth(true_pos));
+	if (thin_m > 0.0 && saa_on()) {
+		float keep = smoothstep(0.3, 1.1, thin_m / max(saa_px, 1.0e-5));
+		if (keep < 1.0 && keep <= saa_dither(FRAGCOORD.xy, TIME)) {
+			discard;
+		}
+	}
 	vec2 base_uv = UV;
 	vec4 albedo_tex = texture(texture_albedo, base_uv);
 	albedo_tex *= COLOR;

@@ -209,7 +209,9 @@ func _crowd(t: Node, city: Node3D) -> void:
 		total += BusyStreets.balance_crowd(city)
 		await t.get_tree().process_frame
 	var after := _live(best, ring)
-	var want := roundi(int(best_entry[2]) * BusyStreets.crowd_factor(BusyStreets.hour_now(city)))
+	# A shopping block near the camera carries more (ShopCrowd.gain(), the same distance balance_crowd uses).
+	var shop_d := best_d - (best_entry[0] as Rect2).size.length() * 0.35
+	var want := roundi(int(best_entry[2]) * BusyStreets.crowd_factor(BusyStreets.hour_now(city)) * ShopCrowd.gain(best_entry, shop_d))
 	# Walkers keep crossing between blocks while it fills (Pedestrian's crosswalks hand a walker the
 	# next block's ring), so one or two may join the ring on their own: the top-up itself is held
 	# to the plan, the live flow gets CROSS_SLACK.

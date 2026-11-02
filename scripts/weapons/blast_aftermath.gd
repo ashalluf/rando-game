@@ -467,13 +467,38 @@ static func _roof_dust(node: Node, at: Vector3, radius: float) -> void:
 			continue
 		made += 1
 		var away := Vector3(cos(a), 0.0, sin(a))
-		# Lifted and pushed away from the blast, then sinking over the edge.
-		WeaponFX._puff_layer(parent, top + Vector3.UP * 0.3, WeaponFX._count(12), radius * 0.35, 3.0,
-				radius * 0.4, radius * 1.1, -1.4, ramp, false, 50.0, 2.6,
-				WeaponFX._basis_up((away + Vector3.UP * 0.5).normalized()), 0.0, 0.4, 1.4, true)
-		# Grit pattering down off it.
-		WeaponFX._chip_layer(parent, top + Vector3.UP * 0.2, WeaponFX._count(10), 0.05, 1.8,
-				1.0, 3.5, Color(0.22, 0.2, 0.18), WeaponFX._basis_up(away), 70.0, -18.0)
+		var shed := func():
+			if not is_instance_valid(parent):
+				return
+			# Lifted and pushed away from the blast, then sinking over the edge.
+			if Blast4.enabled:
+				# Blast4: a pale sheet blown off along the roof and spilling over its edge (a tight
+				# lump of twelve puffs read as a dark ball hanging over the street).
+				WeaponFX._puff_layer(parent, top + Vector3.UP * 0.2, WeaponFX._count(16), radius * 0.22, 3.4,
+						radius * 0.5, radius * 1.5, -2.2, _roof_ramp4(), false, 35.0, 3.2,
+						WeaponFX._basis_up((away + Vector3.UP * 0.18).normalized()), 0.6, 0.45, 1.6, true)
+			else:
+				WeaponFX._puff_layer(parent, top + Vector3.UP * 0.3, WeaponFX._count(12), radius * 0.35, 3.0,
+						radius * 0.4, radius * 1.1, -1.4, ramp, false, 50.0, 2.6,
+						WeaponFX._basis_up((away + Vector3.UP * 0.5).normalized()), 0.0, 0.4, 1.4, true)
+			# Grit pattering down off it.
+			WeaponFX._chip_layer(parent, top + Vector3.UP * 0.2, WeaponFX._count(10), 0.05, 1.8,
+					1.0, 3.5, Color(0.22, 0.2, 0.18), WeaponFX._basis_up(away), 70.0, -18.0)
+		if Blast4.enabled:
+			# Blast4: when the pressure wave gets there, not with the flash.
+			node.get_tree().create_timer(top.distance_to(at) / 343.0 + 0.04, false).timeout.connect(shed)
+		else:
+			shed.call()
+
+
+static var _roof4: Gradient
+
+
+static func _roof_ramp4() -> Gradient:
+	if _roof4 == null:
+		_roof4 = WeaponFX._ramp([Color(0.62, 0.58, 0.52, 0.0), Color(0.6, 0.56, 0.5, 0.26),
+			Color(0.56, 0.53, 0.48, 0.16), Color(0.52, 0.5, 0.46, 0.0)])
+	return _roof4
 
 
 # --- Leaves -------------------------------------------------------------------------------------

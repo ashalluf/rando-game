@@ -493,8 +493,18 @@ func _tow(player: Player) -> void:
 	_fleet.spawn_clear = 0.0
 	_fleet.bed_seconds = 1.0
 	_fleet.winch_seconds = 1.5
+	# Nothing in the lane the truck is put in: a car a live system put on the street meanwhile (a
+	# parked car pulling out, shuffled gate 1707) left _place() refusing it.
+	_clear_traffic()
+	await _ticks(2)
+	# Room in PhysicsBudget for the truck: a city full of parked cars and props can stand at the cap
+	# (shuffled gate 8101: "physics budget full"), and the cap is not what this checks.
+	var budget: Node = _tree.root.get_node("PhysicsBudget")
+	var cap_was: int = budget.get("max_active_bodies")
+	budget.set("max_active_bodies", maxi(cap_was, int(budget.call("active_body_count")) + 10))
 	var sent := _fleet.send_tow(wreck)
-	_check(sent, "a tow truck is sent for a burnt-out wreck")
+	budget.set("max_active_bodies", cap_was)
+	_check(sent, "a tow truck is sent for a burnt-out wreck (%s)" % ("sent" if sent else _fleet.last_refusal))
 	var carried := false
 	var e := {}
 	for i in 2400:

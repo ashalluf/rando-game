@@ -2139,7 +2139,8 @@ static func explosion(node: Node, at: Vector3, radius: float, power: float = 1.0
 		dect.tween_property(decal, "modulate:a", 0.0, 4.0)
 		dect.tween_callback(decal.queue_free)
 
-	shake(node, at, radius)
+	if not Blast4.enabled:
+		shake(node, at, radius) # (Blast4.punch() shakes with the wave instead)
 	# The flash, the pressure wave, the rolling fireball, burning debris, blown-out windows and
 	# the smoke column (BlastFX; EXPLOSIONS_2=0 is the old blast alone).
 	BlastFX.explosion(node, at, radius, power)

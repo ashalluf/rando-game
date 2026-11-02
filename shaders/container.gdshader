@@ -33,6 +33,9 @@ uniform vec3 color_space_probe : source_color = vec3(0.5, 0.5, 0.5);
 uniform float corrugation : hint_range(0.0, 2.0) = 1.0;
 uniform float weathering : hint_range(0.0, 2.0) = 1.0;
 uniform float lettering : hint_range(0.0, 1.0) = 1.0;
+// Roofs seen from above (refcam port_crane): a dust film, water stains and rust pooled in the
+// flutes and round the castings, on every box (0 = the old clean roof; PORT_ROOF=0).
+uniform float roof_dust : hint_range(0.0, 1.5) = 1.0;
 
 global uniform float road_wetness;
 
@@ -390,6 +393,22 @@ void fragment() {
 		// Road dirt thrown up the lowest half metre, and grime everywhere a little.
 		float grime = (1.0 - smoothstep(0.0, 0.55, h_up)) * 0.35 + 0.08;
 		albedo = mix(albedo, albedo * 0.55 + dirt * 0.3, grime * (0.35 + wear * 0.5) * noise(vec2(p.x * 1.7 + p.z, p.y * 5.0 + seed * 5.0)));
+		if (part == 1 && roof_dust > 0.0) {
+			// Dust settles on every roof, more on an old one; it lifts the paint toward a warm
+			// grey, unevenly (blown into drifts against the side rails).
+			float rail = smoothstep(0.25, 0.0, hl - abs(p.x)) + smoothstep(0.35, 0.0, HW - abs(p.z));
+			float drift = noise(p.xz * vec2(0.45, 1.3) + seed * 11.0);
+			float dust = roof_dust * clamp((0.3 + 0.45 * wear) * (0.55 + 0.6 * drift) + rail * 0.18, 0.0, 0.85);
+			vec3 dcol = col(vec3(0.43, 0.41, 0.37)) * (0.88 + 0.24 * noise(p.xz * 3.7 + seed * 3.0));
+			albedo = mix(albedo, dcol, dust);
+			// Dried puddle rings, darker.
+			float stain = smoothstep(0.58, 0.82, noise(p.xz * vec2(0.9, 1.6) + seed * 31.0));
+			albedo *= 1.0 - stain * roof_dust * (0.12 + 0.18 * wear);
+			// Rust spots and the flutes' pooled rust, mostly on an old box.
+			float rs = smoothstep(0.7, 0.9, noise(p.xz * 3.3 + seed * 7.0)) * (0.25 + wear);
+			albedo = mix(albedo, rust, clamp(rs * 0.6 * roof_dust, 0.0, 0.7));
+			rough = mix(rough, 0.8, dust * 0.6);
+		}
 		// Dents: slow wobbles in the panels.
 		if (panel) {
 			float dn = noise(vec2(p.x * 1.3 + p.z * 1.3 + seed * 17.0, p.y * 1.9));
