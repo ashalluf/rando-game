@@ -9,6 +9,8 @@ extends RefCounted
 ##   2:1) where they had four blank map boards a side; one map a side stays, and the bank's tiled
 ##   back wall over the island carries a bulletin.
 ## - The car's line bullet gets its white "C" (LightRailTrain, MetroLook.bullet_letter()).
+## - The cars' saloons down here are lit by their own LED strips (lrv_glass.gdshader `underground`,
+##   saloon()): lit by the sky's colour, at golden hour they glowed peach in a tunnel.
 ## METRO_LOOK=0 in the environment is the A/B (the station as wave 3 built it).
 
 static var enabled: bool = OS.get_environment("METRO_LOOK") != "0"
@@ -17,6 +19,8 @@ const ATLAS := "res://assets/textures/billboards/billboard_ads.jpg"
 const ATLAS_SIZE := Vector2(2048.0, 3072.0)
 ## How strongly the floors mirror (metro_station.gdshader mirror_gain).
 const MIRROR := 1.4
+## The last value saloon() pushed (only a change is written to the shared material).
+static var _under := -1.0
 ## Ad formats (billboard_face.gdshader cell()).
 const BULLETIN := 0
 const POSTER := 1
@@ -71,3 +75,14 @@ static func bullet_letter(c: Vector3, n: Vector3, up: Vector3, r_out: float, r_i
 				st.set_color(col)
 				st.add_vertex(v)
 	return st.commit()
+
+
+## The cars' glass (LightRailTrain's one shared material) knows whether the camera is down in the
+## station (LightRailSystem.step(), after MetroStation.showing): from there every train seen is in
+## the tunnel. Written only on a change.
+static func saloon(under: bool) -> void:
+	var u := 1.0 if (under and enabled) else 0.0
+	if u == _under:
+		return
+	_under = u
+	LightRailTrain.glass_material().set_shader_parameter("underground", u)

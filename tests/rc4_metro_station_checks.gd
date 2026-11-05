@@ -8,7 +8,7 @@ extends RefCounted
 ## billboard shader's; the station's mesh carries ad lightboxes and its material the floor mirror
 ## and the atlas, and the A/B carries none; the escalator riders stand on the step at both ends
 ## and step off onto their floor; the station starts with people on both escalators; the bullet's
-## letter faces out of the car.
+## letter faces out of the car; the cars' saloons switch to their own lights underground.
 
 var _t: Node
 
@@ -25,6 +25,7 @@ func run(t: Node, city: Node3D) -> void:
 	_cells()
 	_escalator(line, f)
 	_letter()
+	_saloon()
 	var was := MetroLook.enabled
 	var on := _build(city, plan, f)
 	MetroLook.enabled = false
@@ -136,3 +137,24 @@ func _build(city: Node3D, plan: CityPlan, f: Dictionary) -> Dictionary:
 	_t.get_tree().root.remove_child(ch)
 	ch.free()
 	return out
+
+
+## The cars' glass: lit by its LED strips while the camera is down in the station, the old shader
+## (underground 0) everywhere else and under METRO_LOOK=0.
+func _saloon() -> void:
+	var m := LightRailTrain.glass_material()
+	var was := MetroLook.enabled
+	MetroLook.saloon(true)
+	var down := float(m.get_shader_parameter("underground"))
+	MetroLook.saloon(false)
+	var up := float(m.get_shader_parameter("underground"))
+	MetroLook.enabled = false
+	MetroLook.saloon(true)
+	var ab := float(m.get_shader_parameter("underground"))
+	MetroLook.enabled = was
+	MetroLook.saloon(MetroStation.showing)
+	_check(down == 1.0 and up == 0.0 and ab == 0.0,
+		"rc4 metro: the cars' saloons use their own lights underground (%.0f), the sky's on the street (%.0f), and not under METRO_LOOK=0 (%.0f)" % [down, up, ab])
+	var src := FileAccess.get_file_as_string("res://shaders/lrv_glass.gdshader")
+	_check(src.count("if (underground > 0.0)") == 1 and src.contains("underground > 0.0 ? mix(strip_color"),
+		"rc4 metro: lrv_glass's underground light is gated (0 draws the old saloon)")
