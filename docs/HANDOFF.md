@@ -28838,3 +28838,53 @@ smooth normals on Forward+ are unproved. No crew AT WORK (no shoot, no dolly, ca
 driven: the film-shoot session's area); the stage walls are as they were; the trailers' variants all
 share three dressings, so a long row repeats every third; the far LOD of the trailers is the old
 `lod_box` path. Checks: `tests/rc4_film_lot_checks.gd` (10). Probe: `tools/rc4_film_lot/crew_probe.tscn`.
+
+## 9d?. The construction site at dusk (fleet wave 8, refcam5 `construction_dusk`, branch `wt/rc5-construction-dusk`)
+
+**The camera.** `construction_dusk` in `tools/refcams/cameras_w8.json`: the tower site on block
+(30, 0) of the default seed (east of Pershing Square, 11 of 18 storeys poured, five clad, an 84 m
+crane ring), from the pavement across the street from its hoarding and gate at 18:45 clear, looking
+up at the open floors and the crane. `tools/construction/site_probe.gd -- --block=x,z` prints any
+site's footprint, cell, gate, walkway, hoist and crane for framing. Run it with
+`REFCAMS_JSON=tools/refcams/cameras_w8.json python3 tools/refcams/refcams.py run <dir> --only
+construction_dusk` (~7 min). Note: the refcams load at the first camera's hour, so a site chunk is
+built at 18:45 - whatever Construction does by the hour is what the view shows.
+
+**What gave it away, worst first, and what changed** (`ConstructionDusk`,
+`scripts/world/construction_dusk.gd`; hooks in construction.gd and construction_kit.gd;
+`CONSTRUCTION_DUSK=0` is the A/B):
+
+1. *The five clad storeys were one black slab.* The curtain wall mirrored the zenith colour flat and
+   the city under the horizon at 35 % of nothing, so at dusk it was a dead box under the lit frame.
+   construction.gdshader's glass (`dusk_glass`): the sky brightens toward the horizon, the city
+   below it is a scatter of lit windows after dark (faded to its mean under a pixel), and behind the
+   glass the storeys under fit-out are lit by temporary lights - per storey, in runs of three 4.5 m
+   bays, each bay its own level (some dark), rows of tubes along the ceiling, a dark column at every
+   bay line, warm or cool by run - shown through by (1 - Fresnel).
+2. *Nobody was there.* WORK_HOURS end at 17:30, so a site built at 18:45 had no crew at all. A
+   late shift (`late()`, until `SHIFT_END` 20:30) keeps the crews (deck and gate) on, and the gate
+   gets two more hands standing just inside its open leaves (`gate_crew()`), so the gate has a
+   flagger and two others in hi-vis. MAX_WORKERS 7 -> 9 (empty steps where there are fewer).
+3. *The open floors were dark boxes behind the net.* Work lights (`work_lights()`): LED fittings
+   on a 6 m grid under the soffit of every open floor (K_STRIP), each with a warm glow billboard on
+   Construction's lights mesh (which now takes a colour per light; the obstruction lights stay red),
+   the soffits themselves washed warm (construction.gdshader: a slab's top face seen from below);
+   on the top deck four light towers (base, mast, two flood panels aimed at the deck's middle, a
+   glow each) and, off the web, two OmniLights in `lamp_light` (`lamp_gain` 2.4, range 26 m) that
+   DayNight switches with the street lamps.
+4. *The hoarding's fly posters were blank rectangles* of cream and red, from the street they read
+   as missing textures (worst on the covered walkway's parapet, 3 m up). Now (`printed_posters`)
+   they are StreetWear's printed bills (its paper atlas, a fourth sampler): runs of 0.6 x 0.9 m
+   sheets, 5-11 wide, one or two high, often one poster repeated along the row, torn and faded with
+   age, never over the developer's rendering; the walkway's parapet (UV2.x fract 0.26) carries none.
+
+**Cost.** Per tower site: ~170 more glow billboards (one mesh, one draw already there), ~200 small
+boxes in the site mesh, two OmniLights (desktop). The refcam: before 6.03 M tris / 3,229 draws,
+after 6.06 M / 3,246 (opengl3, see the final numbers in the shots README).
+
+**Not done / not verified.** Forward+ not seen (the glass's emitted interior and the soffit wash
+are display-number emission like the rest of the site shader; the OmniLights' reach on the Mac
+needs eyes). The crane's jib-tip and counter-jib lamps are still lamp boxes, not billboards (they
+slew). A round glare blob on the glass in this view is a street lamp's halo, not the site's. The
+crews stand; nobody pours, and the hoist's car does not move. Columns on the open floors are lit
+only by the OmniLights.

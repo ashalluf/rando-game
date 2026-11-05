@@ -4492,3 +4492,9 @@ none of either.
   per variant and batched, never per copy; a studio keeps its asphalt (the industrial ground with
   `kept`, worn only by tyre tracks); the basecamp's gaps hold carts and the doors chairs, from the
   layout alone, after every roll; the lot's walkers mostly wear crew blacks. RC4_FILM_LOT=0 is the A/B.
+- 2026-11-05 (wave 8, rc5-construction-dusk): a new reference camera, `construction_dusk`
+  (cameras_w8.json), looks at a downtown tower site at 18:45. Decisions: a building site works into
+  the evening (a late shift until 20:30) under its own work lights, which is what the open floors
+  read by at dusk; glass on a half-finished tower shows the fit-out lit behind it, not a black
+  mirror; anything pasted on a hoarding is printed (StreetWear's bills), never a flat colour block.
+  CONSTRUCTION_DUSK=0 is the A/B.

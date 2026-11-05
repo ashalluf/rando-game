@@ -6122,6 +6122,15 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   `tools/construction/probe.gd` (sites, closures and EYEs round a point), `chunk_probe.gd`,
   `compile.gd`; stills `tools/construction/kit_shot.gd` (the kit alone, seconds). Checks:
   `tests/construction_checks.gd`.
+- The construction site at dusk (wave 8, refcam5 `construction_dusk` in tools/refcams/cameras_w8.json,
+  docs/HANDOFF.md "The construction site at dusk"): `ConstructionDusk`
+  (`scripts/world/construction_dusk.gd`, hooks in construction.gd): a late shift (`late()`, crews
+  on until `SHIFT_END` 20:30) with two more at the gate; LED fittings under every open floor and
+  light towers on the deck (warm glows on Construction's lights mesh, which takes a colour per
+  light; two `lamp_light` omnis off the web); construction.gdshader's `dusk_glass` (sky to the
+  horizon, lit city below it, fit-out storeys lit behind the glass, soffits washed) and
+  `printed_posters` (StreetWear's paper atlas). `CONSTRUCTION_DUSK=0` is the A/B;
+  `tools/construction/site_probe.gd` frames a site; checks `tests/rc5_construction_dusk_checks.gd`.
 - Street vendors (VISUAL_ROADMAP #52, 2026-10-04: "taco trucks at night, fruit carts under
   umbrellas"): `StreetVendors` (`scripts/world/street_vendors.gd`, static) - taco trucks at the
   kerb with a lit menu board, the serving window open under its propped flap, a lit kitchen
