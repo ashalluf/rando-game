@@ -3777,6 +3777,16 @@ already mapped so milestone 2 is script-only.
   between them showed the void as a dark strip). Banks planted to the waterline and more boats tied
   up, every addition a hash after the old rolls. RC4_CANALS=0.
 
+- **2026-11-05, the Mac launch (mac-launch).** The owner pressed Play and saw 5 minutes of logo,
+  then 10 of city sounds over a frozen window. Decided: the window presents a frame for the whole
+  load, never a splash or a stale frame with sound. The loading picture is drawn on its own canvas
+  and presented from inside every long loop. The 3D city is not drawn while it loads: on Forward+ a
+  draw waits for the pipelines it needs, and Godot compiles them on the worker threads anyway. The
+  city is drawn once the compilers are done. Sound stays off until the fade. Quality is never cut to
+  make it faster, and Quality no longer judges the machine by the loading screen. Shader baking
+  stays off while Godot 4.7.2's baked Metal exports crash (godot#123266, #124539). No loader
+  threads: the codebase's cyclic preloads broke under one.
+
 ## Correction: what build 135 (0ce833f) actually contained
 
 That commit's subject says "denser grass, real palm fronds, finer ground". It also shipped a

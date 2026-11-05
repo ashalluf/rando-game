@@ -2928,6 +2928,9 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	load("res://tests/rc4_film_lot_checks.gd").new().run(self, city)
 	# The LA River at night (tests/rc4_river_night_checks.gd, RiverNight): the bridges' frames in the river's shaders.
 	load("res://tests/rc4_river_night_checks.gd").new().run(self, city)
+	# The Mac launch (tests/mac_launch_checks.gd, LoadPulse): the boot scene, the loop hooks, Quality
+	# frozen under the loading screen, the pulse inactive headless.
+	load("res://tests/mac_launch_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()

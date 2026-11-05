@@ -29010,3 +29010,96 @@ carrying it, the fixtures over the bed, the empty table, the camera row on the b
 change colour; this is white); the downstream / upstream bridges reflect only where their rays
 are not under the banks; the far mountains read warm brown at night in the full city (not this
 area: the horizon plane). Mirrors of other lit things (the bank-road lamps) are not traced.
+## 9d?. The Mac launch: a frame for the whole load, the 3D held while Metal compiles, sound after the picture (fleet wave 8, infra `mac-launch`, 2026-11-05)
+
+**For the owner, in plain words.** After this, you see the RANDO loading screen within a second
+or two of pressing Play, with a moving bar, a clock and a counter, and no sound until the city
+appears. The first launch after an update is still the slow one, because your Mac builds every
+shader once: expect several minutes, with "COMPILING SHADERS (FIRST LAUNCH ONLY)" counting up.
+The second launch of the same build skips that and should be much shorter. If the Godot editor
+itself sits on "Importing" after you pull a lot of changes, that is the editor's own one-off
+re-import of the assets, before the game starts; let it finish once.
+
+**The owner's report** (main 2f2fb8f5, Godot 4.7.2 editor on a Mac Studio M2 Max, 32 GB, macOS
+14.2.1, Play): "it took 5 minutes for the Godot player to just show the Godot logo and then 5
+minutes later I can hear sounds of the world but still just the Godot logo, and now 10 minutes of
+just sound, no video". The ask: playable, no quality cut at all.
+
+**What froze the window** (read off the code and Godot 4.7.2's source, measured here):
+1. **No frame before the loading screen.** Loading `city.tscn` as the main scene compiles every
+   script (~650; the class graph is one big cycle), then `CityStreamer._ready()` runs the macro map,
+   the bake, the far landmarks, 18 FULL + 129 LOD chunks and the near far city in ONE call: 117 s
+   on this 4-core box cold (headless baseline, below) with no frame presented.
+2. **Every loading-screen frame drew the whole 3D city behind the shade.** On Forward+ / Metal a
+   draw waits for the ubershader pipeline of each surface it draws (`PipelineHashMapRD::get_pipeline
+   (wait = true)`); a first launch has none, so the first frame after the city existed waited for
+   thousands of pipelines, and every later frame for whatever streamed in since. That is the "10
+   minutes of sound, no video".
+3. **Ambience started in its `_ready()`** under all of it (the audio thread plays on).
+4. **`Quality` measured FPS through the loading screen** (seconds a frame) and stepped HIGH ->
+   MEDIUM -> LOW -> LOWEST before play began: a silent quality cut, and every step changed the
+   pipeline set again.
+
+**What changed.**
+- `LoadPulse` (`scripts/util/load_pulse.gd`): the loading art on its own RenderingServer canvas
+  (layer 129, the same wordmark, step, bar and a clock), presented by `tick()` with
+  `RenderingServer.force_draw()` once `interval_ms` (80) has gone by, from inside the long loops:
+  `MacroMap.raw_height_at()` (every terrain-heavy stage goes through it: the macro map's ridges,
+  the bake, the far rocks), `CityChunk.build()`, the far landmarks, `Skyline.build_near()`, every
+  `LoadClock` stage. `DisplayServer.process_events()` with it (no spinning cursor). Main thread
+  only; inactive (one bool) headless, on the web, under `--noload` / `--nohud`, `LOAD_PULSE=0`.
+- **Shaders compiled one a frame, at boot** (RenderingDevice renderers; `LoadPulse.keep_shaders()`
+  / `compile_shaders()`). Read off `shader_rd.cpp` / `material_storage.cpp`: loading a Shader only
+  stores its code; its variants are compiled the first time a SURFACE using it is processed
+  (`ShaderData::is_valid()` -> `ShaderRD::version_is_valid()`), and the main thread waits there
+  (`_compile_ensure_finished`) while the variants run on the workers. Met for the first time
+  during the city build, every new shader was a frozen frame (2-15 s each on lavapipe while the
+  landmarks built). Now the boot draws one 2 cm quad per spatial shader into a private 4 px
+  viewport, one a frame, with "n / N shaders" on the picture: the same compile work, each frame
+  waiting for one shader. Two tries that did NOT work, kept in the comments: loading all shaders
+  at once (nothing compiles until first use), and handing all pipelines to the workers while
+  building (a new material's shader then waited behind the whole queue).
+- **The 3D held off.** While loading, the window's `disable_3d` is on: no loading-screen frame draws
+  the city. Godot's Forward+ drains its WHOLE dirty geometry list into the worker pool on any 3D
+  render, visible or not (`RenderForwardClustered::_fill_render_list` ->
+  `_update_dirty_geometry_instances`), so `feed()` (at the start of the loading screen, after the
+  city is built) switches on a 4 x 4 RS viewport of an empty scenario drawn every frame: from then
+  each frame hands every surface's pipelines to the compilers and waits for none. `settle()`
+  waits on a low-priority fence task (it runs only once every high-priority task queued before it -
+  the ubershaders - has started) with frames presented ("screen: city graphics"); `drain()` does
+  the same at the end, then the 3D comes back behind the shade until three frames are steady,
+  then the fade. Before the city exists `_prime()` draws four geometry-free frames with a 5 cm probe
+  and two tiny shadowed omnis, so every sticky global pipeline requirement (SDFGI, motion vectors,
+  normal / roughness, separate specular, probes, cube and paraboloid shadows) is set before any
+  city surface is queued. The warm-up's quads and every `.gdshader` stay referenced until the
+  drain. Reflection probes do not render while loading. Compatibility keeps its old behaviour
+  (it compiles at draw time), only the pulse's own frames skip the 3D.
+- **The sound**: the master bus is muted from the first frame to the fade.
+- **The boot scene** (`scenes/boot.tscn`, `scripts/util/boot.gd`, the main scene now): the picture
+  at 1.3 s, then the game's scripts compiled a few a frame on the main thread in dependency order,
+  then the shaders (above), then the city. Most of the game is one dependency cycle, so one `load()` still compiles 15.4 s of
+  it with the picture held still (never a splash or black). A loader THREAD was tried first and
+  dropped: CityChunk's `const BUILDING_SCENE := preload(building.tscn)` came back broken (every
+  building lot a SCRIPT ERROR) and a second run deadlocked. `BOOT_COMPILE=0` the A/B.
+- **Quality** returns at once while `LoadPulse.active` or `LoadingScreen.showing`.
+- **Reports**: `LOADING frame gap: <ms> in '<step>'` for any gap over 2 s between frames (every frame
+  counts: `frame_post_draw`), `LOADING pulse frames: ... longest gap ...`, `LOADING graphics:
+  <pipelines> pipelines queued, fence <ms>`, `LOADING memory: static / video / textures / buffers`.
+  New sub-stages of the bake: `ground: horizon tiles`, `ground: mountain occluder`, `ground: far rocks`.
+
+**Shader baking (`shader_baker/enabled`), investigated, left OFF.** Godot 4.7.2's baked Metal exports
+abort on Apple Silicon: godotengine/godot#123266 (min_macos_version_arm64 below 14; the workaround
+14.00 is unconfirmed by #124539) and #124539 ("Not enough bytes for uniform in shader container",
+4.7.0 and 4.7.2, also at 15.00; it also poisons user://shader_cache so later unbaked builds crash
+until it is deleted). Both open, no milestone. Baking also cannot run in our CI: it is not supported
+with `--headless` (no GPU), Metal needs macOS with the Metal toolchain and a GUI session with a
+RenderingDevice (a GitHub macOS runner bills ~10x a Linux minute), and it bakes only the
+intermediate shaders (MIL for Metal), never the final pipelines - the step LoadPulse now runs in the
+background. When Godot fixes those: `shader_baker/enabled=true` and `application/min_macos_version_arm64="14.00"`
+(ours is 11.00) in the macOS preset, exported from the editor on a Mac or a macOS runner without
+`--headless`; verify the `.godot/exported/<hash>/shader_baker/macOS/metal/` folder is packed.
+
+**Caches that make the second launch fast** (nothing disables them): Godot's shader cache
+(`rendering/shader_compiler/shader_cache/enabled`, default on: user://shader_cache), the driver
+pipeline cache (default on), macOS's own Metal cache, and LoadCache (the bake and the far city;
+any script change misses it - every new build's first launch is cold).
