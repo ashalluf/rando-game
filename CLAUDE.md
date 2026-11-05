@@ -17,6 +17,7 @@ street errands, reference cameras), batch 7 (the marketplace lane, shop-window v
 businesses) and batch 8 (street signs as real models, five street lamp types), plus the fixes
 for CI runs 355-357 (a turning car's room in its new lane, errands never parking a placed car,
 the car lights check's pick race), then apartments and tower gondolas (2026-10-29, build 361).
+**Wave 8 (2026-11-05): start at docs/HANDOFF.md section 00000000000** - main is batch 51; 25 cloud sessions (roster `sessions_w8.tsv` on `fleet/brief`, lead notes in its LEAD_HANDOFF.md).
 **Wave 4 (2026-10-31): start at docs/HANDOFF.md section 0000000000** - main is batch 25 (the golden-hour review) plus the CI 394 flake fixes; 45 cloud sessions run on `wt/<slug>` branches (roster on `fleet/brief`), the lead merges them in batches.
 **Wave 3 (2026-10-29)**: 23 cloud sessions finishing wave 2's paused tasks plus `rock-outcrops` and
 `facades-gta` (owner: "make it look like GTA 6"); start at docs/HANDOFF.md section 00000000.
@@ -1630,8 +1631,8 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   the wave; later rounds: a rolling lit dust front, the plume's value range, panel debris, the fires'
   underlight on the cap, a held stem, fuel trails and flames up the wreck's sides, a soft crater.
   `EXPLOSIONS_4=0` is the A/B (`BLAST_DUST_ROLL`, `BLAST_VALUE`, `BLAST_CHUNKS`, `BLAST_UNDERLIGHT`,
-  `BLAST_STEM`, `BLAST_WRECK_FIRE`, `BLAST_CRATER`, `BLAST_FLAMES`, `BLAST_PIT`, `BLAST_QUIET`, `BLAST_CORE`, `BLAST_RIBBONS`, `BLAST_FACADES`, `BLAST_DUST_DARK`, `BLAST_SHOCK`, `BLAST_NIGHT`, `BLAST_STREAKS` =0 each part; flame tongues `shaders/flame_tongue.gdshader`, the traced pit `shaders/blast_pit.gdshader`); strips blast_room_shot.gd (`GAS=1`,
-  `WEB=1`, `CAR=1 CHAIN=1`, `NIGHT=1 WET=1`, `PROPS=1`); checks `tests/explosions_4_checks.gd`.
+  `BLAST_STEM`, `BLAST_WRECK_FIRE`, `BLAST_CRATER`, `BLAST_FLAMES`, `BLAST_PIT`, `BLAST_QUIET`, `BLAST_CORE`, `BLAST_RIBBONS`, `BLAST_FACADES`, `BLAST_DUST_DARK`, `BLAST_SHOCK`, `BLAST_NIGHT`, `BLAST_STREAKS`, `BLAST_RING`, `BLAST_WALL` =0 each part; flame tongues `shaders/flame_tongue.gdshader`, the traced pit `shaders/blast_pit.gdshader`); strips blast_room_shot.gd (`GAS=1`,
+  `WEB=1`, `CAR=1 CHAIN=1`, `NIGHT=1 WET=1`, `PROPS=1`, `FACADE=1`, `UP=150`); checks `tests/explosions_4_checks.gd`.
 - The mayhem refcam (2026-11-01, docs/HANDOFF.md "The mayhem refcam"): `mayhem` in
   `tools/refcams/cameras_w5.json` is STAGED (`"stage": "mayhem"` -> `tools/refcams/mayhem_stage.gd`:
   hero firing, a car blast, a burning wreck, a police standoff, fleeing people). `RcMayhem`
@@ -3915,6 +3916,14 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   joints filtered per axis (`joint2()`), flow stains, a canyon bounce on what the sun misses, two
   graffiti layers and pieces on the ramp walls; `RiverDebris` lays weeds and litter on FULL beds.
   `RIVER_LOOK=0` is the A/B; checks `tests/rc2_river_checks.gd`.
+- The LA River at night (wave 7, refcam `river_night` in `tools/refcams/cameras_w7.json`,
+  docs/HANDOFF.md "The LA River at night"): `RiverNight` (`scripts/world/river_night.gd`, the
+  `river_night` global): every bridge a chunk builds is noted (`note()` in RiverBridges.jobs()) and
+  the last six go to both river materials as arrays in TRUE world (`shaders/river_night.gdshaderinc`):
+  the ribbon's arches washed by their LEDs, under-deck fixtures (real lenses, `fixtures()`) pooling on
+  bed, banks and piers, the low flow and damp silt mirroring ribs, lamps and fixtures, the floor's
+  ambient held down by AO. All behind `lamp_factor` (day bit-identical); `RIVER_NIGHT=0` is the A/B;
+  checks `tests/rc4_river_night_checks.gd`.
 - The coast highway (2026-10-05, docs/HANDOFF.md "The coast highway"): north of the beach town,
   where the front range meets the sea. `CoastHighway` (`scripts/world/coast_highway.gd`,
   `MacroMap.coast_highway`, built in `setup()` before the hill roads) is a pure plan in
@@ -4073,6 +4082,15 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   MultiMeshBatch instance's default custom is Color.BLACK (alpha 1), which light_pool.gdshader
   takes as a NightLamps point source - a pool needs `Color(0, 0, 0, 0)` (`POOL_CUSTOM`).
   `PORT_NIGHT=0` is the A/B; checks `tests/rc4_port_night_checks.gd`.
+- The refinery's road at night (wave 7, refcam `refinery_night`, docs/HANDOFF.md "The refinery's road
+  at night"): `RcRefineryRoad` (`scripts/world/rc4_refinery_road.gd`): road.gdshader's
+  `shaders/refinery_road.gdshaderinc` (behind `rr_on`, 0 on every other road) lights the roads and
+  block pavements within `NEAR` of the plant from its flares and fence-line masts (light x albedo,
+  patchy damp, glints), the perimeter lamps are patchy (a share out: INSTANCE_CUSTOM.b in
+  street_lamp.gdshader), the pavement ring is wound face up with kerb faces (FilmStudio._flat()
+  winds DOWN: culled), a weedy verge at the fence foot, soot off the flares
+  (`refinery_flare_smoke.gdshader`), tank floods in fans (`rc4_look`). `RC4_REFINERY_ROAD=0` is the
+  A/B; checks `tests/rc4_refinery_road_checks.gd`.
 - The oil islands (2026-10-30, docs/HANDOFF.md "The oil islands"): three decorated drilling
   islands in San Pedro Bay 600-700 m off the Long Beach sand (the FORM of the real ones; names and
   the operator invented). A DATA TABLE (`OilIslands`, `scripts/world/oil_islands.gd`: anchors,
@@ -6705,6 +6723,21 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   `WARM=0 REHEARSE=1`: the full warm-up no longer fits). `MacroMap.bake()` memoises a pixel's raw
   height (byte-identical, `bake_probe.tscn FULL=1`). Never `x is T` on a list entry that can be
   freed: `is_instance_valid()` first.
+- The Mac launch (2026-11-05, docs/HANDOFF.md "The Mac launch", docs/PLAYING_ON_MAC.md): the
+  window presents frames for the WHOLE load. `LoadPulse` (`scripts/util/load_pulse.gd`) draws the
+  loading art on its own RenderingServer canvas and `tick()` presents it with `force_draw()` from
+  inside the long loops (`raw_height_at()`, chunk builds, far landmarks and tiles, LoadClock
+  stages) - any new load step longer than ~1 s gets a `LoadPulse.tick()` in its loop. The main
+  scene is `scenes/boot.tscn`: scripts compiled a few a frame (never on a loader thread: the
+  cyclic preloads broke), then on RenderingDevice renderers every spatial shader compiled ONE A
+  FRAME (Godot compiles a material shader when a surface first uses it and the main thread waits
+  for it: met during the city build, each was a frozen frame). The window's 3D is OFF while
+  loading; the loading screen then feeds a 4 px off-screen viewport (any 3D render hands every
+  surface's pipelines to the worker threads) and `settle()` / `drain()` wait on fence tasks with
+  frames moving. Master bus muted until the fade. Quality ignores the loading screen's frames (it
+  demoted to LOWEST). Shader baking stays OFF on 4.7.2 (godot#123266, #124539). `LOAD_PULSE=0` /
+  `BOOT_COMPILE=0` the A/B; `LOADING frame gap:` lines name any stall; probe
+  `tools/mac_launch/pulse_probe.tscn`; checks `tests/mac_launch_checks.gd`.
 - Performance: `Quality` node in the city scene (`scripts/util/quality.gd`) starts desktop at
   **HIGH** (owner, 2026-09-21: "I need it PS5 level graphics" - global illumination is the single
   biggest difference between this and a modern-looking game) and steps down to MEDIUM, LOW and
