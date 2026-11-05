@@ -4492,3 +4492,7 @@ none of either.
   per variant and batched, never per copy; a studio keeps its asphalt (the industrial ground with
   `kept`, worn only by tyre tracks); the basecamp's gaps hold carts and the doors chairs, from the
   layout alone, after every roll; the lot's walkers mostly wear crew blacks. RC4_FILM_LOT=0 is the A/B.
+- 2026-11-05 (wave 8, rc4-heli-night): downtown seen from above at night never shows a crown's
+  lid as a lightbox (a lid keeps a few per cent of the crown's glow), a far helipad's perimeter is
+  lamps, not a neon line, and no tower stands pure black at night (the abandoned towers have work
+  lights and obstruction lights). RC4_HELI_NIGHT=0 is the A/B.

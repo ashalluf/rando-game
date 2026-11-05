@@ -28838,3 +28838,37 @@ smooth normals on Forward+ are unproved. No crew AT WORK (no shoot, no dolly, ca
 driven: the film-shoot session's area); the stage walls are as they were; the trailers' variants all
 share three dressings, so a long row repeats every third; the far LOD of the trailers is the old
 `lod_box` path. Checks: `tests/rc4_film_lot_checks.gd` (10). Probe: `tools/rc4_film_lot/crew_probe.tscn`.
+
+## 9d?. Downtown from a helicopter at 22:30
+
+Wave 7's refcam4 `heli_night` (resumed and finished in wave 8): `tools/refcams/cameras_w7.json`,
+eye (2700, 250 m AGL, 1750), yaw 40, pitch -12, fov 55, 22:30 clear - over South Park looking
+north-west across the lit towers toward the 110 and its traffic streams. `RcHeliNight`
+(`scripts/world/rc4_heli_night.gd`, the `rc4_heli_night` shader global, installed by DayNight;
+`RC4_HELI_NIGHT=0` is the A/B).
+
+What gave it away, worst first, and what changed:
+- **Lightbox roofs.** A lit crown loft's LID glowed as brightly as its sides, so from above every
+  lit-top tower wore a flat white / ice / blue plate. tower_crown.gdshader now keeps `LID_GLOW`
+  (0.08) of a face's glow where its world normal points up: the crown reads as a lit band round a
+  dark roof.
+- **Neon helipads.** building_lod.gdshader's far helipad (kind 5) drew its green perimeter as one
+  continuous line widened to a pixel: a lime neon square on every pad. It is a row of lamps every
+  `PAD_LAMP_EVERY` (3 m), at least a pixel each, faded to their mean past a third of the spacing.
+- **The black monolith.** The unfinished towers' glass had a lit ratio of 0, a pure black slab in
+  the middle of the frame. A few floors carry cool work lights (`UNFINISHED_LIT` 0.07,
+  `UNFINISHED_LIT_COLOR`) and the bare frame tops have red obstruction lights
+  (`LandmarkDowntown._roof_lights()`).
+
+**Numbers** (refcams opengl3, heli_night, merged with main b45ba911; A/B in one tree):
+`RC4_HELI_NIGHT=0` p1/p5/p50/p95/p99 0/3/35/98/198, 3,706,084 tris, 1,792 draws, shadow 526,140;
+on 0/3/34/95/191, 3,706,267 tris (+183: the red lights), 1,792 draws, shadow unchanged. The top end
+drops a little (the crown lids). Stills on `shots/rc4-heli-night`.
+
+**Not done / not verified.** Forward+ (the Mac) not shot: the lid factor and the lamp row are
+multipliers on existing emission, no new colour arithmetic, but the look on Forward+ is unproved.
+Still reading as a game in this view: pale flat membrane roofs on the mid-rises and the convention
+hall (lit like a moonlit day roof, too bright for 22:30), the yellow helipad paint visible from the
+air at night, the far towers' windows still a regular grid. The ten original cameras were not
+re-run (the change touches only lit crowns' lids, far helipads and the unfinished towers).
+Checks: `tests/rc4_heli_night_checks.gd`. Probe: `tools/rc4_heli_night/pick_probe.gd`.
