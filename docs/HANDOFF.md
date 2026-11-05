@@ -28838,3 +28838,56 @@ smooth normals on Forward+ are unproved. No crew AT WORK (no shoot, no dolly, ca
 driven: the film-shoot session's area); the stage walls are as they were; the trailers' variants all
 share three dressings, so a long row repeats every third; the far LOD of the trailers is the old
 `lod_box` path. Checks: `tests/rc4_film_lot_checks.gd` (10). Probe: `tools/rc4_film_lot/crew_probe.tscn`.
+
+## 9d?. The ER's ambulance court at night: the hospital_er refcam (fleet wave 7/8, refcam4 `hospital_er`, branch `wt/rc4-hospital-er`)
+
+**The camera.** `hospital_er` in `tools/refcams/cameras_w7.json`: eye `1582, 1.7 (agl), 256`, yaw 103,
+pitch 13, fov 58, 23:00 clear - in the medical centre's ER street (Westlake), looking down the
+ambulance court at the canopy, the EMERGENCY light box and the bed tower behind. Staged by
+`"stage": "hospital"` -> `tools/refcams/hospital_stage.gd` (HospitalStage._stage_ambulance: an
+Emergency ambulance `t` 0.82 of the way along its back-in path, reversing lamps and beacons on,
+Emergency disabled while the shot is held; `HOSPITAL_T=` overrides `t`). Run:
+`REFCAMS_JSON=tools/refcams/cameras_w7.json python3 tools/refcams/refcams.py run <dir> --only hospital_er`.
+
+**What gave it away (shots/rc4-hospital-er 01, 02), in the order the eye lands:**
+1. The court sank. Hospital.layout's campus floor is the block's HIGHEST corner (`floor_gy`) and the
+   canopy columns, the bays, their paint, the wheel stops and any backing ambulance all stand on it,
+   but the court's asphalt was a relief-following ground slab: the medical centre's block falls ~1.9 m
+   to its ER street, so the bays floated over a court that dropped away under them and the ambulances
+   hung in the air.
+2. The EMERGENCY light box went salmon-pink (its red face at 1.5x red-heavy HDR through AgX) and its
+   lower half hid behind the canopy fascia from anyone coming up the court.
+3. The canopy's underside was black (six 0.8 m lamps lit nothing a camera sees), and the ER wall
+   either side of the doors was a band of black ribbon windows.
+4. "AMBULANCE ENTRANCE" on the fascia could not be read from the street.
+
+**What changed** (`RcHospitalEr`, `scripts/world/rc4_hospital_er.gd`; hooks in
+`HospitalBuild._ground()` / `_er_bay()` and `EmergencyCar._bay_height()`; FULL chunks only, LOD and
+far keep their lit panel):
+- `court()` builds the court and the walk beside it as ONE level deck at the campus floor
+  (`court_y()`), easing (smoothstep, a vertical curve at both breaks) down to the pavement over the
+  last `RAMP_FROM` 14 m to the block's edge, in `ROW` 2 m rows so the ramp's foot follows the
+  pavement's own height; retaining kerb walls along both long sides where it stands over the lawn;
+  its own mesh (`ERCourt`) and collision (Compatibility lights a mesh only by its nearest few lights,
+  and the campus mesh has dozens); the two ground slabs it replaces are skipped. Tilted light pools
+  down the ramp. `EmergencyCar._bay_height()` follows the deck, so a backing ambulance rides it.
+- The light box (`box_material()`): a dark red face (`BOX_FACE`) glowing under 1 (`BOX_GLOW` x
+  `BOX_NIGHT` 0.66, green held to ~2 % of red), the white letters carry the bloom; raised to
+  `SIGN_RISE` 5.5 m over the canopy (was 4.3) so the fascia does not cut it.
+- `canopy()`: a glowing soffit quad, 15 LED panels, a broad white wash on the court and a softer one
+  spilling out, two floods on the fascia's street face (`lamp_light` OmniLights, `FLOOD_RANGE` 17 m,
+  meta `lamp_gain` 1.5; none on the web) with their pools down the ramp.
+- `glazing()`: the podium's court wall glazed at the ground floor (`GLAZE_H` 4.1 m) either side of
+  the ER doors, with sill, head, transom and jambs; the run count goes in the hospital node's meta
+  `rc4_glaze`.
+- The fascia's words at `FASCIA_LETTER` 0.62 m (were 0.42).
+
+`RC4_HOSPITAL=0` is the A/B (the old slab court, sign, fascia and wall). Checks:
+`tests/rc4_hospital_er_checks.gd` (the box under the salmon line, the camera row, the deck level
+under the canopy and only falling toward the street, the ramp drivable, the soffit / bigger words /
+glazing built and absent with the switch off).
+
+**Not done / not proved:** the colours are proved only on the opengl3 stills (Compatibility); a
+small Forward+ scene of the court was not shot. The other hospitals' courts use the same deck (it
+reads Hospital.layout for every campus) but only the medical centre was looked at. The waiting room
+behind the new glazing is the plain `h_glass` material, not a traced room.
