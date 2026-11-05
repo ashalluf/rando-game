@@ -106,6 +106,7 @@ static func explosion(node: Node, at: Vector3, radius: float, power: float = 1.0
 		last["debris"] = BlastDebris.spawn(node, parent, at, big, push, mini(debris_pieces + (3 if fuel else 0), max_debris))
 		last["glass"] = _glass(node, at, radius)
 		last["facade"] = Blast4.facade_response(node, at, radius)
+		last["wall"] = Blast4.wall_blast(node, parent, at, radius)
 	last["heavy"] = heavy
 	# The fourth pass: the fuel pool, the secondary pops, the chain (Blast4).
 	last.merge(Blast4.after_blast(node, parent, at, radius, fuel, gas))
