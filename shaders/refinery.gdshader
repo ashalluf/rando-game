@@ -47,6 +47,8 @@ varying vec3 world_p;
 
 #include "res://shaders/color_space.gdshaderinc"
 
+#include "res://shaders/fwd_review_h.gdshaderinc"
+
 vec3 disp(vec3 c) {
 	return cs_linear_renderer() ? cs_linear_to_srgb(c) : c;
 }
@@ -374,7 +376,8 @@ void fragment() {
 				fl += fall * facing * flick;
 			}
 		}
-		emit += to_lit(vec3(1.0, 0.56, 0.22) * albedo) * fl * flare_gain * (0.3 + 0.7 * night_factor);
+		// The level in the renderer's space too (fwd-review-h: raw, Forward+ drew it ~x^0.45).
+		emit += to_lit(vec3(1.0, 0.56, 0.22) * albedo) * fh_level(fl * flare_gain * (0.3 + 0.7 * night_factor));
 	}
 	// After dark the steel round the platform lamps is lit warm (two cells in three have one).
 	emit += to_lit(sodium * albedo) * flood * lit_steel * lamp_cell * lamp_factor * (bottom ? 1.6 : 1.0);

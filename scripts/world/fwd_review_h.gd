@@ -7,6 +7,13 @@ class_name FwdReviewH
 static var enabled: bool = OS.get_environment("FWD_REVIEW_H") != "0"
 
 
+## At load (SkyExtras, beside FwdReviewG): the `fwd_review_h` shader global
+## (shaders/fwd_review_h.gdshaderinc: a light level handed over in the renderer's own space on
+## Forward+ - the refinery's flares, the port's floods). project.godot's default is 1.
+static func apply() -> void:
+	RenderingServer.global_shader_parameter_set("fwd_review_h", 1.0 if enabled else 0.0)
+
+
 ## A float shader parameter that may not be set yet (null until someone sets it: Godot hands back
 ## null, not the shader's default, for an untouched parameter). `fallback` when it is not a number.
 static func param(mat: ShaderMaterial, name: String, fallback: float = 0.0) -> float:
