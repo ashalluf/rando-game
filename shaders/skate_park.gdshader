@@ -46,6 +46,14 @@ uniform float joint_pitch = 3.0;
 uniform float tag_pitch = 6.5;
 uniform float tag_odds = 0.8;
 uniform float tag_strength = 0.94;
+// The skate park refcam (RcSkatePark, scripts/world/rc5_skate_park.gd): 1 = cooler, used concrete
+// (pour patches, the wheel band round the transition, floor grime, a weathered coping, the deck's
+// dirt and skids); 0 = the old clean look, bit for bit. LINEAR, like the colours above.
+uniform float look5 = 0.0;
+uniform vec3 deck5 = vec3(0.172, 0.172, 0.166);
+uniform vec3 bowl5 = vec3(0.150, 0.153, 0.153);
+uniform vec3 coping5 = vec3(0.205, 0.203, 0.195);
+uniform vec3 grime5 = vec3(0.060, 0.058, 0.054);
 
 varying vec4 v_kind;
 varying vec3 v_local;
@@ -137,6 +145,82 @@ vec3 graffiti(vec3 col, vec2 uv, float detail, float odds, float max_h, float sa
 	return col;
 }
 
+// --- look5 (RcSkatePark) ---------------------------------------------------------------------------
+
+// The deck, used: a cooler slab with its pours; dirt and rubber in a wide ring round the pool's lip
+// (where everyone drops in and lands), skid streaks laid along the way the riding goes, sand-grit
+// in the joints, and a sun-bleached cast on the open slab.
+vec3 deck_used(vec3 old, vec2 plan, float swirl, float px) {
+	float pour = sp_noise(plan * 0.09 + 3.0);
+	float pt5 = sp_fbm(plan * 0.22 + 17.0);
+	vec3 col = deck5 * (0.84 + 0.26 * pour) * (0.92 + 0.14 * pt5) * (0.95 + 0.1 * swirl);
+	// The ring round the pool: the superellipse's own distance (SkatePark.POOL_*), 0 at the rim.
+	vec2 q = abs(plan - vec2(5.5, -11.5)) / vec2(6.0, 8.4);
+	float r = pow(pow(q.x, 2.7) + pow(q.y, 2.7), 1.0 / 2.7);
+	float ring = (1.0 - smoothstep(1.0, 1.32, r)) * step(0.97, r);
+	float dirt = ring * (0.55 + 0.45 * sp_noise(plan * 1.7 + 4.0));
+	col = mix(col, grime5, dirt * 0.32);
+	// Skids: long dark streaks, a heading per 2 m pt5 round the ring's tangent, strongest near it.
+	float ang = sp_hash(floor(plan * 0.5) + 31.0) * 6.28;
+	vec2 dir = vec2(cos(ang), sin(ang));
+	float st = sp_noise(vec2(dot(plan, dir) * 0.9, dot(plan, vec2(-dir.y, dir.x)) * 9.0));
+	float skid = smoothstep(0.7, 0.9, st) * (0.35 + 0.65 * ring);
+	// Fine streaks fade to their average once a pixel spans them.
+	float fine = 1.0 - smoothstep(0.02, 0.09, px);
+	col = mix(col, urethane * 2.2, skid * mix(0.08, 0.5, fine));
+	// Weathered: blotches of darker, older concrete.
+	col *= 1.0 - 0.12 * smoothstep(0.55, 0.85, sp_fbm(plan * 0.45 + 51.0));
+	return col;
+}
+
+// The pool's shotcrete, used: grey, with pours; the wheel band - a broad grey-black field of rubber
+// round the transition where it is ridden, broken by the pumps, its fine carve lines up close and
+// its average far off; dark grime and old water at the floor; the top of the wall bleached.
+vec3 bowl_used(vec3 old, vec2 uv, vec2 plan, float detail, float px, inout float rough) {
+	float h = v_local.y;
+	float pour = sp_noise(vec2(uv.x * 0.11, h * 0.5) + 3.0);
+	float pt5 = sp_fbm(vec2(uv.x * 0.25, h * 0.7) + 9.0);
+	vec3 col = bowl5 * (0.86 + 0.24 * pour) * (0.9 + 0.16 * pt5) * mix(1.0, detail, 0.6);
+	// Height bands: the floor (h < 0.5), the transition (0.4 .. 2.4), the vert near the coping.
+	float floor_w = 1.0 - smoothstep(0.3, 0.75, h);
+	float band = smoothstep(0.45, 1.1, h) * (1.0 - smoothstep(2.0, 2.75, h));
+	// Where along the rim it is ridden (the line pumps twice a lap): broken into lanes.
+	float ridden = 0.55 + 0.45 * sp_noise(vec2(uv.x * 0.12, 3.0));
+	// Fine carve lines: thin arcs along u at their own heights.
+	float lines_ = smoothstep(0.6, 0.82, sp_noise(vec2(uv.x * 0.3, h * 26.0)));
+	float fine = 1.0 - smoothstep(0.015, 0.06, px);
+	float rubber = band * ridden * mix(0.28, 0.28 + 0.6 * lines_, fine);
+	col = mix(col, urethane * 2.6, clamp(rubber, 0.0, 1.0) * 0.55);
+	// Grime and dried water on the floor, pooled toward its middle; sand blown in.
+	vec2 pc = (plan - vec2(5.5, -11.5)) / vec2(6.0, 8.4);
+	float mid = 1.0 - smoothstep(0.1, 0.75, length(pc));
+	float stain = smoothstep(0.42, 0.78, sp_fbm(plan * 0.5 + 21.0));
+	col = mix(col, grime5, floor_w * (0.18 + 0.34 * stain * (0.4 + 0.6 * mid)));
+	col = mix(col, vec3(0.30, 0.26, 0.19), floor_w * smoothstep(0.62, 0.9, sp_fbm(plan * 0.9 + 6.0)) * 0.35);
+	// Runs of dirt down the wall from the coping (rain off the deck), and the top bleached.
+	float run = smoothstep(0.55, 0.85, sp_noise(vec2(uv.x * 2.2, 0.0))) * smoothstep(1.2, 2.7, h);
+	col = mix(col, grime5, run * 0.22 * sp_noise(vec2(uv.x * 2.2, h * 1.5)));
+	col *= 1.0 + 0.08 * smoothstep(2.3, 2.75, h);
+	rough = mix(0.7, 0.5, rubber);
+	return col;
+}
+
+// The coping, used: weathered precast blocks, each its own tone and chips, the nose black with wax
+// and ground silver in places; dirt in the mortar.
+vec3 coping_used(vec2 uv, vec2 plan, float detail, float px, inout float rough) {
+	float blk = floor(uv.x / 0.6);
+	vec3 col = coping5 * mix(1.0, detail, 0.5) * (0.84 + 0.22 * sp_hash(vec2(blk * 7.3, 2.0)));
+	col *= 1.0 - 0.55 * joint(uv.x, 0.6, 0.006, px);
+	float nose = smoothstep(2.5, 4.2, uv.y) * (1.0 - smoothstep(5.5, 6.5, uv.y));
+	float wax = smoothstep(0.3, 0.7, sp_noise(vec2(uv.x * 1.6, 1.0))) * 0.8 + 0.2;
+	col = mix(col, urethane * 2.0, nose * wax * 0.8);
+	float metal_mark = smoothstep(0.72, 0.9, sp_noise(vec2(uv.x * 5.0, 4.0))) * nose;
+	col = mix(col, vec3(0.32, 0.32, 0.33), metal_mark * 0.35);
+	col *= 0.9 + 0.1 * sp_noise(vec2(uv.x * 3.0, uv.y * 0.7) + 2.0);
+	rough = mix(0.8, 0.35, nose * wax);
+	return col;
+}
+
 void fragment() {
 	int kind = int(floor(v_kind.a * 16.0));
 	vec3 tint = v_kind.rgb;
@@ -166,12 +250,15 @@ void fragment() {
 		float swirl = sp_fbm(plan * vec2(1.3, 1.1));
 		col *= 0.95 + 0.1 * swirl;
 		rough = 0.78 - 0.1 * swirl;
-		// Board scrapes and rubber: short dark streaks on a random heading per patch.
+		// Board scrapes and rubber: short dark streaks on a random heading per pt5.
 		float ang = sp_hash(floor(plan * 0.5)) * 6.28;
 		vec2 dir = vec2(cos(ang), sin(ang));
 		float streak = sp_noise(vec2(dot(plan, dir) * 0.6, dot(plan, vec2(-dir.y, dir.x)) * 14.0));
 		float scuff = smoothstep(0.78, 0.93, streak) * smoothstep(0.35, 0.7, sp_noise(plan * 0.4 + 9.0));
 		col = mix(col, urethane * 2.5, scuff * 0.45 * (1.0 - smoothstep(0.03, 0.12, px)));
+		if (look5 > 0.5 && kind == 0) {
+			col = deck_used(col, plan, swirl, px);
+		}
 	} else if (kind == 1) {
 		col = bowl_color * (0.9 + 0.18 * pour) * mix(1.0, detail, 0.6);
 		rough = 0.62;
@@ -190,6 +277,9 @@ void fragment() {
 		if (v_nrm.y < 0.6 && v_local.y < 1.8) {
 			col = graffiti(col, uv * vec2(1.0, 1.0), detail, 0.18, 0.8, 11.0);
 		}
+		if (look5 > 0.5) {
+			col = bowl_used(col, uv, plan, detail, px, rough);
+		}
 	} else if (kind == 2) {
 		// Bullnose pool coping, a block every 0.6 m with a mortar joint; dark wax and metal-grey
 		// grind marks along the nose where every truck has gone.
@@ -200,6 +290,9 @@ void fragment() {
 		float grind = sp_noise(vec2(uv.x * 4.0, uv.y * 0.5)) * 0.6 + 0.4;
 		col = mix(col, urethane * 2.0, nose * grind * 0.65);
 		rough = mix(0.75, 0.38, nose * grind);
+		if (look5 > 0.5) {
+			col = coping_used(uv, plan, detail, px, rough);
+		}
 	} else if (kind == 3) {
 		// The tile band: 2.5 cm mosaic, a blue field with a lighter key every few tiles.
 		vec2 t = vec2(uv.x / 0.025, uv.y / 0.025);
