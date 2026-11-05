@@ -1,9 +1,30 @@
-# Handoff: Rando Game (written 2026-09-19; section 0000000000 is the newest state: fleet wave 4, 2026-10-31)
+# Handoff: Rando Game (written 2026-09-19; section 00000000000 is the newest state: fleet wave 8, 2026-11-05)
 
 This is the narrative handoff for whoever picks the project up next, from any Claude Code account
 or as a person. `CLAUDE.md` is the rulebook and `docs/GAME_PLAN.md` is the roadmap plus the
 decisions log; both stay the source of truth. This file is the story: where things stand, how
 the day-to-day work goes, what is fragile, what to do next. Read all three before touching code.
+
+## 00000000000. Fleet wave 8 (2026-11-05 ~19:35 UTC; read this first, then fleet/brief's LEAD_HANDOFF.md, then 0000000000)
+
+A new account's lead picked up from the wave-7 lead's pause (fleet/brief `LEAD_HANDOFF.md`). The
+owner: "deploy a million agents, get these graphics up to date, don't stop until I tell you or
+usage runs low". Sessions run `claude-opus-5-5`.
+
+- **Batch 51** (`gate-b51`: explosions-4 round 11, gate-flakes-2, two flake fixes) was re-gated
+  (shard 2, the one that had failed) and pushed to main with this section.
+- **Wave 8 = 25 cloud sessions** (tag `rando-wave8`, titles `w8 <slug>`), briefed by fleet/brief's
+  BRIEF.md (wave-8 edition) and `tasks_w8.tsv`; roster `sessions_w8.tsv`. The wave-7 sessions were
+  on another account and cannot be messaged from here, so their unfinished branches were RESUMED by
+  fresh sessions (`resume` kind: rc4-refinery-road, rc4-metro-station, rc4-lowrider-meet,
+  rc4-terminal-curb, rc4-heli-night, rc4-river-night, rc4-hospital-er, rc4-freight-yard,
+  explosions-4 rounds 13+, gate-flakes-2, web-hero-blue). New: twelve `refcam5` views in
+  `tools/refcams/cameras_w8.json` (storm_downtown, brush_fire, gas_station_night, police_pursuit,
+  wingsuit_golden, construction_dusk, suburb_night, farmers_market, skate_park, hill_home_dusk,
+  speedboat_golden, arena_night) and two infra (fwd-review-h, perf-audit-6).
+- The lead loop is unchanged (LEAD_HANDOFF.md): batches on `gate-bNN`, merge_branch.py, `--import`,
+  `SHARDS=3` gate, push main, stills to the owner. cameras_w8.json headers conflict between rc5
+  branches: keep one header and every row.
 
 ## 0000000000. Fleet wave 4 (2026-10-31 ~03:45 UTC; read this first, then 000000000)
 
@@ -26125,6 +26146,8 @@ into a running gate (check files are `load()`ed lazily, mid-run).
 | 15303 (again) | emergency stretcher | the body had landed 0.57 m up on something standing on the pavement (what stands there goes with the hour and day); the cot pusher steps up only 0.34 m | the down call chooses a spot with nothing on the pavement (a box query) |
 | batches 35-37 | crowd_anim_2 "a walker banks into a bend and straightens after it" | CrowdFlow's sidesteps on the straight are turns too | judged with CrowdFlow off for the bend |
 | 17101 | explosions_4 "the pool's fire lights the smoke" | `Blast3.fire_list()` hands the smoke shader four fires and took the FIRST four registered: older glows and burning cars across town filled them and the fire in front of the camera was left out | the four nearest the camera |
+| 18505 | film_studio "the backlot street's parked cars are real Vehicle bodies (0)" | the backlot's cars are placed only while `PhysicsBudget.can_spawn()`, and the city sat at the cap | the build runs with the cap lifted (the street_furniture rule) |
+| 18505 | pedestrian_flow "a follower walks beside its leader (mean 2.14 m, leader 6.9 m; 2 prop dodges city-wide, end gap 2.0 m)" | **not found**: the same numbers as 1303 and 6101, so a deterministic outcome some earlier state switches on; few dodges, so not the furniture | - |
 | (8101) | - | `CrowdFlow._pass_door()` sent walkers in at shop doors without sparing `no_trim` (the staging meta the flake rules promise every system leaves alone) | spares them now |
 | 8101 | service_vehicle "a tow truck is sent (physics budget full)" | PhysicsBudget at its 500-body cap in a busy city | the check gives the truck room in the cap for the send |
 | 8101, the lead's batches 35 / 37 | car_panic "a driver mounts the clear kerb ..." (up false, never a KERB panic) | the test found the kerb clear, then placed the follower and waited two ticks before `CarPanic.start()`, which looks again: a walker of a busy shard had stepped onto the kerb and the driver rightly swerved | the follower is placed and the panic started in the same frame the kerb was found clear (also in the retry loop) |
@@ -26134,7 +26157,8 @@ into a running gate (check files are `load()`ed lazily, mid-run).
 5,084 -> 5,443 checks as main grew): 31 shuffled runs, seeds 1101 .. 15303, each failure fixed as
 it appeared, so the tree moved under the runs (and main merged four times: batches 34-38).
 Clean: 1101, 1404, 1505, 1606, 2101, 2202, 10101, 10202, 10303, 12101, 13101, 14101, 15101 (13 of 31).
-Longest streak on one tree: three (1404-1606 on cb5cc5c4; 10101-10303 on 5a18bde8). **Five
+Longest streak on one tree: four (18101-18404 on d070d94e, then 18505 failed two checks); three
+twice before (1404-1606, 10101-10303). **Five
 consecutive clean runs on one unchanged tree were not reached**: about every other run still
 turned up a once-seen failure (1-2 checks of ~5,400), most of them a check leaning on a live
 system or on what an earlier file left, a few real game bugs (the stale pending build, the shop
@@ -26865,6 +26889,20 @@ Checks: `_round9()`. Stills 58 on.
    not) and the crowns are darkened to half from 1.5-4 s, so the cloud reads as dark smoke against
    the sky lit from below. Off with `BLAST_NIGHT=0`.
 Checks: `_round9()`'s last line. Stills 61 on.
+
+**Round 12: a rocket into a facade, a blast from the air** (the lead's next list; `FACADE=1` and
+`UP=150` on blast_room_shot.gd):
+1. **Into a facade at 30 m**: the fireball and BuildingDamage's broken panes were there, but nothing
+   came out of the wall afterwards. `Blast4.wall_blast()` (after the facade response; it finds the
+   wall with eight rays round the blast, only one at least 1.5 m above the ground): lit smoke
+   pouring out of the hole and rising up the face for `wall_smoke_seconds` (22), masonry chunks
+   and glass glints thrown out and falling to the street (their life is the fall). `BLAST_WALL=0`.
+2. **From 150 m up** the blast read as a small pale blob, and the round-8 dark dust disappears
+   against the road from above. `Blast4.ground_ring()` (from `dust_roll()`): one quad on the
+   ground (`shaders/blast_ring.gdshader`): a pale ragged band of dust racing out to 1.25x the dust
+   reach in its first half second and fading over 6 s - the blast's footprint on the street from
+   the air. `BLAST_RING=0`. Judged on opengl3 only this round.
+Checks: `_round11()`. Stills 64 on.
 
 ## 9lb. The camera lens (wave 5, `camera-lens`)
 
