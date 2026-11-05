@@ -29458,6 +29458,18 @@ smoke and sparks (its brake is zeroed each tick); and the cars held at speed by 
 DrivingFX sparks off some body contact the staging did not pin down, so it raises `spark_speed` for the
 shot.
 
+**Numbers** (refcams opengl3, police_pursuit, the same framing with PURSUIT_LOOK=0 and on): luma
+p5/p50/p95 7/147/237 -> 5/69/221, mean saturation 0.22 -> 0.31, triangles 5.71 M both, draws 3,283 ->
+3,265. Forward+ on lavapipe: `tools/police_night/police_shot.gd` (T=0.05, PURSUIT_LOOK=0 / 1) renders
+clean; at that instant the old pattern is dark and the new one lit, the facade wash soft. The ten
+original cameras (`compare`, main 10568972 against the merged branch): eight within tolerance;
+street_noon and freeway flagged by live traffic alone (a bus a few metres on, a box truck against a
+motorbike in the lane). Gate (SHARDS=3), two runs: before the merge 5,812 of 5,813 (the failure,
+"cruisers drive in and engage (227 m -> 13 m)", passes alone - SMOKE_PARTS=city_polish: 227 m -> 21 m,
+engaged; this branch does not touch the police AI); after merging main 10568972, 5,932 of 5,934 (two
+checks in downtown_street_closeup_checks, "Batch_sg_plate differs", which pass alone: 32 of 32), peak
+3.8 GB a shard. Both look like shard-order flakes; neither file names anything changed here.
+
 **Not done / not verified.** Forward+ (the Mac) not seen in the city: there the real strobe lights
 (PoliceNightLook's budget) and the volumetric searchlight also act (the drawn shaft is hidden at
 HIGH); the bar and the wash were checked on a small Forward+ scene (below). The facades on Wilshire
