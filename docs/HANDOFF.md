@@ -29040,6 +29040,9 @@ are built at the shot's hour.
    ends, hand holes, an ink band and block on the long faces), and the aluminium's brushed grain runs
    along the legs (`grain_along`; it ran across them, so the near leg was a stack of ripples).
 
+**The other ten cameras** (`compare` against main at batch 52): eight unchanged; street_night and
+freeway flagged only for a bus and a box truck the live traffic put in the frame.
+
 **A/B.** `RC5_MARKET=0` (`FarmersMarketKit.rc5` false): the old heaps, segment counts and plain
 boxes bit for bit (a produce table is 8,706 triangles again), the shader uniforms at their old
 values, code 12 bulbs, 34 shoppers.
@@ -29048,7 +29051,9 @@ values, code 12 bulbs, 34 shoppers.
 plain ground, sun and sky, seconds a frame (`CAM`, `LOOK`, `FOV`; prints each table's triangles).
 
 **Frame cost** (the refcam's own numbers, opengl3 1280 x 720): main 6.12 M triangles, 3,407 draws,
-2.27 M shadow; after FINAL_NUMBERS. A produce table is 8-13k triangles near (6.4-10k before; the
+2.27 M shadow; the branch before merging main's batch 52 6.50 M, 3,457, 2.45 M; the merged head
+5.36 M, 3,420, 2.45 M (main re-shot at batch 52 still read 6.12 M: the difference is what the live
+crowd and vans put in the frame, so read the branch's own +6 % as the honest cost). A produce table is 8-13k triangles near (6.4-10k before; the
 farmers_market_checks budget of 14k holds; a first try at 25-27k failed it). The far level and the shadow twin are
 unchanged (crates and heaps). Checks: `tests/rc5_farmers_market_checks.gd`.
 
