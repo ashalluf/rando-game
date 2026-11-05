@@ -40,3 +40,35 @@ static func report(shot: Node, cam_name: String) -> void:
 	keys.sort()
 	for g: String in keys:
 		shot.call("_true_tris", "TRUE_%s %s" % [cam_name, g], groups[g])
+	houses(shot, cam_name)
+
+
+## The houses' meshes (HouseKit.commit(): one per material a chunk, no LODs), by material: camera
+## (in the frustum) and shadow (cascades the swept box reaches), like _true_tris.
+static func houses(shot: Node, cam_name: String) -> void:
+	var cam: Camera3D = shot.get_root().get_camera_3d()
+	var planes := cam.get_frustum()
+	var sun: DirectionalLight3D = null
+	for n in shot.current_scene.find_children("*", "DirectionalLight3D", true, false):
+		if (n as DirectionalLight3D).shadow_enabled:
+			sun = n
+			break
+	var by := {}
+	for n in shot.current_scene.find_children("House_*", "MeshInstance3D", true, false):
+		var mi := n as MeshInstance3D
+		if not mi.is_visible_in_tree() or mi.mesh == null:
+			continue
+		var tris := 0
+		for s in mi.mesh.get_surface_count():
+			tris += int(RenderingServer.mesh_get_surface(mi.mesh.get_rid(), s).get("index_count", 0)) / 3
+		var box: AABB = mi.global_transform * mi.get_aabb()
+		var row: Array = by.get(String(mi.name), [0, 0])
+		if shot.call("_box_in_frustum", box, planes):
+			row[0] += tris
+		if sun and mi.cast_shadow != GeometryInstance3D.SHADOW_CASTING_SETTING_OFF:
+			var d := Vector3.ZERO.max(box.position - cam.global_position).max(cam.global_position - box.end).length()
+			if d < sun.directional_shadow_max_distance:
+				row[1] += tris
+		by[String(mi.name)] = row
+	for k: String in by:
+		print("TRUE_%s houses %s camera tris=%d shadow_reach tris=%d (one cascade each)" % [cam_name, k, by[k][0], by[k][1]])
