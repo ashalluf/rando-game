@@ -40,6 +40,7 @@ static func build(b: RiverBuild, br: Dictionary) -> void:
 ## A street bridge as build jobs (RiverBuild runs one a step: an arch viaduct is ~45 ms of work).
 static func jobs(b: RiverBuild, br: Dictionary) -> Array[Callable]:
 	var f := _frame(b, br)
+	RiverNight.note(f, int(br.kind), _deck_y(f, (float(f.t0) + float(f.t1)) * 0.5))
 	var out: Array[Callable] = []
 	match int(br.kind):
 		LaRiver.Bridge.ARCH:
@@ -58,6 +59,8 @@ static func jobs(b: RiverBuild, br: Dictionary) -> Array[Callable]:
 				out.append(func() -> void: _ribbon_dress(f))
 		_:
 			out.append(func() -> void: _girder(f))
+	if b.full and RiverNight.enabled():
+		out.append(func() -> void: RiverNight.fixtures(f))
 	return out
 
 
