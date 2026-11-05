@@ -168,3 +168,13 @@ for a run. `stack_aerial` (rc4-stack-aerial): the four-level stack from 150 m ov
 north-west of it, 17:30 clear, toward downtown; `shot_frames` 90 lets the connectors' traffic fill
 before the shot.
 
+
+## Wave 8's cameras (`cameras_w8.json`)
+
+Run with `REFCAMS_JSON=tools/refcams/cameras_w8.json`. `gas_station_night` (rc5-gas-station-night):
+the HALCYON station at (-64.6, 519.2) from the street at 23:30 clear. Its `pump_car` key (1) sets
+PUMP_CAR=1 before the city loads: every gas station gets GasNight's car at a pump and its driver,
+whatever its hash. `NIGHT_AB=1` (any camera) saves the frame again with the lamps' omnis, the
+pools / spills / glows, the moon and the ambient each taken away (`<name>_nab_<what>.png`, plus
+`nothing`), and prints the environment's night numbers, the lamps within 60 m and the pool batches
+within 40 m: what lights a night frame, measured.
