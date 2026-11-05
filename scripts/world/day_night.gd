@@ -503,6 +503,10 @@ func _apply() -> void:
 			var day_share := santa_ana * (1.0 - night_factor)
 			top = top.lerp(santa_top, 0.55 * day_share * (1.0 - dusk))
 			rim = rim.lerp(santa_horizon, 0.5 * day_share * (1.0 - 0.6 * dusk))
+			var smoke: Array = BrushFireLook.sky(top, rim, santa_ana, dusk, moonlight)
+			top = smoke[0]
+			rim = smoke[1]
+			day_share = maxf(day_share, BrushFireLook.sky_weight(santa_ana, dusk, moonlight))
 			_horizon_now = _horizon_now.lerp(rim, day_share)
 		if marine > 0.0:
 			# Under the deck the sky is the deck: grey by day, the city's light on it at night.
@@ -607,6 +611,7 @@ func _apply() -> void:
 			_env.ambient_light_energy *= 1.0 + StormDrama.FLASH_AMBIENT * clampf(float(_sun.get_meta("weather_flash", 0.0)), 0.0, 1.5)
 		if santa_ana > 0.0:
 			_env.fog_light_color = _env.fog_light_color.lerp(santa_fog, 0.7 * santa_ana * (1.0 - moonlight) * (1.0 - dusk))
+			_env.fog_light_color = BrushFireLook.fog(_env.fog_light_color, santa_ana, dusk, moonlight)
 		if marine > 0.0:
 			_env.fog_light_color = _env.fog_light_color.lerp(marine_fog.lerp(night_storm_fog, moonlight), marine)
 	# Street lamps. Setting hundreds of lights every frame is wasteful, but only refreshing when

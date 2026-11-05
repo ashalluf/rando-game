@@ -19,6 +19,10 @@ uniform vec3 glow_col = vec3(0.0);
 uniform float fire_y = 0.0;
 uniform float glow_fall = 210.0;
 uniform float opacity = 0.0;
+// BrushFireLook (1; 0 the old look exactly): thicker puffs with dark cores, the fire's light on
+// their undersides, `core_shade` how dark a thick core is.
+uniform float look = 0.0;
+uniform float core_shade = 0.45;
 
 varying vec3 wpos;
 varying vec3 axis_x;
@@ -67,6 +71,16 @@ void fragment() {
 	// The fire under it, after dark: an orange underside fading up the column.
 	float low = exp(-max(wpos.y - fire_y, 0.0) / glow_fall);
 	col += glow_col * low * (0.6 + 0.4 * (1.0 - q.y * 0.5)) * (0.7 + 0.3 * n);
+	if (look > 0.5) {
+		// Thick smoke: the core of a lump shades itself, the edges catch the light.
+		float thick = clamp(edge * (0.4 + 0.8 * n), 0.0, 1.0);
+		vec3 c2 = smoke_col * (amb_col + light_col * lit) * mix(1.0, 1.0 - core_shade, thick) * (0.8 + 0.4 * n);
+		// The fire lights the undersides (q.y > 0 is the lower half), fading up the column.
+		float under = 0.3 + 0.7 * smoothstep(-0.7, 0.8, q.y);
+		c2 += glow_col * low * under * (0.6 + 0.5 * n);
+		col = c2;
+		a = clamp(edge * (0.75 + 0.6 * n), 0.0, 1.0) * COLOR.a * opacity;
+	}
 	ALBEDO = cs_out(col);
 	ALPHA = clamp(a, 0.0, 1.0);
 }
