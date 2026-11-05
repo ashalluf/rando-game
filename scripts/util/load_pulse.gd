@@ -1,0 +1,375 @@
+class_name LoadPulse
+extends RefCounted
+## Keeps the window alive through the load (owner, 2026-11-05, on the Mac: "5 minutes ... just the
+## Godot logo and then ... sounds of the world but still just the Godot logo"; docs/HANDOFF.md
+## "The Mac launch").
+##
+## Three things made the window freeze for minutes:
+## 1. Everything up to the loading screen (macro map, the bake, the far landmarks, the first
+##    streaming, the near far city: ~2 minutes on a 4-core box, cold) ran inside ONE
+##    CityStreamer._ready(), so not a single frame was presented.
+## 2. Every frame drew the 3D city behind the loading screen's shade. On Forward+ a draw waits for
+##    the ubershader pipeline of every surface it draws (Godot's PipelineHashMapRD); on a first
+##    launch on Metal (no baked shaders, empty caches) that is thousands of pipelines, so the
+##    loading screen's first frame - and every frame after it while more of the city arrived -
+##    waited minutes.
+## 3. The ambience started in its _ready() under all of that.
+##
+## So: `tick()` is called from inside the long loops (one line each) and presents a frame of its
+## own loading picture with RenderingServer.force_draw() when `interval_ms` has gone by. On the
+## RenderingDevice renderers (Forward+ / Mobile: the Mac) the window's 3D is switched off while the
+## load runs, so a frame draws nothing of the city - and a 4 x 4 off-screen viewport of an empty
+## world is drawn instead: ANY 3D render makes RenderForwardClustered hand every new surface's
+## pipelines to the worker threads (it drains its whole dirty list, visible or not), so they compile
+## in the background while the bar moves. `drain()` waits for those compiles (a low-priority fence
+## task on the WorkerThreadPool) before the city is shown. Compatibility compiles at draw time on
+## the main thread and keeps its old behaviour (the 3D only skipped for the pulse's own frames).
+## The master bus is muted from begin() to end(). Nothing here changes what is built or drawn once
+## the load is done: same settings, same city, same quality.
+##
+## Inactive (every call a bool test) in headless runs, on the web, under --noload / --nohud and
+## with LOAD_PULSE=0 (the A/B).
+
+## Milliseconds between two presented frames inside a long loop.
+static var interval_ms: int = 80
+## Frames of the (still nearly empty) world drawn at begin() on the RenderingDevice renderers,
+## so every pipeline requirement the city's frames will have (SDFGI's pass, motion vectors, normal
+## and roughness, separate specular, the reflection probes' and shadowed omni lights' passes) is
+## known before the city's surfaces are handed to the compilers - set later, every surface would
+## be compiled again for it, at the reveal.
+const PRIME_FRAMES := 4
+
+static var active: bool = false
+static var _canvas: RID
+static var _item: RID
+static var _last_us: int = 0
+static var _t0_ms: int = 0
+static var _stage: String = ""
+static var _stage_from: float = 0.0
+static var _stage_to: float = 0.0
+static var _stage_t0: int = 0
+static var _stage_tau: float = 20.0
+static var _progress: float = 0.0
+static var _shown: float = 0.0
+static var _note: String = ""
+static var _alpha: float = 1.0
+static var _root: Viewport = null
+static var _held: bool = false
+static var _priming: bool = false
+static var _drain_vp: RID
+static var _drain_cam: RID
+static var _drain_scenario: RID
+static var _bus_was: bool = false
+static var _rd: bool = false
+## Frames presented by tick() (outside the normal main loop) and their time, for LoadClock.
+static var pulses: int = 0
+static var pulse_usec: int = 0
+
+## Stage (a LoadClock name) -> [progress at its start, progress at its end, a typical length in
+## seconds on a cold launch]. The bar creeps toward the end of a stage on that time constant, so
+## it never sits still and never jumps backwards. Unknown stages keep the bar where it is.
+const STAGES := {
+	"compile the game": [0.0, 0.03, 20.0, "Starting"],
+	"macro map": [0.03, 0.05, 7.0, "Laying out the basin"],
+	"ground bake": [0.05, 0.16, 25.0, "Painting the far ground"],
+	"far landmarks": [0.16, 0.21, 8.0, "Building the landmarks"],
+	"first streaming": [0.21, 0.38, 50.0, "Building the streets"],
+	"far city within the immediate radius": [0.33, 0.38, 19.0, "Building the skyline"],
+	"screen: shaders and effects": [0.38, 0.47, 16.0, "Compiling shaders"],
+	"screen: camp figures": [0.47, 0.48, 1.0, "Preparing people"],
+	"screen: beach figures": [0.48, 0.51, 4.0, "Preparing the beach"],
+	"screen: arroyos": [0.51, 0.52, 2.0, "Carving the canyons"],
+	"screen: preload world": [0.52, 0.53, 2.0, "Building the city"],
+	"far city": [0.53, 0.62, 40.0, "Building the skyline"],
+	"screen: rehearsal": [0.62, 0.74, 20.0, "Rehearsing cars, people and effects"],
+	"screen: trees": [0.74, 0.75, 1.0, "Growing the trees"],
+	"screen: rigs": [0.75, 0.78, 5.0, "Preparing people"],
+	"screen: traffic": [0.78, 0.79, 1.0, "Filling the streets"],
+	"screen: final streaming": [0.79, 0.80, 1.0, "Building the city"],
+	"graphics": [0.80, 0.99, 60.0, "Compiling graphics (first launch only)"],
+}
+
+
+## True where the pulse may run: a real window, not the web, not switched off.
+static func supported() -> bool:
+	if OS.has_feature("web") or DisplayServer.get_name() == "headless":
+		return false
+	return OS.get_environment("LOAD_PULSE") != "0"
+
+
+## Starts the pulse: mutes the master bus, puts the loading picture up and presents it at once,
+## then (RenderingDevice renderers) primes the pipeline requirements and holds the 3D off.
+static func begin(viewport: Viewport) -> void:
+	if viewport == null or not supported():
+		return
+	if not active:
+		begin_picture(viewport)
+	if _rd and not _held:
+		_prime()
+		_hold_3d()
+
+
+## The picture alone (the boot scene, before the city exists): the canvas up, the sound muted, a
+## frame presented at once.
+static func begin_picture(viewport: Viewport) -> void:
+	if active or not supported() or viewport == null:
+		return
+	active = true
+	_t0_ms = Time.get_ticks_msec()
+	_rd = RenderingServer.get_rendering_device() != null
+	_bus_was = AudioServer.is_bus_mute(0)
+	AudioServer.set_bus_mute(0, true)
+	_canvas = RenderingServer.canvas_create()
+	RenderingServer.viewport_attach_canvas(viewport.get_viewport_rid(), _canvas)
+	RenderingServer.viewport_set_canvas_stacking(viewport.get_viewport_rid(), _canvas, 129, 0)
+	_item = RenderingServer.canvas_item_create()
+	RenderingServer.canvas_item_set_parent(_item, _canvas)
+	_root = viewport
+	_stage = "Starting"
+	tick(true)
+
+
+## Draws PRIME_FRAMES of the world as it stands (the player, the sky - the city is not built yet)
+## with a probe and two shadowed omni lights beside the camera, presenting the picture over them:
+## see PRIME_FRAMES.
+static func _prime() -> void:
+	var cam := _root.get_camera_3d()
+	var holder := Node3D.new()
+	holder.name = "LoadPulsePrime"
+	var parent: Node = cam if cam else _root
+	parent.add_child(holder)
+	var probe := ReflectionProbe.new()
+	probe.update_mode = ReflectionProbe.UPDATE_ONCE
+	probe.size = Vector3(4, 4, 4)
+	holder.add_child(probe)
+	for mode in [OmniLight3D.SHADOW_CUBE, OmniLight3D.SHADOW_DUAL_PARABOLOID]:
+		var omni := OmniLight3D.new()
+		omni.shadow_enabled = true
+		omni.omni_shadow_mode = mode
+		omni.omni_range = 2.0
+		omni.light_energy = 0.0001
+		omni.position = Vector3(0, 0, -1)
+		holder.add_child(omni)
+	_priming = true
+	for i in PRIME_FRAMES:
+		tick(true)
+	_priming = false
+	holder.queue_free()
+
+
+## The window draws no 3D; the off-screen viewport keeps the compilers fed.
+static func _hold_3d() -> void:
+	if _held:
+		return
+	_held = true
+	_root.disable_3d = true
+	_drain_scenario = RenderingServer.scenario_create()
+	_drain_cam = RenderingServer.camera_create()
+	_drain_vp = RenderingServer.viewport_create()
+	RenderingServer.viewport_set_size(_drain_vp, 4, 4)
+	RenderingServer.viewport_set_scenario(_drain_vp, _drain_scenario)
+	RenderingServer.viewport_attach_camera(_drain_vp, _drain_cam)
+	RenderingServer.viewport_set_update_mode(_drain_vp, RenderingServer.VIEWPORT_UPDATE_ALWAYS)
+	RenderingServer.viewport_set_active(_drain_vp, true)
+
+
+## The window's 3D comes back (the city is drawn again).
+static func _release_3d() -> void:
+	if not _held:
+		return
+	_held = false
+	if _drain_vp.is_valid():
+		RenderingServer.viewport_set_active(_drain_vp, false)
+		RenderingServer.free_rid(_drain_vp)
+		RenderingServer.free_rid(_drain_cam)
+		RenderingServer.free_rid(_drain_scenario)
+	_drain_vp = RID()
+	_drain_cam = RID()
+	_drain_scenario = RID()
+	if is_instance_valid(_root):
+		_root.disable_3d = false
+
+
+## True while the window's 3D is held off (for the checks and the loading screen).
+static func holding() -> bool:
+	return _held
+
+
+## A LoadClock stage begins (LoadClock.start calls this): the step text and the bar's range.
+static func stage(name: String) -> void:
+	if not active or not STAGES.has(name):
+		return
+	var s: Array = STAGES[name]
+	_stage = s[3]
+	_stage_from = maxf(float(s[0]), _progress)
+	_stage_to = maxf(float(s[1]), _stage_from)
+	_stage_tau = float(s[2])
+	_stage_t0 = Time.get_ticks_msec()
+	_progress = _stage_from
+
+
+## The loading screen's own step text and progress (it maps its 0..1 onto ours from 0.38).
+static func step(text: String, fraction: float) -> void:
+	if not active:
+		return
+	_stage = text
+	var p := lerpf(0.38, 0.80, clampf(fraction, 0.0, 1.0))
+	if p > _progress:
+		_progress = p
+		_stage_from = p
+		_stage_to = p
+		_stage_t0 = Time.get_ticks_msec()
+
+
+## A second line under the step (the pipeline count while the graphics compile).
+static func note(text: String) -> void:
+	_note = text
+
+
+## Presents a frame now if `interval_ms` has gone by (or `force`). Call it from inside any loop
+## that can run for more than a fraction of a second during the load.
+static func tick(force: bool = false) -> void:
+	if not active:
+		return
+	var now := Time.get_ticks_usec()
+	if not force and now - _last_us < interval_ms * 1000:
+		return
+	paint()
+	# Keep the window responding (no spinning cursor) and present the frame.
+	DisplayServer.process_events()
+	var t := Time.get_ticks_usec()
+	# The pulse's own frames never draw the city on Compatibility either (a frame of it is seconds
+	# on a software renderer); the normal frames in between still do, as before.
+	var skip_3d := not _held and not _priming and is_instance_valid(_root) and not _root.disable_3d
+	if skip_3d:
+		_root.disable_3d = true
+	RenderingServer.force_draw(true, 0.0)
+	if skip_3d:
+		_root.disable_3d = false
+	_last_us = Time.get_ticks_usec()
+	pulses += 1
+	pulse_usec += _last_us - t
+
+
+## Redraws the loading picture (no present: the normal frame or tick() presents it).
+static func paint() -> void:
+	if not active or not _item.is_valid():
+		return
+	var view := _view_size()
+	var p := _progress
+	if _stage_to > _stage_from:
+		var t := float(Time.get_ticks_msec() - _stage_t0) / 1000.0
+		p = _stage_from + (_stage_to - _stage_from) * (1.0 - exp(-t / maxf(_stage_tau, 0.1)))
+	_shown = maxf(_shown, p)
+	var ci := _item
+	RenderingServer.canvas_item_clear(ci)
+	RenderingServer.canvas_item_set_modulate(ci, Color(1, 1, 1, _alpha))
+	var s := HudTheme.scale(view)
+	var safe := HudTheme.safe_rect(view)
+	RenderingServer.canvas_item_add_rect(ci, Rect2(Vector2.ZERO, view), Color(0.035, 0.04, 0.055))
+	var x := safe.position.x
+	var bar_y := safe.end.y - 2.0 * s
+	var bar_w := safe.size.x
+	RenderingServer.canvas_item_add_rect(ci, Rect2(x, bar_y, bar_w, 3.0 * s), Color(1, 1, 1, 0.12))
+	RenderingServer.canvas_item_add_rect(ci, Rect2(x, bar_y, bar_w * clampf(_shown, 0.0, 1.0), 3.0 * s), HudTheme.ACCENT)
+	# A light running along the bar, so the picture visibly moves even while a stage creeps.
+	var secs := float(Time.get_ticks_msec() - _t0_ms) / 1000.0
+	var run := fposmod(secs * 0.45, 1.0)
+	var glint_w := 90.0 * s
+	RenderingServer.canvas_item_add_rect(ci, Rect2(x + (bar_w - glint_w) * run, bar_y, glint_w, 3.0 * s), Color(1, 1, 1, 0.22))
+	var px := int(round(14.0 * s))
+	var text_font := HudTheme.text()
+	var medium := HudTheme.text_medium()
+	var right := safe.end.x
+	var pct := "%d%%" % int(floor(_shown * 100.0))
+	text_font.draw_string(ci, Vector2(right - text_font.get_string_size(pct, HORIZONTAL_ALIGNMENT_LEFT, -1, px).x, bar_y - 14.0 * s), pct, HORIZONTAL_ALIGNMENT_LEFT, -1, px, HudTheme.INK)
+	var step_text := _stage.to_upper()
+	medium.draw_string(ci, Vector2(right - 64.0 * s - medium.get_string_size(step_text, HORIZONTAL_ALIGNMENT_LEFT, -1, px).x, bar_y - 14.0 * s), step_text, HORIZONTAL_ALIGNMENT_LEFT, -1, px, HudTheme.SOFT)
+	var clock := "%d:%02d" % [int(secs) / 60, int(secs) % 60]
+	var info := clock if _note == "" else "%s   %s" % [_note, clock]
+	medium.draw_string(ci, Vector2(right - medium.get_string_size(info, HORIZONTAL_ALIGNMENT_LEFT, -1, px).x, bar_y - 38.0 * s), info, HORIZONTAL_ALIGNMENT_LEFT, -1, px, HudTheme.FAINT)
+	var wpx := int(round(118.0 * s))
+	var bold := HudTheme.display_bold()
+	bold.draw_string(ci, Vector2(x - 5.0 * s, bar_y - 92.0 * s), "RANDO", HORIZONTAL_ALIGNMENT_LEFT, -1, wpx, HudTheme.INK)
+	var w := bold.get_string_size("RANDO", HORIZONTAL_ALIGNMENT_LEFT, -1, wpx).x
+	RenderingServer.canvas_item_add_rect(ci, Rect2(x + w + 14.0 * s, bar_y - 92.0 * s - wpx * 0.62, 6.0 * s, wpx * 0.62), HudTheme.ACCENT)
+	text_font.draw_string(ci, Vector2(x + w + 32.0 * s, bar_y - 92.0 * s), "A CITY TO WRECK", HORIZONTAL_ALIGNMENT_LEFT, -1, int(round(16.0 * s)), HudTheme.SOFT)
+
+
+static func _view_size() -> Vector2:
+	var tree := Engine.get_main_loop() as SceneTree
+	if tree and tree.root:
+		return tree.root.get_visible_rect().size
+	return Vector2(DisplayServer.window_get_size())
+
+
+## The picture's opacity (the loading screen's fade-out).
+static func set_alpha(a: float) -> void:
+	_alpha = clampf(a, 0.0, 1.0)
+	if active:
+		paint()
+
+
+## Waits (presenting frames) for every pipeline the worker threads were handed to finish
+## compiling, then switches the window's 3D back on and lets the city draw behind the shade
+## until a frame is quick again. Await it. RenderingDevice renderers only; elsewhere it returns.
+static func drain(tree: SceneTree) -> void:
+	if not active or not _rd:
+		_release_3d()
+		return
+	LoadClock.start("graphics")
+	var t0 := Time.get_ticks_msec()
+	var p0 := _pipelines()
+	# One frame hands every surface that exists now to the compilers (the dirty list is drained by
+	# any 3D render); then a low-priority task, which the pool runs only after every task queued
+	# at high priority before it - the ubershader pipelines and the shader groups - has started.
+	await tree.process_frame
+	var fence := WorkerThreadPool.add_task(_fence, false, "LoadPulseFence")
+	while not WorkerThreadPool.is_task_completed(fence):
+		note("%d pipelines" % (_pipelines() - p0))
+		paint()
+		await tree.process_frame
+	WorkerThreadPool.wait_for_task_completion(fence)
+	var fence_ms := Time.get_ticks_msec() - t0
+	# The city in view again, still behind the shade: the first frames build what a draw of the
+	# whole city needs (and anything a fence could not see); held until a frame is quick.
+	_release_3d()
+	var slow := 0
+	for i in 40:
+		var f0 := Time.get_ticks_usec()
+		await tree.process_frame
+		var ms := (Time.get_ticks_usec() - f0) / 1000
+		if ms < 200:
+			slow += 1
+			if slow >= 3:
+				break
+		else:
+			slow = 0
+	note("")
+	print("LOADING graphics: %d pipelines queued, fence %d ms, %d ms in all" % [_pipelines() - p0, fence_ms, Time.get_ticks_msec() - t0])
+	LoadClock.stop("graphics")
+
+
+static func _fence() -> void:
+	pass
+
+
+static func _pipelines() -> int:
+	return int(RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_PIPELINE_COMPILATIONS_SURFACE)) \
+			+ int(RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_PIPELINE_COMPILATIONS_MESH))
+
+
+## The load is over: the picture goes, the camera and the sound come back.
+static func end() -> void:
+	if not active:
+		return
+	_release_3d()
+	if _item.is_valid():
+		RenderingServer.free_rid(_item)
+	if _canvas.is_valid():
+		RenderingServer.free_rid(_canvas)
+	_item = RID()
+	_canvas = RID()
+	AudioServer.set_bus_mute(0, _bus_was)
+	print("LOADING pulse frames: %d presented inside loops, %d ms" % [pulses, pulse_usec / 1000])
+	active = false

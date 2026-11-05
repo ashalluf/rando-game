@@ -285,7 +285,7 @@ func build() -> void:
 		get_parent().set("_crowd_frame", -1)
 	begin_build()
 	while not build_step():
-		pass
+		LoadPulse.tick()
 
 
 ## Runs the next step of the build; true once the chunk is finished. CityStreamer calls this a

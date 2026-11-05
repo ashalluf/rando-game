@@ -1187,6 +1187,7 @@ func bake(centre: Vector2, span: float, size: int) -> Image:
 	_bake_memo = bake_memo
 	_memo_pos = Vector2(INF, INF)
 	for py in res:
+		LoadPulse.tick()
 		for px in res:
 			var pos := origin + Vector2((float(px) + 0.5) * step, (float(py) + 0.5) * step)
 			var h := height_at(pos)
