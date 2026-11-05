@@ -126,6 +126,19 @@ static func compile_shaders(tree: SceneTree) -> int:
 	if not active or not _rd or _shaders.is_empty():
 		return 0
 	var t0 := Time.get_ticks_msec()
+	# The advanced variant group (motion vectors: TAA) is switched on the first time a frame is drawn
+	# with them, and from then every shader compiles that group as well; switched on later (the
+	# city's prime) it was compiled again for every shader on first use. Two frames of an empty
+	# world with TAA on the window first.
+	var probe_cam := Camera3D.new()
+	tree.root.add_child(probe_cam)
+	probe_cam.make_current()
+	var taa_was := tree.root.use_taa
+	tree.root.use_taa = true
+	await tree.process_frame
+	await tree.process_frame
+	tree.root.use_taa = taa_was
+	probe_cam.queue_free()
 	var scenario := RenderingServer.scenario_create()
 	var cam := RenderingServer.camera_create()
 	RenderingServer.camera_set_perspective(cam, 60.0, 0.05, 10.0)
