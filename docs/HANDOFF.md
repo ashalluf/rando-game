@@ -28924,3 +28924,7 @@ the crowd on the pavement and round the show cars, sitters at chairs, the camera
 
 **Not done**: the stances are visual only (the physics body stays where it was parked, as before);
 the meet's music / sound is untouched; nothing proved on Forward+ (no colour or lighting change).
+The carriageway in this view reads pale grey at 19:30 with hard black RoadWear stamps on it; the lead
+found the same bright ground on gas_station_night (23:30), so the cause is city-wide and left to
+rc5-gas-station-night (`tools/rc4_lowrider_meet/road_probe.gd` re-shoots the view with each layer,
+the local lights and the additive pools hidden, to pin what lights it).
