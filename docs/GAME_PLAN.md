@@ -4492,3 +4492,11 @@ none of either.
   per variant and batched, never per copy; a studio keeps its asphalt (the industrial ground with
   `kept`, worn only by tyre tracks); the basecamp's gaps hold carts and the doors chairs, from the
   layout alone, after every roll; the lot's walkers mostly wear crew blacks. RC4_FILM_LOT=0 is the A/B.
+- **2026-11-05 The suburban street at night: the moon is a residential street's dimmer, a lit window
+  lights its yard (rc5-suburb-night, HANDOFF "The suburban street at 21:30").** A new reference
+  camera (`suburb_night`, wave 8's table) stands on the suburb_morning pavement at 21:30. Decisions:
+  the city's one moon, set for a lit downtown, is cut to 0.3 of itself over SUBURBS and BEACHTOWN
+  (off the coast, deep in the night only) because a suburb's own light - lamps, porches, windows -
+  must win over it; anything that says whether a window is lit says it from HouseNights' key and the
+  pane's own 8-bit roll, on the GPU, so the light on the yard always matches the glass; a lantern's
+  wall light is a point source's falloff with the cap's cut, never a soft disc. SUBURB_NIGHT=0 is the A/B.

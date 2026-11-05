@@ -168,3 +168,11 @@ for a run. `stack_aerial` (rc4-stack-aerial): the four-level stack from 150 m ov
 north-west of it, 17:30 clear, toward downtown; `shot_frames` 90 lets the connectors' traffic fill
 before the shot.
 
+
+## Wave 8's cameras (`cameras_w8.json`)
+
+Run with `REFCAMS_JSON=tools/refcams/cameras_w8.json`. `suburb_night` (rc5-suburb-night): the
+suburb_morning street (block 21,32 on seed 1337) from the same pavement eye at 21:30 clear, so the
+day and the night of one street compare 1:1. Its optional `dog_walker` key (`tools/refcams/dog_stage.gd`:
+`dist`, `side`, `at`, `yaw`, `seed`, `away`) stands one person walking a dog in the frame, held on its
+spot and walking; the log prints a `REFCAM dog walker` line.
