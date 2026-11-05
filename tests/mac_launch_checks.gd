@@ -23,11 +23,25 @@ func _boot() -> void:
 	_check(str(ProjectSettings.get_setting("application/run/main_scene")) == "res://scenes/boot.tscn",
 			"the main scene is the boot scene (the city compiles on a loader thread behind the picture)")
 	var src := FileAccess.get_file_as_string("res://scripts/util/boot.gd")
-	_check(src.contains("load_threaded_request(CITY)") and src.contains("change_scene_to_packed"),
-			"the boot scene loads the city on a thread, then changes to it")
+	_check(src.contains("compile_order()") and src.contains("change_scene_to_file"),
+			"the boot scene compiles the scripts a few a frame, then changes to the city")
+	_check(not src.contains("load_threaded_request("), "no loader thread (it broke the cyclic preloads and deadlocked)")
 	var city_path := "res://scenes/levels/city.tscn"
 	_check(src.contains('"%s"' % city_path) and ResourceLoader.exists(city_path), "the boot scene's CITY is the city scene")
-	_check(src.contains("BOOT_THREAD"), "BOOT_THREAD=0 is the boot's A/B")
+	_check(src.contains("BOOT_COMPILE"), "BOOT_COMPILE=0 is the boot's A/B")
+	var order: PackedStringArray = load("res://scripts/util/boot.gd").compile_order()
+	var classes := 0
+	for c: Dictionary in ProjectSettings.get_global_class_list():
+		if str(c.get("path", "")).ends_with(".gd"):
+			classes += 1
+	_check(order.size() == classes, "the compile order has every global class once (%d of %d)" % [order.size(), classes])
+	var seen := {}
+	for p in order:
+		seen[p] = true
+	_check(seen.size() == order.size(), "no script twice in the compile order")
+	var i_lp := order.find("res://scripts/ui/hud_theme.gd")
+	var i_pulse := order.find("res://scripts/util/load_pulse.gd")
+	_check(i_lp >= 0 and i_pulse > i_lp, "a dependency comes before the script that names it (HudTheme before LoadPulse)")
 
 
 func _pulse_headless() -> void:

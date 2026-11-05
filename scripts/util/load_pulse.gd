@@ -64,6 +64,13 @@ static var _rd: bool = false
 ## Frames presented by tick() (outside the normal main loop) and their time, for LoadClock.
 static var pulses: int = 0
 static var pulse_usec: int = 0
+## The longest time the window went without a new frame during the load, and the step it was in
+## (every frame counts, the pulse's and the main loop's: RenderingServer.frame_post_draw). Gaps
+## over GAP_REPORT_MS are printed as they happen (a Mac launch log shows where it stalled).
+static var max_gap_ms: int = 0
+static var max_gap_stage: String = ""
+static var _last_frame_us: int = 0
+const GAP_REPORT_MS := 2000
 
 ## Stage (a LoadClock name) -> [progress at its start, progress at its end, a typical length in
 ## seconds on a cold launch]. The bar creeps toward the end of a stage on that time constant, so
@@ -126,7 +133,23 @@ static func begin_picture(viewport: Viewport) -> void:
 	RenderingServer.canvas_item_set_parent(_item, _canvas)
 	_root = viewport
 	_stage = "Starting"
+	_last_frame_us = Time.get_ticks_usec()
+	if not RenderingServer.frame_post_draw.is_connected(_on_frame):
+		RenderingServer.frame_post_draw.connect(_on_frame)
 	tick(true)
+
+
+static func _on_frame() -> void:
+	if not active:
+		return
+	var now := Time.get_ticks_usec()
+	var gap := (now - _last_frame_us) / 1000
+	_last_frame_us = now
+	if gap > max_gap_ms:
+		max_gap_ms = gap
+		max_gap_stage = _stage
+	if gap > GAP_REPORT_MS:
+		print("LOADING frame gap: %d ms in '%s' (at %d ms)" % [gap, _stage, Time.get_ticks_msec()])
 
 
 ## Draws PRIME_FRAMES of the world as it stands (the player, the sky - the city is not built yet)
@@ -234,6 +257,8 @@ static func tick(force: bool = false) -> void:
 	var now := Time.get_ticks_usec()
 	if not force and now - _last_us < interval_ms * 1000:
 		return
+	if OS.get_thread_caller_id() != OS.get_main_thread_id():
+		return
 	paint()
 	# Keep the window responding (no spinning cursor) and present the frame.
 	DisplayServer.process_events()
@@ -334,17 +359,21 @@ static func drain(tree: SceneTree) -> void:
 	# The city in view again, still behind the shade: the first frames build what a draw of the
 	# whole city needs (and anything a fence could not see); held until a frame is quick.
 	_release_3d()
-	var slow := 0
+	# Held until three frames in a row are steady (within a quarter of each other) and under a
+	# second and a half: a GPU's frame is milliseconds, a software renderer's hundreds.
+	var steady := 0
+	var prev := -1
 	for i in 40:
 		var f0 := Time.get_ticks_usec()
 		await tree.process_frame
 		var ms := (Time.get_ticks_usec() - f0) / 1000
-		if ms < 200:
-			slow += 1
-			if slow >= 3:
+		if prev >= 0 and ms < 1500 and absi(ms - prev) <= maxi(prev / 4, 8):
+			steady += 1
+			if steady >= 3:
 				break
 		else:
-			slow = 0
+			steady = 0
+		prev = ms
 	note("")
 	print("LOADING graphics: %d pipelines queued, fence %d ms, %d ms in all" % [_pipelines() - p0, fence_ms, Time.get_ticks_msec() - t0])
 	LoadClock.stop("graphics")
@@ -371,5 +400,8 @@ static func end() -> void:
 	_item = RID()
 	_canvas = RID()
 	AudioServer.set_bus_mute(0, _bus_was)
-	print("LOADING pulse frames: %d presented inside loops, %d ms" % [pulses, pulse_usec / 1000])
+	print("LOADING pulse frames: %d presented inside loops, %d ms; longest gap between frames %d ms in '%s'" % [
+			pulses, pulse_usec / 1000, max_gap_ms, max_gap_stage])
+	if RenderingServer.frame_post_draw.is_connected(_on_frame):
+		RenderingServer.frame_post_draw.disconnect(_on_frame)
 	active = false

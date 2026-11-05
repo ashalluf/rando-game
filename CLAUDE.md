@@ -6698,6 +6698,20 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   `WARM=0 REHEARSE=1`: the full warm-up no longer fits). `MacroMap.bake()` memoises a pixel's raw
   height (byte-identical, `bake_probe.tscn FULL=1`). Never `x is T` on a list entry that can be
   freed: `is_instance_valid()` first.
+- The Mac launch (2026-11-05, docs/HANDOFF.md "The Mac launch", docs/PLAYING_ON_MAC.md): the
+  window presents frames for the WHOLE load. `LoadPulse` (`scripts/util/load_pulse.gd`) draws the
+  loading art on its own RenderingServer canvas and `tick()` presents it with `force_draw()` from
+  inside the long loops (`raw_height_at()`, chunk builds, far landmarks and tiles, LoadClock
+  stages) - any new load step longer than ~1 s gets a `LoadPulse.tick()` in its loop. On the
+  RenderingDevice renderers the window's 3D is OFF while loading and a 4 px off-screen viewport
+  makes every frame hand all new surfaces' pipelines to the worker threads (Godot drains its whole
+  dirty list on any 3D render); `drain()` waits on a fence task, then the city draws behind the
+  shade. Master bus muted until the fade. The main scene is `scenes/boot.tscn` (scripts compiled a
+  few a frame; never a loader thread: the cyclic preloads broke under one). Quality ignores the
+  loading screen's frames (it demoted to LOWEST before play). Shader baking stays OFF on 4.7.2
+  (godot#123266, #124539: baked Metal exports crash). `LOAD_PULSE=0` / `BOOT_COMPILE=0` the A/B;
+  `LOADING frame gap:` lines name any stall; probe `tools/mac_launch/pulse_probe.tscn`; checks
+  `tests/mac_launch_checks.gd`.
 - Performance: `Quality` node in the city scene (`scripts/util/quality.gd`) starts desktop at
   **HIGH** (owner, 2026-09-21: "I need it PS5 level graphics" - global illumination is the single
   biggest difference between this and a modern-looking game) and steps down to MEDIUM, LOW and

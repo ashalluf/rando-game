@@ -620,6 +620,7 @@ static func _rect_fade(pos: Vector2, r: Rect2, margin: float) -> float:
 ## into, so the inland valley floor is deliberately NOT part of it - the valley is a plateau the
 ## city is built on, not a mountain.
 func raw_height_at(pos: Vector2) -> float:
+	LoadPulse.tick() # the load's slow terrain stages present frames (mac-launch)
 	# Inside bake() the same pixel's raw height is asked for up to three times (height_at(),
 	# zone_at(), district_at()): handed back from a one-entry memo there (load-time-3), with the
 	# drainage it left. Outside the bake this is one bool.

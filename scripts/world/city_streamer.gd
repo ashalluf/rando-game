@@ -1212,6 +1212,7 @@ func _build_ground() -> void:
 	# four shadow cascades every frame for nothing. It still RECEIVES, which is what matters.
 	mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	_ground.add_child(mesh)
+	LoadClock.start("ground: horizon tiles")
 	HorizonTiles.split(mesh)
 	add_child(_ground)
 	# The far ranges' ring out to the camera's far plane (FarRanges; null when FAR_RANGES=0).
@@ -1219,8 +1220,13 @@ func _build_ground() -> void:
 	if _far_ring:
 		HorizonTiles.split(_far_ring)
 		add_child(_far_ring)
+	LoadClock.stop("ground: horizon tiles")
+	LoadClock.start("ground: mountain occluder")
 	MountainOccluder.attach(self, plan.macro, macro_span)
+	LoadClock.stop("ground: mountain occluder")
+	LoadClock.start("ground: far rocks")
 	RockFar.attach(self, plan, _canopy_material)
+	LoadClock.stop("ground: far rocks")
 	_ground_body = StaticBody3D.new()
 	_ground_body.name = "GroundBody"
 	_ground_body.collision_layer = 1
