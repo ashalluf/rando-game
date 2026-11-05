@@ -149,7 +149,8 @@ walkers off (doors, errands) takes plain `_lives()` walkers without `no_trim` on
 keyed on the camera reads the game window's camera; gate loops run from a separate worktree.
 **Wave 8** (docs/HANDOFF.md "The gate's intermittent failures, wave 8"): a timer that decides what
 physics does (settle, freeze, age) runs on the physics step, never the frame time (a loaded frame is
-seconds: `Ragdoll.PHYSICS_TICK`); "the plain crowd" is `StreetErrands.plain()` (the script), never
+seconds: `Ragdoll.PHYSICS_TICK`); a spawn PhysicsBudget refuses still draws its rolls (else a block
+built at the body cap is another block: `CityChunk.BUDGET_ROLLS`); "the plain crowd" is `StreetErrands.plain()` (the script), never
 `_lives()` (valets, vendors, buskers ... say true); stage what CrowdFlow must see well inside its
 35 m `RANGE` of the camera.
 

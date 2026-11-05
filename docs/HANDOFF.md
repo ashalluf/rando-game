@@ -29437,6 +29437,18 @@ files) - so each was looked at for what a LOADED shard, or an earlier file, chan
   the player) and they walked through. They now meet at the point of the pavement nearest the camera,
   on the nearer pavement (~25 m off).
 
+- **street_closeup "the same props in the same places with it off" / "Batch_sg_plate differs" (my
+  final gate and CI run 424 on main, shard 2): a seed-determinism bug.** `CityChunk._park_car()`, the
+  pavement trash cans, the barrels and the tyres returned BEFORE their rng draws when
+  `PhysicsBudget.can_spawn()` said no, so a block built while the city sat at its 500-body cap rolled
+  every later car, can, hydrant, shelter and plate differently (a hydrant 50 m off, a bus shelter
+  gone). The check builds one Broadway block twice: in that shard's deal the city was near the cap
+  and the first build's own cans and cars tipped the second over it - deterministic for the deal,
+  reproduced with `SMOKE_PARTS=<the shard's files>` (the three files before it alone do not). The
+  rolls are drawn now and only the body is skipped (`CityChunk.BUDGET_ROLLS`, `BUDGET_ROLLS=0` the
+  A/B); gate_flakes_2_checks builds a block with room and with the cap at 0 and compares (it fails
+  on the A/B). In play: a block rebuilt mid-fight, at the cap, is now the same block.
+
 **Not reproduced (traces added):** the follower's lag (1303, 6101, 18505: mean 2.1 m, the same
 numbers each time). It passed in every probe; on failure the check now prints the pair every half
 second (positions, speeds, slot, heading, acts, strides, rain, crossings) and every solid within
