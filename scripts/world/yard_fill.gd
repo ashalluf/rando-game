@@ -251,6 +251,8 @@ static func block_step(ch: CityChunk, block: Dictionary) -> void:
 		_build_campus(ch, campus_block(ch.plan, ch.ix, ch.iz, ch._yard_lots))
 	if not ch._yard_corridor.is_empty():
 		_build_corridor(ch, corridor_block(ch.plan, ch.ix, ch.iz, ch._yard_corridor))
+	# The four-level stack's right of way planted (RcStack: hashes only, its own rng).
+	RcStack.dress(ch)
 
 
 # --- The lot grid ---------------------------------------------------------------------------------
@@ -1838,6 +1840,8 @@ static func _grid(st: SurfaceTool, ch: CityChunk, r: Rect2, top: float, kind: in
 	if segs != null or not LotFill._planar(ch, r):
 		nx = clampi(ceili(r.size.x / step), 1, 48)
 		nz = clampi(ceili(r.size.y / step), 1, 48)
+	# The four-level stack's right of way grows a mixed ground cover (RcStack; lot_yard reads COLOR.b).
+	var stack_b := 1.0 if segs != null and RcStack.mixed_ground(ch.plan, ch.ix, ch.iz) else 0.0
 	var pts := PackedVector3Array()
 	var cols := PackedColorArray()
 	pts.resize((nx + 1) * (nz + 1))
@@ -1849,8 +1853,8 @@ static func _grid(st: SurfaceTool, ch: CityChunk, r: Rect2, top: float, kind: in
 			pts[j * (nx + 1) + i] = Vector3(x, top + ch._gy(x, z), z)
 			var g := variant
 			if segs != null:
-				g = _bareness(segs as Array, Vector2(x, z))
-			cols[j * (nx + 1) + i] = Color(float(kind) / 16.0, g, 0.0, 1.0)
+				g = _bareness(segs as Array, Vector2(x, z), ch._gy(x, z))
+			cols[j * (nx + 1) + i] = Color(float(kind) / 16.0, g, stack_b, 1.0)
 	for j in nz:
 		for i in nx:
 			var k00 := j * (nx + 1) + i
@@ -1897,7 +1901,10 @@ static func _grid(st: SurfaceTool, ch: CityChunk, r: Rect2, top: float, kind: in
 
 ## How bare the ground at `p` is under the deck (0 open ivy .. 1 the deck's shade), from the deck
 ## edge's distance.
-static func _bareness(segs: Array, p: Vector2) -> float:
+static func _bareness(segs: Array, p: Vector2, ground: float = NAN) -> float:
+	# Under a high deck (the four-level stack's connectors) the sun gets in: RcStack.
+	if RcStack.enabled and not is_nan(ground):
+		return RcStack.bareness(segs, p, ground, BARE_FADE)
 	var best := INF
 	for s in segs:
 		var d := (Geometry2D.get_closest_point_to_segment(p, s.a, s.b) - p).length() - float(s.width) * 0.5
