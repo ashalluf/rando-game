@@ -14,3 +14,5 @@ opengl3 refcam stills (the Compatibility renderer), 1280x720.
   night curtain is a warm orange veil with banded streaks over the towers.
 - 05/06 - a small scene (fwd_block_shot, opengl3) between strikes, before / after: less of the
   curtain's veil, thin inner streaks, the lamps' streaks broken and dimmer.
+- 07_ten_cameras_compare_off_vs_on.jpg - the ten original refcams, RC5_STORM=0 against on (merged with
+  main): only freeway flagged, by its traffic's positions.
