@@ -13,6 +13,7 @@ func run(t: Node, city: Node3D) -> void:
 	_t = t
 	await _stale_build(city)
 	_exit_hold(city)
+	_plain_crowd()
 
 
 func _stale_build(city: Node3D) -> void:
@@ -96,3 +97,15 @@ func _exit_hold(city: Node3D) -> void:
 		traffic.call("_retire", c)
 	_t._check(held[0] and not held[1],
 		"gate flakes 2: within a kilometre of its exit a car behind a slower one keeps its lane (held %s; with EXIT_HOLD=0 %s)" % [held[0], held[1]])
+
+
+## Who a shop door borrows (CrowdFlow.door_tick / _pass_door, StreetErrands' pool and far walker):
+## the plain crowd only. A valet says _lives() (for the life clips) and was sent through a door
+## and never came out (shuffled gate 21101).
+func _plain_crowd() -> void:
+	var plain := Pedestrian.new()
+	var valet: Pedestrian = (load("res://scripts/npc/valet.gd") as GDScript).new()
+	_t._check(StreetErrands.plain(plain) and not StreetErrands.plain(valet) and valet._lives(),
+		"gate flakes 2: a shop door borrows the plain crowd, never a valet (which still lives)")
+	plain.free()
+	valet.free()

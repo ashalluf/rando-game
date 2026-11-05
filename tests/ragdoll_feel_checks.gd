@@ -244,6 +244,11 @@ func _check_stairs(city: Node3D, chunk: Node3D) -> void:
 		_check(false, "a doll on the steps is jointed")
 		return
 	var j: RagdollJoints = doll._joints
+	# A frame that ran 9 s long (a loaded shard; the gate's stair doll froze on the top step) is
+	# no time at all for the doll's motion: its settle clock is the physics step's.
+	await _ticks(1)
+	doll._process(9.0)
+	_check(not j.frozen or not Ragdoll.PHYSICS_TICK, "a long frame does not freeze a doll mid-fall (age %.2f s after a 9 s frame)" % j.age)
 	var rolled := false
 	var froze_at := -1
 	var fastest := 0.0
