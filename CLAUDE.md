@@ -1399,7 +1399,8 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   `MetroLook` (`scripts/world/metro_look.gd`): the floors mirror the light lines
   (metro_station.gdshader `floor_mirror()`, halved on Forward+), ad lightboxes from the billboard
   atlas (K_AD 18, atlas UV in the mesh) where blank map boards stood, a lift car, the bullet's "C"
-  on the cars. `MetroCrowd` (`scripts/npc/metro_crowd.gd`): MetroRiders ride the bank's
+  on the cars, the cars' saloons lit by their LEDs underground (lrv_glass `underground`,
+  `MetroLook.saloon()`). `MetroCrowd` (`scripts/npc/metro_crowd.gd`): MetroRiders ride the bank's
   escalators (level 2, standing on the step), alighters ride up, arrivals refill the island while
   `MetroStation.showing`. `METRO_LOOK=0` / `METRO_CROWD=0` the A/Bs; checks
   `tests/rc4_metro_station_checks.gd`.

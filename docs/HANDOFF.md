@@ -28915,7 +28915,17 @@ first gate and passed alone both ways: pedestrian_flow's shop door and follower 
 **Not done / not verified.** Forward+ (the Mac) not seen: the mirror there is halved under SSR and
 the probe, judged only by reasoning. The escalators still do not carry the player. Riders on an
 escalator stand through a shot or a knock like anyone (a knock ragdolls them on the step). The
-train's interior is empty and its saloon lit a peach colour. The concourse view is unchanged.
+train's interior is empty (the traced saloon has nobody in it). The concourse view is unchanged.
+
+**Wave 8 resume (2026-11-05).** Merged main (b45ba911). One open item finished: the cars' saloons
+were lit by the sky's colour even in the tunnel (peach at 17:30). `lrv_glass.gdshader` gains
+`underground` (0 = the old shader, every new block gated): `MetroLook.saloon()`, called from
+`LightRailSystem.step()` right after `MetroStation.showing`, sets it on the cars' ONE shared glass
+material while the camera is down in the station (from there every train seen is a tunnel train);
+the saloon is then lit by its LED strips (`led_color`) and the glass mirrors the lit station
+(`station_color`), not a sky. Written only on a change; off under METRO_LOOK=0; checked in
+rc4_metro_station_checks.gd. The camera after it (opengl3): p50 117, p95 196, 3.81 M tris / 2,364
+draws, cost unchanged. Still not seen on Forward+. Stills 07, 08 on shots/rc4-metro-station.
 
 **Files.** New: `scripts/world/metro_look.gd`, `scripts/npc/metro_crowd.gd`,
 `tests/rc4_metro_station_checks.gd`, `tools/refcams/cameras_w7.json`. Touched:
