@@ -119,6 +119,7 @@ func step() -> void:
 		pw = focus
 	trains = line.trains_at(LightRail.clock)
 	MetroStation.showing = MetroStation.shelters(pw)
+	MetroLook.saloon(MetroStation.showing)
 	_trains(pw)
 	_crossings(pw)
 
