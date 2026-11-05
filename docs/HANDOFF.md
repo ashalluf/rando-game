@@ -29177,3 +29177,18 @@ shows ~35 % on the Mac, so every falloff tuned on the opengl3 stills is far flat
 fashion district (downtown blocks); the stack and the ridge sign from the air; the film lot; the
 person / car close-up (their sessions shot both renderers). A city scene on lavapipe holds 3
 blocks at most now (4 was OOM-killed at 13.4 GB; `override.cfg` with one worker thread).
+
+**Tools:** `tools/stadium_night/park_shot.gd HIDE=name,name` hides layers for a per-renderer A/B.
+The pairs were shot with `tools/fwd_review_f/shoot.sh` (`EXTRA=` toward the view; a beach, port or
+refinery scene fits in 3 blocks, downtown not even in 1) and the feature tools above with
+`--rendering-driver vulkan` / `opengl3`.
+
+**Switch:** `FWD_REVIEW_H=0` (`FwdReviewH`, `scripts/world/fwd_review_h.gd`) puts every look fix back:
+the `fwd_review_h` shader global 0 (fh_level() / fh_display() raw again, the street shafts on the
+linear add) and the pools on the default path. The CloudShadows guard stays (it is a crash fix).
+Checks: `tests/fwd_review_h_checks.gd`.
+
+**Frame cost:** no node, mesh, material or draw is added (GEO unchanged by construction, not
+re-measured): a uniform branch and an sRGB decode of one scalar per lit pixel in the refinery,
+container and port steel shaders, one of a colour on the industrial glass, and the pools' and
+shafts' display-number add (the same few ALU as fwd-review-e's display_add).
