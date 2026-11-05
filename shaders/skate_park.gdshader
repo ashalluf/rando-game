@@ -50,9 +50,9 @@ uniform float tag_strength = 0.94;
 // (pour patches, the wheel band round the transition, floor grime, a weathered coping, the deck's
 // dirt and skids); 0 = the old clean look, bit for bit. LINEAR, like the colours above.
 uniform float look5 = 0.0;
-uniform vec3 deck5 = vec3(0.172, 0.172, 0.166);
-uniform vec3 bowl5 = vec3(0.150, 0.153, 0.153);
-uniform vec3 coping5 = vec3(0.205, 0.203, 0.195);
+uniform vec3 deck5 = vec3(0.158, 0.158, 0.153);
+uniform vec3 bowl5 = vec3(0.128, 0.131, 0.132);
+uniform vec3 coping5 = vec3(0.150, 0.149, 0.144);
 uniform vec3 grime5 = vec3(0.060, 0.058, 0.054);
 
 varying vec4 v_kind;
@@ -159,7 +159,7 @@ vec3 deck_used(vec3 old, vec2 plan, float swirl, float px) {
 	float r = pow(pow(q.x, 2.7) + pow(q.y, 2.7), 1.0 / 2.7);
 	float ring = (1.0 - smoothstep(1.0, 1.32, r)) * step(0.97, r);
 	float dirt = ring * (0.55 + 0.45 * sp_noise(plan * 1.7 + 4.0));
-	col = mix(col, grime5, dirt * 0.32);
+	col = mix(col, grime5, dirt * 0.5);
 	// Skids: long dark streaks, a heading per 2 m pt5 round the ring's tangent, strongest near it.
 	float ang = sp_hash(floor(plan * 0.5) + 31.0) * 6.28;
 	vec2 dir = vec2(cos(ang), sin(ang));
@@ -167,7 +167,7 @@ vec3 deck_used(vec3 old, vec2 plan, float swirl, float px) {
 	float skid = smoothstep(0.7, 0.9, st) * (0.35 + 0.65 * ring);
 	// Fine streaks fade to their average once a pixel spans them.
 	float fine = 1.0 - smoothstep(0.02, 0.09, px);
-	col = mix(col, urethane * 2.2, skid * mix(0.08, 0.5, fine));
+	col = mix(col, urethane * 2.2, skid * mix(0.2, 0.55, fine));
 	// Weathered: blotches of darker, older concrete.
 	col *= 1.0 - 0.12 * smoothstep(0.55, 0.85, sp_fbm(plan * 0.45 + 51.0));
 	return col;
@@ -189,8 +189,10 @@ vec3 bowl_used(vec3 old, vec2 uv, vec2 plan, float detail, float px, inout float
 	// Fine carve lines: thin arcs along u at their own heights.
 	float lines_ = smoothstep(0.6, 0.82, sp_noise(vec2(uv.x * 0.3, h * 26.0)));
 	float fine = 1.0 - smoothstep(0.015, 0.06, px);
-	float rubber = band * ridden * mix(0.28, 0.28 + 0.6 * lines_, fine);
-	col = mix(col, urethane * 2.6, clamp(rubber, 0.0, 1.0) * 0.55);
+	float rubber = band * ridden * mix(0.42, 0.3 + 0.8 * lines_, fine);
+	col = mix(col, urethane * 2.6, clamp(rubber, 0.0, 1.0) * 0.7);
+	// Water stains and old patches, 1-3 m blotches over the whole shell.
+	col *= 1.0 - 0.2 * smoothstep(0.5, 0.8, sp_fbm(vec2(uv.x * 0.45, h * 0.9) + 40.0));
 	// Grime and dried water on the floor, pooled toward its middle; sand blown in.
 	vec2 pc = (plan - vec2(5.5, -11.5)) / vec2(6.0, 8.4);
 	float mid = 1.0 - smoothstep(0.1, 0.75, length(pc));
@@ -211,9 +213,11 @@ vec3 coping_used(vec2 uv, vec2 plan, float detail, float px, inout float rough) 
 	float blk = floor(uv.x / 0.6);
 	vec3 col = coping5 * mix(1.0, detail, 0.5) * (0.84 + 0.22 * sp_hash(vec2(blk * 7.3, 2.0)));
 	col *= 1.0 - 0.55 * joint(uv.x, 0.6, 0.006, px);
-	float nose = smoothstep(2.5, 4.2, uv.y) * (1.0 - smoothstep(5.5, 6.5, uv.y));
+	float nose = smoothstep(1.6, 2.6, uv.y) * (1.0 - smoothstep(5.5, 6.5, uv.y));
 	float wax = smoothstep(0.3, 0.7, sp_noise(vec2(uv.x * 1.6, 1.0))) * 0.8 + 0.2;
-	col = mix(col, urethane * 2.0, nose * wax * 0.8);
+	col = mix(col, urethane * 2.0, nose * wax * 0.85);
+	// Chips and dirt on the block faces.
+	col *= 1.0 - 0.3 * smoothstep(0.6, 0.85, sp_fbm(vec2(uv.x * 2.4, uv.y * 0.9) + 13.0));
 	float metal_mark = smoothstep(0.72, 0.9, sp_noise(vec2(uv.x * 5.0, 4.0))) * nose;
 	col = mix(col, vec3(0.32, 0.32, 0.33), metal_mark * 0.35);
 	col *= 0.9 + 0.1 * sp_noise(vec2(uv.x * 3.0, uv.y * 0.7) + 2.0);

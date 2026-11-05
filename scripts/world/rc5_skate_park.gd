@@ -26,3 +26,26 @@ static func apply(mat: ShaderMaterial) -> void:
 
 static func pool_air() -> float:
 	return POOL_AIR if enabled else POOL_AIR_OLD
+
+
+## The boardwalk's painted sign boards, murals, hoardings and art-wall panels (LandmarkVeniceBoardwalk):
+## they were UNSHADED, flat glowing colour with no sun or shadow on them, the loudest thing behind
+## the park. Lit now, as matte paint a little faded by the sun and the salt (`PAINT_FADE` toward
+## an old white). Off: the old unshaded material.
+const PAINT_FADE := 0.2
+const PAINT_OLD_WHITE := Color(0.86, 0.84, 0.79)
+static var _paints: Dictionary = {}
+
+
+static func paint(c: Color) -> StandardMaterial3D:
+	if not enabled:
+		return PropFactory.material(c, 0.85, true)
+	var key := c.to_rgba32()
+	if _paints.has(key):
+		return _paints[key]
+	var faded := c.lerp(PAINT_OLD_WHITE, PAINT_FADE)
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = faded
+	mat.roughness = 0.92
+	_paints[key] = mat
+	return mat
