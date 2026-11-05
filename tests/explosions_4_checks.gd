@@ -49,6 +49,7 @@ func run(t: Node, city: Node3D) -> void:
 	_round7(parent)
 	_round8()
 	await _round9()
+	await _round11(parent)
 	for c in parent.get_children():
 		if not before.has(c) and c != _deck and not (c is BlastBits):
 			c.queue_free()
@@ -360,3 +361,30 @@ func _round9() -> void:
 	_t._check(float(vm.get_shader_parameter("night4")) == (1.0 if Blast4.night_enabled else 0.0)
 		and FileAccess.get_file_as_string("res://scripts/weapons/blast_debris.gd").contains("air_points.append(p.pos)"),
 		"explosions_4: night darkens the smoke's crowns; flying debris streaks, landed debris stands in tongues")
+
+
+## Round 11: the shock ring on the ground, a blast against a wall.
+func _round11(parent: Node) -> void:
+	var ring := Blast4.ground_ring(parent, _top + Vector3(-60.0, 0.0, -60.0), Vector3.UP, 20.0)
+	_t._check(not Blast4.ring_enabled or (ring != null and (ring.material_override as ShaderMaterial).shader.resource_path.ends_with("blast_ring.gdshader")),
+		"explosions_4: a shock ring is laid on the ground")
+	if ring != null:
+		ring.queue_free()
+	var wall := StaticBody3D.new()
+	wall.collision_layer = 1
+	var cs := CollisionShape3D.new()
+	var bs := BoxShape3D.new()
+	bs.size = Vector3(1.0, 20.0, 12.0)
+	cs.shape = bs
+	wall.add_child(cs)
+	_city.add_child(wall)
+	var base := _top + Vector3(-90.0, 0.0, 60.0)
+	wall.global_position = base + Vector3(0.0, 10.0, 0.0)
+	await _ticks(2)
+	var n0 := parent.get_child_count()
+	var hit := Blast4.wall_blast(_city, parent, base + Vector3(1.8, 6.0, 0.0), 9.0)
+	_t._check(not Blast4.wall_enabled or (hit and parent.get_child_count() >= n0 + 3),
+		"explosions_4: a blast against a wall pours smoke and rains masonry and glass")
+	var none := Blast4.wall_blast(_city, parent, base + Vector3(30.0, 6.0, 0.0), 9.0)
+	_t._check(not none, "explosions_4: no wall, no wall blast")
+	wall.queue_free()
