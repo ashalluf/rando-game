@@ -185,6 +185,15 @@ func _step(text: String, fraction: float) -> void:
 ## actually draws; a loading screen that blocks the main thread shows nothing at all.
 func run(city: Node3D) -> void:
 	await _frames(2)
+	# RenderingDevice renderers: the city built so far is handed to the compilers now and waited
+	# for with the bar moving (LoadPulse.feed / settle); from here every new surface is handed over
+	# as it appears (the warm-up's, the rehearsal's), so their pipelines exist before play.
+	if LoadPulse.holding():
+		LoadClock.start("screen: city graphics")
+		LoadPulse.feed()
+		var ms: int = await LoadPulse.settle(get_tree())
+		print("LOADING city graphics settled: %d ms" % ms)
+		LoadClock.stop("screen: city graphics")
 	_step("Compiling shaders", 0.05)
 	LoadClock.start("screen: shaders and effects")
 	await _warm_shaders()

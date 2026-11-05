@@ -96,7 +96,8 @@ const STAGES := {
 	"screen: rigs": [0.75, 0.78, 5.0, "Preparing people"],
 	"screen: traffic": [0.78, 0.79, 1.0, "Filling the streets"],
 	"screen: final streaming": [0.79, 0.80, 1.0, "Building the city"],
-	"graphics": [0.80, 0.99, 60.0, "Compiling graphics (first launch only)"],
+	"graphics": [0.80, 0.99, 30.0, "Compiling graphics (first launch only)"],
+	"screen: city graphics": [0.38, 0.45, 60.0, "Compiling graphics (first launch only)"],
 }
 
 
@@ -219,7 +220,37 @@ static func _hold_3d() -> void:
 	RenderingServer.viewport_set_scenario(_drain_vp, _drain_scenario)
 	RenderingServer.viewport_attach_camera(_drain_vp, _drain_cam)
 	RenderingServer.viewport_set_update_mode(_drain_vp, RenderingServer.VIEWPORT_UPDATE_ALWAYS)
-	RenderingServer.viewport_set_active(_drain_vp, true)
+	# Not fed yet: while the city is BUILT nothing is handed to the compilers. A shader made then
+	# (every new BaseMaterial3D feature set is one) compiles at once on the workers; queued behind
+	# the city's thousands of pipelines, its first material made the main thread wait for all of
+	# them (2-15 s without a frame on lavapipe while the landmarks built). feed() starts it.
+	RenderingServer.viewport_set_active(_drain_vp, false)
+
+
+## Hands every surface that exists, and every new one from now on, to the compilers (the loading
+## screen calls it, then settle()): the off-screen viewport is drawn every frame.
+static func feed() -> void:
+	if _held and _drain_vp.is_valid():
+		RenderingServer.viewport_set_active(_drain_vp, true)
+
+
+## Waits, presenting frames, until everything handed to the compilers so far has been taken up
+## (a low-priority fence task on the WorkerThreadPool). Await it. Returns the milliseconds.
+static func settle(tree: SceneTree) -> int:
+	if not active or not _rd:
+		return 0
+	var t0 := Time.get_ticks_msec()
+	var p0 := _pipelines()
+	await tree.process_frame
+	await tree.process_frame
+	var fence := WorkerThreadPool.add_task(_fence, false, "LoadPulseFence")
+	while not WorkerThreadPool.is_task_completed(fence):
+		note("%d pipelines" % (_pipelines() - p0))
+		paint()
+		await tree.process_frame
+	WorkerThreadPool.wait_for_task_completion(fence)
+	note("")
+	return Time.get_ticks_msec() - t0
 
 
 ## The window's 3D comes back (the city is drawn again).
@@ -372,6 +403,7 @@ static func drain(tree: SceneTree) -> void:
 		_release_3d()
 		return
 	LoadClock.start("graphics")
+	feed()
 	var t0 := Time.get_ticks_msec()
 	var p0 := _pipelines()
 	# One frame hands every surface that exists now to the compilers (the dirty list is drained by
