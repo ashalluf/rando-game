@@ -268,6 +268,7 @@ func _ready() -> void:
 	NightSkyline.install()
 	NightFlight.install()
 	NightAerial.install()
+	RcHeliNight.install()
 	WindowInteriors.install()
 	InteriorsGlass.install()
 	_sun = get_node_or_null(sun_path) as DirectionalLight3D
