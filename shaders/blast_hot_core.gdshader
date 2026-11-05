@@ -36,11 +36,18 @@ void fragment() {
 	float n1 = texture(noise3d, vec3(q * 0.42 + seed, age * 0.6 + seed * 0.3)).r;
 	float n2 = texture(noise3d, vec3(q * 1.05 + seed * 1.7, age * 1.1 + 0.4)).r;
 	float lump = n1 * 0.65 + n2 * 0.35;
-	float edge = 0.55 + 0.35 * lump;
+	// Lumpy enough never to be a disc (on Forward+ a round edge bloomed into a white sun).
+	float edge = 0.38 + 0.62 * smoothstep(0.25, 0.8, lump);
 	float body = 1.0 - smoothstep(edge * 0.45, edge, r);
 	// Heat: the heart hottest, falling with the radius and the age; the lumps hotter than the folds.
 	float k = clamp((1.0 - r * 0.9) * (1.15 - age * 1.05) + (lump - 0.5) * 0.6, 0.0, 1.0);
 	vec3 c = bb(k) * body * gain;
+#if CURRENT_RENDERER != RENDERER_COMPATIBILITY
+	// Forward+ adds these numbers in linear HDR over a volume that is already white-hot at first
+	// (the Mac): a quarter of them, and never the white plateau, or the first frames bloom into a
+	// flat white disc (fwd-review-e's rule for additive quads). Compatibility tonemaps them raw.
+	c = bb(min(k, 0.86)) * body * gain * 0.3;
+#endif
 	// It flares up in a few frames and goes in the last third of its life.
 	c *= smoothstep(0.0, 0.06, age) * (1.0 - smoothstep(0.6, 1.0, age));
 	c *= 1.0 - smoothstep(0.85, 0.99, r);
