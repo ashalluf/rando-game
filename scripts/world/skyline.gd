@@ -898,7 +898,8 @@ func _add_freeway(k: Vector2i) -> void:
 			var d: Vector2 = c.dir
 			var cr := Vector3(-d.y, 0.0, d.x)
 			var h := float(c.top) - float(c.base) + 1.0
-			xforms.append(Transform3D(Basis(cr * float(c.r) * 2.0, Vector3(0.0, h, 0.0), Vector3(d.x, 0.0, d.y) * float(c.r) * 2.0),
+			var cr_r := RcStack.column_r(c)
+			xforms.append(Transform3D(Basis(cr * cr_r * 2.0, Vector3(0.0, h, 0.0), Vector3(d.x, 0.0, d.y) * cr_r * 2.0),
 				Vector3(p.x, float(c.base) - 1.0 + h * 0.5, p.y)))
 			colors.append(concrete * 0.94)
 			customs.append(Color(0.0, 0.0, 0.0, 1.0))
@@ -991,6 +992,8 @@ func _add_city_trees(k: Vector2i, b: Dictionary, ch: CityChunk) -> void:
 	# The yards' trees, on the green ground the block leaves (MidCity; hashes only).
 	MidCity.yard_trees(_plan, k, b, ch.captured, ch._gy, func(q: Vector2) -> bool: return ch._under_freeway(q, CityChunk.TREE_FREEWAY_MARGIN),
 		veg, veg_colors, veg_custom)
+	# The four-level stack's right-of-way groves (RcStack; the FULL chunks plant the same spots).
+	RcStack.far_trees(_plan, k, ch._gy, veg, veg_colors, veg_custom)
 	# The crowns as dark as the real trees they hand over to (AerialReview; colours only).
 	AerialReview.darken_city_canopy(veg_colors, first_veg)
 

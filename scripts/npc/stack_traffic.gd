@@ -158,12 +158,15 @@ func _maintain(st: FreewayStack) -> void:
 	if not active:
 		return
 	var tm := _traffic()
+	# More of them at rush hour (RcStack: the evening peak fills the connectors).
+	var day := get_parent().get_node_or_null("DayNight") if get_parent() else null
+	var want := RcStack.cars_per_link(cars_per_link, float(day.get("hour")) if day else NAN)
 	for k in st.links.size():
 		var have := 0
 		for car in cars:
 			if int(car.traffic.link) == k:
 				have += 1
-		if have >= cars_per_link:
+		if have >= want:
 			continue
 		if tm != null and _take_from_main(st, tm, k):
 			continue

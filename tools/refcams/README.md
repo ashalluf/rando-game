@@ -158,15 +158,16 @@ range. Its optional `golf_group` key ("hole:stage[:tee[:count]]") stages a group
 
 Run with `REFCAMS_JSON=tools/refcams/cameras_w7.json` (the file is new in wave 7, the cameras_w6.json
 format). `canals_day`: Marisol Canals at 11:00 clear, on Heron Canal's southern footbridge looking
-north down the canal (no staging).
-
-## Wave 7's cameras (`cameras_w7.json`)
-
-Run with `REFCAMS_JSON=tools/refcams/cameras_w7.json`. `port_night` (rc4-port-night): the container
+north down the canal (no staging). `film_lot` (rc4-film-lot): inside the SUNSPIRE PICTURES studio
+lot at 14:00 clear, eye level in the middle of the studio street between stages 5-7 and the basecamp,
+looking north to the water tower. No staging key. `port_night` (rc4-port-night): the container
 terminal at 22:00 clear from the quay's apron. Its optional `port_t` key holds PortLife's clock
 (seconds) for the shot, so the cranes and tractors are where the row was framed (`_port_clock()` in
 refcams_shot.gd; rows without it leave the clock alone). `OCCLUSION=0` turns occlusion culling off
-for a run.
+for a run. `stack_aerial` (rc4-stack-aerial): the four-level stack from 150 m over the ground
+north-west of it, 17:30 clear, toward downtown; `shot_frames` 90 lets the connectors' traffic fill
+before the shot.
+
 
 ## Wave 7's cameras (`cameras_w7.json`)
 

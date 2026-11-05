@@ -2918,6 +2918,12 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	load("res://tests/rc4_canals_day_checks.gd").new().run(self)
 	# The container terminal at night (tests/rc4_port_night_checks.gd, PortNight): floods, halos, windows.
 	load("res://tests/rc4_port_night_checks.gd").new().run(self, city)
+	# The four-level stack from the air (tests/rc4_stack_aerial_checks.gd, RcStack): the shade under
+	# the high connectors, the right of way's groves, the thicker columns, the rush hour.
+	load("res://tests/rc4_stack_aerial_checks.gd").new().run(self, city)
+	# The film lot refcam (tests/rc4_film_lot_checks.gd, Rc4FilmLot): the camera row, the
+	# basecamp's dressing, the studio asphalt, the batched trailers.
+	load("res://tests/rc4_film_lot_checks.gd").new().run(self, city)
 	# The lowrider_meet refcam (tests/rc4_lowrider_meet_checks.gd, LowriderMeetLook): stances, empty parked cars, the crowd.
 	await load("res://tests/rc4_lowrider_meet_checks.gd").new().run(self, city)
 
