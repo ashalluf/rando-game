@@ -16,6 +16,9 @@ extends RefCounted
 ## - industrial_walls.gdshader's office and storefront glass emitted its sky mirror as plain numbers
 ##   judged on Compatibility (where they display as written); Forward+ read them as linear and the
 ##   panes were pale sheets of sky, ~3x the stills. fh_display() decodes the mirror on Forward+.
+## - nightlife_beam.gdshader's shafts from the street (Broadway night's look3 soft knee, tuned on
+##   opengl3) were added in linear HDR on Forward+: the faint tail several times stronger, rods
+##   again. With look3 and the switch, the street view adds in display numbers on Forward+.
 ## Source text and statics only.
 
 var _t: Node
@@ -97,3 +100,8 @@ func run(t: Node, _city: Node3D) -> void:
 		"the industrial glass's mirror is decoded on Forward+ (its coverage kept linear)")
 	_t._check(inc.contains("vec3 fh_display(vec3 c) {\n#if CURRENT_RENDERER == RENDERER_COMPATIBILITY\n\treturn c;"),
 		"fh_display() is a no-op on Compatibility")
+	var nb := _code("res://shaders/nightlife_beam.gdshader")
+	var nb_fwd := nb.find("#if CURRENT_RENDERER != RENDERER_COMPATIBILITY")
+	_t._check(nb_fwd > 0 and nb.find("if (look3 > 0.5 && fwd_review_h > 0.5) {", nb_fwd) > nb_fwd
+		and nb.contains("ALBEDO = mix(add, fh_display(add), street);"),
+		"the street's searchlight shafts add in display numbers on Forward+ only (look3, the switch)")
