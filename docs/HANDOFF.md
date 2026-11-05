@@ -29459,7 +29459,7 @@ FreightStock, `RC4_FREIGHT_YARD=0` the A/B:
 4.86 M triangles (+4.4 %), 1,641 -> 1,662 draws, shadow 0.98 -> 1.04 M. The weeds' cells are most of the
 extra draws; the throat fill is a few quads a chunk.
 
-**Gate** (wave 8, SHARDS=3, merged with main 2026-11-05): 5806 checks passed, 0 failed, peak 3,792 MB. **The ten refcams** (cameras.json, `RC4_FREIGHT_YARD=0` against on):
+**Gate** (wave 8, SHARDS=3): merged with main at b45ba911+, 5806 checks passed, 0 failed, peak 3,792 MB; merged again with main (78 commits later), 5925 of 5927 passed, peak 3,790 MB - the two failures are `downtown_street_closeup_checks` ("the same props in the same places with it off", `Batch_sg_plate` differs), which pass alone (`SMOKE_PARTS=downtown_street_closeup_checks`, 32 of 32): a shard-order flake outside the yard. **The ten refcams** (cameras.json, `RC4_FREIGHT_YARD=0` against on):
 9 of 10 identical within the noise (pixels 0.01-4.2 %, triangles within 2.5 %); freeway flagged
 (11 % of pixels, -4.9 % triangles): only the live freeway traffic differs (other cars in other
 lanes), the scene is the same.
