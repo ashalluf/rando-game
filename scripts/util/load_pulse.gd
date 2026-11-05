@@ -64,6 +64,7 @@ static var _rd: bool = false
 ## Frames presented by tick() (outside the normal main loop) and their time, for LoadClock.
 ## Every .gdshader loaded at boot (keep_shaders()), held for the session.
 static var _shaders: Array[Shader] = []
+static var _kept_materials: Array[ShaderMaterial] = []
 static var pulses: int = 0
 static var pulse_usec: int = 0
 ## The longest time the window went without a new frame during the load, and the step it was in
@@ -79,7 +80,7 @@ const GAP_REPORT_MS := 2000
 ## it never sits still and never jumps backwards. Unknown stages keep the bar where it is.
 const STAGES := {
 	"compile the game": [0.0, 0.03, 20.0, "Starting"],
-	"queue the shaders": [0.03, 0.03, 1.0, "Compiling shaders"],
+	"queue the shaders": [0.03, 0.12, 120.0, "Compiling shaders (first launch only)"],
 	"macro map": [0.03, 0.05, 7.0, "Laying out the basin"],
 	"ground bake": [0.05, 0.16, 25.0, "Painting the far ground"],
 	"far landmarks": [0.16, 0.21, 8.0, "Building the landmarks"],
@@ -101,8 +102,7 @@ const STAGES := {
 }
 
 
-## Loads every shader file under res://shaders (presenting frames) and keeps it: on a
-## RenderingDevice renderer that starts each one's compile on the worker threads now.
+## Loads every shader file under res://shaders and keeps it (and one material of it).
 static func keep_shaders() -> void:
 	if not _shaders.is_empty():
 		return
@@ -111,9 +111,59 @@ static func keep_shaders() -> void:
 		if not name.ends_with(".gdshader"):
 			continue
 		var sh := load("res://shaders/" + name) as Shader
-		if sh:
+		if sh and sh.get_mode() == Shader.MODE_SPATIAL:
 			_shaders.append(sh)
 		tick()
+
+
+## Compiles every kept shader, ONE A FRAME (await it): Godot starts a material shader's compile
+## only when a surface first uses it (ShaderRD::version_is_valid) and the main thread waits there
+## for all its variants - so a city build that met each shader for the first time stopped the
+## window for that long, stage after stage (2-15 s gaps on lavapipe while the landmarks built).
+## Here each frame draws one 2 cm quad with one shader into a private 4 px viewport, so a frame
+## waits for one shader; the build then finds them compiled. RenderingDevice renderers only.
+static func compile_shaders(tree: SceneTree) -> int:
+	if not active or not _rd or _shaders.is_empty():
+		return 0
+	var t0 := Time.get_ticks_msec()
+	var scenario := RenderingServer.scenario_create()
+	var cam := RenderingServer.camera_create()
+	RenderingServer.camera_set_perspective(cam, 60.0, 0.05, 10.0)
+	var vp := RenderingServer.viewport_create()
+	RenderingServer.viewport_set_size(vp, 4, 4)
+	RenderingServer.viewport_set_scenario(vp, scenario)
+	RenderingServer.viewport_attach_camera(vp, cam)
+	RenderingServer.viewport_set_update_mode(vp, RenderingServer.VIEWPORT_UPDATE_ALWAYS)
+	RenderingServer.viewport_set_active(vp, true)
+	var quad := QuadMesh.new()
+	quad.size = Vector2(0.02, 0.02)
+	var items: Array[RID] = []
+	var mats: Array[ShaderMaterial] = []
+	var worst := 0
+	for i in _shaders.size():
+		var mat := ShaderMaterial.new()
+		mat.shader = _shaders[i]
+		mats.append(mat)
+		var inst := RenderingServer.instance_create2(quad.get_rid(), scenario)
+		RenderingServer.instance_geometry_set_material_override(inst, mat.get_rid())
+		RenderingServer.instance_set_transform(inst, Transform3D(Basis(), Vector3(0, 0, -0.3)))
+		items.append(inst)
+		note("%d / %d shaders" % [i + 1, _shaders.size()])
+		paint()
+		var f0 := Time.get_ticks_msec()
+		await tree.process_frame
+		worst = maxi(worst, Time.get_ticks_msec() - f0)
+	await tree.process_frame
+	for inst in items:
+		RenderingServer.free_rid(inst)
+	RenderingServer.viewport_set_active(vp, false)
+	RenderingServer.free_rid(vp)
+	RenderingServer.free_rid(cam)
+	RenderingServer.free_rid(scenario)
+	_kept_materials = mats
+	note("")
+	print("LOADING shaders compiled one a frame: %d, worst frame %d ms" % [_shaders.size(), worst])
+	return Time.get_ticks_msec() - t0
 
 
 ## True where the pulse may run: a real window, not the web, not switched off.

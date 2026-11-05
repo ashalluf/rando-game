@@ -64,16 +64,14 @@ func _process(_delta: float) -> void:
 	_running = false
 	LoadPulse.note("")
 	LoadClock.stop("compile the game")
-	# Every shader file loaded now and its compile WAITED FOR here (RenderingDevice renderers), the
-	# picture moving: loading one hands its variant groups to the worker threads, and the city's
-	# first material of a shader still compiling made the main thread wait for it (2-15 s without a
-	# frame on lavapipe while the landmarks built). Queued and not waited for, the landmarks'
-	# materials waited behind all ~300 of them instead.
+	# Every spatial shader compiled now, one a frame with the picture moving (LoadPulse
+	# .compile_shaders: Godot compiles a material shader the first time a surface uses it and the
+	# main thread waits for it there - during the city build that was a 2-15 s frozen frame per new
+	# shader on lavapipe). Queued all at once instead, the first use still waited (2-9 s gaps).
 	LoadClock.start("queue the shaders")
 	LoadPulse.keep_shaders()
 	_settling = true
-	var ms: int = await LoadPulse.settle(get_tree())
-	print("LOADING shaders compiled: %d ms" % ms)
+	await LoadPulse.compile_shaders(get_tree())
 	LoadClock.stop("queue the shaders")
 	get_tree().change_scene_to_file.call_deferred(CITY)
 
