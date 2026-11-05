@@ -307,6 +307,13 @@ already mapped so milestone 2 is script-only.
   (IdleRelax), never per frame. Props hang from the fist, not the wrist. Close-up hair shine is
   broken by strands and clumps; lips are toned toward the skin. PERSON_CLOSEUP=0 is the A/B.
 
+- **2026-11-02 The refinery's road at night (rc4-refinery-road, HANDOFF "The refinery's road at
+  night").** The street outside the plant is lit by what really lights it: the flares and the fence
+  masts' light is worked out in the road shader as light times the surface's albedo (never another
+  additive wash, which flattens tarmac and paint alike), on every road and pavement within reach so
+  it never stops at a street's edge; the street lamps along an industrial perimeter are old and
+  patchy. A flare trails soot; a tank's floods are fans of light on its paint. RC4_REFINERY_ROAD=0
+  is the A/B.
 - **2026-11-02 The refinery at night (rc3-refinery-night, HANDOFF "The refinery at night").** A
   flare's light on the plant is worked out in the plant's own shader from the real flame positions
   (every tier, both renderers, no OmniLight), not a light node that only FULL chunks carry; each

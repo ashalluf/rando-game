@@ -4066,6 +4066,15 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   MultiMeshBatch instance's default custom is Color.BLACK (alpha 1), which light_pool.gdshader
   takes as a NightLamps point source - a pool needs `Color(0, 0, 0, 0)` (`POOL_CUSTOM`).
   `PORT_NIGHT=0` is the A/B; checks `tests/rc4_port_night_checks.gd`.
+- The refinery's road at night (wave 7, refcam `refinery_night`, docs/HANDOFF.md "The refinery's road
+  at night"): `RcRefineryRoad` (`scripts/world/rc4_refinery_road.gd`): road.gdshader's
+  `shaders/refinery_road.gdshaderinc` (behind `rr_on`, 0 on every other road) lights the roads and
+  block pavements within `NEAR` of the plant from its flares and fence-line masts (light x albedo,
+  patchy damp, glints), the perimeter lamps are patchy (a share out: INSTANCE_CUSTOM.b in
+  street_lamp.gdshader), the pavement ring is wound face up with kerb faces (FilmStudio._flat()
+  winds DOWN: culled), a weedy verge at the fence foot, soot off the flares
+  (`refinery_flare_smoke.gdshader`), tank floods in fans (`rc4_look`). `RC4_REFINERY_ROAD=0` is the
+  A/B; checks `tests/rc4_refinery_road_checks.gd`.
 - The oil islands (2026-10-30, docs/HANDOFF.md "The oil islands"): three decorated drilling
   islands in San Pedro Bay 600-700 m off the Long Beach sand (the FORM of the real ones; names and
   the operator invented). A DATA TABLE (`OilIslands`, `scripts/world/oil_islands.gd`: anchors,

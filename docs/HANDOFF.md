@@ -28876,3 +28876,74 @@ smooth normals on Forward+ are unproved. No crew AT WORK (no shoot, no dolly, ca
 driven: the film-shoot session's area); the stage walls are as they were; the trailers' variants all
 share three dressings, so a long row repeats every third; the far LOD of the trailers is the old
 `lod_box` path. Checks: `tests/rc4_film_lot_checks.gd` (10). Probe: `tools/rc4_film_lot/crew_probe.tscn`.
+
+## 9mf. The refinery's road at night (refcam refinery_night follow-up, fleet wave 7, branch `wt/rc4-refinery-road`)
+
+**The camera** is wave 6's `refinery_night` (`tools/refcams/cameras_w6.json`, unchanged): the south
+street outside the plant at 22:30 clear. The brief: the foreground road read far too bright and flat
+grey against the dark plant.
+
+**Why it was grey** (found with `tools/glshot/fwd_block_shot.tscn`, which now takes `HIDE=` /
+`HIDE_CLASS=` and `LIST=`): hiding the OmniLights took the road from 161 to 106 (of 255), hiding the
+`lamp_pool` batch took it to 20. A mast-arm LED lamp stands three metres behind the camera on the south
+kerb; its pool - an UNSHADED ADDITIVE quad - and its neighbours' overlapped down the street, adding the
+same amount to tarmac and paint (so no texture and no contrast: a flat sheet), while the plant's flares
+and masts, which are not renderer lights, lit nothing outside the fence. On the way: **the refinery's
+pavement ring was invisible** - `FilmStudio._flat()` winds its quad face DOWN, so it was culled, and the
+street saw the horizon plane through a 4.5 m slot along every fence (the pale band under the fence in
+the before). The film studio uses the same function for its own ring: worth a look by whoever owns it.
+
+**What changed, in the order the eye lands** (`RcRefineryRoad`, `scripts/world/rc4_refinery_road.gd`;
+`RC4_REFINERY_ROAD=0` is the A/B of all of it):
+1. **The road takes the plant's light.** `shaders/refinery_road.gdshaderinc`, included by
+   road.gdshader behind `rr_on` (0 on every other road: they draw bit for bit as before). The flares'
+   flame bodies (`RefineryNight.flare_tips()`) and the fence-line masts (8 m inside the fence; the
+   process units' are too deep) as uniforms in TRUE world: diffuse as EMISSION x the surface's own
+   albedo (cosine over squared distance, half at `FLARE_HALF` 40 m; a mast's spill a pool by horizontal
+   distance, half at 12 m, 35 % of its floods), a patchy damp (darker, glossier), and the flames and
+   floods standing in it as glints (a normalised Blinn lobe of power 160). Dressed: every road within
+   `NEAR` 420 m of the plant's kerbs, the junction squares there, every block pavement (CityChunk's
+   per-block paving) and the refinery's pavement ring - all already one material each, so no draw call
+   is added. GDScript copy: `light_at()` (the checks hold the falloffs together).
+2. **The perimeter lamps are patchy**: a lamp within 32 m of the plant's kerbs is out on a hash
+   (`LAMP_OUT` 45 %: no pool, no omni, no halo, a dark head through street_lamp.gdshader's
+   INSTANCE_CUSTOM.b) or dim (pool x0.28, light x0.4). Three hook lines in `_add_street_lamp()`.
+3. **The pavement ring** (`ring_piece()`): wound face up, in 6 m cells (Industrial._ground_rect()'s
+   rule on Compatibility), with a kerb face down to the road along the plant's kerb.
+4. **The verge** (`verge()`): a 1.3 m strip of weedy dirt (Industrial's G_WEEDS) at the fence's foot
+   outside it and VacantKit's foxtail tufts, mustard and fennel along it, in 40 m batch cells, no
+   shadows, hashes of seed + place; none across the gate.
+5. **Soot off the flares**: `shaders/refinery_flare_smoke.gdshader`, one node a piece of
+   camera-facing puffs placed from TIME (Refinery._puff_mesh()'s layout, `add_smoke()` from
+   `Refinery.add_fx()`), leaving the top of the flame, leaning down the wind, lit orange from below by
+   the flame and dark above; in FULL chunks and RefineryFar's pieces alike.
+6. **The tanks**: their floods were an emission of sodium with no albedo and a 35 % floor on the fan
+   pattern - an even beige wash over every shell. `rc4_look` (refinery.gdshader, 0 by default; set by
+   `apply_plant()` from RefineryNight.apply()): a flood is light on the paint in a tight fan dying a
+   third of the way up, and the flares' light follows the facing more closely.
+
+**Numbers** (refcams, opengl3, refinery_night): p5/p50/p95 16/48/159 -> 14/36/102 (the road no longer a
+pale sheet); 3.82 M triangles / 1,434 draws -> 3.87 M / 1,439 (+1.4 %: the weed cells and the smoke).
+The ten original cameras, `RC4_REFINERY_ROAD=0` -> on from one tree (`refcams.py compare`): nine within
+tolerance (0-5.4 mean pixel |d|), street_noon flagged at 7.3 by a bus that was in one run only (live
+traffic); triangles -1.3 % .. +1.3 %. Forward+ (lavapipe, `tools/fwd_review_f/shoot.sh` at the eye with
+the camera's chunk and the site chunk, `BLOCKS=home EXTRA=0,-1`; 9 FULL chunks OOM-killed lavapipe): the
+road grey-green and a solid orange tank -> dark damp asphalt with a warm sheen toward the flares and
+flood fans on the tank; the glints needed `rr_glint_forward` 0.22 there (a pale sheet at the
+Compatibility gain). NEEDS MAC CHECK: the whole camera on Forward+ (only the small scene was seen).
+
+**Tools**: `tools/rc4_refinery_road/probe.tscn` (headless: the plant's rect, the perimeter roads, the
+flares and masts the road takes, `light_at()` along the south street, a lamp's state).
+
+**Checks** (`tests/rc4_refinery_road_checks.gd`, one line in smoke_test's city files): the shader
+block off by default and its falloffs the GDScript copy's; the flares and fence masts taken; the light
+falling off along the street; near roads dressed (a copy - the shared material untouched), far ones
+not; the perimeter lamps patchy and pure; the ring wound face up with its kerb faces; a FULL site chunk
+wearing it, its verge weeds; the tanks' look on; the smoke node.
+
+**Wave 8 resume** (merge of origin/main at 824c8d26): the camera unchanged (p5/p50/p95 14/36/102,
+3.91 M triangles / 1,457 draws; still `12_after_refinery_night_merged_main_w8.jpg`). Gate (SHARDS=3):
+5,810 of 5,811; the one failure pedestrian_flow's "two walkers on one line step round each other"
+(CrowdFlow's camera 160 m off), which passes alone (32 / 32): a shard-order flake, no pedestrian code
+on this branch. The refinery checks alone: 35 / 35. After merging batch 51 (8a480359) the gate
+ran clean: 5,814 of 5,814 (SHARDS=3).
