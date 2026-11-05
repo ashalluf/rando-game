@@ -187,7 +187,7 @@ static func _davit(kit: FreewayKit, f: Array, half: float, foot: Vector3) -> voi
 static func _column(kit: FreewayKit, c: Dictionary, body: StaticBody3D, full: bool) -> void:
 	var pos: Vector2 = c.pos
 	var dir: Vector2 = c.dir
-	var r: float = c.r
+	var r: float = RcStack.column_r(c)
 	var base: float = float(c.base) - 0.6
 	var top: float = c.top
 	var main := int(c.link) < 0
