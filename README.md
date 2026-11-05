@@ -10,3 +10,5 @@ opengl3 stills (the Compatibility renderer, not the Mac's Forward+).
 - `04_block_valley_wedge.jpg` - the yard alone (block_shot, no train): the wedge is the open V-valley between two storage beds, the next bed's sunlit west shoulder.
 - `05_block_valleys_filled.jpg` - the valleys between neighbouring storage beds filled level: the throat is one ballast field.
 - `06_block_from_above_switch_stand.jpg` - from 14 m up: a switch stand on the ladder's bed at a turnout.
+- `07_after_freight_yard_final.jpg` - the camera on wt/rc4-freight-yard's final head (valleys filled, stands, every earlier fix).
+- `08_before_after_side_by_side.jpg` - 02 (left, `RC4_FREIGHT_YARD=0`) against 07 (right).
