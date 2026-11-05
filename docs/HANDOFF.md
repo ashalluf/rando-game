@@ -29446,12 +29446,23 @@ every one off, which is main's look):
    fixed rolls 0.1 / 0.3) throw none.
 4. **Nobody walks a dog.** The staged dog walker (above); the crowd's own rolls are untouched.
 
-**Cost** (opengl3, the camera, GEO): see the numbers below; the spill is one batch of quads a FULL
-suburb chunk (372 on the refcam's block, most of them dark and discarded by their alpha).
+**Cost** (opengl3, the camera, GEO, one load each, the dog walker staged in both): SUBURB_NIGHT=0
+5,682,446 triangles / 2,749 draws -> on 5,707,966 / 2,762 (+0.4 %, +0.5 %): the spill is one batch of
+quads a FULL suburb chunk (372 on the refcam's block, most of them dark: their alpha is 0). Shadow
+pass unchanged (2,067,692). The ten original refcams, SUBURB_NIGHT=0 vs on (`compare`): nine ok, the
+freeway flagged by its own traffic (other cars in the lane ahead in the two runs; no night, no house
+in that view). suburb_night itself: p50 31 -> 30, p95 112 -> 89 (the moonlit pavement and yards),
+the lit pavement at the eye 109 -> 82.
 
 **Not done / seen:** the near house at the eye is a dark house in HouseNights' rolls (11 %), so the
 window spill is proved on the houses down the street and in block stills, not at the lens; the
 spill is a flat quad on the ground, so it does not light the shrubs or a step it crosses; the pale
 DG yards (rc2-suburb's `dg_real`) still read light under the moon; nothing proved on Forward+ under
 lavapipe (the spill and the wash are display-number adds like house_glow's, which fwd-review-e
-proved; the lens is house_lamp's own cs_out()). Checks: `tests/rc5_suburb_night_checks.gd`.
+proved; the lens is house_lamp's own cs_out()). Checks: `tests/rc5_suburb_night_checks.gd` (16).
+
+**Gate** (SHARDS=3 on `wt/rc5-suburb-night` = main 2026-11-05 + this): 5,927 of 5,929 checks passed
+(shards 1,941 / 1,730 pass, 2 of 2,258 failed; peak RSS 3.8 GB a shard). Both failures were
+downtown_street_closeup_checks' StreetCloseup off / on block A/B (`Batch_sg_plate` differs, the props
+134 / 134), which passed rerun alone (`SMOKE_PARTS=downtown_street_closeup_checks`: 32 of 32) - a
+shard-order flake in a file this branch does not touch.
