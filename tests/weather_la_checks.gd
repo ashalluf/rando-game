@@ -169,8 +169,13 @@ func _roof_rain(city: Node3D, weather: Node) -> void:
 	for v in city.get_tree().get_nodes_in_group("vehicle"):
 		# Upright: a car an earlier check left tumbling (one was found 1 km under the street) puts
 		# the splash, laid across its roof, metres off the roof's centre measured below.
+		# And at rest near the player: one an earlier file sent flying was 6 km up and falling, and
+		# moved between the splash and the read (shuffled gate 11101: 0.85 m off its roof).
+		var pl := city.get_tree().get_first_node_in_group("player") as Node3D
 		if v is Vehicle and not (v is Aircraft) and (v as Node3D).is_inside_tree() \
-				and (v as Node3D).global_transform.basis.y.normalized().y > 0.95:
+				and (v as Node3D).global_transform.basis.y.normalized().y > 0.95 \
+				and (v as RigidBody3D).linear_velocity.length() < 1.0 \
+				and (pl == null or (v as Node3D).global_position.distance_to(pl.global_position) < 400.0):
 			car = v
 			break
 	if car == null:

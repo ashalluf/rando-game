@@ -38,6 +38,8 @@ uniform float lettering : hint_range(0.0, 1.0) = 1.0;
 uniform float roof_dust : hint_range(0.0, 1.5) = 1.0;
 
 global uniform float road_wetness;
+global uniform float lamp_factor;
+#include "res://shaders/port_flood.gdshaderinc"
 
 const float HL = 6.096;
 const float HH = 1.2955;
@@ -51,6 +53,8 @@ varying vec4 v_inst;
 varying float v_part;
 varying vec2 v_size;
 varying float v_fwd;
+varying vec3 v_wp;
+varying vec3 v_wn;
 
 // --- Livery tables (index = livery). Ink is sRGB. Name and owner rows index TEXT; -1 none. -----
 const vec3 INK[9] = vec3[](
@@ -184,6 +188,8 @@ void vertex() {
 	v_paint = v_fwd > 0.5 ? to_linear(c) : c;
 	vec3 axis = abs(NORMAL.x) > 0.5 ? vec3(0.0, 0.0, 1.0) : vec3(1.0, 0.0, 0.0);
 	v_pat = normalize((MODELVIEW_MATRIX * vec4(axis, 0.0)).xyz);
+	v_wp = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
+	v_wn = normalize(mat3(MODEL_MATRIX) * NORMAL);
 }
 
 void fragment() {
@@ -429,4 +435,9 @@ void fragment() {
 	ROUGHNESS = rough;
 	METALLIC = metal;
 	SPECULAR = 0.45;
+	// The terminal's floodlights after dark (PortNight; PORT_NIGHT=0 leaves port_night 0).
+	if (port_night > 0.5 && flood_count > 0 && lamp_factor > 0.01) {
+		float fl = min(port_flood(v_wp + origin_shift, normalize(v_wn)), flood_cap);
+		EMISSION = albedo * col(flood_tint) * fl * flood_gain * lamp_factor;
+	}
 }

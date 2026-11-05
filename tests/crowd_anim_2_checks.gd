@@ -164,12 +164,17 @@ func _walk_check(chunk: Node3D, rect: Rect2, g: String) -> void:
 	_check(p._clip == p._walk_clip and absf(matched - p._speed) < 0.05 and rate <= CrowdGait.CADENCE.y + 0.01,
 		"a %s walk runs at the rate its ground speed asks for (clip covers %.2f m/s, body %.2f, rate %.2f)" % [g, matched, p._speed, rate])
 	var slide_speed := slide / maxf(planted, 1) * Engine.physics_ticks_per_second
-	_check(sk == null or (planted > 20 and slide_speed < 0.3 * p._speed),
+	# At least 15 planted ticks to judge on (batch 50 shard 1 had exactly 20 under load and failed on the count, not the slide).
+	_check(sk == null or (planted >= 15 and slide_speed < 0.3 * p._speed),
 		"a %s walker's planted foot stays planted (slides %.2f m/s at %.2f m/s, %d planted ticks)" % [g, slide_speed, p._speed, planted])
 	_check(p.walk_speed >= step_speed * CrowdGait.CADENCE.x - 0.01 and p.walk_speed <= step_speed * CrowdGait.CADENCE.y + 0.01,
 		"a %s walker's pace keeps a walker's cadence (%.2f m/s, step %.2f m/s)" % [g, p.walk_speed, step_speed])
 	if g == "brisk":
-		# A bend to the north-east and back: it banks into it and straightens out.
+		# A bend to the north-east and back: it banks into it and straightens out. With CrowdFlow off
+		# for it: a sidestep round a passer-by or the furniture on the straight is a turn too, and in
+		# a busy shard it kept the walker leaning (batches 35-37, even with four seconds more).
+		var flow_was := CrowdFlow.enabled
+		CrowdFlow.enabled = false
 		var bank := 0.0
 		var here := Vector2(p.position.x, p.position.z)
 		for i in 40:
@@ -186,6 +191,7 @@ func _walk_check(chunk: Node3D, rect: Rect2, g: String) -> void:
 				break
 			_steer(p, Vector2(p.position.x + 40.0, p.position.z))
 			await _tree.physics_frame
+		CrowdFlow.enabled = flow_was
 		_check(bank > 0.01 and bank <= CrowdGait.TURN_LEAN_MAX + 0.001 and absf(p._visual.rotation.z) < 0.01,
 			"a walker banks into a bend and straightens after it (%.1f degrees, then %.1f)" % [rad_to_deg(bank), rad_to_deg(p._visual.rotation.z)])
 	p.queue_free()

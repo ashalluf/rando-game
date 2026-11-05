@@ -43,6 +43,11 @@ uniform vec3 silt_color = vec3(0.030, 0.034, 0.020);
 uniform float mirror_forward = 0.55;
 uniform float mirror_gain = 0.9;
 uniform float ruffle = 0.22;
+// Rc4Canals (refcam canals_day; 0 = the old look exactly): on Compatibility the engine's own sky
+// reflection is switched off (the shader's mirror already carries the sky and the sun, and doubled
+// it washed every mirrored house out to a cyan pool), the surface calmer (a glassy mirror with a
+// faint breeze), the body a murky green-brown that scatters a little light.
+uniform float rc4 = 0.0;
 
 varying vec3 v_local;
 varying vec2 v_canal;
@@ -164,7 +169,7 @@ void fragment() {
 	// Still water: patches of faint ruffle drifting over glassy stretches; rings when it rains.
 	float patch = wnoise(p * 0.05 + vec2(t * 0.01, -t * 0.007));
 	float wind = clamp(0.15 + wind_factor * 0.6, 0.1, 1.5) * smoothstep(0.35, 0.85, patch);
-	vec2 grad = wavelets(p, t) * ruffle * wind;
+	vec2 grad = wavelets(p, t) * ruffle * wind * mix(1.0, 0.45, rc4);
 	if (rain_intensity > 0.01) {
 		vec2 cell = floor(p * 1.4);
 		vec2 f = fract(p * 1.4) - 0.5;
@@ -212,6 +217,12 @@ void fragment() {
 	float edge = smoothstep(3.8, 5.6, abs(UV.x));
 	float scum = edge * smoothstep(0.55, 0.8, wnoise(p * 0.9 + vec2(canal * 13.0, 0.0))) * 0.8;
 	vec3 body = mix(deep_color, silt_color, edge * 0.6);
+	if (rc4 > 0.5) {
+		// Murky canal water: green-brown, a little light scattered back from the silt under it,
+		// mottled where the bed is shallower or weed grows.
+		float m = wnoise(p * 0.18 + vec2(canal * 5.0, 1.3)) * 0.6 + wnoise(p * 0.9) * 0.4;
+		body = mix(vec3(0.020, 0.030, 0.017), vec3(0.040, 0.046, 0.026), edge * 0.7 + m * 0.35);
+	}
 	body = mix(body, vec3(0.10, 0.12, 0.05), scum);
 
 #if CURRENT_RENDERER == RENDERER_COMPATIBILITY
@@ -223,5 +234,11 @@ void fragment() {
 	ROUGHNESS = mix(0.03, 0.12, clamp(wind + scum, 0.0, 1.0));
 	METALLIC = 0.0;
 	SPECULAR = 0.5;
+#if CURRENT_RENDERER == RENDERER_COMPATIBILITY
+	if (rc4 > 0.5) {
+		SPECULAR = 0.0;
+		mirror = 1.0;
+	}
+#endif
 	EMISSION = cs_out(refl * fres * mirror * (1.0 - scum * 0.8));
 }

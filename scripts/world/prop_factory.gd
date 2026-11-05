@@ -577,7 +577,10 @@ static func _palm_ladder(levels: Array, first: int) -> ArrayMesh:
 		lods[float(PALM_LEVELS[l].edge)] = idx
 		offset += (src[Mesh.ARRAY_VERTEX] as PackedVector3Array).size()
 	var mesh := ArrayMesh.new()
-	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays, [], lods)
+	var flags := 0
+	if arrays[Mesh.ARRAY_CUSTOM0] != null:
+		flags = Mesh.ARRAY_CUSTOM_RGBA_FLOAT << Mesh.ARRAY_FORMAT_CUSTOM0_SHIFT
+	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays, [], lods, flags)
 	mesh.surface_set_material(0, foliage_material())
 	return mesh
 
@@ -589,6 +592,10 @@ static func _palm_level(variant: int, lv: Dictionary) -> Array:
 	rng.seed = 7000 + variant
 	var st := SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	# CUSTOM0: a leaflet vertex's offset across its blade (_palm_leaf_vertex), zero elsewhere.
+	if PalmShimmer.enabled:
+		st.set_custom_format(0, SurfaceTool.CUSTOM_RGBA_FLOAT)
+		st.set_custom(0, Color(0.0, 0.0, 0.0, 0.0))
 
 	# Tall and slender, like the Washingtonia palms that line Los Angeles streets, rather than
 	# the short fat coconut palm the old primitive suggested.
@@ -675,7 +682,10 @@ static func _palm_level(variant: int, lv: Dictionary) -> Array:
 			var nt := (Vector3.UP * 0.85 + bd).normalized()
 			_quad(st, e0, e1, tip1, tip0, boot, nt, nt)
 			var under := Vector3(0.0, -0.045 * (height / 14.0), 0.0)
-			_quad(st, tip0 + under, tip1 + under, e1 + under, e0 + under, boot * 0.66, -nt, -nt)
+			var nu := -nt
+			if PalmShimmer.enabled:
+				nu = (bd * PalmShimmer.BOOT_UNDER_OUT - Vector3.UP * (1.0 - PalmShimmer.BOOT_UNDER_OUT)).normalized()
+			_quad(st, tip0 + under, tip1 + under, e1 + under, e0 + under, boot * 0.66, nu, nu)
 
 	var top: Vector3 = centre.call(1.0)
 	# The crownshaft: the smooth green column the fronds actually grow out of. Without it the
@@ -819,6 +829,7 @@ static func _palm_leaflet(st: SurfaceTool, a: Vector3, b: Vector3, dir: Vector3,
 	var half := (b - a) * 0.5
 	var prev_a := a
 	var prev_b := b
+	var prev_w := 1.0
 	for seg in segments:
 		var u := float(seg + 1) / float(segments)
 		# Width runs out to nothing at the tip; the drop is the leaflet's own droop.
@@ -837,15 +848,30 @@ static func _palm_leaflet(st: SurfaceTool, a: Vector3, b: Vector3, dir: Vector3,
 		var nb := c + half * w
 		if seg == segments - 1:
 			# The tip: one triangle closing on the point.
-			for v: Vector3 in [prev_a, prev_b, c]:
-				st.set_color(tone)
-				st.set_uv(Vector2.ZERO)
-				st.set_normal(nrm)
-				st.add_vertex(v)
+			for pv: Array in [[prev_a, -half * prev_w], [prev_b, half * prev_w], [c, Vector3.ZERO]]:
+				_palm_leaf_vertex(st, pv[0], pv[1], tone, nrm)
 		else:
-			_quad(st, prev_a, prev_b, nb, na, tone, nrm, nrm)
+			for pv: Array in [[prev_a, -half * prev_w], [prev_b, half * prev_w], [nb, half * w],
+					[prev_a, -half * prev_w], [nb, half * w], [na, -half * w]]:
+				_palm_leaf_vertex(st, pv[0], pv[1], tone, nrm)
 		prev_a = na
 		prev_b = nb
+		prev_w = w
+	# Back to "not a leaflet" for whatever the palm draws next (CUSTOM0 carries over).
+	if PalmShimmer.enabled:
+		st.set_custom(0, Color(0.0, 0.0, 0.0, 0.0))
+
+
+## One leaflet vertex. CUSTOM0 (palm-shimmer) is the vertex's offset from the leaflet's centre
+## line across the blade (model metres; the tip's is zero) and 1 in w: foliage.gdshader widens a
+## leaflet narrower than a pixel to one along it and keeps it by its true coverage.
+static func _palm_leaf_vertex(st: SurfaceTool, v: Vector3, off: Vector3, tone: Color, nrm: Vector3) -> void:
+	if PalmShimmer.enabled:
+		st.set_custom(0, Color(off.x, off.y, off.z, 1.0))
+	st.set_color(tone)
+	st.set_uv(Vector2.ZERO)
+	st.set_normal(nrm)
+	st.add_vertex(v)
 
 
 ## A quad a-b-c-d. `na` / `nb` are the normals for the a,d and b,c edges; leave them at zero to
@@ -1158,6 +1184,7 @@ static func foliage_material() -> ShaderMaterial:
 	var mat := ShaderMaterial.new()
 	mat.shader = load("res://shaders/foliage.gdshader")
 	TreesCloseup.mark(mat)
+	PalmShimmer.mark(mat)
 	_cache["foliage_mat"] = mat
 	return mat
 
@@ -2483,6 +2510,7 @@ static func beach_sand_material() -> ShaderMaterial:
 	mat.set_shader_parameter("tint", Color(1.0, 0.95, 0.85))
 	mat.set_shader_parameter("tile_m", 2.0)
 	BeachGolden.dress_sand(mat)
+	mat.set_shader_parameter("night_look", 0.0 if OS.get_environment("RC4_BONFIRE") == "0" else 1.0)
 	_cache["beach_sand_mat"] = mat
 	return mat
 
@@ -2966,6 +2994,21 @@ uniform float shade_lift = 0.20;
 // How dirty the wheel is (CarDetail, one of three shared copies per kit): brake dust on the rim
 // face, more in the barrel and on the caliper, road dust on the tyre; 0 skips it all.
 uniform float dust = 0.0;
+// The tyre where it meets the road (CarCloseup, rc3-car-closeup; 0 = the old round tyre): a car
+// wheel's vertices carry 1 + its tyre's radius in UV.y. The lower half of the tread and shoulder
+// is grown `squash` metres and cut flat at the radius under the hub - a contact patch on the road,
+// in WORLD down, so it stays at the bottom while the wheel turns - and the sidewall bows out over
+// it. The hub keeps its height: the physics and the ride height are untouched.
+uniform float squash = 0.0;
+// 1: the sidewall's satin rubber (CarCloseup): rubber read as a dead-black hole at 0.95 roughness.
+uniform float rubber_look = 0.0;
+// Compatibility only (CarCloseup; the shipped web build and every opengl3 still): that renderer
+// has no radiance map for a metal to reflect, so the alloy was re-expressed as plain paint and
+// read as grey plastic at two metres. This much of the metal's light comes back as a mirror of the
+// sky over a dark street, split at the horizon of the reflected ray (sky_tint is raw on both
+// renderers, and Compatibility lights raw numbers). Forward+ never sets it.
+uniform float fake_env = 0.0;
+global uniform vec4 sky_tint;
 
 varying vec3 wl;
 varying vec3 wn;
@@ -2973,6 +3016,22 @@ varying vec3 wn;
 void vertex() {
 	wl = VERTEX;
 	wn = NORMAL;
+	if (squash > 0.0 && UV.y > 1.0 && UV.x < 0.25) {
+		float rr = UV.y - 1.0;
+		vec3 down = transpose(mat3(MODEL_MATRIX)) * vec3(0.0, -1.0, 0.0);
+		float dl = length(down.yz);
+		if (dl > 0.5) {
+			vec2 dn = down.yz / dl;
+			float d = max(length(VERTEX.yz), 1e-4);
+			float low = smoothstep(0.30, 0.95, dot(VERTEX.yz, dn) / d);
+			vec2 yz = VERTEX.yz + VERTEX.yz / d * squash * low * smoothstep(rr * 0.70, rr * 0.97, d);
+			float over = max(dot(yz, dn) - rr, 0.0);
+			yz -= dn * over;
+			VERTEX.yz = yz;
+			float bulge = squash * 0.8 * low * low * smoothstep(rr * 0.62, rr * 0.88, d);
+			VERTEX.x += sign(VERTEX.x) * bulge * clamp(abs(VERTEX.x) / (rr * 0.25), 0.0, 1.0);
+		}
+	}
 }
 
 float wh13(vec3 p) {
@@ -2994,7 +3053,16 @@ void fragment() {
 	vec3 shade = mix(vec3(1.0), COLOR.rgb, 1.0 - shade_lift);
 	vec3 alb = c_dark;
 	vec2 mr = m_dark;
-	if (slot == 0) { alb = c_rubber; mr = m_rubber; }
+	if (slot == 0) {
+		alb = c_rubber;
+		mr = m_rubber;
+		if (rubber_look > 0.0) {
+			// The sidewall is satin (moulded, a little dressed); the tread stays matte.
+			float sw = smoothstep(0.55, 0.85, abs(normalize(wn).x));
+			alb *= mix(1.0, 1.3, sw * rubber_look);
+			mr.y = mix(mr.y, mix(0.90, 0.66, sw), rubber_look);
+		}
+	}
 	else if (slot == 1) { alb = c_letter; mr = m_letter; }
 	else if (slot == 2) { alb = c_face; mr = m_face; }
 	else if (slot == 3) { alb = c_barrel; mr = m_barrel; }
@@ -3030,6 +3098,18 @@ void fragment() {
 	ALBEDO = alb * shade;
 	METALLIC = mr.x;
 	ROUGHNESS = mr.y;
+	if (fake_env > 0.0 && (slot == 2 || slot == 3 || slot == 6)) {
+		// mr.x is the metal's own metallic x 0.22 on this renderer (wheel_material()).
+		float k = fake_env * clamp(mr.x / 0.22, 0.0, 1.0);
+		vec3 rw = (INV_VIEW_MATRIX * vec4(reflect(-VIEW, NORMAL), 0.0)).xyz;
+		float up = smoothstep(-0.04, 0.22, rw.y);
+		// Below the horizon: the sunlit street and the cars across it, about a third of the sky.
+		vec3 env = mix(sky_tint.rgb * 0.32, sky_tint.rgb, up);
+		// The far facades' bright band just over the horizon.
+		env += vec3(0.25) * (1.0 - smoothstep(0.0, 0.18, abs(rw.y - 0.08)));
+		ALBEDO = alb * shade * (1.0 - 0.3 * k);
+		EMISSION = env * alb * shade * 0.5 * k;
+	}
 }
 """
 ## The uniform suffixes, in WheelSlot order.
@@ -3101,14 +3181,25 @@ static func wheel_material(kit: int, force_metal: bool = false, dust: int = 0) -
 	# CarDetail's dust levels: light, dirty, filthy.
 	if dust > 0:
 		mat.set_shader_parameter("dust", [0.0, 0.35, 0.65, 0.95][clampi(dust, 0, 3)])
+	if CarCloseup.enabled:
+		mat.set_shader_parameter("squash", CarCloseup.TYRE_SQUASH)
+		mat.set_shader_parameter("rubber_look", 1.0)
+		if not has_reflections() and not force_metal:
+			mat.set_shader_parameter("fake_env", 1.0)
 	_cache[key] = mat
 	return mat
+
+
+## UV.y of the wheel vertices being written: 0.5 (nothing), or 1 + the tyre's outer radius in
+## metres while car_wheel() builds a car wheel - what the wheel shader's contact patch reads
+## (CarCloseup, `squash`). Other wheels built from these helpers (the trucks') stay untagged.
+static var _wheel_tag := 0.5
 
 
 ## One vertex of a wheel: position, normal, shading colour and material slot.
 static func _wv(st: SurfaceTool, p: Vector3, n: Vector3, shade: float, slot: int) -> void:
 	st.set_color(Color(shade, shade, shade))
-	st.set_uv(Vector2((float(slot) + 0.5) / float(WHEEL_SLOTS), 0.5))
+	st.set_uv(Vector2((float(slot) + 0.5) / float(WHEEL_SLOTS), _wheel_tag))
 	st.set_normal(n)
 	st.add_vertex(p)
 
@@ -3248,6 +3339,7 @@ static func car_wheel(style: int, radius: float, width: float, near: bool, seg_o
 	var seg := seg_override if seg_override > 0 else (96 if near else 20)
 	var st := SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	_wheel_tag = 1.0 + radius
 	_wheel_tyre(st, radius, rim_r, hw, seg, near, letters)
 	if letters:
 		# Raised moulded lettering on the sidewall (CarDetail; the band under it is plain rubber).
@@ -3255,6 +3347,7 @@ static func car_wheel(style: int, radius: float, width: float, near: bool, seg_o
 	_wheel_barrel(st, rim_r, hw, seg, near)
 	_wheel_brake(st, rim_r, hw, near)
 	_wheel_face(st, face, rim_r, hw, near)
+	_wheel_tag = 0.5
 	# Indexed, not a raw triangle soup. A near wheel is eleven thousand triangles and the city
 	# ends up holding one per style and size; welding the shared vertices roughly halves what
 	# that costs in memory and gives the GPU a post-transform cache to work with.

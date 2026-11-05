@@ -31,10 +31,17 @@ uniform float terrace_v1 = 25.0;
 uniform float fence_line = 100.6;
 uniform float fence_alley = 114.3;
 uniform float fence_center = 120.4;
+// StadiumNight: within this many metres of the camera every filled stall holds a box car
+// (stadium_car.gdshader), so its painted car becomes the car's contact shadow. 0 = paint them all.
+uniform float box_reach = 0.0;
+// StadiumNight: the planting as clumped shrubs over mulch (0 = the old flat ground cover).
+uniform float planting2 = 0.0;
 
 varying float edge;
+varying vec3 v_world;
 
 void vertex() {
+	v_world = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
 	// COLOR.r: metres inside the site's outline (-Ballpark.site_sd), / 16, clamped to 0..1.
 	edge = -COLOR.r * 16.0;
 }
@@ -134,6 +141,12 @@ void fragment() {
 		col = mix(vec3(0.03, 0.08, 0.025), vec3(0.06, 0.12, 0.03), m);
 		float fl = smoothstep(0.78, 0.86, vnoise(q * 3.7 + 9.0));
 		col = mix(col, vec3(0.45, 0.04, 0.22), fl * 0.7);
+		if (planting2 > 0.0) {
+			// Shrub clumps with mulch and shade between them, darker toward the site's edge.
+			float clump = smoothstep(0.3, 0.7, vnoise(q * 0.45 + 1.7) * 0.6 + vnoise(q * 1.6) * 0.4);
+			vec3 mulch = vec3(0.065, 0.045, 0.03) * (0.8 + 0.4 * vnoise(q * 4.0));
+			col = mix(mulch, col * (0.7 + 0.6 * vnoise(q * 2.9 + 5.0)), mix(1.0, clump, planting2));
+		}
 		rough = 0.95;
 	} else {
 		// Lot: stall rows across u, cross aisles every block, medians every fourth module.
@@ -149,6 +162,13 @@ void fragment() {
 		if (median && vin < stall_d * 2.0 && !cross) {
 			float m = vnoise(q * 0.9);
 			col = mix(vec3(0.03, 0.08, 0.025), vec3(0.07, 0.11, 0.035), m);
+			if (planting2 > 0.0) {
+				// StadiumNight: clumped shrubs and ice plant over bark mulch, not a lawn.
+				float clump = smoothstep(0.35, 0.75, vnoise(q * 0.55 + 3.1) * 0.6 + vnoise(q * 1.9) * 0.4);
+				vec3 mulch = vec3(0.07, 0.045, 0.03) * (0.8 + 0.4 * vnoise(q * 4.0));
+				col = mix(mulch, col * (0.75 + 0.5 * vnoise(q * 3.3 + 7.0)), clump);
+				col = mix(col, vec3(0.42, 0.05, 0.2), smoothstep(0.82, 0.9, vnoise(q * 3.7 + 9.0)) * clump * 0.6);
+			}
 			rough = 0.95;
 			stalls = false;
 		}
@@ -174,8 +194,15 @@ void fragment() {
 				float along = (side == 0 ? -c.y : c.y) / 2.3;
 				float glass = smoothstep(-0.55, -0.45, along) * smoothstep(0.45, 0.35, along) * step(abs(c.x), 0.78);
 				vec3 cc = mix(p, vec3(0.02, 0.025, 0.03), glass * 0.85);
+				float boxed = box_reach > 0.0 ? 1.0 - smoothstep(box_reach - 20.0, box_reach, length(v_world - CAMERA_POSITION_WORLD)) : 0.0;
+				if (boxed > 0.0) {
+					// A box car stands here: its shadow on the asphalt, soft past the body.
+					float sh = smoothstep(0.55, -0.15, max(e.x, e.y));
+					cc = mix(cc, col * 0.4, boxed);
+					body = mix(body, sh, boxed);
+				}
 				col = mix(col, cc, body);
-				rough = mix(rough, 0.3, body);
+				rough = mix(rough, 0.3, body * (1.0 - boxed));
 			}
 		}
 		// Aisle arrows' worth of wear: darker wheel tracks down the aisles.

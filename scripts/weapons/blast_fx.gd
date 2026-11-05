@@ -105,6 +105,7 @@ static func explosion(node: Node, at: Vector3, radius: float, power: float = 1.0
 		_column(parent, at, big, fuel, vol and Blast4.enabled)
 		last["debris"] = BlastDebris.spawn(node, parent, at, big, push, mini(debris_pieces + (3 if fuel else 0), max_debris))
 		last["glass"] = _glass(node, at, radius)
+		last["facade"] = Blast4.facade_response(node, at, radius)
 	last["heavy"] = heavy
 	# The fourth pass: the fuel pool, the secondary pops, the chain (Blast4).
 	last.merge(Blast4.after_blast(node, parent, at, radius, fuel, gas))
@@ -127,7 +128,7 @@ static func _flash(node: Node, parent: Node, at: Vector3, radius: float) -> void
 	var light := OmniLight3D.new()
 	light.name = "BlastFlash"
 	light.light_color = Color(1.0, 0.86, 0.66)
-	light.light_energy = flash_energy
+	light.light_energy = flash_energy * Blast4.flash_night()
 	light.omni_range = radius * flash_reach
 	light.omni_attenuation = 1.4
 	light.shadow_enabled = false
@@ -160,11 +161,13 @@ static func _flash(node: Node, parent: Node, at: Vector3, radius: float) -> void
 	flare.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	parent.add_child(flare)
 	flare.global_position = at + Vector3.UP * radius * 0.3
-	var fs := Blast3.flare_scale if Blast3.enabled else 1.0
+	var fs := (Blast3.flare_scale if Blast3.enabled else 1.0) * lerpf(1.0, 0.75, 1.0 - Blast4.flash_night())
+	# At night it starts part faded too (Blast4.flash_night()): in the dark it whited the frame out.
+	flare.transparency = 1.0 - Blast4.flash_night() * 0.9 - 0.1 if Blast4.flash_night() < 0.999 else 0.0
 	flare.scale = Vector3.ONE * radius * 2.2 * fs
 	var ft := flare.create_tween()
-	ft.tween_property(flare, "scale", Vector3.ONE * radius * 4.2 * fs, 0.09).set_ease(Tween.EASE_OUT)
-	ft.parallel().tween_property(flare, "transparency", 1.0, 0.13).set_ease(Tween.EASE_IN)
+	ft.tween_property(flare, "scale", Vector3.ONE * radius * Blast4.flare_grow() * fs, 0.09).set_ease(Tween.EASE_OUT)
+	ft.parallel().tween_property(flare, "transparency", 1.0, Blast4.flare_fade()).set_ease(Tween.EASE_IN)
 	ft.tween_callback(flare.queue_free)
 	last["flash"] = 1
 
@@ -198,7 +201,7 @@ static func _screen_flash(node: Node, at: Vector3, radius: float) -> void:
 	var d := to.length()
 	var near := clampf(1.0 - d / (radius * screen_flash_reach), 0.0, 1.0)
 	var facing := clampf(to.normalized().dot(-cam.global_basis.z) * 0.5 + 0.5, 0.0, 1.0) if d > 0.01 else 1.0
-	var peak := screen_flash * near * near * (0.35 + 0.65 * facing)
+	var peak := screen_flash * near * near * (0.35 + 0.65 * facing) * Blast4.flash_night()
 	if peak < 0.02:
 		return
 	var tree := node.get_tree()
@@ -272,9 +275,12 @@ static func _ground_kick(node: Node, parent: Node, at: Vector3, radius: float, p
 		# Linear albedo for the lit smoke material: street dust, lit by the sun or left dark at night.
 		_ground_ramp = WeaponFX._ramp([Color(0.22, 0.20, 0.17, 0.0), Color(0.20, 0.18, 0.16, 0.55),
 			Color(0.17, 0.16, 0.14, 0.25), Color(0.14, 0.13, 0.12, 0.0)])
-	WeaponFX._puff_layer(parent, ground + Vector3.UP * 0.25, WeaponFX._count(28), radius * 0.28, 0.9,
-		radius * 3.4 * push, radius * 5.0 * push, 0.4, _ground_ramp, false, 180.0, 3.4,
-		gb, 1.0, 0.3, 2.2, true, null, smoke_material())
+	# Blast4's rolling dust front (BlastAftermath -> Blast4.dust_roll()) is the dust: the kick
+	# only throws its grit then, or three layers of puffs stood up into one flat wall.
+	if not (Blast4.enabled and Blast4.dust_roll_enabled and BlastAftermath.enabled):
+		WeaponFX._puff_layer(parent, ground + Vector3.UP * 0.25, WeaponFX._count(28), radius * 0.28, 0.9,
+			radius * 3.4 * push, radius * 5.0 * push, 0.4, _ground_ramp, false, 180.0, 3.4,
+			gb, 1.0, 0.3, 2.2, true, null, smoke_material())
 	# Grit: lit dark chips skimming out low along the ground.
 	if Blast3.bits_on():
 		BlastBits.pool(node).throw_chips(ground + Vector3.UP * 0.2, WeaponFX._count(26), Vector2(radius * 1.6, radius * 3.2) * push,

@@ -2825,6 +2825,8 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	load("res://tests/rc2_river_checks.gd").new().run(self, city)
 	# The airport apron refcam (tests/rc2_airport_checks.gd, AirportApron): paint over the ground, stains, liveries.
 	await load("res://tests/rc2_airport_checks.gd").new().run(self, city)
+	# The airfield at night (tests/rc3_airport_night_checks.gd, AirportNight): floods, logo lights, landing lights.
+	await load("res://tests/rc3_airport_night_checks.gd").new().run(self, city)
 	# The container terminal refcam (tests/rc2_port_checks.gd, PortFill, PortMooring): the yard's
 	# tiers, the mast's floodlights, the ship's bow and plating, the mooring lines, dusty roofs.
 	load("res://tests/rc2_port_checks.gd").new().run(self, city)
@@ -2867,6 +2869,61 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	load("res://tests/rc2_night_aerial_checks.gd").new().run(self, city)
 	# The chase_cam review (tests/rc2_chase_cam_checks.gd, ChaseCamReview): lane wear on the asphalt.
 	load("res://tests/rc2_chase_cam_checks.gd").new().run(self, city)
+	# The pale box round the player's car (tests/chase_box_bug_checks.gd): additive shaders and the fog.
+	load("res://tests/chase_box_bug_checks.gd").new().run(self, city)
+	# The night game from the hill (tests/rc3_stadium_night_checks.gd, StadiumNight): box cars, banks, players.
+	load("res://tests/rc3_stadium_night_checks.gd").new().run(self, city)
+	# The pier_day refcam (tests/rc3_pier_day_checks.gd, PierDay): the board deck, weathering, the crowd.
+	load("res://tests/rc3_pier_day_checks.gd").new().run(self)
+	# The person close-up refcam (tests/rc3_person_closeup_checks.gd, IdleRelax, PersonCloseup): the
+	# idle's stance, the bag from the fist, hair strands and lips, the A/B, the camera row.
+	await load("res://tests/rc3_person_closeup_checks.gd").new().run(self, city)
+	# The parked car at arm's length (tests/rc3_car_closeup_checks.gd, CarCloseup): bumper trim, tyres, grime.
+	await load("res://tests/rc3_car_closeup_checks.gd").new().run(self, city)
+	# The vernon_industrial refcam (tests/rc3_vernon_industrial_checks.gd, RcVernon): worn steel,
+	# the office storefront and pop-out, the courts' asphalt and trailers, weathered tilt-up.
+	load("res://tests/rc3_vernon_industrial_checks.gd").new().run(self, city)
+	# The freeway at night refcam (tests/rc3_freeway_night_checks.gd, FreewayNight): pools, lights, tail lights.
+	await load("res://tests/rc3_freeway_night_checks.gd").new().run(self, city)
+	# The Chinatown refcam (tests/rc3_chinatown_checks.gd, Rc3Chinatown): shop rooms, lanterns, the hall.
+	load("res://tests/rc3_chinatown_checks.gd").new().run(self, city)
+	# The refinery at night refcam (tests/rc3_refinery_night_checks.gd, RefineryNight): the camera
+	# row, the flares' light on the plant, the A/B.
+	load("res://tests/rc3_refinery_night_checks.gd").new().run(self, city)
+	# The rooftop refcam (tests/rc3_rooftop_golden_checks.gd, RcRooftop, LandmarkRoofs): dressed tower roofs, the island.
+	load("res://tests/rc3_rooftop_golden_checks.gd").new().run(self, city)
+	# The oil field refcam (tests/rc3_oil_field_checks.gd, OilFieldPlanting): the hill planted, the pickups, the dirt's edge.
+	load("res://tests/rc3_oil_field_checks.gd").new().run(self, city)
+	# The golf course at 08:30 (tests/rc3_golf_morning_checks.gd, GolfMorning): the staged group,
+	# the turf's morning passes behind their switch, the course's sycamores and eucalyptus.
+	load("res://tests/rc3_golf_morning_checks.gd").new().run(self, city)
+	# The fashion_district refcam (tests/rc3_fashion_district_checks.gd): goods batched per face stretch, no planter in front.
+	load("res://tests/rc3_fashion_district_checks.gd").new().run(self, city)
+	# The marina at golden hour (tests/rc3_marina_golden_checks.gd, MarinaGolden): the water's mirror, the rigging.
+	load("res://tests/rc3_marina_golden_checks.gd").new().run(self, city)
+	# Palm crowns without the flecks (tests/palm_shimmer_checks.gd, PalmShimmer): back faces keep their
+	# normal, sub-pixel leaflets widened and kept by coverage, the switch.
+	load("res://tests/palm_shimmer_checks.gd").new().run(self, city)
+	# The ridge sign refcam (tests/rc3_ridge_sign_checks.gd, RcRidgeSign): letters, shrubs, bake, plazas.
+	load("res://tests/rc3_ridge_sign_checks.gd").new().run(self, city)
+	# The pier at night, second pass (tests/rc4_pier_night_2_checks.gd, RcPierNight / CoastExposure):
+	# the coast's exposure, the park's wash, the light on the sand and the sea, the night strollers.
+	load("res://tests/rc4_pier_night_2_checks.gd").new().run(self, city)
+	# The bonfire_night refcam (tests/rc4_bonfire_night_checks.gd): rings slid clear of palms, the glow, the moonlit sand.
+	load("res://tests/rc4_bonfire_night_checks.gd").new().run(self, city)
+	# The broadway_night refcam (tests/rc3_broadway_night_checks.gd, BroadwayNight): signs held lit,
+	# blazing marquees, brick auditorium sides, soft searchlight shafts, the camera row, the A/B.
+	load("res://tests/rc3_broadway_night_checks.gd").new().run(self, city)
+	# The canals_day refcam (tests/rc4_canals_day_checks.gd, Rc4Canals): the water, the coping, the banks.
+	load("res://tests/rc4_canals_day_checks.gd").new().run(self)
+	# The container terminal at night (tests/rc4_port_night_checks.gd, PortNight): floods, halos, windows.
+	load("res://tests/rc4_port_night_checks.gd").new().run(self, city)
+	# The four-level stack from the air (tests/rc4_stack_aerial_checks.gd, RcStack): the shade under
+	# the high connectors, the right of way's groves, the thicker columns, the rush hour.
+	load("res://tests/rc4_stack_aerial_checks.gd").new().run(self, city)
+	# The film lot refcam (tests/rc4_film_lot_checks.gd, Rc4FilmLot): the camera row, the
+	# basecamp's dressing, the studio asphalt, the batched trailers.
+	load("res://tests/rc4_film_lot_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()
@@ -3749,6 +3806,9 @@ func _test_weapons(player: Player) -> void:
 		# wakes it on its next 0.25 s look (gate run 5555: the pellets hit it, it moved 0.00 m).
 		crate.freeze = false
 		crate.sleeping = false
+		# A slowed clock left by an earlier part (a stunt's slow motion, the wheel) makes the
+		# crate crawl: this check is about the shove, so the clock runs at 1.
+		Engine.time_scale = 1.0
 		await _ticks(5)
 		player.camera_rig.look_at_point(crate.global_position)
 		await _ticks(2)
@@ -3764,6 +3824,11 @@ func _test_weapons(player: Player) -> void:
 		_check(gun.pump_amount() == 0.0, "and slides home again")
 		_check(get_tree().get_nodes_in_group("spent_shell").size() > shells_before, "the pump throws a spent shell")
 		var shoved := crate.global_position.distance_to(crate_at)
+		for i in 80:
+			if shoved > 0.3:
+				break
+			await _ticks(1)
+			shoved = maxf(shoved, crate.global_position.distance_to(crate_at))
 		_check(shoved > 0.3, "one shotgun blast throws a crate (%.2f m; aimed at %s, the crate %s)" % [shoved, aim_hit.name if aim_hit is Node else str(aim_hit), crate.name])
 		# Every pellet goes down the rifle's hit path: a prop hit straight on gets the impulse.
 		# The blast just threw this crate, so put it back and let it stand still first: a pellet

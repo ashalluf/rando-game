@@ -15,6 +15,12 @@ uniform sampler2D dirt_tex : source_color, filter_linear_mipmap_anisotropic, rep
 uniform sampler2D gravel_tex : source_color, filter_linear_mipmap_anisotropic, repeat_enable;
 
 global uniform float road_wetness;
+// RcVernon (scripts/world/rc3_vernon.gd): 1 the vernon_industrial refcam's asphalt (neutral, driven
+// tyre tracks along a court's axis in COLOR.b), 0 the look before it (RC3_VERNON=0).
+uniform float rc3 = 1.0;
+// Rc4FilmLot (scripts/world/rc4_film_lot.gd): 1 a kept lot's asphalt (the film studio's streets:
+// resurfaced, a few hairline cracks, no failed patches with weeds); 0 everywhere else.
+uniform float kept = 0.0;
 
 varying float kind;
 varying float variant;
@@ -103,11 +109,16 @@ void fragment() {
 		// Asphalt: old and grey, oxidised paler in broad patches, alligator-cracked where it has
 		// failed (weeds in the wider cracks), patched with newer darker asphalt, stained with oil.
 		vec3 a = disp(texture(asphalt_tex, p / 4.0).rgb);
+		if (rc3 > 0.5) {
+			// The asphalt photo is brown: an old court is a neutral, slightly cool grey.
+			a = mix(a, vec3(dot(a, vec3(0.3, 0.55, 0.15))), 0.78) * vec3(0.97, 0.985, 1.01);
+		}
 		float age = fbm(p * 0.05 + 3.0);
 		albedo = a * mix(0.68, 0.86, age) * vec3(1.0, 0.995, 0.98);
 		float patch_n = fbm(p * 0.045 + variant * 17.0);
 		float patch_ = smoothstep(0.655, 0.675, patch_n);
 		float failed = smoothstep(0.52, 0.66, fbm(p * 0.06 + 11.0 + variant * 5.0)) * (1.0 - patch_);
+		failed *= 1.0 - 0.9 * kept;
 		// The pixel's footprint on the ground: the LONGER axis, since a grazing view stretches it.
 		float foot = length(vec2(length(dFdx(p)), length(dFdy(p))));
 		float cd = crack_dist(p + vec2(vnoise(p * 0.8), vnoise(p * 0.8 + 3.0)) * 0.5, 0.9);
@@ -117,15 +128,36 @@ void fragment() {
 		float fade = 1.0 - smoothstep(0.006, 0.025, foot);
 		float crack = (1.0 - smoothstep(crack_w, crack_w + foot, cd)) * fade * failed;
 		float cd2 = crack_dist(p * vec2(1.0, 0.35), 7.0);
-		crack = max(crack, (1.0 - smoothstep(0.008, 0.008 + foot, cd2)) * fade * 0.7 * (1.0 - patch_));
+		// The long cracks were a 7 m net over the whole court, weeds in every one: a few, fainter.
+		float long_k = rc3 > 0.5 ? 0.38 * smoothstep(0.35, 0.65, vnoise(p * 0.08 + 5.0)) : 0.7;
+		long_k *= 1.0 - 0.75 * kept;
+		crack = max(crack, (1.0 - smoothstep(0.008, 0.008 + foot, cd2)) * fade * long_k * (1.0 - patch_));
 		albedo *= 1.0 - 0.55 * crack;
 		albedo *= 1.0 - 0.06 * failed * (1.0 - fade);
 		float tuft = smoothstep(0.45, 0.8, vnoise(p * 4.0)) * (1.0 - smoothstep(crack_w + 0.03, crack_w + 0.12, cd)) * failed;
 		albedo = mix(albedo, weed * (0.6 + 0.7 * vnoise(p * 17.0)), tuft * mix(0.35, 0.75, fade));
 		albedo = mix(albedo, a * 0.55, patch_ * 0.85);
 		float oil = smoothstep(0.64, 0.8, fbm(p * 0.3 + 21.0));
+		float track = 0.0;
+		if (rc3 > 0.5 && centre_mod > 0.1) {
+			// Trucks back straight in to the docks: rubber laid in wheel paths along the court's
+			// axis (dual wheels ~1.9 m apart, a path every dock pitch, wandering), fine skid
+			// streaks in them, oil dripped down the middle of each path.
+			bool along_z = centre_mod < 2.1;
+			float al = along_z ? p.y : p.x;
+			float ac = along_z ? p.x : p.y;
+			ac += (vnoise(vec2(al * 0.05, 3.0)) - 0.5) * 1.6;
+			float lane = fract(ac / 4.25 + 0.5) - 0.5;
+			float wheel = abs(abs(lane * 4.25) - 0.95);
+			float path = (1.0 - smoothstep(0.18, 0.55, wheel)) * (0.55 + 0.45 * vnoise(vec2(al * 0.12, ac * 0.4)));
+			float streak = smoothstep(0.55, 0.85, vnoise(vec2(ac * 7.0, al * 0.06))) * (1.0 - smoothstep(0.1, 0.6, wheel));
+			track = clamp(path * 0.75 + streak * 0.35, 0.0, 1.0) * (1.0 - smoothstep(0.02, 0.08, foot) * 0.4);
+			float drip = (1.0 - smoothstep(0.25, 0.6, abs(lane * 4.25))) * smoothstep(0.55, 0.8, vnoise(p * 0.9 + 7.0));
+			oil = max(oil, drip * 0.8);
+			albedo *= 1.0 - 0.24 * track;
+		}
 		albedo *= 1.0 - 0.3 * oil;
-		rough = mix(0.9, 0.78, oil);
+		rough = mix(mix(0.9, 0.78, oil), 0.72, track * 0.5);
 	} else if (kind < 1.5) {
 		// Concrete apron: 4.5 m slabs with saw joints, darker drips under the trailers' doors,
 		// rust rings from the landing gear, cracks across a few slabs.

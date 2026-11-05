@@ -235,6 +235,8 @@ static func material() -> ShaderMaterial:
 	if _material == null:
 		_material = ShaderMaterial.new()
 		_material.shader = load("res://shaders/fashion_goods.gdshader")
+		# Folded stock's creases (rc3-fashion-district); FD_FOLDS=0 the old flat slabs.
+		_material.set_shader_parameter("folded_detail", 0.0 if OS.get_environment("FD_FOLDS") == "0" else 1.0)
 	return _material
 
 

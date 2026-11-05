@@ -16,12 +16,14 @@ static var pool_radius: float = 3.1
 static var flame_count: int = 46
 
 static var _pools: Array = []
+static var _trails: Array = []
 static var _shader: Shader
 
 var life: float = 18.0
 var radius: float = 3.0
 var age: float = 0.0
 var gas: bool = false
+var stretch: float = 1.0
 var _mat: ShaderMaterial
 var _flames: CPUParticles3D
 var _tall: CPUParticles3D
@@ -31,26 +33,35 @@ var _sound: AudioStreamPlayer3D
 
 
 ## A pool under `at` (global; the ground is found by a ray). Null when there is no ground in reach.
-static func spawn(node: Node, parent: Node, at: Vector3, blast_radius: float, is_gas: bool = false) -> BlastPool:
+## `yaw` / `stretch` lay a tongue of fuel (stretched along x, turned by yaw): Blast4.fuel_trail().
+static func spawn(node: Node, parent: Node, at: Vector3, blast_radius: float, is_gas: bool = false, yaw: float = 0.0, stretch: float = 1.0) -> BlastPool:
 	var space := WeaponFX._space(node)
 	if space == null:
 		return null
 	var hit := space.intersect_ray(PhysicsRayQueryParameters3D.create(at + Vector3.UP * 1.5, at - Vector3.UP * 6.0, 1))
 	if hit.is_empty():
 		return null
-	_pools = _pools.filter(func(p): return is_instance_valid(p) and not (p as Node).is_queued_for_deletion())
-	while _pools.size() >= max_pools:
-		var old: BlastPool = _pools.pop_front()
+	var trail := stretch > 1.2
+	# A trail (Blast4.fuel_trail) is the main pool's: capped on its own list, no light of its own.
+	var list: Array = _trails if trail else _pools
+	list = list.filter(func(p): return is_instance_valid(p) and not (p as Node).is_queued_for_deletion())
+	while list.size() >= (max_pools * 2 if trail else max_pools):
+		var old: BlastPool = list.pop_front()
 		old.life = minf(old.life, old.age + 1.5)
+	if trail:
+		_trails = list
+	else:
+		_pools = list
 	var p := BlastPool.new()
 	p.name = "BlastPool"
 	p.gas = is_gas
+	p.stretch = stretch
 	p.radius = pool_radius * clampf(blast_radius / 7.0, 0.6, 1.8)
 	p.life = randf_range(life_range.x, life_range.y) * (0.75 if is_gas else 1.0)
 	parent.add_child(p)
 	p.global_position = (hit.position as Vector3) + (hit.normal as Vector3) * 0.03
-	p.global_basis = WeaponFX._basis_up(hit.normal)
-	_pools.append(p)
+	p.global_basis = WeaponFX._basis_up(hit.normal) * Basis(Vector3.UP, -yaw)
+	(_trails if trail else _pools).append(p)
 	return p
 
 
@@ -75,6 +86,7 @@ func _ready() -> void:
 	var mi := MeshInstance3D.new()
 	mi.name = "Puddle"
 	mi.mesh = quad
+	mi.scale = Vector3(stretch, 1.0, 1.0 / sqrt(stretch))
 	_mat = material()
 	_mat.set_shader_parameter("seed", Vector2(randf() * 9.0, randf() * 9.0))
 	_mat.set_shader_parameter("radius", radius)
@@ -122,11 +134,11 @@ func _ready() -> void:
 	_embers.mesh = eq
 	_embers.custom_aabb = AABB(Vector3(-12.0, -2.0, -12.0), Vector3(24.0, 24.0, 24.0))
 	add_child(_embers)
-	if not WeaponFX._web():
+	if not WeaponFX._web() and stretch <= 1.2:
 		_light = OmniLight3D.new()
 		_light.name = "PoolLight"
 		_light.light_color = Color(1.0, 0.5, 0.17)
-		_light.omni_range = radius * 4.5
+		_light.omni_range = radius * 4.5 * Blast4.fire_night_range()
 		_light.omni_attenuation = 1.3
 		_light.distance_fade_enabled = true
 		_light.distance_fade_begin = 110.0
@@ -166,6 +178,7 @@ func _flame_system(sys_name: String, amount: int, quad_size: Vector2) -> CPUPart
 	quad.size = quad_size
 	quad.center_offset = Vector3(0.0, (quad_size.y - quad_size.x) * 0.5, 0.0)
 	quad.material = CarDamage.fire_material()
+	Blast4.tongue_quad(quad)
 	p.mesh = quad
 	p.custom_aabb = AABB(Vector3(-12.0, -2.0, -12.0), Vector3(24.0, 16.0, 24.0))
 	add_child(p)
@@ -196,7 +209,12 @@ func _apply(_delta: float) -> void:
 	var on := b > 0.03
 	for s: CPUParticles3D in [_flames, _tall]:
 		s.emitting = on
-		s.emission_ring_radius = r * (0.8 if s == _flames else 0.55)
+		if stretch > 1.2:
+			# A tongue of fuel: the flames along its length.
+			s.emission_shape = CPUParticles3D.EMISSION_SHAPE_BOX
+			s.emission_box_extents = Vector3(r * stretch * 0.62, 0.05, r * 0.55 / sqrt(stretch)) * (1.0 if s == _flames else 0.7)
+		else:
+			s.emission_ring_radius = r * (0.8 if s == _flames else 0.55)
 	_flames.initial_velocity_min = 0.3
 	_flames.initial_velocity_max = 0.8 + 0.6 * size
 	_flames.gravity = Vector3(0.2, 1.4 + 1.0 * size, 0.0)
@@ -213,7 +231,7 @@ func _apply(_delta: float) -> void:
 	if _light != null:
 		var t := age
 		var f := 0.78 + 0.22 * sin(t * 37.0) * sin(t * 13.0 + 0.7) + 0.06 * sin(t * 91.0)
-		_light.light_energy = 6.5 * b * f
+		_light.light_energy = 6.5 * b * f * Blast4.fire_night_gain()
 		_light.visible = b > 0.01
 	if _sound != null:
 		_sound.volume_db = linear_to_db(maxf(b, 0.001)) - 1.0

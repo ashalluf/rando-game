@@ -43,6 +43,12 @@ func run(t: Node, city: Node3D) -> void:
 	await _fuel(parent, at + Vector3(0.0, 0.0, 70.0))
 	_web_pop(parent)
 	await _chain()
+	_round4(parent)
+	await _round5(parent)
+	_round6(parent)
+	_round7(parent)
+	_round8()
+	await _round9()
 	for c in parent.get_children():
 		if not before.has(c) and c != _deck and not (c is BlastBits):
 			c.queue_free()
@@ -144,7 +150,7 @@ func _fuel(parent: Node, at: Vector3) -> void:
 	_t._check(int(made.get("secondaries", 0)) >= Blast4.secondary_count.x, "explosions_4: secondary pops are set (%d)" % int(made.get("secondaries", 0)))
 	var pool: BlastPool = null
 	for c in parent.get_children():
-		if c is BlastPool and not c.is_queued_for_deletion() and (c as Node3D).global_position.distance_to(at) < 8.0:
+		if c is BlastPool and not c.is_queued_for_deletion() and (c as BlastPool).stretch <= 1.2 and (c as Node3D).global_position.distance_to(at) < 8.0:
 			pool = c
 	_t._check(pool != null and absf(pool.global_position.y - _top.y) < 0.2, "explosions_4: the pool lies ON the deck")
 	if pool == null:
@@ -212,3 +218,145 @@ func _chain() -> void:
 		if is_instance_valid(car):
 			car.queue_free()
 	await _ticks(2)
+
+
+## Round 4: the rolling dust front, the plume's value range, the debris chunks, the smaller flare.
+func _round4(parent: Node) -> void:
+	var n0 := parent.get_child_count()
+	var rolled := Blast4.dust_roll(parent, _top, Vector3.UP, 28.0)
+	_t._check(rolled and parent.get_child_count() >= n0 + 2, "explosions_4: the dust rolls out as its own layers")
+	_t._check(FileAccess.get_file_as_string("res://scripts/weapons/blast_aftermath.gd").contains("Blast4.dust_roll("),
+		"explosions_4: the aftermath's dust wave hands over to the rolling front")
+	var vs := FileAccess.get_file_as_string("res://shaders/blast_volume.gdshader")
+	_t._check(vs.contains("uniform float value4 = 0.0;") and vs.contains("value4 * 0.9 * smoothstep(1.5, 6.0, t)"),
+		"explosions_4: the plume's value range is in the volume (off by default)")
+	var m := ShaderMaterial.new()
+	m.shader = load("res://shaders/blast_volume.gdshader")
+	Blast4.dress_volume(m, false, false)
+	_t._check(float(m.get_shader_parameter("value4")) == (Blast4.value_range if Blast4.value_enabled else 0.0),
+		"explosions_4: a volume is dressed with the value range")
+	var pm := Blast4.panel_mesh()
+	_t._check(pm != null and pm.get_surface_count() == 1 and pm.get_aabb().size.x > 0.9, "explosions_4: the torn panel chunk is built")
+	_t._check(Blast4.flare_grow() < 4.2 and Blast4.flare_fade() < 0.13, "explosions_4: the flare is smaller and shorter")
+
+
+## Round 5: the fires' underlight on the smoke, the stem held, the wreck's side flames and the
+## fuel trail, the crater's soft soot and cracks.
+func _round5(parent: Node) -> void:
+	var vs := FileAccess.get_file_as_string("res://shaders/blast_volume.gdshader")
+	_t._check(vs.contains("uniform float under4 = 0.0;") and vs.contains("uniform float stem_hold = 0.0;"),
+		"explosions_4: the underlight and the stem hold are in the volume (off by default)")
+	var m := ShaderMaterial.new()
+	m.shader = load("res://shaders/blast_volume.gdshader")
+	Blast4.dress_volume(m, true, false)
+	_t._check(float(m.get_shader_parameter("under4")) == (Blast4.underlight_gain if Blast4.underlight_enabled else 0.0)
+		and float(m.get_shader_parameter("stem_hold")) == (1.0 if Blast4.stem_enabled else 0.0),
+		"explosions_4: a volume is dressed with the underlight and the stem hold")
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 505
+	var car := Vehicle.random_car(rng)
+	_city.add_child(car)
+	car.global_position = _top + Vector3(-80.0, 1.0, 0.0)
+	await _ticks(2)
+	var f := Blast4.side_flames(car)
+	_t._check(f != null and f.get_parent() == car and f.emission_points.size() >= 16,
+		"explosions_4: flames climb the wreck's sides from points round its sills")
+	var pool := BlastPool.spawn(car, parent, _top + Vector3(-90.0, 0.5, 0.0), 3.5, false, 1.0, 2.6)
+	_t._check(pool != null and is_equal_approx(pool.stretch, 2.6), "explosions_4: a fuel trail is a stretched pool")
+	if pool != null:
+		pool.queue_free()
+	car.queue_free()
+	await _ticks(2)
+	_t._check(FileAccess.get_file_as_string("res://scripts/weapons/blast_3.gd").contains("Blast4.crater_smooth"),
+		"explosions_4: the crater's soot and cracks can be smooth")
+
+
+## Round 6: flames as licking tongues, the crater's pit with depth, a lip and rubble.
+func _round6(parent: Node) -> void:
+	var q := QuadMesh.new()
+	q.size = Vector2(1.0, 1.0)
+	Blast4.tongue_quad(q)
+	if Blast4.tongues():
+		_t._check(q.size.y > q.size.x and q.material is ShaderMaterial
+			and (q.material as ShaderMaterial).shader.resource_path.ends_with("flame_tongue.gdshader"),
+			"explosions_4: a flame card is a tall tongue on the flame shader")
+	else:
+		_t._check(q.size == Vector2.ONE, "explosions_4: the flame tongues stay off when switched off")
+	var fs := FileAccess.get_file_as_string("res://shaders/flame_tongue.gdshader")
+	_t._check(fs.contains("INV_VIEW_MATRIX") and fs.contains("climb"), "explosions_4: the flame tongue stands upright and climbs")
+	var mark := Node3D.new()
+	parent.add_child(mark)
+	mark.global_position = _top + Vector3(-40.0, 0.0, 30.0)
+	var dressed := Blast4.pit_dress(mark, 1.7)
+	_t._check(dressed == Blast4.pit_enabled and (not dressed or (mark.get_node_or_null("PitBowl") != null
+		and mark.get_node_or_null("PitLip") != null and mark.get_node_or_null("PitRubble") != null)),
+		"explosions_4: the pit has a traced bowl, a lip and loose rubble")
+	_t._check(Blast4.lip_height(1.2, 2.0) > 0.0 and Blast4.lip_height(0.5, 2.0) == 0.0,
+		"explosions_4: the lip stands round the opening, not over it")
+	mark.queue_free()
+	var qm := ShaderMaterial.new()
+	qm.shader = load("res://shaders/blast_volume.gdshader")
+	Blast4.dress_volume(qm, false, false)
+	_t._check(float(qm.get_shader_parameter("quiet4")) == (Blast4.quiet_jitter if Blast4.quiet_enabled else 0.0)
+		and FileAccess.get_file_as_string("res://shaders/blast_volume.gdshader").contains("jit = 0.5 + (jit - 0.5) * quiet4;"),
+		"explosions_4: the march's jitter is narrowed (TAA does not clear it)")
+
+
+## Round 7: the violent first half second, smoke ribbons behind debris, the shop fronts answer.
+func _round7(parent: Node) -> void:
+	var vs := FileAccess.get_file_as_string("res://shaders/blast_volume.gdshader")
+	var m := ShaderMaterial.new()
+	m.shader = load("res://shaders/blast_volume.gdshader")
+	Blast4.dress_volume(m, true, false)
+	_t._check(vs.contains("uniform float core4 = 0.0;") and vs.contains("vec3 blackbody4(float k)")
+		and float(m.get_shader_parameter("core4")) == (1.0 if Blast4.core_enabled else 0.0),
+		"explosions_4: the young ball's heat follows its depth (core4, off by default)")
+	var r := Blast4.ribbon_material()
+	_t._check(r != null and r.transparency == BaseMaterial3D.TRANSPARENCY_ALPHA, "explosions_4: the debris smoke ribbons have their material")
+	var bs := FileAccess.get_file_as_string("res://scripts/weapons/blast_debris.gd")
+	_t._check(bs.contains("_ribbon.global_transform = Transform3D(Basis(), global_position)"),
+		"explosions_4: the ribbons' box sits at the blast (at the world origin they were culled)")
+	var got: Array = Blast4.facade_response(_city, _top + Vector3(0.0, 1.0, -120.0), 9.0)
+	_t._check(got.size() == 2 and int(got[0]) >= 0, "explosions_4: the shop fronts' response runs (%d awnings, %d signs)" % [int(got[0]), int(got[1])])
+
+
+## Round 8: the flesh cools faster than the heart; the dust is darker near the ground.
+func _round8() -> void:
+	var vs := FileAccess.get_file_as_string("res://shaders/blast_volume.gdshader")
+	_t._check(vs.contains("temp * temp * 1.12, core4 * smoothstep(0.04, 0.14, t)"),
+		"explosions_4: the young ball's flesh cools to orange-red under its white heart")
+	var m := ShaderMaterial.new()
+	m.shader = load("res://shaders/blast_volume.gdshader")
+	Blast4.dress_volume(m, false, false)
+	var d: Vector3 = m.get_shader_parameter("dust")
+	_t._check(not Blast4.dark_dust or d.x < 0.15, "explosions_4: the volume's dust ring is darker (%.3f)" % d.x)
+
+
+## Round 9: the shock ring kicks loose bodies outside the radius when the wave reaches them.
+func _round9() -> void:
+	var body := RigidBody3D.new()
+	body.collision_layer = 4
+	body.collision_mask = 1
+	var cs := CollisionShape3D.new()
+	var bs := BoxShape3D.new()
+	bs.size = Vector3(0.6, 1.0, 0.6)
+	cs.shape = bs
+	body.add_child(cs)
+	_city.add_child(body)
+	var at := _top + Vector3(60.0, 1.0, -60.0)
+	body.global_position = at + Vector3(12.0, 0.5, 0.0)
+	await _ticks(3)
+	var n := Blast4.shock_kick(_city, at, 9.0)
+	await _ticks(8)
+	_t._check(not Blast4.shock_enabled or (n >= 1 and body.linear_velocity.x > 0.5),
+		"explosions_4: the shock ring kicks a loose body outside the radius outward (%d, %.2f m/s)" % [n, body.linear_velocity.x])
+	body.queue_free()
+	_t._check(Blast4.flash_night() <= 1.0 and Blast4.flash_night() >= Blast4.night_flash - 0.001
+		and Blast4.fire_night_gain() >= 1.0 and Blast4.fire_night_range() >= 1.0,
+		"explosions_4: night holds the flash down and lifts the fires (%.2f, %.2f)" % [Blast4.flash_night(), Blast4.fire_night_gain()])
+	var vm := ShaderMaterial.new()
+	vm.shader = load("res://shaders/blast_volume.gdshader")
+	Blast4.dress_volume(vm, true, false)
+	_t._check(float(vm.get_shader_parameter("night4")) == (1.0 if Blast4.night_enabled else 0.0)
+		and FileAccess.get_file_as_string("res://scripts/weapons/blast_debris.gd").contains("air_points.append(p.pos)"),
+		"explosions_4: night darkens the smoke's crowns; flying debris streaks, landed debris stands in tongues")

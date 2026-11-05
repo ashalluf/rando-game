@@ -145,9 +145,28 @@ func _built(city: Node3D, plan: CityPlan) -> void:
 			if first and k == downtown[0] or first and not midtown.is_empty() and k == midtown[0]:
 				var twin: CityChunk = city._new_chunk(k, CityChunk.Level.FULL)
 				twin.build()
-				same_plan = same_plan and _sig(twin.get_meta("street_clutter_2", {})) == _sig(out)
+				var twin_same: bool = _sig(twin.get_meta("street_clutter_2", {})) == _sig(out)
 				twin.get_parent().remove_child(twin)
 				twin.free()
+				if not twin_same:
+					# The rolls read the hour and the weekday: a build that crosses a boundary
+					# rolls differently (batch 47 shard 2). Judge two builds with them held.
+					var fh: float = StreetClutter2.force_hour
+					var fd: int = StreetClutter2.force_day
+					StreetClutter2.force_hour = 21.0
+					StreetClutter2.force_day = 2
+					var sigs: Array = []
+					for _n in 2:
+						var t2: CityChunk = city._new_chunk(k, CityChunk.Level.FULL)
+						t2.build()
+						sigs.append(_sig(t2.get_meta("street_clutter_2", {})))
+						t2.get_parent().remove_child(t2)
+						t2.free()
+					StreetClutter2.force_hour = fh
+					StreetClutter2.force_day = fd
+					twin_same = sigs[0] == sigs[1]
+					print("STREET_CLUTTER_2 twin differed; with the hour held the two builds match: %s" % twin_same)
+				same_plan = same_plan and twin_same
 			var sig := _signature(chunk)
 			chunk.get_parent().remove_child(chunk)
 			chunk.free()

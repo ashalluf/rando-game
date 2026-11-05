@@ -20,7 +20,7 @@ uniform float spread = 1.0;
 uniform float burn = 1.0;
 uniform float age = 0.0;
 // The burning surface's light (linear HDR) and the wet fuel's / the soot's albedo.
-uniform vec3 flame = vec3(2.2, 0.78, 0.12);
+uniform vec3 flame = vec3(1.9, 0.95, 0.16);
 uniform vec3 wet = vec3(0.016, 0.014, 0.013);
 uniform vec3 soot = vec3(0.022, 0.02, 0.018);
 
@@ -35,7 +35,7 @@ void fragment() {
 	// A ragged outline: fingers of fuel run out further in some directions.
 	float edge = n2(vec2(cos(ang), sin(ang)) * 0.22 + seed * 0.1, 0.37) ;
 	float lobes = n2(q * 0.19 + seed, 0.71);
-	float reach = spread * (0.62 + 0.55 * edge + 0.25 * (lobes - 0.5));
+	float reach = spread * (0.55 + 0.48 * edge + 0.22 * (lobes - 0.5));
 	float rr = r / max(reach, 0.02);
 	float puddle = 1.0 - smoothstep(0.86, 1.0, rr);
 	// Islands of dry road inside it, near its edge.
@@ -46,7 +46,7 @@ void fragment() {
 	// The burning surface: patches of flame that roll and flicker over the fuel.
 	float fp = n2(q * 0.42 + seed + vec2(age * 0.07, -age * 0.05), age * 0.12);
 	float ff = n2(q * 1.3 + seed * 1.7 - vec2(age * 0.21, age * 0.17), age * 0.35 + 0.5);
-	float patch = smoothstep(0.42, 0.68, fp * 0.65 + ff * 0.45) * puddle;
+	float patch = smoothstep(0.5, 0.74, fp * 0.65 + ff * 0.45) * puddle;
 	float flick = 0.75 + 0.25 * sin(age * 23.0 + ff * 12.0);
 	// Thin fuel near the edge burns out first.
 	float depth = clamp(1.0 - rr, 0.0, 1.0);
@@ -54,9 +54,11 @@ void fragment() {
 	float wetness = puddle * clamp(burn * 1.6 + 0.15, 0.0, 1.0);
 	vec3 alb = mix(soot, wet, wetness);
 	ALBEDO = cs_out(alb);
-	ROUGHNESS = mix(0.92, 0.12, wetness);
+	// Burning fuel's surface is broken by the fire and filmed with soot: it does not mirror the
+	// sky (a glossy burning patch read lilac under a blue sky).
+	ROUGHNESS = mix(0.92, mix(0.12, 0.6, clamp(burn * 1.5, 0.0, 1.0)), wetness);
 	SPECULAR = 0.5;
 	// The flame-light on the fuel, and a dull red glow from the hot fuel under it.
-	EMISSION = flame * lit + vec3(0.35, 0.06, 0.008) * puddle * burn * burn * (0.4 + 0.6 * fp);
-	ALPHA = clamp(max(wetness, scorch) + lit, 0.0, 1.0) * smoothstep(1.3, 1.2, r);
+	EMISSION = flame * lit + vec3(0.3, 0.11, 0.02) * puddle * burn * burn * (0.4 + 0.6 * fp);
+	ALPHA = clamp(max(wetness, scorch) + lit, 0.0, 1.0) * smoothstep(1.3, 1.02, r);
 }

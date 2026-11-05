@@ -4,6 +4,7 @@ render_mode cull_disabled;
 #include "res://shaders/tree_wind.gdshaderinc"
 #include "res://shaders/tree_light.gdshaderinc"
 #include "res://shaders/camera_fade.gdshaderinc"
+#include "res://shaders/color_space.gdshaderinc"
 
 // Wind sway and light for the generated foliage (palms). Nothing in this city moved except the
 // grass, and a street of palms standing dead still is one of the things that reads as "model"
@@ -79,6 +80,19 @@ uniform float inner_shade : hint_range(0.0, 1.0) = 0.42;
 /// The trunk's leaf-scar rings and fibre as a bump (no texture: the trunk is vertex colours).
 uniform float bark_relief : hint_range(0.0, 3.0) = 1.0;
 
+// --- Palm shimmer (palm-shimmer, 2026-11-02; PalmShimmer). 0 = as it was (the A/B) -----------
+uniform float palm_shimmer : hint_range(0.0, 1.0) = 1.0;
+/// A leaflet narrower than this many pixels is widened to it along its blade (PalmShimmer).
+uniform float leaf_min_px : hint_range(0.0, 4.0) = 1.5;
+/// ...but never more than this many times its own width.
+uniform float leaf_max_widen : hint_range(1.0, 8.0) = 4.0;
+/// How much darker a leaflet reads seen from under its face (the camera on the side its normal
+/// leans away from): worked out from the normal and the view, never the winding, so both ranks of
+/// a frond agree and a crown shades as a mass - lit over the top, deeper underneath.
+uniform float leaf_under_shade : hint_range(0.0, 1.0) = 0.24;
+/// The share of its widened blade a leaflet really covers (1 = not widened, or not a leaflet).
+varying float leaf_cover;
+
 varying float leaf_out;
 varying vec3 rest_pos;
 
@@ -95,6 +109,23 @@ uniform float sky_through : hint_range(0.0, 2.0) = 0.2;
 
 
 void vertex() {
+	// Leaflets under a pixel wide (palm-shimmer): widened across the blade to `leaf_min_px`,
+	// at rest before the wind moves them, and kept by their true coverage in the fragment.
+	// CUSTOM0.xyz is the vertex's offset from the leaflet's centre line (0 at the tip), w 1 on a
+	// leaflet. Not in an orthographic (directional shadow) pass: a shadow map wants the leaf.
+	leaf_cover = 1.0;
+	if (palm_shimmer > 0.5 && CUSTOM0.w > 0.5 && PROJECTION_MATRIX[3][3] < 0.5 && dot(CUSTOM0.xyz, CUSTOM0.xyz) > 1e-10) {
+		vec3 vp = (MODELVIEW_MATRIX * vec4(VERTEX, 1.0)).xyz;
+		vec3 ov = mat3(MODELVIEW_MATRIX) * CUSTOM0.xyz;
+		vec3 ray = normalize(vp);
+		// The blade's width as the camera sees it (its part square to the view ray), in pixels.
+		float vh = VIEWPORT_SIZE.y > 16.0 ? VIEWPORT_SIZE.y : 1080.0;
+		float px_m = 2.0 * max(-vp.z, 0.01) / max(abs(PROJECTION_MATRIX[1][1]) * vh, 1e-4);
+		float width_px = 2.0 * length(ov - dot(ov, ray) * ray) / px_m;
+		float k = clamp(leaf_min_px / max(width_px, 1e-5), 1.0, leaf_max_widen);
+		VERTEX += CUSTOM0.xyz * (k - 1.0);
+		leaf_cover = 1.0 / k;
+	}
 	vec3 origin = MODEL_MATRIX[3].xyz;
 	float phase = origin.x * 0.31 + origin.z * 0.23;
 	float w = clamp(max(wind_factor, 0.25), 0.0, 3.0);
@@ -168,8 +199,32 @@ void fragment() {
 	if (cf_gone(VERTEX, FRAGCOORD.xy, PROJECTION_MATRIX)) {
 		discard;
 	}
+	// Every face keeps the mesh's normal (palm-shimmer): Godot turns a back face's normal to the
+	// camera, and the two ranks of a frond are wound opposite ways (one mirrors the other), so
+	// from any side one rank of leaflets faced away from the sky and drew near-black - every
+	// second leaflet of a sunlit crown dark, the crown a field of dark flecks that crawled.
+	if (palm_shimmer > 0.5) {
+		if (!FRONT_FACING) {
+			NORMAL = -NORMAL;
+		}
+		// A widened leaflet kept by the share it really covers: a per-frame dither on Forward+,
+		// which TAA resolves to that share; whole on Compatibility (no temporal pass to resolve a
+		// dither: it would crawl), where the far crown is a touch denser instead.
+#if CURRENT_RENDERER == RENDERER_FORWARD_PLUS
+		if (leaf_cover < 0.999) {
+			float n = fract(sin(dot(FRAGCOORD.xy + vec2(fract(TIME * 7.13) * 61.0, fract(TIME * 3.71) * 37.0), vec2(12.9898, 78.233))) * 43758.5453);
+			if (n > leaf_cover) {
+				discard;
+			}
+		}
+#endif
+	}
 	float wet = clamp(road_wetness, 0.0, 1.0);
-	vec3 albedo = COLOR.rgb * mix(1.0, 0.86, wet);
+	// The palm's vertex colours are display numbers (tuned on Compatibility, which lights them as
+	// they are); Forward+ reads a vertex colour as LINEAR, so there the whole tree drew about twice
+	// as bright - hidden while every second leaflet was black (palm-shimmer: decoded there now).
+	vec3 base_col = palm_shimmer > 0.5 ? cs_as_uniform(COLOR.rgb) : COLOR.rgb;
+	vec3 albedo = base_col * mix(1.0, 0.86, wet);
 	if (burnt > 0.0) {
 		// Burnt back from the tips: a leaflet out past the crown's first metre goes in 25 cm
 		// cells, the further out the likelier, leaving black ribs and stubs round the head.
@@ -186,6 +241,10 @@ void fragment() {
 	}
 	float occl = 1.0;
 	bool frond = COLOR.g > COLOR.r * 0.95;
+	if (palm_shimmer > 0.5 && frond) {
+		float under = clamp(-dot(NORMAL, VIEW) * 2.5, 0.0, 1.0);
+		albedo *= 1.0 - leaf_under_shade * under;
+	}
 	bool trunk = !frond && length(rest_pos.xz) < 0.5 && COLOR.r - COLOR.b < 0.2;
 	if (closeup > 0.5) {
 		if (frond) {

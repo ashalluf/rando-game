@@ -46,7 +46,7 @@ static func attach(ch: CityChunk) -> Array[Callable]:
 
 static func _claim(ch: CityChunk, ids: Array) -> void:
 	var seed := ch.plan.seed
-	RockFar.claim(seed, ids)
+	RockFar.claim(seed, ids, RcRidgeSign.tor_drops(ch, ids))
 	ch.set_meta("rock_claims", ids)
 	ch.tree_exiting.connect(func() -> void: RockFar.release(seed, ids), CONNECT_ONE_SHOT)
 

@@ -40,6 +40,10 @@ uniform vec2 island_town = vec2(-24.6, 8.1);
 uniform vec2 island_town_out = vec2(0.8, -0.6);
 /// Night lights (0 by day, 1 at night): the town, the coast road, the beacon.
 uniform float island_lights = 0.0;
+/// RcRooftop (refcam3 rooftop_golden): 1 lays the island against a low sun as the air does - its
+/// land's colour gone in the haze, a soft, cool, low-contrast silhouette - not a hard dark brown
+/// cut-out. 0 is the old look exactly.
+uniform float island_soft = 0.0;
 /// A seed for the shape (OffshoreIsland: from nothing the city rolls: the island is fixed).
 uniform float island_seed = 3.7;
 
@@ -204,6 +208,16 @@ vec3 island_draw(vec3 col, vec3 dir, vec3 sdir, vec3 sun_light, float sun_up, fl
 	// darkest against the glow.
 	vec3 air = col * mix(0.92, 0.5, low_sun) * (1.0 - 0.55 * glare);
 	vec3 isl = mix(lit, air, clamp(ihaze * (1.0 - 0.35 * low_sun) * (1.0 - 0.45 * glare), 0.0, 1.0));
+	if (island_soft > 0.0) {
+		// Against a low sun the air in front is the whole island: the haze is not cut back (the
+		// land's brown showed through it), and that air is a greyer, cooler copy of the sky.
+		float k = island_soft * low_sun;
+		float lum = dot(air, vec3(0.2126, 0.7152, 0.0722));
+		vec3 sil = mix(air, vec3(lum) * vec3(0.92, 0.95, 1.06), 0.55);
+		isl = mix(isl, mix(lit, sil, clamp(ihaze, 0.0, 1.0)), k);
+		// The skyline softened over a few pixels by the same air.
+		cover = mix(cover, clamp((top - s) / (pix * 3.0) + 0.5, 0.0, 1.0) * clamp((s - sea) / (pix * 2.0) + 0.5, 0.0, 1.0), k);
+	}
 	// Lights after dark.
 	if (!cubemap && island_lights > 0.002) {
 		vec2 town_rel = island_town - e;

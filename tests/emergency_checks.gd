@@ -321,6 +321,21 @@ func _fire_call(player: Player) -> void:
 ## stretcher, they take it away and leave.
 func _down_call(player: Player) -> void:
 	var at := _road_point(40.0, _plan.road_width(CityPlan.AXIS_X, 0) * 0.5 + 2.0)
+	# A spot with nothing standing on the pavement: the body landed 0.57 m up on something there (a
+	# stall, a cart, a bench: what stands on a pavement goes with the hour and the day) and the medic
+	# pushing the cot could not step up to it (shuffled gate 15303).
+	var space := player.get_world_3d().direct_space_state
+	for k in 10:
+		var cand := _road_point(40.0 + 5.0 * k, _plan.road_width(CityPlan.AXIS_X, 0) * 0.5 + 2.0)
+		var q := PhysicsShapeQueryParameters3D.new()
+		var box := BoxShape3D.new()
+		box.size = Vector3(3.0, 1.6, 3.0)
+		q.shape = box
+		q.collision_mask = 1 | 4
+		q.transform = Transform3D(Basis.IDENTITY, _ws.to_local(cand) + Vector3.UP * (CityChunk.SIDEWALK_TOP - CityChunk.ROAD_TOP + 0.25 + 0.8))
+		if space.intersect_shape(q, 1).is_empty():
+			at = cand
+			break
 	player.global_position = _ws.to_local(_road_point(70.0, -6.0)) + Vector3.UP * 1.0
 	var ped := Pedestrian.new()
 	ped.set_meta("no_trim", true) # never trimmed or borrowed by the live crowd systems

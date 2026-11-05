@@ -14,6 +14,8 @@ var plan_ref: CityPlan
 var z_lo: float = 0.0
 var z_hi: float = 0.0
 var _to_water: bool = true
+## In street clothes, not swimwear (the night's strollers by a lit pier, RcPierNight).
+var clothed: bool = false
 
 
 func _init() -> void:
@@ -22,7 +24,9 @@ func _init() -> void:
 
 func _ready() -> void:
 	super._ready()
-	if _visual:
+	if _visual and clothed:
+		BonfireFigure.clothe(_visual, _look)
+	elif _visual:
 		BeachGoer.dress(_visual, _model_path, suit)
 		if board >= 0:
 			_carry_board()

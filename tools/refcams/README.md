@@ -51,6 +51,43 @@ and ignored by the ten originals:
   `2d:*`, `dbg:unshaded`...) renders the frame again with each hidden, `CHASE_BISECT=1` halves the
   drawables to find what draws a given pixel difference.
 
+## Wave 6's cameras (`cameras_w6.json`)
+
+- `person_closeup` - one pedestrian 1.6 m from the lens on a midtown pavement, 13:00 clear.
+  `"stage": "person"` with a `person` key (model, look, dist, turn, carry; all optional) runs
+  `person_stage.gd`: a seed found for that rig and look with no hat, placed and held standing, the
+  walkers in the line of sight hidden. Env `PERSON_MODEL`, `PERSON_LOOK`, `PERSON_DIST`,
+  `PERSON_TURN`, `PERSON_CARRY`, `PERSON_SEED` for framing work.
+
+## Wave 6's cameras (`cameras_w6.json`)
+
+Run them with `REFCAMS_JSON=tools/refcams/cameras_w6.json`. `car_closeup` (rc3-car-closeup) carries
+`park_car` (`tools/refcams/park_stage.gd`): a car of a body type (`random_car()` walked from `seed`
+until the type matches, no livery) parked on the kerb of the road nearest `at`, `along` the TRUE
+world coordinate, `side` which kerb; the parked cars round it freed; the eye and the point aimed at
+given in the car's own frame (x right, -z ahead of the nose), so the frame holds whatever the load
+rolled. `tools/refcams/kerb_probe.gd -- --spawn=x,z` lists kerbs round a point.
+
+## Wave 6's cameras (`cameras_w6.json`)
+
+Run with `REFCAMS_JSON=tools/refcams/cameras_w6.json`. `freeway_night`: the 110 northbound at 22:00
+clear, a driver's eye (1.2 m over the deck) in lane 2 toward the downtown skyline. Its optional
+`freeway_cars` key stages freeway traffic three frames before the shot: `{"route": r, "clear": m,
+"cars": [[ahead, lane, dir, speed, kind], ...]}` - cars `ahead` metres along route `r` from the eye
+in the direction it looks, lane 0 by the median, dir -1 toward the route's start (the 110 runs
+north to south), `kind` a Vehicle.BodyType name or "", and every other traffic car within `clear`
+metres of the eye hidden for the shot (the load's own traffic put a box truck on the lens). The log
+prints each staged car's distance at the shot.
+Run with `REFCAMS_JSON=tools/refcams/cameras_w6.json`. `airport_night` - the apron at 21:30 clear from
+the first stand west of the concourse, a jet staged on final to 27L (`air` final: the flare over the
+threshold at the shot). A row that stages an aircraft prints `REFCAM <name> air at x,y,z` (TRUE world,
+at the shot): tune `air_dist` / `air_side` from it.
+
+## Wave 6's cameras (`cameras_w6.json`)
+
+Run with `REFCAMS_JSON=tools/refcams/cameras_w6.json`. `rooftop_golden`: the black twins' north
+helipad (deck 215.55 m), 17:45 clear, looking SSW over the skyline to the basin and the sea.
+
 ## Running
 
 ```
@@ -105,3 +142,29 @@ use `--strict` on both sides when a change should be pixel-small.
 
 Opengl3 is the Compatibility renderer (the web build), not the Mac's Forward+: the numbers track
 change, they do not say what the Mac draws (CLAUDE.md, measurement trap 4).
+
+## Wave 6's cameras (`cameras_w6.json`)
+
+Run with `REFCAMS_JSON=tools/refcams/cameras_w6.json`. `pier_day` - Gullwing Park on Rando Pier at
+15:00 clear, from the promenade in the crowd toward the wheel and the sea end (PierDay,
+docs/HANDOFF.md "The pier by day from the deck").
+
+Wave 6's cameras are in `cameras_w6.json` (run with `REFCAMS_JSON=tools/refcams/cameras_w6.json`):
+`golf_morning` - the golf course at 08:30 from behind the 9th tee toward the clubhouse and the front
+range. Its optional `golf_group` key ("hole:stage[:tee[:count]]") stages a group of golfers there
+(GolfLife.force_group via the GOLF_GROUP environment variable, set before the city loads).
+
+## Wave 7's cameras (`cameras_w7.json`)
+
+Run with `REFCAMS_JSON=tools/refcams/cameras_w7.json` (the file is new in wave 7, the cameras_w6.json
+format). `canals_day`: Marisol Canals at 11:00 clear, on Heron Canal's southern footbridge looking
+north down the canal (no staging). `film_lot` (rc4-film-lot): inside the SUNSPIRE PICTURES studio
+lot at 14:00 clear, eye level in the middle of the studio street between stages 5-7 and the basecamp,
+looking north to the water tower. No staging key. `port_night` (rc4-port-night): the container
+terminal at 22:00 clear from the quay's apron. Its optional `port_t` key holds PortLife's clock
+(seconds) for the shot, so the cranes and tractors are where the row was framed (`_port_clock()` in
+refcams_shot.gd; rows without it leave the clock alone). `OCCLUSION=0` turns occlusion culling off
+for a run. `stack_aerial` (rc4-stack-aerial): the four-level stack from 150 m over the ground
+north-west of it, 17:30 clear, toward downtown; `shot_frames` 90 lets the connectors' traffic fill
+before the shot.
+
