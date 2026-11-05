@@ -4492,3 +4492,9 @@ none of either.
   per variant and batched, never per copy; a studio keeps its asphalt (the industrial ground with
   `kept`, worn only by tyre tracks); the basecamp's gaps hold carts and the doors chairs, from the
   layout alone, after every roll; the lot's walkers mostly wear crew blacks. RC4_FILM_LOT=0 is the A/B.
+- **2026-11-05 The farmers' market refcam: market goods are piled, not spaced (rc5-farmers-market,
+  HANDOFF "The farmers' market from the aisle").** A new reference camera (`farmers_market`, wave 8's
+  table) stands in Palm St's market aisle on a Saturday at 10:00. Decisions: produce is packed the
+  way a grower piles it (a hex layer and a second in its hollows), never a spaced grid over a fill;
+  skin relief, cloth folds and grain are normal-only shader passes with no tangents; a string-light
+  bulb is glass by day; the market's peak crowd is 46. RC5_MARKET=0 is the A/B.

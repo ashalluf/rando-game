@@ -168,3 +168,9 @@ for a run. `stack_aerial` (rc4-stack-aerial): the four-level stack from 150 m ov
 north-west of it, 17:30 clear, toward downtown; `shot_frames` 90 lets the connectors' traffic fill
 before the shot.
 
+
+## Wave 8's cameras (`cameras_w8.json`)
+
+Run with `REFCAMS_JSON=tools/refcams/cameras_w8.json`. `farmers_market` (rc5-farmers-market): Palm
+St's market aisle on a Saturday at 10:00 clear. Its optional `market_day` key sets `MARKET_DAY` (and
+`MARKET_HOUR` = the row's hour) before the city loads, so the stalls stand up whatever the day.
