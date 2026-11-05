@@ -1,9 +1,30 @@
-# Handoff: Rando Game (written 2026-09-19; section 0000000000 is the newest state: fleet wave 4, 2026-10-31)
+# Handoff: Rando Game (written 2026-09-19; section 00000000000 is the newest state: fleet wave 8, 2026-11-05)
 
 This is the narrative handoff for whoever picks the project up next, from any Claude Code account
 or as a person. `CLAUDE.md` is the rulebook and `docs/GAME_PLAN.md` is the roadmap plus the
 decisions log; both stay the source of truth. This file is the story: where things stand, how
 the day-to-day work goes, what is fragile, what to do next. Read all three before touching code.
+
+## 00000000000. Fleet wave 8 (2026-11-05 ~19:35 UTC; read this first, then fleet/brief's LEAD_HANDOFF.md, then 0000000000)
+
+A new account's lead picked up from the wave-7 lead's pause (fleet/brief `LEAD_HANDOFF.md`). The
+owner: "deploy a million agents, get these graphics up to date, don't stop until I tell you or
+usage runs low". Sessions run `claude-opus-5-5`.
+
+- **Batch 51** (`gate-b51`: explosions-4 round 11, gate-flakes-2, two flake fixes) was re-gated
+  (shard 2, the one that had failed) and pushed to main with this section.
+- **Wave 8 = 25 cloud sessions** (tag `rando-wave8`, titles `w8 <slug>`), briefed by fleet/brief's
+  BRIEF.md (wave-8 edition) and `tasks_w8.tsv`; roster `sessions_w8.tsv`. The wave-7 sessions were
+  on another account and cannot be messaged from here, so their unfinished branches were RESUMED by
+  fresh sessions (`resume` kind: rc4-refinery-road, rc4-metro-station, rc4-lowrider-meet,
+  rc4-terminal-curb, rc4-heli-night, rc4-river-night, rc4-hospital-er, rc4-freight-yard,
+  explosions-4 rounds 13+, gate-flakes-2, web-hero-blue). New: twelve `refcam5` views in
+  `tools/refcams/cameras_w8.json` (storm_downtown, brush_fire, gas_station_night, police_pursuit,
+  wingsuit_golden, construction_dusk, suburb_night, farmers_market, skate_park, hill_home_dusk,
+  speedboat_golden, arena_night) and two infra (fwd-review-h, perf-audit-6).
+- The lead loop is unchanged (LEAD_HANDOFF.md): batches on `gate-bNN`, merge_branch.py, `--import`,
+  `SHARDS=3` gate, push main, stills to the owner. cameras_w8.json headers conflict between rc5
+  branches: keep one header and every row.
 
 ## 0000000000. Fleet wave 4 (2026-10-31 ~03:45 UTC; read this first, then 000000000)
 
