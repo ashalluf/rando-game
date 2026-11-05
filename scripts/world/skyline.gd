@@ -314,7 +314,7 @@ func build_near(eye: Vector2, metres: float) -> void:
 	for t in todo:
 		if _work.get("t", Vector2i(1 << 30, 0)) == t:
 			while not _work_step():
-				pass
+				LoadPulse.tick()
 			continue
 		if _disk.has(t):
 			_restore_tile(t, _disk[t])
@@ -323,7 +323,7 @@ func build_near(eye: Vector2, metres: float) -> void:
 		_begin_tile(t)
 		_recording = true
 		while not _work_step():
-			pass
+			LoadPulse.tick()
 		_recording = false
 	if not todo.is_empty():
 		print("LOADING far city tiles: %d built, %d from the load cache, %d ms (at %d ms)" % [todo.size() - restored,

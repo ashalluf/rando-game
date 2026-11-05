@@ -200,8 +200,14 @@ func _capture(city: Node3D, plan: CityPlan, k: Vector2i) -> void:
 
 func _backlot_and_front(city: Node3D, plan: CityPlan, lay: Dictionary) -> void:
 	var k := plan.chunk_index_at((lay.backlot_street as Rect2).get_center())
+	# Headroom in PhysicsBudget: the backlot's cars are placed only while it can spawn, and a busy
+	# shard's city sits at its 500-body cap (shuffled gate 18505: "(0)").
+	var budget: Node = city.get_tree().root.get_node("PhysicsBudget")
+	var cap_was: int = budget.get("max_active_bodies")
+	budget.set("max_active_bodies", 1000000)
 	var chunk: CityChunk = city._new_chunk(k, CityChunk.Level.FULL)
 	chunk.build()
+	budget.set("max_active_bodies", cap_was)
 	var real := 0
 	for car in chunk._cars:
 		if car is Vehicle:
