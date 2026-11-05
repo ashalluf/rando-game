@@ -109,7 +109,7 @@ static func crowds(id: String, s: Rect2) -> Array:
 			# Clear of the planters down both edges of the plaza.
 			var p := _plaza_open(s)
 			var r := Rect2(p.position + Vector2(5.5, 3.0), Vector2(p.size.x - 11.0, _plaza_grove_z(p) - p.position.y - 6.0))
-			return [[r, minf(r.size.x, r.size.y) * 0.5, 46]]
+			return [[r, minf(r.size.x, r.size.y) * 0.5, ArenaNight.crowd_gain(46)]]
 		"convention_center":
 			var f := Rect2(s.position + Vector2(s.size.x * 0.28, 3.5), Vector2(s.size.x * 0.44, _convention_front(s) - 5.5))
 			return [[f, minf(f.size.x, f.size.y) * 0.5, 18]]
@@ -208,6 +208,11 @@ static func _arena(s: Rect2, y0: float, parent: Node3D, statics: StaticBody3D, d
 		g.box("metal", at - Vector3(n.x, 0.0, n.y) * 0.25, Vector3(size.x + 0.8, size.y + 0.8, 0.5), Color(0.25, 0.26, 0.28), LandmarkGeo.yaw(face_yaw), 0.08 if detailed else 0.0)
 		LedScreen.add(g, "led_drum_%d" % i, at + Vector3(n.x, 0.0, n.y) * 0.02, size, face_yaw, screens[i][2], float(i) * 1.7 + 0.3)
 	_marquee(g, batch, s, y0, statics, detailed)
+	if detailed and ArenaNight.enabled and ArenaNight.event_for_build():
+		# Two searchlights flank the marquee on an event night (rc5-arena-night), leaning north-west
+		# over the street toward the plaza.
+		var mq := Vector2(s.end.x - 7.0, s.position.y + 7.0)
+		ArenaNight.searchlights(parent, batch, [Vector3(mq.x - 16.0, mq.y + 3.0, PI * 0.25), Vector3(mq.x - 3.0, mq.y + 16.0, PI * 0.25)], y0, 4473)
 	_arena_grounds(g, batch, parent, statics, s, c, r0, y0, detailed)
 	g.commit(parent, "Arena")
 	g.commit_collision(statics)
@@ -464,9 +469,19 @@ static func _live_plaza(s: Rect2, y0: float, parent: Node3D, statics: StaticBody
 		var at := Vector3(x + w * 0.5, y0 + 6.4 + hgt * 0.5 + (1.0 if i == 1 else 0.6), face_z + 0.3)
 		g.box("metal", at - Vector3(0.0, 0.0, 0.2), Vector3(w + 0.5, hgt + 0.5, 0.4), Color(0.15, 0.15, 0.16))
 		LedScreen.add(g, "led_wall_%d" % i, at + Vector3(0.0, 0.0, 0.02), Vector2(w - 0.4, hgt), PI, 120.0 if i == 1 else 96.0, 1.1 + float(i) * 2.3)
+		if detailed:
+			ArenaNight.spill(parent, at, w, Vector3(0.0, 0.0, 1.0), 1.1 + float(i) * 2.3, y0, 62.0, 0.95)
 		x += w + nb.size.x * 0.02
 	# A canopy over the restaurants, lit underneath.
 	g.box("metal", Vector3(nb.get_center().x, y0 + 5.6, face_z + 2.2), Vector3(nb.size.x - 2.0, 0.35, 4.4), Color(0.24, 0.25, 0.27))
+	# The event night's light (rc5-arena-night): the facades' LED, the screens' spill, searchlights.
+	ArenaNight.facades(g, batch, lobby_x, lobby_z0, lobby_z1, y0 + th_h, nb, face_z, y0 + nb_h, y0, detailed)
+	if detailed:
+		ArenaNight.spill(parent, col_at + Vector3(0.6, 0.0, 0.0), 8.0, Vector3(1.0, 0.0, 0.0), 5.3, y0, 18.0, 0.45)
+		ArenaNight.screen_light(parent, Vector3(nb.get_center().x, y0 + 8.0, face_z + 14.0))
+		ArenaNight.event_now = ArenaNight.event_for_build()
+		if ArenaNight.event_now:
+			ArenaNight.searchlights(parent, batch, [Vector3(p.position.x + 9.0, p.position.y + 13.0, 0.25), Vector3(p.end.x - 9.0, p.position.y + 13.0, -0.25)], y0, 4471)
 
 	# The restaurant strip on the east side: two storeys of stucco, shopfronts on the plaza.
 	var eb := Rect2(Vector2(p.end.x, p.position.y), Vector2(s.end.x - p.end.x, s.end.y - p.position.y - 2.0))
@@ -608,18 +623,20 @@ static func _live_hotel(s: Rect2, y0: float, parent: Node3D, statics: StaticBody
 	# The crown: a screen of glass fins round an open top, lit from inside after dark, and a
 	# glowing band that marks the skyline.
 	var fins := 28 if detailed else 12
+	var fin_key := ArenaNight.crown_fin_key(g)
 	for i in fins:
 		var f := (float(i) + 0.5) / float(fins)
 		var x := sc.x - slab.x * 0.5 + f * slab.x
 		for fz: float in [-1.0, 1.0]:
-			g.box("fin", Vector3(x, top + 5.0, sc.z + fz * slab.z * 0.5), Vector3(0.35, 10.0, 0.9), Color(0.9, 0.93, 0.96))
+			g.box(fin_key, Vector3(x, top + 5.0, sc.z + fz * slab.z * 0.5), Vector3(0.35, 10.0, 0.9), Color(0.9, 0.93, 0.96))
 	g.box("crown", Vector3(sc.x, top + 0.6, sc.z), Vector3(slab.x + 0.8, 1.2, slab.z + 0.8), Color(1.0, 1.0, 1.0))
 	g.box("crown", Vector3(sc.x, top + 9.6, sc.z), Vector3(slab.x + 0.4, 0.5, slab.z + 0.4), Color(1.0, 1.0, 1.0))
+	ArenaNight.hotel_crown(g, sc, slab, top)
 	LandmarkGeo.shape_box(statics, Vector3(sc.x, top + 5.0, sc.z), Vector3(slab.x, 10.0, slab.z))
 	# The name, lit, high on the long faces and over the porte-cochère.
 	for side: float in [-1.0, 1.0]:
 		var yaw := 0.0 if side < 0.0 else PI
-		batch.add("hotel_name", Signage.text_mesh(HOTEL_NAME, 3.2, Signage.Letters.LIT),
+		batch.add("hotel_name", Signage.text_mesh(HOTEL_NAME, ArenaNight.hotel_name_height(3.2), Signage.Letters.LIT),
 			Transform3D(_face(yaw, 1.0), Vector3(sc.x, top - 4.0, sc.z + side * (slab.z * 0.5 + 0.35))), Color(0.9, 0.95, 1.0))
 	batch.set_no_shadow("hotel_name")
 	if detailed:
