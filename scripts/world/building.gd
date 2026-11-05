@@ -2834,6 +2834,7 @@ func _commit_roof() -> void:
 		units.name = "RoofUnitsRusted" if rusted else "RoofUnits"
 		units.multimesh = mm
 		add_child(units)
+		PerfSix.roof_units(units, mm.mesh, xforms)
 	_roof_units.clear()
 
 

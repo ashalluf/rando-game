@@ -1425,7 +1425,9 @@ func _geo_split(player: Node3D, anchor: Vector3, hold: Vector3, boost: bool, fov
 				est[stem] += _est_tris(gi)
 		var order := stems.keys()
 		order.sort_custom(func(a, b): return est[a] > est[b])
-		for k: String in order.slice(0, 30):
+		# OSPLIT_TOP=n: that many stems (default 30).
+		var otop := int(OS.get_environment("OSPLIT_TOP")) if OS.get_environment("OSPLIT_TOP") != "" else 30
+		for k: String in order.slice(0, otop):
 			var list: Array = stems[k]
 			for gi: GeometryInstance3D in list:
 				gi.visible = false
