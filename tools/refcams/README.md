@@ -191,3 +191,11 @@ the infinity pool, the lit glass wall on the right. The eye's y is absolute (no 
 deck. `tools/rc5_hill_home/probe.tscn` (EST=n) prints an estate's wings, deck and pool in world
 space for framing another one. On this box an opengl3 city run can hang in the occlusion raycast
 (0 % CPU after the far city loads): `OCCLUSION=0` on refcams.py's environment.
+
+## Wave 8's cameras (`cameras_w8.json`)
+
+Run with `REFCAMS_JSON=tools/refcams/cameras_w8.json`. `skate_park` (rc5-skate-park): THE PIT at
+16:30 clear, eye level on the high deck west of the pool looking north-east over it to the boardwalk.
+Its optional `skate_t` key holds SkateParkLife's clock (seconds, the riders held: `_skate_clock()` in
+refcams_shot.gd, as SKATE_T= / SKATE_HOLD=1), so the first pool rider is at the top of his
+frontside air over the far coping. `tools/rc5_skate_park/air_probe.gd` lists every rider's air times.

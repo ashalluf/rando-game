@@ -29517,3 +29517,57 @@ west end (it is the city's junction at the block corner); nobody gets out of a s
 lifts a bag from a boot (the travellers stand, the cars stop); the walkers that remain can still
 stop near the lens on other seeds. The colour work is plain StandardMaterials (no shader), so
 Forward+ was not shot separately.
+
+## 9mo. THE PIT at 16:30 from the deck: the skate park refcam, 2026-11-05 (fleet wave 8 `rc5-skate-park`)
+
+Task (refcam5): a new reference view of THE PIT (SkatePark, docs "THE PIT") at 16:30 clear, eye level
+on the deck by the bowl, a skater held mid-air, the boardwalk and palms behind; judge it, fix the
+worst three to five things.
+
+**The camera.** `skate_park` in `tools/refcams/cameras_w8.json` (new file, wave 8's table):
+eye (-980.3, 6.0 agl, -488.6), yaw -137, pitch -3, fov 55 - on the high deck between the snake run
+and the pool (park-local -2, -15), 1.7 m over it, looking north-east across the pool to its far
+coping, the stair set and street terrace, the boardwalk's palms and shops and the pier. Its new
+optional key `skate_t` (2.4) holds SkateParkLife's clock for the shot (`_skate_clock()` in
+refcams_shot.gd: `hold` on and `set_clock()` on every park life, while the shot waits and in its
+last frames); at 2.4 s the first pool rider is at the top of his frontside air over the north
+coping. `tools/rc5_skate_park/air_probe.gd` lists every rider's air times and heights (headless,
+seconds) for framing other moments.
+
+**What read fake, in the order the eye found it, and what changed** (`RcSkatePark`,
+`scripts/world/rc5_skate_park.gd`; `RC5_SKATE=0` puts all of it back):
+
+1. **The pool and the deck were spotless beige concrete** that merged with the sand behind: no
+   wheel marks, no grime, one even tone. skate_park.gdshader's `look5` (0 = the old shader bit for
+   bit; the park's material sets 1): `bowl_used()` - a cooler grey shotcrete (`bowl5`) with pours
+   and 1-3 m stains, a broad band of wheel rubber round the transition that reads from across the
+   park (its average) and turns into fine carve lines up close, grime and dried water pooled at
+   the floor's middle with blown sand, dirt runs down from the coping, the top bleached;
+   `deck_used()` - a cooler slab, dirt and rubber in a ring round the pool's lip (the
+   superellipse's own distance from SkatePark.POOL_*), skid streaks that keep an average once a
+   pixel spans them, older blotches. Heights use the fragment's model-space y (the floor's UV is
+   plan x / z, not a height).
+2. **The coping was a bright, even ribbon.** `coping_used()`: darker weathered blocks each its own
+   tone, chips and dirt, the top and nose waxed black and ground silver in places, dirt in the
+   mortar.
+3. **The "mid-air" skater stood on the deck.** The pool line's frontside air rose 1.9 m over its
+   chord along the wall - its top 0.28 m over the deck, so the baked rider read as standing beside
+   the coping. `RcSkatePark.POOL_AIR` 2.75: the board now clears the deck by 1.14 m at the top
+   (checked from a fresh sample of the line), the air takes the time a body takes (the line's own
+   rule), nothing else in the lap moves.
+4. **The boardwalk's sign boards, murals, hoardings and art-wall panels were UNSHADED**
+   (`PropFactory.material(c, 0.85, true)`): flat glowing colour with no sun or shadow - the
+   magenta block at the left of the frame was the loudest thing in it. `RcSkatePark.paint()`:
+   lit matte paint, faded 20 % toward an old white, one material a colour; palms' shadows now fall
+   on them.
+
+Not changed: the baked riders' poses (no grab: the air pose is shared by every line's ollies), the
+tile band, the boardwalk's box shops themselves.
+
+**Proof.** `shots/rc5-skate-park`: 01 before (main b45ba911), 02 after, 03 crops before over after.
+Numbers (opengl3, refcams.py): before p5/p50/p95 58/158/202, sat 0.322, 5.84 M tris / 5,118 draws;
+after 55/150/189, sat 0.325, 5.81 M / 5,120 (no geometry added: the frame cost is flat).
+Gate (`SHARDS=3`): 5,811 checks passed, 0 failed, peak 3.8 GB a shard; new checks
+`tests/rc5_skate_park_checks.gd` (shader pass, the air's height, lit paint, the camera row, the A/B).
+Not verified on Forward+ (lavapipe): the concrete colours are linear numbers through the shader's
+existing `cs_out()` path, the same as the park's old ones, so both renderers take them alike.

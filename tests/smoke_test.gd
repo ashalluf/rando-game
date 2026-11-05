@@ -2953,6 +2953,8 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	load("res://tests/mac_launch_checks.gd").new().run(self, city)
 	# The terminal's departures kerb (tests/rc4_terminal_curb_checks.gd, TerminalCurb): travellers, drop-offs.
 	load("res://tests/rc4_terminal_curb_checks.gd").new().run(self, city)
+	# The skate park refcam (tests/rc5_skate_park_checks.gd, RcSkatePark): used concrete, the pool air, lit boardwalk paint.
+	load("res://tests/rc5_skate_park_checks.gd").new().run(self)
 
 	city.queue_free()
 	_world_state().reset()
