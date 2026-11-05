@@ -121,8 +121,13 @@ void fragment() {
 		vec3 t = mix(tint * 12.92, 1.055 * pow(max(tint, vec3(0.0)), vec3(1.0 / 2.4)) - 0.055, step(vec3(0.0031308), tint));
 		ALBEDO = lp_to_linear(t * COLOR.rgb * clamp(ALPHA * street_forward, 0.0, 1.0));
 		ALPHA = 1.0;
-	} else if (display_add || display_add_fwd) {
+	} else if (display_add) {
 		// tint arrives decoded here (source_color): back to display numbers, the add, then decoded.
+		vec3 t = mix(tint * 12.92, 1.055 * pow(max(tint, vec3(0.0)), vec3(1.0 / 2.4)) - 0.055, step(vec3(0.0031308), tint));
+		ALBEDO = lp_to_linear(t * COLOR.rgb * clamp(ALPHA, 0.0, 1.0));
+		ALPHA = 1.0;
+	} else if (display_add_fwd) {
+		// fwd-review-h: the same add, without display_add's aerial ease (the bonfires' pools).
 		vec3 t = mix(tint * 12.92, 1.055 * pow(max(tint, vec3(0.0)), vec3(1.0 / 2.4)) - 0.055, step(vec3(0.0031308), tint));
 		ALBEDO = lp_to_linear(t * COLOR.rgb * clamp(ALPHA, 0.0, 1.0));
 		ALPHA = 1.0;

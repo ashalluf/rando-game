@@ -58,10 +58,10 @@ func run(t: Node, _city: Node3D) -> void:
 		"CloudShadows reads the sky's cloud parameters through FwdReviewH.param() (no float(null) errors)")
 	# The pools: added in display numbers on Forward+ only, the switch, the hooks.
 	var lp := _code("res://shaders/light_pool.gdshader")
-	_t._check(lp.contains("uniform bool display_add_fwd = false;") and lp.contains("} else if (display_add || display_add_fwd) {"),
+	_t._check(lp.contains("uniform bool display_add_fwd = false;") and lp.contains("} else if (display_add_fwd) {"),
 		"light_pool.gdshader: display_add_fwd takes the display-number add")
 	var fwd_at := lp.find("#if CURRENT_RENDERER != RENDERER_COMPATIBILITY", lp.find("void fragment()"))
-	_t._check(fwd_at > 0 and lp.find("display_add_fwd", fwd_at) > fwd_at and lp.count("display_add_fwd") == 2,
+	_t._check(fwd_at > 0 and lp.find("display_add_fwd", fwd_at) > fwd_at and lp.count("display_add_fwd") == 2 and lp.contains("} else if (display_add) {"),
 		"display_add_fwd is read only in the Forward+ branch (Compatibility, the web and the stills untouched)")
 	var m := Bonfires.pool_mesh()
 	var pm := m.surface_get_material(0) as ShaderMaterial
@@ -97,7 +97,7 @@ func run(t: Node, _city: Node3D) -> void:
 	FwdReviewH.apply()
 	var iw := _code("res://shaders/industrial_walls.gdshader")
 	_t._check(iw.contains("emit += fh_display(mirror * 0.55 * (1.0 - night_factor * 0.7)) * (1.0 - mull);")
-		and iw.contains('#include "res://shaders/fwd_review_h.gdshaderinc"'),
+		and FileAccess.get_file_as_string("res://shaders/industrial_walls.gdshader").contains('#include "res://shaders/fwd_review_h.gdshaderinc"'),
 		"the industrial glass's mirror is decoded on Forward+ (its coverage kept linear)")
 	_t._check(inc.contains("vec3 fh_display(vec3 c) {\n#if CURRENT_RENDERER == RENDERER_COMPATIBILITY\n\treturn c;"),
 		"fh_display() is a no-op on Compatibility")
