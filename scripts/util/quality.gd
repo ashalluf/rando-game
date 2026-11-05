@@ -109,6 +109,12 @@ func _process(delta: float) -> void:
 	if _forced or level == Level.LOWEST:
 		set_process(false)
 		return
+	# Never judge the machine by the loading screen's frames (seconds each while the city builds
+	# and the shaders compile): it demoted HIGH to LOWEST before play began (mac-launch).
+	if LoadPulse.active or LoadingScreen.showing:
+		_time = 0.0
+		_frames = 0
+		return
 	_time += delta
 	if _time < warmup:
 		return

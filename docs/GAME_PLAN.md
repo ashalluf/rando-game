@@ -3781,6 +3781,15 @@ already mapped so milestone 2 is script-only.
   row car is empty with its lamps off and stands in a display stance by hash of its look, a
   three-wheel takes its wheel 0.45 m off the road, and the crowd gathers round the cars performing
   with people in the chairs. All hashes, after every roll. RC4_LOWRIDER_MEET=0 is the A/B.
+- **2026-11-05, the Mac launch (mac-launch).** The owner pressed Play and saw 5 minutes of logo,
+  then 10 of city sounds over a frozen window. Decided: the window presents a frame for the whole
+  load, never a splash or a stale frame with sound. The loading picture is drawn on its own canvas
+  and presented from inside every long loop. The 3D city is not drawn while it loads: on Forward+ a
+  draw waits for the pipelines it needs, and Godot compiles them on the worker threads anyway. The
+  city is drawn once the compilers are done. Sound stays off until the fade. Quality is never cut to
+  make it faster, and Quality no longer judges the machine by the loading screen. Shader baking
+  stays off while Godot 4.7.2's baked Metal exports crash (godot#123266, #124539). No loader
+  threads: the codebase's cyclic preloads broke under one.
 
 ## Correction: what build 135 (0ce833f) actually contained
 

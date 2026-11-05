@@ -159,6 +159,8 @@ func _light_now() -> Array:
 func _process(delta: float) -> void:
 	if plan == null and fixed.is_empty():
 		return
+	if LoadPulse.active: # no probe renders while the load holds the 3D (mac-launch)
+		return
 	var cam := get_viewport().get_camera_3d() if get_viewport() else null
 	if cam == null:
 		return
