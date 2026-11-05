@@ -38,6 +38,10 @@ uniform float rib = 1.6;
 uniform float top_bias : hint_range(0.0, 1.0) = 0.35;
 // Height of the part in metres, for the bias above.
 uniform float part_height = 20.0;
+// rc5-wingsuit-golden (Rc5Wingsuit.crown_dusk_hold()): 1 holds the glow back until it is dusk
+// (night_factor is ~0.5 at the 18:00 sunset; at full energy over white against that bright sky
+// every lantern bloomed into a white disc), full again by night_factor 0.95. 0: as before.
+uniform float dusk_hold = 0.0;
 
 void fragment() {
 	float lit = COLOR.a;
@@ -56,6 +60,7 @@ void fragment() {
 	float up = clamp(UV.y / max(part_height, 0.1), 0.0, 1.0);
 	float grade = mix(1.0, 0.55 + 0.9 * up, top_bias);
 	float night = smoothstep(0.15, 0.85, night_factor);
+	float glow_k = mix(1.0, smoothstep(0.55, 0.95, night_factor), dusk_hold);
 	vec3 sky = sky_tint.rgb;
 	vec3 mirror = mix(vec3(0.10), sky, 0.8) * day_mirror * (1.0 - frame) * (1.0 - night);
 	if (sg) {
@@ -81,5 +86,5 @@ void fragment() {
 	METALLIC = mix(day_metallic, 0.0, night * lit);
 	ROUGHNESS = mix(day_roughness, 0.6, frame);
 	SPECULAR = 0.4;
-	EMISSION = mirror + glow * lit * glow_energy * grade * night * (1.0 - 0.85 * frame);
+	EMISSION = mirror + glow * lit * glow_energy * grade * night * glow_k * (1.0 - 0.85 * frame);
 }

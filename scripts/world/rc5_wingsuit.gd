@@ -44,3 +44,14 @@ static func museum_roof(g: LandmarkGeo, r: Rect2, top: float, detailed: bool) ->
 		n += 1
 	return n
 
+
+
+## The concert hall's steel (brushed_steel.gdshader `look`): polished stainless mirroring this
+## hour's sky - the sails were flat beige from above at golden hour and blew out where the sun hit.
+static func steel_look() -> float:
+	return 1.0 if enabled else 0.0
+
+
+## The downtown towers' lit crowns (tower_crown.gdshader `dusk_hold`): their glow waits for dusk.
+static func crown_dusk_hold() -> float:
+	return 1.0 if enabled else 0.0

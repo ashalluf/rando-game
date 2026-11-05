@@ -15,6 +15,7 @@ render_mode cull_back;
 // Shader files use // comments, never #.
 
 #include "res://shaders/landmark_common.gdshaderinc"
+#include "res://shaders/color_space.gdshaderinc"
 
 uniform vec3 steel_color : source_color = vec3(0.78, 0.79, 0.80);
 uniform float roughness_base : hint_range(0.0, 1.0) = 0.24;
@@ -37,6 +38,15 @@ uniform vec3 flood_color : source_color = vec3(1.0, 0.86, 0.66);
 uniform float flood_strength = 0.9;
 uniform float flood_base_y = 0.0;
 uniform float flood_reach = 18.0;
+// rc5-wingsuit-golden (Rc5Wingsuit.steel_look()): 1 is the polished-stainless look - the mirror
+// is the sky of THIS hour (sky_tint's horizon, brighter toward the sun, a cooler zenith, the dark
+// street below the horizon) and carries the colour, the renderer's own reflection kept low (it
+// mirrors one flat radiance on Compatibility: every sail one beige), each panel a different tone,
+// the sun's glint capped and tinted so it never blows a sail out, and a broad lobe that lights the
+// sails turned to the low sun and leaves the others in shade (through the evening haze that
+// contrast is what reads as metal). Faded in as the sun sinks under ~29 degrees: with it high,
+// and with 0, exactly as before.
+uniform float look = 0.0;
 
 varying vec3 wpos;
 varying vec3 wnrm;
@@ -79,6 +89,38 @@ void fragment() {
 	// Floodlit after dark, brightest at the foot of each sail.
 	float up = max(wpos.y - flood_base_y, 0.0);
 	emission += col * flood_color * flood_strength * lamp_factor * (0.25 + 0.75 * exp(-up / flood_reach));
+	if (look > 0.5) {
+		vec3 sd = normalize(sun_direction);
+		// The horizon of this hour (sky_tint: sRGB numbers, the renderer's own space here).
+		vec3 h_now = cs_as_uniform(sky_tint.rgb);
+		vec2 rh = normalize(refl.xz + vec2(1e-4));
+		vec2 sh = normalize(sd.xz + vec2(1e-4));
+		float toward = max(dot(rh, sh), 0.0);
+		vec3 horizon = h_now * (0.75 + 1.2 * toward * toward * toward);
+		vec3 zenith = mix(h_now, sky_zenith * lm_sky_now(), 0.6) * vec3(0.62, 0.70, 0.95);
+		vec3 below = street_reflect * 0.45 * lm_sky_now() + h_now * 0.05;
+		vec3 mirror = refl.y >= 0.0 ? mix(horizon, zenith, smoothstep(0.0, 0.6, refl.y))
+			: mix(horizon * 0.6, below, smoothstep(0.0, 0.12, -refl.y));
+		float pan = 0.88 + 0.24 * ptone;
+		// Brushed steel under a low sun: a broad lobe across the brushing lights a whole sail
+		// that turns to the sun and leaves the ones turned away in their own shade. Through the
+		// evening haze at a few hundred metres that face-to-face contrast is what reads as metal.
+		vec2 nh = normalize(N.xz + vec2(1e-4));
+		float face = max(dot(nh, sh), 0.0);
+		float low = (1.0 - smoothstep(0.18, 0.5, sd.y)) * smoothstep(-0.08, 0.0, sd.y);
+		float shade = 0.25 + 0.75 * face;
+		vec3 e2 = mirror * steel_color * fres * pan * 1.35 * shade * (1.0 - 0.7 * night_factor);
+		vec3 warm = normalize(h_now + vec3(0.06)) * 1.7;
+		e2 += warm * steel_color * pan * pow(face, 2.0) * 1.1 * (1.0 - 0.6 * seam);
+		float g = lm_glint(refl, power);
+		e2 += normalize(h_now + vec3(0.08)) * min(g * 2.2, 1.6) * (1.0 - seam);
+		e2 += col * flood_color * flood_strength * lamp_factor * (0.25 + 0.75 * exp(-up / flood_reach));
+		e2 *= 1.0 - 0.6 * seam;
+		// All of it only while the sun is low: with it high, the steel exactly as before.
+		emission = mix(emission, e2, low);
+		// The renderer's own metal reflection a fraction of what it was.
+		col *= mix(1.0, 0.45 * (0.4 + 0.6 * face), low);
+	}
 	col *= 1.0 - 0.55 * seam;
 	ALBEDO = col;
 	METALLIC = 1.0 - 0.4 * seam;

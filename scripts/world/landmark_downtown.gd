@@ -349,6 +349,7 @@ static func _glow_material(key: String, day: Color, pattern: int, rib: float, en
 	mat.set_shader_parameter("glow_energy", energy)
 	mat.set_shader_parameter("day_mirror", mirror)
 	mat.set_shader_parameter("part_height", height)
+	mat.set_shader_parameter("dusk_hold", Rc5Wingsuit.crown_dusk_hold())
 	_materials[k] = mat
 	return mat
 

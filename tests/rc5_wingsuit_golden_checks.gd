@@ -17,6 +17,7 @@ func run(t: Object) -> void:
 	_membrane()
 	_shaders()
 	_roof()
+	_steel_and_crowns()
 
 
 func _camera() -> void:
@@ -118,3 +119,22 @@ func _roof() -> void:
 	_t._check(n == cols + rows + 3, "THE LATTICE's roof is a skylight lattice: %d ribs over the glazing" % (n - 1))
 	var src := FileAccess.get_file_as_string("res://scripts/world/landmark_civic_center.gd")
 	_t._check(src.contains("if Rc5Wingsuit.enabled:\n\t\tRc5Wingsuit.museum_roof("), "RC5_WINGSUIT=0 leaves the old flat roof")
+
+
+func _steel_and_crowns() -> void:
+	var st := FileAccess.get_file_as_string("res://shaders/brushed_steel.gdshader")
+	_t._check(st.contains("uniform float look = 0.0;") and st.contains("emission = mix(emission, e2, low);")
+		and st.contains("col *= mix(1.0, 0.45 * (0.4 + 0.6 * face), low);"),
+		"the concert hall's steel: the low-sun look off by default and faded in by the sun's height (noon unchanged)")
+	_t._check(st.contains("min(g * 2.2, 1.6)"), "the steel's sun glint is capped under the look (no blown-out sail)")
+	var cc := FileAccess.get_file_as_string("res://scripts/world/landmark_civic_center.gd")
+	_t._check(cc.count("\"look\": Rc5Wingsuit.steel_look()") == 2, "both the sails' model and the fallback massing take the steel look")
+	var tc := FileAccess.get_file_as_string("res://shaders/tower_crown.gdshader")
+	_t._check(tc.contains("uniform float dusk_hold = 0.0;") and tc.contains("mix(1.0, smoothstep(0.55, 0.95, night_factor), dusk_hold)"),
+		"the lit crowns wait for dusk under the pass (off by default)")
+	# DayNight's night_factor is 1 - clamp((elevation + 0.05) * 6): 0.7 at the 18:00 sunset, 1 by 18:18.
+	var at_sunset := smoothstep(0.55, 0.95, 0.7)
+	var at_1818 := smoothstep(0.55, 0.95, 1.0)
+	_t._check(at_sunset < 0.35 and at_1818 == 1.0, "a crown glows at %.2f of its strength at 18:00 and in full by 18:18" % at_sunset)
+	_t._check(FileAccess.get_file_as_string("res://scripts/world/landmark_downtown.gd").contains("\"dusk_hold\", Rc5Wingsuit.crown_dusk_hold()"),
+		"LandmarkDowntown's crown materials take the switch (RC5_WINGSUIT=0: as before)")
