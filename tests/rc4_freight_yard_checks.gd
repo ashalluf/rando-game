@@ -72,6 +72,20 @@ func _yard_chunk(city: Node3D) -> void:
 	if line == null:
 		return
 	var lay := FreightYard.layout(line)
+	var spots := RcFreightYard.stand_spots(lay)
+	var a: Vector2 = lay.ladder[0]
+	var b: Vector2 = lay.ladder[1]
+	var on_bed := spots.size() == (lay.tracks as Array).size()
+	for p: Vector2 in spots:
+		# On the ladder's bed (1.95 m half width), off its tie ends (1.3 m).
+		var dl := p.distance_to(Geometry2D.get_closest_point_to_segment(p, a, b))
+		if dl < 1.35 or dl > FreightKit.BALLAST_HALF:
+			on_bed = false
+	_t._check(on_bed, "a switch stand on the ladder's bed at each of the %d turnouts, off the tie ends" % spots.size())
+	var vs := RcFreightYard.valleys(lay)
+	_t._check(vs.size() >= 4, "the valleys between neighbouring storage beds are filled (%d)" % vs.size())
+	var shoulder_out := RcFreightYard.in_storage(Vector2(float(lay.tracks[0].x) + 2.5, float(lay.tracks[0].z1) - 20.0), lay.tracks)
+	_t._check(shoulder_out, "the ladder's shoulder is left out among the storage beds")
 	var t1: Dictionary = lay.tracks[3]
 	var key := plan.chunk_index_at(Vector2(float(t1.x), (float(t1.z0) + float(t1.z1)) * 0.5))
 	var c: CityChunk = city.call("_new_chunk", key, CityChunk.Level.FULL)

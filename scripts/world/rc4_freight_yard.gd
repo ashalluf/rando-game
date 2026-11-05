@@ -37,7 +37,7 @@ static func tie_range(buf: PackedFloat32Array, base: float) -> float:
 ## ya, yb, the ground ga, gb under them): the top a hair under the storage tracks' beds (the two
 ## overlap where a track leaves the ladder; coplanar, they would z-fight) and a shoulder each side
 ## down to the ground, as FreightKit.ballast() lays them for a straight track.
-static func ladder_ballast(kit: FreightKit, p0: Vector2, p1: Vector2, ya: float, yb: float, ga: float, gb: float) -> void:
+static func ladder_ballast(kit: FreightKit, p0: Vector2, p1: Vector2, ya: float, yb: float, ga: float, gb: float, tracks: Array = []) -> void:
 	if not enabled:
 		return
 	var d := p1 - p0
@@ -65,10 +65,103 @@ static func ladder_ballast(kit: FreightKit, p0: Vector2, p1: Vector2, ya: float,
 		var a1 := e1 + side * h * sg
 		var o0 := a0 + side * sg * maxf(ta - ga, 0.05) * 1.6
 		var o1 := a1 + side * sg * maxf(tb - gb, 0.05) * 1.6
+		# Among the storage beds the shoulder stood up out of the valleys between them as a grey
+		# wedge: there the throat is one ballast field (`throat_fill()` fills the valleys).
+		if in_storage((o0 + o1) * 0.5, tracks):
+			continue
 		var out := Vector3(side.x * sg, 1.2, side.y * sg).normalized()
 		kit.quad(kit.track, Vector3(a0.x, ta, a0.y), Vector3(o0.x, minf(ga, ta) - 0.02, o0.y), Vector3(o1.x, minf(gb, tb) - 0.02, o1.y), Vector3(a1.x, tb, a1.y),
 			out, col, Vector2(s0, sg * 2.0), Vector2(s0, sg * 3.0), Vector2(s1, sg * 3.0), Vector2(s1, sg * 2.0), Vector2(0.0, 0.28))
 	kit.set("_track_any", true)
+
+
+## True where a point lies on a storage track's bed or its shoulders, or in the valley between two
+## beds (pure; `tracks` is FreightYard.layout().tracks).
+static func in_storage(q: Vector2, tracks: Array) -> bool:
+	for t: Dictionary in tracks:
+		if q.y >= float(t.z0) and q.y <= float(t.z1) + 0.5 and absf(q.x - float(t.x)) < FreightKit.BALLAST_HALF + 1.6:
+			return true
+	return false
+
+
+## The throat and the walkways as one ballast field: the valley between each pair of neighbouring
+## storage beds (5 m apart) is filled level, a hair under the beds, from under the ladder's bed (its
+## south edge follows the ladder's west edge) to the shorter track's bumper, then sloped down to the
+## ground. Open, each valley stood in the frame as a wedge (the sunlit west shoulder of the next bed);
+## the ladder's west shoulder no longer stands up there either (ladder_ballast()). In 8 m pieces, each
+## built by the chunk its middle is in.
+static func throat_fill(y: FreightYard) -> void:
+	if not enabled or not y.full:
+		return
+	var kit: FreightKit = y.kit
+	var col := FreightKit.tcol(FreightKit.BALLAST_COL, FreightKit.T_BALLAST)
+	for v: Array in valleys(y.lay):
+		var xa: float = v[0]
+		var xb: float = v[1]
+		var z_sa: float = v[2]
+		var z_sb: float = v[3]
+		var z_n: float = v[4]
+		var z0 := z_n
+		while z0 < maxf(z_sa, z_sb) - 0.01:
+			var z1a := clampf(z_sa, z0, z0 + 8.0)
+			var z1b := clampf(z_sb, z0, z0 + 8.0)
+			var mid := Vector2((xa + xb) * 0.5, (z0 + (z1a + z1b) * 0.5) * 0.5)
+			if y.area.has_point(mid):
+				var top := func(x: float, z: float) -> float:
+					return y._y(Vector2(x, z)) + FreightRail.TRACK_DEPTH - FreightKit.BALLAST_DROP - 0.016
+				kit.quad(kit.track, Vector3(xa - 0.05, top.call(xa, z0), z0), Vector3(xb + 0.05, top.call(xb, z0), z0),
+					Vector3(xb + 0.05, top.call(xb, z1b), z1b), Vector3(xa - 0.05, top.call(xa, z1a), z1a), Vector3.UP, col,
+					Vector2(z0, -0.6), Vector2(z0, 0.6), Vector2(z1b, 0.6), Vector2(z1a, -0.6), Vector2(0.0, 0.7))
+				kit.set("_track_any", true)
+			z0 += 8.0
+		# Its north end down to the ground.
+		var xv := (xa + xb) * 0.5
+		if y.area.has_point(Vector2(xv, z_n)):
+			var yn := y._y(Vector2(xv, z_n)) + FreightRail.TRACK_DEPTH - FreightKit.BALLAST_DROP - 0.016
+			var gn := y._y(Vector2(xv, z_n)) - 0.02
+			var drop := maxf(yn - gn, 0.05) * 1.6
+			kit.quad(kit.track, Vector3(xa - 0.05, yn, z_n), Vector3(xb + 0.05, yn, z_n), Vector3(xb + 0.05, gn, z_n - drop), Vector3(xa - 0.05, gn, z_n - drop),
+				Vector3(0.0, 1.2, -1.0).normalized(), col, Vector2(z_n, 2.0), Vector2(z_n, 2.0), Vector2(z_n - drop, 3.0), Vector2(z_n - drop, 3.0), Vector2(0.0, 0.28))
+			kit.set("_track_any", true)
+
+
+## The valleys the throat fill fills (pure): [x west, x east, z south at the west side, z south at
+## the east side, z north] for each pair of neighbouring storage tracks under 6 m apart. The south
+## edge is the ladder's west edge pushed 0.6 m in under the ladder's bed.
+static func valleys(lay: Dictionary) -> Array:
+	var out: Array = []
+	var tracks: Array = lay.tracks
+	var a: Vector2 = lay.ladder[0]
+	var b: Vector2 = lay.ladder[1]
+	var d := b - a
+	if absf(d.y) < 0.01 or absf(d.x) < 0.01:
+		return out
+	var half_x := FreightKit.BALLAST_HALF / absf(d.normalized().y)
+	for i in range(1, tracks.size()):
+		var ta: Dictionary = tracks[i - 1]
+		var tb: Dictionary = tracks[i]
+		if float(tb.x) - float(ta.x) > 6.0:
+			continue
+		var xa: float = float(ta.x) + FreightKit.BALLAST_HALF
+		var xb: float = float(tb.x) - FreightKit.BALLAST_HALF
+		if xb <= xa:
+			continue
+		# z where the ladder's west edge stands at x, plus the tuck under its bed.
+		var za := a.y + (xa + half_x - a.x) * d.y / d.x + 0.6
+		var zb := a.y + (xb + half_x - a.x) * d.y / d.x + 0.6
+		var zn := maxf(float(ta.z0), float(tb.z0))
+		if zn >= minf(za, zb):
+			continue
+		out.append([xa, xb, za, zb, zn])
+	return out
+
+
+## True where a point lies in a filled valley (pure): the weeds there stand on the fill.
+static func in_valley(p: Vector2, lay: Dictionary) -> bool:
+	for v: Array in valleys(lay):
+		if p.x >= float(v[0]) - 0.1 and p.x <= float(v[1]) + 0.1 and p.y >= float(v[4]) and p.y <= maxf(float(v[2]), float(v[3])):
+			return true
+	return false
 
 
 ## Weeds: a yard's ballast is never clean. Foxtail and wild oat tufts (VacantKit's) along the
@@ -86,6 +179,7 @@ const MAX_WEEDS := 1400
 ## The yard's dressing on its tracks' step (FreightYard._tracks_step): the weeds and the switch
 ## stands. FULL only.
 static func dress(y: FreightYard) -> void:
+	throat_fill(y)
 	weeds(y)
 	switch_stands(y)
 
@@ -96,11 +190,10 @@ static func dress(y: FreightYard) -> void:
 static func switch_stands(y: FreightYard) -> void:
 	if not enabled or not y.full:
 		return
-	for t: Dictionary in y.lay.tracks:
-		var p := Vector2(float(t.x) + 2.45, float(t.z1) + 3.2)
+	for p: Vector2 in stand_spots(y.lay):
 		if not y.area.has_point(p):
 			continue
-		var g := y._y(p) + FreightRail.TRACK_DEPTH - FreightKit.BALLAST_DROP
+		var g := y._y(p) + FreightRail.TRACK_DEPTH - FreightKit.BALLAST_DROP - 0.012
 		var ch := y.ch
 		var steel := Color(0.11, 0.105, 0.1)
 		Industrial._wbox(ch, Transform3D(Basis(), Vector3(p.x, g + 0.06, p.y)), Vector3(0.62, 0.12, 0.42), IndustrialKit.K_STEEL, steel)
@@ -108,6 +201,30 @@ static func switch_stands(y: FreightYard) -> void:
 		Industrial._wbox(ch, Transform3D(Basis(Vector3.UP, 0.12), Vector3(p.x + 0.34, g + 0.2, p.y + 0.05)), Vector3(0.72, 0.05, 0.05), IndustrialKit.K_STEEL, Color(0.14, 0.13, 0.12))
 		Industrial._wbox(ch, Transform3D(Basis(), Vector3(p.x, g + 1.27, p.y)), Vector3(0.05, 0.3, 0.42), IndustrialKit.K_STEEL, Color(0.78, 0.6, 0.08))
 		Industrial._wbox(ch, Transform3D(Basis(), Vector3(p.x, g + 1.27, p.y)), Vector3(0.42, 0.3, 0.05), IndustrialKit.K_STEEL, Color(0.6, 0.07, 0.05))
+
+
+## Where each storage track's switch stand stands (pure): on the ladder's bed at the points of the
+## turnout where the track leaves it (3.2 m south of the track's end), on the ladder's open east side
+## STAND_OFF from its centre line, off the tie ends.
+const STAND_OFF := 1.75
+
+
+static func stand_spots(lay: Dictionary) -> Array[Vector2]:
+	var out: Array[Vector2] = []
+	var a: Vector2 = lay.ladder[0]
+	var b: Vector2 = lay.ladder[1]
+	var d := b - a
+	if absf(d.y) < 0.01:
+		return out
+	var along := d.normalized()
+	var east := Vector2(-along.y, along.x)
+	if east.x < 0.0:
+		east = -east
+	for t: Dictionary in lay.tracks:
+		var z := float(t.z1) + 3.2
+		var c := a + d * ((z - a.y) / d.y)
+		out.append(c + east * STAND_OFF)
+	return out
 
 
 static func weeds(y: FreightYard) -> void:
@@ -157,13 +274,17 @@ static func weeds(y: FreightYard) -> void:
 				var p := a + along * s + side * float(sg) * off
 				if not y.area.has_point(p):
 					continue
+				# The ladder's side among the storage beds is the throat's ballast now (throat_fill()).
+				if id == 99 and not inside and in_storage(p, y.lay.tracks):
+					continue
 				count += 1
 				if count > MAX_WEEDS:
 					return
 				var v := (h >> 7) % 2
 				var sc := (0.55 if inside else 0.8) + float((h >> 12) % 60) / 100.0
 				var yaw := float((h >> 4) % 628) / 100.0
-				var top := CityChunk.SIDEWALK_TOP + Industrial.LIFT + (FreightRail.TRACK_DEPTH - FreightKit.BALLAST_DROP - 0.03 if inside else 0.0)
+				var on_bed := inside or (id < 99 and in_valley(p, y.lay))
+				var top := CityChunk.SIDEWALK_TOP + Industrial.LIFT + (FreightRail.TRACK_DEPTH - FreightKit.BALLAST_DROP - 0.03 if on_bed else 0.0)
 				var cell := Vector2i(floori(p.x / WEED_CELL), floori(p.y / WEED_CELL))
 				var key := "fy_tuft_%d_%d_%d" % [v, cell.x, cell.y]
 				var dry := 0.85 + float((h >> 3) % 30) / 100.0
