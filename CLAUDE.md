@@ -2150,6 +2150,13 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   and a distance fade.
   `NIGHT_AERIAL=0` the A/B; `tools/rc2_night_aerial/hide_probe.gd` pins a glow on its node; checks
   `tests/rc2_night_aerial_checks.gd`.
+- Downtown from a helicopter at night (wave 7, refcam `heli_night` in `tools/refcams/cameras_w7.json`,
+  docs/HANDOFF.md "Downtown from a helicopter at 22:30"): `RcHeliNight`
+  (`scripts/world/rc4_heli_night.gd`, the `rc4_heli_night` global): a lit crown's LID keeps
+  `LID_GLOW` of its glow (tower_crown.gdshader: a lit band round a dark roof, not a lightbox), a far
+  helipad's green perimeter is a row of lamps (building_lod kind 5, `PAD_LAMP_EVERY`), the unfinished
+  towers carry a few lit floors and red lights on their frames. `RC4_HELI_NIGHT=0` is the A/B;
+  checks `tests/rc4_heli_night_checks.gd`.
 - The night street review (2026-10-30, docs/HANDOFF.md "The night street at eye level"):
   `NightStreetReview` (`scripts/world/night_street_review.gd`) holds the balance: the moon's key
   (`MOON` 0.09: at 0.3 it lit streets evenly blue at ~45 % of the noon sun and hid the lamps),

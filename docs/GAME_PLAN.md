@@ -4507,3 +4507,7 @@ none of either.
   bridges is ray-traced against the same frames, softened by a calmer normal than the riffles' (the
   full riffles broke a lit arch into specks); a canyon floor's ambient is held down after dark (AO),
   never by darkening its albedo. RIVER_NIGHT=0 is the A/B.
+- 2026-11-05 (wave 8, rc4-heli-night): downtown seen from above at night never shows a crown's
+  lid as a lightbox (a lid keeps a few per cent of the crown's glow), a far helipad's perimeter is
+  lamps, not a neon line, and no tower stands pure black at night (the abandoned towers have work
+  lights and obstruction lights). RC4_HELI_NIGHT=0 is the A/B.
