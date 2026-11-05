@@ -464,22 +464,66 @@ static func flare_fade() -> float:
 ## trails. BLAST_CHUNKS=0 is the A/B.
 static var debris_chunks: bool = OS.get_environment("BLAST_CHUNKS") != "0"
 static var _panel: Mesh
+## Round 18: the torn panels are ragged crumpled sheets, smaller (BLAST_PANELS=0 the bent card).
+## Round 18: flame tongues of their own heights, flickering, with holes and a see-through outer flame. BLAST_FLAME5=0.
+static var flame_look5: bool = OS.get_environment("BLAST_FLAME5") != "0"
+## Round 18: the pool's light hangs in the flames (2.3 m up), dimmer: at 1.1 m it burnt a white
+## hot spot into the road (AgX takes a bright orange to white). BLAST_POOL_LIGHT=0.
+static var pool_light5: bool = OS.get_environment("BLAST_POOL_LIGHT") != "0"
+static var panel_torn: bool = OS.get_environment("BLAST_PANELS") != "0"
 
 
 ## A torn panel: a thin bent sheet, one mesh for every piece (scaled per piece).
 static func panel_mesh() -> Mesh:
 	if _panel == null:
-		# One bent sheet, drawn double-sided by its piece's material (BlastDebris).
-		var pts := [Vector3(-0.5, 0.0, -0.4), Vector3(0.0, 0.12, -0.45), Vector3(0.48, -0.05, -0.32),
-			Vector3(-0.42, 0.04, 0.38), Vector3(0.05, 0.14, 0.4), Vector3(0.5, 0.02, 0.3)]
+		if not panel_torn:
+			# One bent sheet, drawn double-sided by its piece's material (BlastDebris).
+			var pts := [Vector3(-0.5, 0.0, -0.4), Vector3(0.0, 0.12, -0.45), Vector3(0.48, -0.05, -0.32),
+				Vector3(-0.42, 0.04, 0.38), Vector3(0.05, 0.14, 0.4), Vector3(0.5, 0.02, 0.3)]
+			var st0 := SurfaceTool.new()
+			st0.begin(Mesh.PRIMITIVE_TRIANGLES)
+			for q in [[0, 1, 4, 3], [1, 2, 5, 4]]:
+				for k in [0, 1, 2, 0, 2, 3]:
+					st0.add_vertex(pts[q[k]])
+			st0.generate_normals()
+			_panel = st0.commit()
+			return _panel
+		# Round 18: a sheet torn off a car - a ragged outline (notches and tongues round a fan from
+		# its middle), crumpled along two creases and curled at one end. As two flat quads it was a
+		# straight-edged card at 5 m.
+		var rng := RandomNumberGenerator.new()
+		rng.seed = 4407
+		var n := 14
+		var rim: Array[Vector3] = []
+		for i in n:
+			var a := TAU * float(i) / float(n)
+			var r := 0.45 * (0.62 + 0.38 * rng.randf())
+			if i % 4 == 1:
+				r *= 0.55 # a notch torn out
+			var x := cos(a) * r * 1.15
+			var z := sin(a) * r * 0.9
+			rim.append(Vector3(x, _crumple(x, z), z))
+		var mid := Vector3(0.02, _crumple(0.02, -0.03), -0.03)
 		var st := SurfaceTool.new()
 		st.begin(Mesh.PRIMITIVE_TRIANGLES)
-		for q in [[0, 1, 4, 3], [1, 2, 5, 4]]:
-			for k in [0, 1, 2, 0, 2, 3]:
-				st.add_vertex(pts[q[k]])
+		for i in n:
+			var a := rim[i]
+			var b := rim[(i + 1) % n]
+			# Two rings: the middle of each spoke crumpled too, so the sheet is not a flat fan.
+			var am := (a + mid) * 0.5
+			var bm := (b + mid) * 0.5
+			am.y = _crumple(am.x, am.z) + 0.03 * rng.randf_range(-1.0, 1.0)
+			bm.y = _crumple(bm.x, bm.z) + 0.03 * rng.randf_range(-1.0, 1.0)
+			for v in [mid, am, bm, am, a, b, am, b, bm]:
+				st.add_vertex(v)
 		st.generate_normals()
 		_panel = st.commit()
 	return _panel
+
+
+## The torn panel's height at (x, z): two creases and a curl at one end.
+static func _crumple(x: float, z: float) -> float:
+	return 0.09 * absf(sin(x * 5.1 + 0.4)) - 0.06 * absf(z * 1.6 - x * 0.7) + 0.16 * pow(maxf(x, 0.0) * 2.0, 2.0) * 0.5
 
 
 ## The fuel a car's tank threw: two long tongues of burning fuel running out from the pool, their
@@ -588,6 +632,7 @@ static func flame_material() -> Material:
 		_flame_mat = ShaderMaterial.new()
 		_flame_mat.shader = preload("res://shaders/flame_tongue.gdshader")
 		_flame_mat.set_shader_parameter("noise3d", Blast3.noise_texture())
+		_flame_mat.set_shader_parameter("look5", 1.0 if flame_look5 else 0.0)
 	return _flame_mat
 
 

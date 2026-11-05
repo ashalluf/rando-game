@@ -63,6 +63,10 @@ func _throw(radius: float, push: float, count: int) -> void:
 		m.size = Vector3(1.0, 0.6, 0.8)
 		m.left_to_right = 0.3
 		_mesh = m
+		if Blast4.enabled and Blast4.panel_torn:
+			# Round 18: a faceted lump (seven sides, a broken top), not a wedge: a wedge's flat
+			# face turned to the eye was a red-brown card at 5 m.
+			_mesh = BlastAftermath._chunk_mesh(7, Vector3(1.0, 0.62, 0.82), 77, Color.WHITE, Color.WHITE)
 		_mat = StandardMaterial3D.new()
 		_mat.albedo_color = Color(0.06, 0.055, 0.05)
 		_mat.roughness = 0.9
@@ -103,6 +107,8 @@ func _throw(radius: float, push: float, count: int) -> void:
 					mi.material_override = own
 				own.cull_mode = BaseMaterial3D.CULL_DISABLED
 				mi.scale = Vector3(randf_range(0.7, 1.3), 1.0, randf_range(0.5, 1.0)) * clampf(radius / 9.0, 0.6, 1.4)
+				if Blast4.panel_torn:
+					mi.scale *= 0.72
 			else:
 				mi.scale *= randf_range(0.95, 1.45)
 		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF

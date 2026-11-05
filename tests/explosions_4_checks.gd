@@ -387,6 +387,12 @@ func _round11(parent: Node) -> void:
 		"explosions_4: a fuel or gas ball burns longer (burn5, off by default in the shader)")
 	_t._check(FileAccess.get_file_as_string("res://scripts/weapons/blast_3.gd").contains("var soft5 := Blast4.enabled and Blast4.scorch_soft"),
 		"explosions_4: the crater's soot is a core with thinning streaks, not solid spikes")
+	var fm := Blast4.flame_material()
+	_t._check(not Blast4.tongues() or (float((fm as ShaderMaterial).get_shader_parameter("look5")) == (1.0 if Blast4.flame_look5 else 0.0)),
+		"explosions_4: flame tongues of their own heights with holes (look5)")
+	var pm := Blast4.panel_mesh()
+	_t._check(pm != null and (not Blast4.panel_torn or pm.get_faces().size() >= 14 * 9),
+		"explosions_4: a torn panel is a ragged crumpled sheet (%d face verts)" % pm.get_faces().size())
 	if Blast4.volume_room and Blast3.enabled and not WeaponFX._web():
 		var vp := Node3D.new()
 		parent.add_child(vp)

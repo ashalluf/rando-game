@@ -419,7 +419,7 @@ static func crater_maps(kind: int) -> Array:
 				var core_r := 0.47 * (0.82 + 0.36 * nz)
 				var core := 1.0 - smoothstep(core_r * 0.65, core_r * 1.2, r)
 				var frac := clampf((r - core_r * 0.8) / maxf(fr - core_r * 0.8, 0.02), 0.0, 1.0)
-				var streak := (1.0 - smoothstep(0.0, 1.0, frac)) * (1.0 - 0.6 * frac) * 0.8 * (0.4 + 0.6 * nz)
+				var streak := (1.0 - smoothstep(0.0, 1.0, frac)) * 0.92 * (0.45 + 0.55 * nz)
 				soot = maxf(core, streak)
 			soot *= 0.75 + 0.25 * fz
 			# Specks of soot past the fingers.
