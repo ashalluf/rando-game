@@ -29571,3 +29571,95 @@ Gate (`SHARDS=3`): 5,811 checks passed, 0 failed, peak 3.8 GB a shard; new check
 `tests/rc5_skate_park_checks.gd` (shader pass, the air's height, lit paint, the camera row, the A/B).
 Not verified on Forward+ (lavapipe): the concrete colours are linear numbers through the shader's
 existing `cs_out()` path, the same as the park's old ones, so both renderers take them alike.
+
+## 9mp. Forward+ review h: waves 6-7's look work on the Mac's renderer (fleet wave 8, session `fwd-review-h`, branch `wt/fwd-review-h`)
+
+Same method as reviews a-g: each feature in a SMALL scene on the real Forward+ pipeline under
+lavapipe beside the same frame on opengl3, measured; stills and their README on
+`shots/fwd-review-h`. Seed 1337. Waves 6-7 = batches 39-51 (every shader changed since 484a7897:
+69 files, 2,420 lines).
+
+**Static pass first** (render modes, colour-space includes, cs_out / disp / to_lit / col() /
+source_color / COLOR use of every changed shader). The linear-on-both shaders (cs_out: stadium,
+pier park and deck, ridge sign, blast pit / pool / volume, marina mirror, chinatown, airport kit
+and livery floods, bonfire glow, stadium bank glow) are consistent by construction: an additive
+cs_out() light over black adds the same on both. The bugs are all one pattern, in the
+renderer-space and display-number shaders: **a light LEVEL the shader works out itself (a falloff,
+a pool's alpha) left raw.** Compatibility draws `colour x level` in display numbers; Forward+ draws
+`encode(decode(colour) x level)` ~ `colour x level^0.45` - a surface at 10 % of a lamp's centre
+shows ~35 % on the Mac, so every falloff tuned on the opengl3 stills is far flatter and wider there.
+
+**Fixed (all behind `FWD_REVIEW_H=0`, `FwdReviewH`, scripts/world/fwd_review_h.gd; the
+`fwd_review_h` shader global for the shader-side ones; Compatibility bit-identical by construction):**
+1. **The bonfires' firelight pool** (light_pool.gdshader, default path: the tint added in linear
+   HDR): the pool's faint tail turned the whole beach orange on Forward+ (bonfire_night eye, 21:00).
+   `display_add_fwd` (new; fwd-review-e's display-number add on Forward+ only, without
+   `display_add`'s freeway ease from the air, which runs on both renderers) via
+   `FwdReviewH.display_pool()` in `Bonfires.pool_mesh()` (near and LOD). After: the carpet is gone,
+   the warm pool left is the fire's real OmniLight (p95 131 -> 100; opengl3 141, its sand brighter
+   overall as usual at night).
+2. **The landing lights' pool** on the runway (AirportNight.landing_pool(), the same path): the same
+   hook.
+3. **The refinery's tanks** (refinery.gdshader, display numbers: `to_lit(colour) x level`): the
+   flares' light (RefineryNight, wave 6) and the masts' sodium floods up every shell (older, the
+   same pattern) - every tank orange from foot to roof on Forward+, grey with a warm foot and rim on
+   opengl3 (refinery_night eye, 22:30). `fh_level()` (shaders/fwd_review_h.gdshaderinc: the level
+   sRGB-decoded on Forward+) on the three levels. Tank luminance on Forward+ (150,80,30) -> (52,34,24):
+   dark steel, a warm foot and rim (opengl3 (85,73,65): greyer, its brighter night ambient). The
+   flares alone were a small share of it; the masts' sodium fans up the shells were most.
+4. **The container terminal's floods** (container.gdshader / port_steel.gdshader, renderer space,
+   PortNight wave 7): the same, `fh_level()`. port_night eye: the far stacks (77,56,41) -> (46,34,29),
+   opengl3 (45,40,43).
+5. **The industrial office and storefront glass** (industrial_walls.gdshader, RcVernon wave 6 and
+   the older office glass): the sky mirror EMITTED as plain numbers judged on Compatibility, read as
+   linear by Forward+: pale cyan panes. `fh_display()` decodes the mirror on Forward+ (its frame
+   coverage kept linear). vernon_industrial eye at 14:00, the office glass's luminance row by row
+   against the wall over it: before 80 / 83, after 64 / 55, opengl3 67 / 57 (scaled to the same
+   wall) - the mirror term alone was ~3x, the engine's own reflection off the glass is on top.
+6. **Broadway's searchlight shafts from the street** (nightlife_beam.gdshader `look3`, wave 6):
+   the soft knee tuned on opengl3, added in linear HDR on Forward+ (tint x alpha raw): rods again.
+   With look3 the street view adds in display numbers on Forward+; the air keeps its own tuning.
+7. **CloudShadows** (Forward+ desktop only) read the sky's `cloud_volume` / `cloud_coverage` with
+   `float()` before SkyExtras had set them: null, a script error every frame on the first frames
+   (seen in every lavapipe run). `FwdReviewH.param()`.
+
+**Looked at, nothing to fix (Forward+ against opengl3):**
+- Airliner at night with an apron mast (`jet_shot.gd NIGHT=1`): the floods on the jet and the pool
+  agree (p50 15 / 14).
+- The pier at night, second pass (`pier_shot.tscn`): the park's wash and glows agree; Forward+
+  blooms the signs, its sky has the volume cumulus.
+- The ballpark at night (`park_shot.tscn`): Forward+ darker overall (the usual night exposure gap:
+  field 109 vs 169); the bank shafts and the dome haze read weaker on Forward+ because a faint
+  additive light in linear over a non-black sky adds less in display terms - inherent to the two
+  blend spaces, not a shader number; left. (`HIDE=` added to park_shot.gd for a per-layer A/B.)
+- The marina at 18:00: Forward+ water browner with the chop's glints and SSR; the boat mirror
+  (marina_mirror) shows on both. The rigging reads heavier against the low sun on Forward+.
+- The canals at 11:00: Forward+ water bluer (the engine's sky reflection plus the shader's mirror
+  at `mirror_forward` 0.55, by design there - rc4's spec-off is Compatibility only); houses mirror
+  on both.
+- The container terminal at 22:00: the usual night ambient gap (Compatibility lights the boom
+  undersides with flat sky ambient); the floods themselves agree once fixed (4).
+- A car's own blast at night, 2 s (`blast_room_shot.gd NIGHT=1 CAR=1`): the mushroom, fires and
+  smoke agree.
+
+**Not rendered (lavapipe OOM even at 3 blocks, or not reached):** Broadway, Chinatown, the
+fashion district (downtown blocks); the stack and the ridge sign from the air; the film lot; the
+person / car close-up (their sessions shot both renderers). A city scene on lavapipe holds 3
+blocks at most now (4 was OOM-killed at 13.4 GB; `override.cfg` with one worker thread).
+
+**Tools:** `tools/stadium_night/park_shot.gd HIDE=name,name` hides layers for a per-renderer A/B.
+The pairs were shot with `tools/fwd_review_f/shoot.sh` (`EXTRA=` toward the view; a beach, port or
+refinery scene fits in 3 blocks, downtown not even in 1) and the feature tools above with
+`--rendering-driver vulkan` / `opengl3`.
+
+**Switch:** `FWD_REVIEW_H=0` (`FwdReviewH`, `scripts/world/fwd_review_h.gd`) puts every look fix back:
+the `fwd_review_h` shader global 0 (fh_level() / fh_display() raw again, the street shafts on the
+linear add) and the pools on the default path. The CloudShadows guard stays (it is a crash fix).
+Checks: `tests/fwd_review_h_checks.gd`.
+
+**Frame cost:** no node, mesh, material or draw is added (GEO unchanged by construction, not
+re-measured): a uniform branch and an sRGB decode of one scalar per lit pixel in the refinery,
+container and port steel shaders, one of a colour on the industrial glass, and the pools' and
+shafts' display-number add (the same few ALU as fwd-review-e's display_add). Gate: SHARDS=3, 5,932
+checks passed, 0 failed, peak RSS 3,854 MB (a shard; an earlier run's street-closeup flake passed
+alone, 61 / 61 with this branch's checks).

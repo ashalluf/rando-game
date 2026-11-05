@@ -9,6 +9,7 @@ render_mode unshaded, blend_add, cull_disabled, depth_draw_never, shadows_disabl
 // dark with distance, soft at its silhouette edges, a little warmer and denser in a thick night
 // (`haze`, from the depth fog SkyBeam reads).
 
+#include "res://shaders/fwd_review_h.gdshaderinc"
 global uniform float lamp_factor;
 uniform vec3 tint = vec3(0.86, 0.9, 1.0);
 uniform float strength : hint_range(0.0, 3.0) = 0.6;
@@ -83,4 +84,15 @@ void fragment() {
 		a = mix(soft, a, above_s);
 	}
 	ALPHA = clamp(a, 0.0, 1.0);
+#if CURRENT_RENDERER != RENDERER_COMPATIBILITY
+	if (look3 > 0.5 && fwd_review_h > 0.5) {
+		// fwd-review-h: from the street the shaft was judged in display numbers (look3's soft knee,
+		// on opengl3); added in linear HDR its faint tail showed several times stronger on the Mac
+		// and the shafts were rods again. The street view adds in display numbers; the air keeps its own.
+		float street = 1.0 - smoothstep(40.0, 110.0, CAMERA_POSITION_WORLD.y - lens_world.y);
+		vec3 add = tint * ALPHA;
+		ALBEDO = mix(add, fh_display(add), street);
+		ALPHA = 1.0;
+	}
+#endif
 }

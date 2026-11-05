@@ -4018,6 +4018,11 @@ none of either.
   cause, not tuned per renderer - the traced room behind every window is display numbers and is
   decoded on Forward+ like the wall and the glass round it; and a closed cloud deck on Forward+
   runs into its own haze at the horizon like the painted one on the web. FWD_REVIEW_G=0 is the A/B.
+- 2026-11-05 (Forward+ review h, wave 8): a light a shader works out itself (a falloff, a pool's
+  coverage) lives in the same space as the colours it multiplies - a display-number or
+  renderer-space shader hands its light level over decoded on Forward+, and a broad additive pool
+  tuned on the stills adds in display numbers there - so a fall-off judged on the opengl3 stills
+  falls off the same on the Mac. FWD_REVIEW_H=0 is the A/B.
 - **2026-10-31 The first minute is part of the load (loading-first-frame, HANDOFF "The first
   minute").** Whatever play would build in its first seconds - the traffic, the streamer's own
   window, wave 3's first-use pipelines - is built behind the shade, and nothing the loading screen

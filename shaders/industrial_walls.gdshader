@@ -35,6 +35,7 @@ varying vec3 world_n;
 varying vec3 world_p;
 
 #include "res://shaders/color_space.gdshaderinc"
+#include "res://shaders/fwd_review_h.gdshaderinc"
 
 // Tuned in display (sRGB) numbers - what Compatibility hands a shader, and what the paint in
 // COLOR is on both renderers. Forward+ decodes the textures first, so they go back to display
@@ -404,7 +405,8 @@ void fragment() {
 			albedo = mix(vec3(0.035, 0.04, 0.04) + blind * vec3(0.32, 0.31, 0.28) * (0.8 + 0.2 * lines(uv.y, 0.06, 0.02)), vec3(0.52, 0.53, 0.54), mull);
 			mirror = refl * tint * k * (1.0 - night_factor * 0.85) * 1.6;
 		}
-		emit += mirror * 0.55 * (1.0 - mull) * (1.0 - night_factor * 0.7);
+		// fwd-review-h: the mirror is a colour judged in display numbers (fh_display()).
+		emit += fh_display(mirror * 0.55 * (1.0 - night_factor * 0.7)) * (1.0 - mull);
 		float lit = step(0.35, hash12(vec2(floor(uv.x / pitch), floor(uv.y / (h * 0.62)) + seedv * 9.0))) * lamp_factor;
 		emit += vec3(1.0, 0.86, 0.66) * 0.5 * lit * (1.0 - mull);
 		rough = mix(0.08, 0.5, mull);
