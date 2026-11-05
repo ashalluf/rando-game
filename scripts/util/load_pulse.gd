@@ -62,6 +62,8 @@ static var _drain_scenario: RID
 static var _bus_was: bool = false
 static var _rd: bool = false
 ## Frames presented by tick() (outside the normal main loop) and their time, for LoadClock.
+## Every .gdshader loaded at boot (keep_shaders()), held for the session.
+static var _shaders: Array[Shader] = []
 static var pulses: int = 0
 static var pulse_usec: int = 0
 ## The longest time the window went without a new frame during the load, and the step it was in
@@ -77,6 +79,7 @@ const GAP_REPORT_MS := 2000
 ## it never sits still and never jumps backwards. Unknown stages keep the bar where it is.
 const STAGES := {
 	"compile the game": [0.0, 0.03, 20.0, "Starting"],
+	"queue the shaders": [0.03, 0.03, 1.0, "Compiling shaders"],
 	"macro map": [0.03, 0.05, 7.0, "Laying out the basin"],
 	"ground bake": [0.05, 0.16, 25.0, "Painting the far ground"],
 	"far landmarks": [0.16, 0.21, 8.0, "Building the landmarks"],
@@ -95,6 +98,21 @@ const STAGES := {
 	"screen: final streaming": [0.79, 0.80, 1.0, "Building the city"],
 	"graphics": [0.80, 0.99, 60.0, "Compiling graphics (first launch only)"],
 }
+
+
+## Loads every shader file under res://shaders (presenting frames) and keeps it: on a
+## RenderingDevice renderer that starts each one's compile on the worker threads now.
+static func keep_shaders() -> void:
+	if not _shaders.is_empty():
+		return
+	for f in DirAccess.get_files_at("res://shaders"):
+		var name := f.trim_suffix(".remap")
+		if not name.ends_with(".gdshader"):
+			continue
+		var sh := load("res://shaders/" + name) as Shader
+		if sh:
+			_shaders.append(sh)
+		tick()
 
 
 ## True where the pulse may run: a real window, not the web, not switched off.
