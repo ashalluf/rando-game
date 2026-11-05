@@ -28,6 +28,7 @@ const BUDGET_MS := 60
 var _order: PackedStringArray = []
 var _next: int = 0
 var _running := false
+var _settling := false
 
 
 func _ready() -> void:
@@ -44,6 +45,8 @@ func _ready() -> void:
 
 
 func _process(_delta: float) -> void:
+	if _settling:
+		LoadPulse.paint()
 	if not _running:
 		return
 	var t0 := Time.get_ticks_msec()
@@ -61,8 +64,17 @@ func _process(_delta: float) -> void:
 	_running = false
 	LoadPulse.note("")
 	LoadClock.stop("compile the game")
-	# (Every shader file queued here, ahead of the city, was tried: it is a flood of its own -
-	# ~300 shaders' variant groups on the workers - and a landmark's new material waited behind it.)
+	# Every shader file loaded now and its compile WAITED FOR here (RenderingDevice renderers), the
+	# picture moving: loading one hands its variant groups to the worker threads, and the city's
+	# first material of a shader still compiling made the main thread wait for it (2-15 s without a
+	# frame on lavapipe while the landmarks built). Queued and not waited for, the landmarks'
+	# materials waited behind all ~300 of them instead.
+	LoadClock.start("queue the shaders")
+	LoadPulse.keep_shaders()
+	_settling = true
+	var ms: int = await LoadPulse.settle(get_tree())
+	print("LOADING shaders compiled: %d ms" % ms)
+	LoadClock.stop("queue the shaders")
 	get_tree().change_scene_to_file.call_deferred(CITY)
 
 
