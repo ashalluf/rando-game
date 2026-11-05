@@ -212,6 +212,11 @@ void fragment() {
 			albedo *= 0.92 + 0.12 * fbm(tw * 0.7);
 		}
 		rough = 0.9;
+		// A slab seen from below (its top face from behind): the soffit of an open floor, washed
+		// by the late shift's LED fittings under it (ConstructionDusk).
+		if (dusk_glass && !FRONT_FACING && world_n.y > 0.5) {
+			emit = vec3(1.0, 0.88, 0.70) * lamp_factor * (0.07 + 0.06 * vnoise(tw * 0.35));
+		}
 	} else if (k == 1) {
 		// Formwork: film-faced plywood panels in the paint (the forms' own colour), 1.22 x 2.44
 		// sheets with dark joints, wear and concrete splash.
@@ -422,13 +427,22 @@ void fragment() {
 			win *= smoothstep(-0.45, -0.03, r.y);
 			city = mix(city, vec3(0.06, 0.06, 0.07), lamp_factor) + vec3(1.0, 0.76, 0.48) * win * 0.8 * lamp_factor;
 			mirror = mix(city, sky, above);
-			// Behind the glass: storeys under fit-out, a share lit by temporary lights in runs of bays.
+			// Behind the glass: storeys under fit-out, a share lit by temporary lights in runs of
+			// bays (4.5 m between columns, which stand dark), each bay its own level, the tubes in
+			// rows across the ceiling and their light falling off down the room toward the floor.
 			float storey = floor(uv.y / 3.6);
-			float run = floor(uv.x / 9.0);
-			float lit_s = step(0.42, hash12(vec2(storey * 3.1 + 0.7, run + floor(tw.x * 0.01) + floor(tw.y * 0.01) * 13.0)));
+			float bay = floor(uv.x / 4.5);
+			float run = floor(bay / 3.0);
+			vec2 key = vec2(storey * 3.1 + 0.7, run + floor(tw.x * 0.01) + floor(tw.y * 0.01) * 13.0);
+			float lit_s = step(0.5, hash12(key));
+			float level = (0.35 + 0.65 * hash12(vec2(bay, storey) + 5.3)) * step(0.18, hash12(vec2(bay, storey) + 9.1));
+			float bu = fract(uv.x / 4.5);
+			float column = 1.0 - smoothstep(0.0, 0.07, min(bu, 1.0 - bu));
 			float fv = fract(uv.y / 3.6);
-			float tube = 0.65 + 0.35 * lines(uv.x, 1.8, 0.5);
-			inner = vec3(1.0, 0.88, 0.70) * lit_s * (0.14 + 0.85 * smoothstep(0.62, 0.9, fv) * tube) * lamp_factor * 0.85;
+			float tube = smoothstep(0.35, 0.0, abs(fract(uv.x / 1.5) - 0.5)) * band(fv, 0.86, 0.025);
+			float wash = 0.06 + 0.32 * smoothstep(0.3, 0.86, fv) + 0.9 * tube;
+			vec3 tone = mix(vec3(1.0, 0.86, 0.66), vec3(0.86, 0.92, 1.0), step(0.7, hash12(key + 2.0)));
+			inner = tone * lit_s * level * wash * (1.0 - column) * lamp_factor * 0.55;
 		}
 		float mull = max(lines(uv.x, 1.5, 0.06), lines(uv.y, 3.6, 0.14));
 		float film = step(0.965, hash12(pnl + 5.0));

@@ -88,9 +88,10 @@ static func work_lights(ch: CityChunk, st: SurfaceTool, site: Dictionary, floor_
 					continue
 				K.box(st, Transform3D(Basis(), Vector3(p.x, y, p.y)), Vector3(1.2, 0.05, 0.1), K.K_STRIP, Color.WHITE, -1.0, 0, 16)
 				tubes += 1
-				# The perimeter fittings glow from the street (a billboard each on the edge rows).
-				if i == 0 or j == 0 or i == nx - 1 or j == nz - 1:
-					lights.append([Vector3(p.x, y - 0.06, p.y), 0.55, Color(LED.r, LED.g, LED.b, 0.55)])
+				# Every fitting glows (a billboard each), the edge rows brighter: from the street they
+				# are what says the floors are worked on.
+				var edge := i == 0 or j == 0 or i == nx - 1 or j == nz - 1
+				lights.append([Vector3(p.x, y - 0.06, p.y), 0.55 if edge else 0.45, Color(LED.r, LED.g, LED.b, 0.6 if edge else 0.35)])
 	# The top deck: a light tower in from each corner, flood panels aimed at the deck's middle.
 	var ty := floor_y + top
 	var fc := foot.get_center()
