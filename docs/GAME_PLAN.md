@@ -3777,6 +3777,10 @@ already mapped so milestone 2 is script-only.
   between them showed the void as a dark strip). Banks planted to the waterline and more boats tied
   up, every addition a hash after the old rolls. RC4_CANALS=0.
 
+- 2026-11-05 (wave 8, rc4-lowrider-meet): a lowrider meet reads as a show, not a car park: a parked
+  row car is empty with its lamps off and stands in a display stance by hash of its look, a
+  three-wheel takes its wheel 0.45 m off the road, and the crowd gathers round the cars performing
+  with people in the chairs. All hashes, after every roll. RC4_LOWRIDER_MEET=0 is the A/B.
 - **2026-11-05, the Mac launch (mac-launch).** The owner pressed Play and saw 5 minutes of logo,
   then 10 of city sounds over a frozen window. Decided: the window presents a frame for the whole
   load, never a splash or a stale frame with sound. The loading picture is drawn on its own canvas
@@ -4522,3 +4526,30 @@ none of either.
   bridges is ray-traced against the same frames, softened by a calmer normal than the riffles' (the
   full riffles broke a lit arch into specks); a canyon floor's ambient is held down after dark (AO),
   never by darkening its albedo. RIVER_NIGHT=0 is the A/B.
+- 2026-11-05 (wave 8, rc4-heli-night): downtown seen from above at night never shows a crown's
+  lid as a lightbox (a lid keeps a few per cent of the crown's glow), a far helipad's perimeter is
+  lamps, not a neon line, and no tower stands pure black at night (the abandoned towers have work
+  lights and obstruction lights). RC4_HELI_NIGHT=0 is the A/B.
+- **2026-11-02 The metro station refcam: an underground platform is lit, reflected, advertised
+  and busy (rc4-metro-station, HANDOFF "The metro station refcam").** A new reference camera
+  (`metro_station`, wave 7's table) stands on the 7th St terminus' island toward the bank with a
+  train dwelling (`rail_at`). Decisions: the polished floor's mirror of the light lines is worked out
+  in the station's own shader (the reflected ray meets the ceiling's plane), never left to SSR,
+  which the web and opengl3 do not have; the walls' lit panels are ads from the existing billboard
+  atlas (no new art); the escalators carry standing riders and the platform refills from them while
+  the player is down there, inside the crowd cap. METRO_LOOK=0 / METRO_CROWD=0 are the A/Bs.
+- **2026-11-02 The hospital_er refcam: a vehicle court is a level deck, not ground
+  (rc4-hospital-er, HANDOFF "The ER's ambulance court at night").** A new reference camera
+  (`hospital_er`, wave 7's table) looks down the medical centre's ambulance court at 23:00 with an
+  ambulance staged backing in. Decisions: anything that stands at a campus's one floor level (bays,
+  canopy columns, paint, parked and backing vehicles) stands on a deck AT that level, ramped to the
+  street, never on a relief-following slab under it; a lit red sign glows under 1 and lets white
+  letters carry the bloom (red-heavy HDR goes salmon through AgX); a sign over a canopy is placed
+  where the canopy's fascia does not hide it from the approach. RC4_HOSPITAL=0 is the A/B.
+- **2026-11-05 The hill home's pool deck at dusk (rc5-hill-home-dusk, HANDOFF "The hill home's
+  pool deck at dusk").** A new reference camera (`hill_home_dusk`, wave 8's table) stands on a
+  cantilever house's pool deck on the front range at 19:15 looking south over the basin. Decisions:
+  a glass pavilion's room is one open plan lit in downlight pools, never a row of lit partitions; a
+  lit room or pool lights the paving in front of it (an additive spill, display numbers); a pool
+  mirrors the lit glass beside it; the terraced garden keeps out of an infinity pool's view (after
+  the rolls); a hash fed an interpolated varying is quantised first. RC5_HILL_HOME=0 is the A/B.

@@ -37,6 +37,12 @@ uniform float night_light = 1.25;
 // The pane's own tint and how much of the mirror is emitted.
 uniform float glass_tint = 0.36;
 uniform float reflect_emit = 0.75;
+// 1 while the camera is down in the underground station (MetroLook.saloon()): the saloon is lit by
+// its own LED strips, never by the sky's colour (at golden hour that drew it peach), and the glass
+// mirrors the lit station, not a sky. 0 everywhere else: the old shader exactly.
+uniform float underground = 0.0;
+uniform vec3 led_color = vec3(0.90, 0.95, 1.0);
+uniform vec3 station_color = vec3(0.16, 0.155, 0.15);
 
 varying vec3 mpos;
 varying vec3 mnrm;
@@ -59,7 +65,8 @@ vec3 saloon(vec3 p, vec3 d, float night, vec3 day) {
 	vec3 h = p + d * max(t, 0.0);
 	vec3 lit_day = day * day_light;
 	vec3 lit_night = vec3(night * night_light);
-	vec3 light = lit_day + lit_night * strip_color;
+	vec3 strip_c = underground > 0.0 ? mix(strip_color, led_color, underground) : strip_color;
+	vec3 light = lit_day + lit_night * strip_c;
 	vec3 col;
 	// Seat cushions: the ray crosses the seat plane on the way down, outboard of the aisle.
 	float ts = (seat_y - p.y) / (abs(d.y) > 1e-4 ? d.y : -1e-4);
@@ -74,7 +81,7 @@ vec3 saloon(vec3 p, vec3 d, float night, vec3 day) {
 		if (d.y > 0.0) {
 			// Ceiling: panels and the lit strip down the middle.
 			float strip = 1.0 - smoothstep(0.22, 0.28, abs(h.x));
-			col = wall_color * 0.8 * light + strip_color * strip * (0.25 + night * 2.2);
+			col = wall_color * 0.8 * light + strip_c * strip * (0.25 + night * 2.2);
 		} else {
 			col = floor_color * light;
 		}
@@ -107,6 +114,11 @@ void fragment() {
 	// The mirror (world-space reflected ray: up is model +y, the cars stay level enough).
 	vec3 R = reflect(d, N);
 	vec3 mirror = mix(street_color * (0.6 + 0.6 * (1.0 - night)), day * mix(0.9, 1.2, clamp(R.y, 0.0, 1.0)) + vec3(0.02) * night, smoothstep(-0.08, 0.12, R.y));
+	if (underground > 0.0) {
+		day *= 1.0 - underground;
+		night = mix(night, 1.0, underground);
+		mirror = mix(mirror, station_color * mix(0.7, 1.3, clamp(R.y * 0.5 + 0.5, 0.0, 1.0)), underground);
+	}
 	vec3 inside = saloon(mpos - N * 0.02, d, night, day);
 	vec3 emit = inside * glass_tint * (1.0 - fres) + mirror * fres * reflect_emit;
 	ALBEDO = cs_out(vec3(0.01));

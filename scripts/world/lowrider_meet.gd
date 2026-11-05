@@ -206,9 +206,17 @@ static func steps(ch: Node, plan: CityPlan, ix: int, iz: int, block_rect: Rect2)
 	for i in spots.size():
 		out.append(func() -> void: _park(ch, plan, m, spots[i], i))
 	var people := people_spots(plan, m, spots)
+	# The chairs first (LowriderMeetLook): their seats are there for the sitters to take.
+	if LowriderMeetLook.enabled:
+		out.append(func() -> void: _dress(ch, m, spots))
 	for i in people.size():
 		out.append(func() -> void: _spawn_person(ch, m, people[i], i, block_rect))
-	out.append(func() -> void: _dress(ch, m, spots))
+	if LowriderMeetLook.enabled:
+		var sitters := LowriderMeetLook.sitter_spots(m, chair_spots(m, spots))
+		for i in sitters.size():
+			out.append(func() -> void: _spawn_person(ch, m, sitters[i], i, block_rect, true))
+	else:
+		out.append(func() -> void: _dress(ch, m, spots))
 	return out
 
 
@@ -263,6 +271,7 @@ static func _park(ch: Node, plan: CityPlan, m: Dictionary, spot: Array, i: int) 
 				h.call("perform", f[1], -1.0 if f.size() < 4 else f[3].to_float())
 				h.call("advance", f[2].to_float())
 				h.set("frozen", true)
+	LowriderMeetLook.dress_car(car, spot)
 	car.visible = (ch as Node3D).visible
 	(ch.get("_cars") as Array).append(car)
 
@@ -275,6 +284,8 @@ static func people_spots(plan: CityPlan, m: Dictionary, spots: Array) -> Array:
 	var side := float(m.side)
 	var kerb := float(m.centre) + side * float(m.width) * 0.5
 	var want := mini(MAX_PEOPLE, int(round(float(spots.size()) * PEOPLE_PER_CAR)))
+	if LowriderMeetLook.enabled:
+		return LowriderMeetLook.people_spots(m, spots, want)
 	for i in want:
 		var s := hash([int(m.seed), i, "person"])
 		var j := i % spots.size()
@@ -289,10 +300,11 @@ static func people_spots(plan: CityPlan, m: Dictionary, spots: Array) -> Array:
 	return out
 
 
-static func _spawn_person(ch: Node, m: Dictionary, spot: Array, _i: int, block_rect: Rect2) -> void:
+static func _spawn_person(ch: Node, m: Dictionary, spot: Array, _i: int, block_rect: Rect2, sitter: bool = false) -> void:
 	if not bool(ch.call("_take_crowd_room")):
 		return
 	var ped := MeetGoer.new()
+	ped.sitter = sitter
 	var p: Vector2 = spot[0]
 	ped.setup_goer(block_rect, int(spot[2]), p, float(spot[1]), int(m.axis))
 	ped.position = Vector3(p.x, ch.call("ground_y", p.x, p.y) + 0.05, p.y)

@@ -435,6 +435,10 @@ river_night={
 "type": "float",
 "value": 1.0
 }
+rc4_heli_night={
+"type": "float",
+"value": 1.0
+}
 fwd_review_h={
 "type": "float",
 "value": 1.0
