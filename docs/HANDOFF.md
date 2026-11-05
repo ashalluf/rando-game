@@ -29141,3 +29141,55 @@ draws, cost unchanged. Still not seen on Forward+. Stills 07, 08 on shots/rc4-me
 hook), `scripts/npc/metro_rider.gd` (level 2, alight), `scripts/vehicles/light_rail_train.gd`
 (the bullet's letter), `tools/refcams/refcams_shot.gd` (`rail_at`), `tests/smoke_test.gd` (one
 line).
+
+## 9mi. The lowrider meet at eye level (wave 7 refcam `lowrider_meet`, resumed in wave 8, branch `wt/rc4-lowrider-meet`)
+
+**The camera.** `lowrider_meet` in `tools/refcams/cameras_w7.json`: eye `815.5, 1.4 (agl), 606.8`,
+yaw -110, pitch 0, fov 50, 19:30 clear - in the road beside the meet on Z#4 (x 810-900, seed 1337),
+looking along the parked row. Its optional `lowrider_meet` key (`{"on": 1, "pose":
+"i:routine:seconds[:side],..."}`) holds every meet on (LOWRIDER_MEET=1, `LowriderMeet.force`) and
+freezes row cars mid-routine (LOWRIDER_POSE); `_lowrider_meet()` in refcams_shot.gd sets both before
+the city loads (the row is parked as its chunk builds). The row's pose: car 0 on three for 2.5 s
+(side +1), car 2 mid-hop at 0.78 s. Run: `REFCAMS_JSON=tools/refcams/cameras_w7.json python3
+tools/refcams/refcams.py run <dir> --only lowrider_meet`. `tools/rc4_lowrider_meet_probe.gd` prints
+the row (stances, lamps, routines) and the crowd headless.
+
+**What gave it away (the before, shots/rc4-lowrider-meet 01), in the order the eye lands:**
+1. Every parked car sat identical: laid out flat, its lamps lit and a driver at the wheel (a row car
+   is placed as kinematic traffic with `parked`, which seats an NPC driver and runs the lamps). A
+   real show is cars with their owners out on the kerb, standing in display stances.
+2. The three-wheel - the one pose that says "lowrider" from across the street - lifted its wheel
+   0.2 m and barely read at 20 m.
+3. The crowd stood one or two per car in an even line down the pavement, nobody watching anything,
+   and the folding chairs were empty.
+
+**The fixes** (`LowriderMeetLook`, `scripts/world/lowrider_meet_look.gd`; `RC4_LOWRIDER_MEET=0` is
+the A/B; hooks: one line in `LowriderMeet._park()`, the crowd / chairs order in `LowriderMeet.steps()`,
+`people_spots()` hands over, `Lowrider.Hydraulics` `three_lift`, `stance`, `set_stance()`):
+- **Display stances, empty cars.** A parked row car (not a show car) is EMPTY - `_npc_driver` off,
+  `_update_occupant(true)`, lamps off - and holds a stance by hash of its look (`stance_for()`):
+  laid (half), LOCKED up on all four, standing on THREE (a side by hash), or NOSE up
+  (`STANCE_ODDS`). `set_stance()` snaps the corners at once (no spring up on screen) and PARKED mode
+  holds them (`_stance_targets()`). A car held mid-routine for a still keeps its driver.
+- **A real three-wheel.** `_three_targets()`: the lifted front corner past its stroke by
+  `three_lift` 0.45 m (its wheel that far off the road), the other front at its stroke, the rear on
+  that side a little up, the one across on its bump stops. The old rule (stroke + 0.2, 0.55 stroke)
+  is the A/B.
+- **The crowd round the show.** `people_spots()` (same count and format) puts `SHOW_SHARE` 0.6 of
+  the crowd in rings on the pavement round the kerb side of the cars that are performing (show cars
+  and the posed ones), facing them; the rest spread by their cars. The folding chairs are laid
+  BEFORE the people now (the old order when off) and `sitter_spots()` seats people in 3/4 of the
+  chairs (`MeetGoer.sitter`: the life sit clip, eyes on whatever performs).
+
+Every pick is a hash of the meet's seed or the car's look: no roll anywhere else moves.
+
+**Checks**: `tests/rc4_lowrider_meet_checks.gd` (stance shares and determinism, a dressed car empty
+and dark, locked / three / show three-wheel heights from the wheel rigs, a show car keeps its driver,
+the crowd on the pavement and round the show cars, sitters at chairs, the camera row, the A/B).
+
+**Not done**: the stances are visual only (the physics body stays where it was parked, as before);
+the meet's music / sound is untouched; nothing proved on Forward+ (no colour or lighting change).
+The carriageway in this view reads pale grey at 19:30 with hard black RoadWear stamps on it; the lead
+found the same bright ground on gas_station_night (23:30), so the cause is city-wide and left to
+rc5-gas-station-night (`tools/rc4_lowrider_meet/road_probe.gd` re-shoots the view with each layer,
+the local lights and the additive pools hidden, to pin what lights it).

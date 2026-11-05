@@ -3777,6 +3777,11 @@ already mapped so milestone 2 is script-only.
   between them showed the void as a dark strip). Banks planted to the waterline and more boats tied
   up, every addition a hash after the old rolls. RC4_CANALS=0.
 
+- 2026-11-05 (wave 8, rc4-lowrider-meet): a lowrider meet reads as a show, not a car park: a parked
+  row car is empty with its lamps off and stands in a display stance by hash of its look, a
+  three-wheel takes its wheel 0.45 m off the road, and the crowd gathers round the cars performing
+  with people in the chairs. All hashes, after every roll. RC4_LOWRIDER_MEET=0 is the A/B.
+
 ## Correction: what build 135 (0ce833f) actually contained
 
 That commit's subject says "denser grass, real palm fronds, finer ground". It also shipped a

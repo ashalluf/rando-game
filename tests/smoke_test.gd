@@ -2933,6 +2933,8 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	# The metro station refcam (tests/rc4_metro_station_checks.gd, MetroLook, MetroCrowd): ads, the
 	# floor mirror, escalator riders, the bullet's letter, the camera row.
 	load("res://tests/rc4_metro_station_checks.gd").new().run(self, city)
+	# The lowrider_meet refcam (tests/rc4_lowrider_meet_checks.gd, LowriderMeetLook): stances, empty parked cars, the crowd.
+	await load("res://tests/rc4_lowrider_meet_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()

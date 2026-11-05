@@ -173,3 +173,13 @@ mid-dwell>]]"`, LightRailSystem's RAIL_AT per camera) sets the light rail's cloc
 staged and holds it until the shot; while it is held, every placement of the parked player calls
 `MetroStation.admit()` (an eye under the city's ground box is otherwise thrown out to the street
 each step, and the tunnel train is hidden with it).
+
+
+## Wave 7's cameras (`cameras_w7.json`)
+
+`lowrider_meet` (rc4-lowrider-meet): the Saturday lowrider meet on Z#4 (x 810-900, seed 1337) at
+19:30 clear, eye level in the road beside the row. Its optional `lowrider_meet` key
+(`{"on": 1, "pose": "i:routine:seconds[:side],..."}`) holds every meet on (LOWRIDER_MEET=1) and
+freezes row cars mid-routine (LOWRIDER_POSE), set before the city loads (`_lowrider_meet()` in
+refcams_shot.gd). `tools/rc4_lowrider_meet_probe.gd` prints the row (stances, lamps, routines)
+and the crowd headless.
