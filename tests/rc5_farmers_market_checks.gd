@@ -69,7 +69,8 @@ func _produce() -> void:
 		worst = maxi(worst, _tris(FarmersMarketKit.goods(0, v)))
 	_t._check(worst > 10000 and worst < TABLE_BUDGET,
 		"rc5-farmers-market: produce tables are finer and packed, under budget (%d near, budget %d)" % [worst, TABLE_BUDGET])
-	# A crate's heap: count the fruit in one oranges crate on the old and the new path.
+	# A crate's heap: its vertices on the old and the new path (the packed layer is caps of fewer
+	# vertices each, so twice the fruit is about 1.7 times the vertices).
 	var counts := []
 	for on: bool in [false, true]:
 		FarmersMarketKit.rc5 = on
@@ -81,7 +82,7 @@ func _produce() -> void:
 		FarmersMarketKit._heap(g, Transform3D(), Vector2(0.39, 0.58), 0.195, 0.05, "orange", rng)
 		counts.append(g.v.size() - before)
 	FarmersMarketKit.rc5 = true
-	_t._check(int(counts[1]) > int(counts[0]) * 2,
+	_t._check(float(counts[1]) > float(counts[0]) * 1.5,
 		"rc5-farmers-market: a crate's heap is packed fuller than the old grid (%d vertices, was %d)" % [counts[1], counts[0]])
 	# The shadow twin (the far level) stays the light one.
 	var mesh := FarmersMarketKit.goods(0, 0)
