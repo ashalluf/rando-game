@@ -2711,6 +2711,15 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   core. Trap: a shader that writes POSITION in one branch uses it for EVERY vertex - write it in
   the other branch too. `POLICE_NIGHT_LOOK=0` is the A/B; small street `tools/police_night/police_shot.gd`
   (`VIEW=chase|low|block`, `RAIN=`, `T=`, `STRIP=`); checks `tests/police_night_look_checks.gd`.
+- The police pursuit (2026-11-05, refcam `police_pursuit` in `tools/refcams/cameras_w8.json`, a
+  `drive` row's `pursuit` key staged by `tools/refcams/pursuit_stage.gd`; docs/HANDOFF.md "The police
+  pursuit at night"): `PursuitLook` (`scripts/npc/pursuit_look.gd`): the helicopter's spot at
+  `SPOT_GAIN`, its pool faint and on the ground, its shaft faded at the foot and near the lens
+  (searchlight_beam `foot_fade`, `near_*`); an LED triple flash (`flash_side()` = the `pattern` 1
+  strobe of police_lights / police_wash, checked); an LED light bar (`light_bar_mesh()`, the bar
+  shader's `led`); the wash pool a point source at bar height (`point_pool`). Trap: Helicopter and
+  PoliceNightLook re-show their pieces every frame, so hiding one for an A/B does nothing (switch
+  its input off). `PURSUIT_LOOK=0` is the A/B; checks `tests/rc5_police_pursuit_checks.gd`.
 - Character arms: the generated clips were authored for arms that hang straight, but each
   generated rig is bound in whatever pose its mesh came out in (A-pose, or a palms-up shrug
   with the forearms raised), and the clips drive the arm bones as if that were the rest pose -

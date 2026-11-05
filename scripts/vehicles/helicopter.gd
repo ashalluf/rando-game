@@ -359,7 +359,7 @@ func _build_searchlight() -> void:
 		core.position = Vector3(0.0, 0.0, 0.02)
 		core.scale = Vector3(0.5, 0.5, 1.0)
 		_pool.add_child(core)
-	PursuitLook.dress_searchlight(_pool, _beam_mat)
+	PursuitLook.dress_searchlight(_pool, _beam_mat, _spot)
 
 
 # --- Flight -----------------------------------------------------------------------------------
@@ -544,7 +544,7 @@ func _aim_gear(dt: float) -> void:
 	if not lit:
 		_beam.visible = false
 		return
-	_spot.light_energy = searchlight_energy * lamp
+	_spot.light_energy = searchlight_energy * lamp * PursuitLook.spot_gain()
 	var volumetric: bool = traffic.volumetric_searchlight() if traffic else false
 	_spot.light_volumetric_fog_energy = searchlight_fog if volumetric else 0.0
 	# Where it lands, for the pool and the length of the drawn shaft.

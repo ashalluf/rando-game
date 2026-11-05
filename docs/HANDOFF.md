@@ -28838,3 +28838,61 @@ smooth normals on Forward+ are unproved. No crew AT WORK (no shoot, no dolly, ca
 driven: the film-shoot session's area); the stage walls are as they were; the trailers' variants all
 share three dressings, so a long row repeats every third; the far LOD of the trailers is the old
 `lod_box` path. Checks: `tests/rc4_film_lot_checks.gd` (10). Probe: `tools/rc4_film_lot/crew_probe.tscn`.
+
+## 9d?. The police pursuit at night (refcam5 `police_pursuit`, wave 8, rc5-police-pursuit)
+
+**The camera.** `police_pursuit` in `tools/refcams/cameras_w8.json`: 22:00 clear, the player's own
+black coupe east on Wilshire at x 1150 at 60 km/h (toward the downtown skyline), seen through his
+chase camera, two cruisers on his rear quarters (one in the kerb lane, one flanking in the oncoming
+lane), three stars, the police helicopter's searchlight on him. Staged by the `drive` row's new
+optional `pursuit` key (`tools/refcams/pursuit_stage.gd`, called from chase_stage.gd; keys in the
+README): the police switched on but dispatching nothing of their own, the cruisers `scripted` and
+held at his speed and lane offset every physics tick (brake off, mask world only), the helicopter
+staged by `AirTraffic.stage("police")` from his camera, the chase camera's look held a few degrees
+off. `POLICE_PURSUIT=0` stages none of it; `PURSUIT_AB=1` saves the frame again with each piece
+switched off.
+
+**What read as a game, worst first, and what changed** (`PursuitLook`, `scripts/npc/pursuit_look.gd`;
+`PURSUIT_LOOK=0` is the A/B of all of it):
+
+1. **The searchlight was a flat white disc ~30 m across** that swallowed the road, the lane paint
+   and the cars' wheels, and its shaft was a pale veil over the top half of the frame. Three things
+   landed on one spot: the SpotLight3D, an additive pool (1.6 plus a 2.6 core, 1.25 x the beam's
+   width + 2 m, lifted 25 cm so it painted over the tyres and kerbs) and the drawn shaft's foot. Now
+   the spot does the lighting (`SPOT_GAIN` 0.6, `SPOT_EDGE` 0.3: a hotter middle and a soft rim), the
+   pool is only the hot middle (0.32 / 0.55, the beam's width, 4 cm over the ground) and the shaft
+   fades out over its last 22 % and inside 6-45 m of the lens (searchlight_beam.gdshader
+   `foot_fade`, `near_from` / `near_to`, 0 = the old shaft).
+2. **No red or blue on the street in most frames.** The bar strobed each bank twice in a tenth of a
+   cycle: a bank lit 36 % of the time, so most stills (and most frames) showed the bar's lenses and
+   nothing on the street. `PursuitLook.flash_side()` is an LED triple flash (three pulses a side over
+   0.42 of each half: lit 72 %), carried as `pattern` 1 by police_lights.gdshader and
+   police_wash.gdshader (the same expression, checked) and returned by `PoliceCar.flash_side()`, which
+   PoliceNightLook's real lights follow.
+3. **The wash pool drowned the frame once lit.** With the new pattern the old pool (a soft dot flat
+   out to ~13 m) turned the road round two cruisers beside the camera into one blue-white and pink
+   sheet. police_wash.gdshader's `point_pool` is the light of a lamp at bar height,
+   E ~ (1 + r^2/h^2)^-1.5 (h 2.6 m, `point_gain` 0.12), faded out by 6-13 m; the lit lens's glare is
+   0.3 m (`WASH_GLARE`, was 0.7: a red smear the width of the roof at 5 m). The facade wash (seen on
+   Forward+, where it clipped to a flat red rectangle once lit most of the time) falls off inside its
+   quad and is a third as strong under the same switch.
+4. **The light bar was six flat unshaded boxes** - two coloured bricks from the chase camera.
+   `PursuitLook.light_bar_mesh()` is a low LED bar the old one's size: a chamfered black housing under
+   a clear tinted dome, red bank, clear takedown lamps, blue bank, end caps; police_lights.gdshader's
+   `led` draws rows of LED pods in the dome (dim coloured chips and grey reflectors when off,
+   white-hot chips in a glowing dome when lit, a view-space sheen). One surface, ~200 triangles.
+
+**Traps.** `Helicopter._aim_gear()` re-sets the spot's, pool's and shaft's visibility every frame,
+and PoliceNightLook re-shows every glow and light: hiding one of them for an A/B changes nothing
+(three rounds were lost to that). pursuit_stage's A/B switches their INPUTS off (the helicopter's
+`searchlight_energy`, the pieces' transparency, the wash material's gains). A driverless physical
+cruiser keeps its parking brake on: pushed along by velocity its wheels skid and DrivingFX throws
+smoke and sparks (its brake is zeroed each tick); and the cars held at speed by velocity still threw
+DrivingFX sparks off some body contact the staging did not pin down, so it raises `spark_speed` for the
+shot.
+
+**Not done / not verified.** Forward+ (the Mac) not seen in the city: there the real strobe lights
+(PoliceNightLook's budget) and the volumetric searchlight also act (the drawn shaft is hidden at
+HIGH); the bar and the wash were checked on a small Forward+ scene (below). The facades on Wilshire
+stand past the wash's 16 m wall reach, so no wall wash in this view. The cruisers are staged, not
+driving PoliceChase's tactics.

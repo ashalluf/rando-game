@@ -50,9 +50,11 @@ const SHAFT_STRENGTH := 0.16
 
 ## Called once the searchlight is built: the pool and its core rebuilt soft and faint, the shaft's
 ## fades set. Returns nothing; the old look is left untouched when off.
-static func dress_searchlight(pool: MeshInstance3D, beam_mat: ShaderMaterial) -> void:
+static func dress_searchlight(pool: MeshInstance3D, beam_mat: ShaderMaterial, spot: SpotLight3D = null) -> void:
 	if not enabled:
 		return
+	if spot:
+		spot.spot_angle_attenuation = SPOT_EDGE
 	if pool:
 		pool.mesh = PropFactory.light_pool(Color(0.85, 0.92, 1.0), POOL_STRENGTH, 1.7)
 		var core := pool.get_node_or_null("PoolCore") as MeshInstance3D
@@ -72,6 +74,18 @@ static func dress_searchlight(pool: MeshInstance3D, beam_mat: ShaderMaterial) ->
 static func pool_dia(reach: float, angle_deg: float) -> float:
 	var w := 2.0 * reach * tan(deg_to_rad(angle_deg))
 	return w * POOL_SPREAD if enabled else w * 1.25 + 2.0
+
+
+## The searchlight's own light (x Helicopter.searchlight_energy): at full strength the road under it
+## clipped to flat white at the night exposure and every texture in the beam was gone.
+const SPOT_GAIN := 0.6
+## The spot's cone falloff (SpotLight3D.spot_angle_attenuation, the old 0.6): lower is a hotter middle
+## and a softer rim - the old rim drew a hard circle round the car, the red and blue inside it pink.
+const SPOT_EDGE := 0.3
+
+
+static func spot_gain() -> float:
+	return SPOT_GAIN if enabled else 1.0
 
 
 static func pool_lift() -> float:

@@ -168,3 +168,16 @@ for a run. `stack_aerial` (rc4-stack-aerial): the four-level stack from 150 m ov
 north-west of it, 17:30 clear, toward downtown; `shot_frames` 90 lets the connectors' traffic fill
 before the shot.
 
+
+## Wave 8's cameras (`cameras_w8.json`)
+
+Run with `REFCAMS_JSON=tools/refcams/cameras_w8.json`. `police_pursuit` (rc5-police-pursuit): the
+player's own car on Wilshire at 22:00 clear through his chase camera (a `drive` row, chase_stage.gd),
+with the drive key's optional `pursuit` (`pursuit_stage.gd`): `stars`, `cruisers` ([metres behind,
+metres to his right] each, held at his speed, their own driving off), `heli` ([dist, side, height]:
+AirTraffic.stage("police") from his camera, its searchlight on him) and `look` ([yaw, pitch] degrees
+the chase camera is turned off its chase view and held). The police dispatch nothing of their own
+while it runs. `POLICE_PURSUIT=0` stages none of it; `PURSUIT_AB=1` saves the frame again with each
+piece switched off (pab_NN_base.png / pab_NN_<piece>.png pairs): the helicopter's spot, pool and
+shaft, the cruisers' wash pool / wall / glare, by their inputs (their owners re-show hidden nodes
+every frame).

@@ -28,6 +28,8 @@ var _saved := {}
 var _look := Vector2.ZERO
 var _has_look := false
 var heli: Node = null
+var _fx: Node = null
+var _saved_spark := 4.0
 
 
 static func wanted(cam: Dictionary) -> bool:
@@ -55,6 +57,12 @@ func run(st: SceneTree, cam: Dictionary, car: Vehicle, fwd: Vector3, player: Nod
 	police.set("accuracy_base", 0.0)
 	police.set("enabled", true)
 	police.call("set_wanted", int(p.get("stars", 3)))
+	# Cars held at speed by velocity scrape sparks off whatever their bodies touch (DrivingFX): not
+	# what a driven chase on a straight throws. Put back in finish().
+	_fx = city.get_node_or_null("DrivingFX")
+	if _fx:
+		_saved_spark = float(_fx.get("spark_speed"))
+		_fx.set("spark_speed", 1.0e6)
 	var right := Vector3(-fwd.z, 0.0, fwd.x)
 	var yaw := atan2(-fwd.x, -fwd.z)
 	var at := WorldState.to_world(car.global_position)
@@ -113,6 +121,10 @@ func steer(car: Vehicle, v: float, player: Node) -> void:
 		var turn := cf.signed_angle_to(f, Vector3.UP)
 		c.angular_velocity = Vector3(c.angular_velocity.x * 0.5, turn * 3.0, c.angular_velocity.z * 0.5)
 		c.hold_crash_watch(2)
+		# Nobody's foot on the brake (an empty car holds its parking brake: the wheels skidded and
+		# DrivingFX threw smoke and sparks off a car rolling straight).
+		c.brake = 0.0
+		c.engine_force = 0.0
 	police.call("report_sighting")
 	if _has_look:
 		var dc: Node = _drive_cam(player)
@@ -145,6 +157,8 @@ func finish() -> void:
 	if police == null:
 		return
 	police.call("clear")
+	if is_instance_valid(_fx):
+		_fx.set("spark_speed", _saved_spark)
 	for key in _saved:
 		police.set(key, _saved[key])
 	if air and air.has_method("clear_all"):
@@ -165,6 +179,10 @@ func ab(out_dir: String) -> void:
 			for w in ["WallA", "WallB"]:
 				var wm := g.get_node_or_null(w) as Node3D
 				walls += " %s found %s at %s" % [w, str(wm.get_meta("found", false)), str(WorldState.to_world(wm.global_position).round())] if wm else ""
+		print("REFCAM pursuit cruiser monitor %s max %d mask %d layer %d wheels %d" % [str(c.contact_monitor), c.max_contacts_reported, c.collision_mask, c.collision_layer, c.find_children("*", "VehicleWheel3D", true, false).size()])
+		for wh in c.find_children("*", "VehicleWheel3D", true, false):
+			var vw := wh as VehicleWheel3D
+			print("REFCAM pursuit wheel contact %s skid %.2f rpm %.0f" % [str(vw.is_in_contact()), vw.get_skidinfo(), vw.get_rpm()])
 		var st := PhysicsServer3D.body_get_direct_state(c.get_rid())
 		for k in st.get_contact_count():
 			var o: Object = st.get_contact_collider_object(k)
@@ -177,25 +195,12 @@ func ab(out_dir: String) -> void:
 		return
 	var sets := {}
 	if air:
-		for n in ["Pool", "Beam", "Shaft"]:
-			var xs := []
-			for h in air.get_children():
-				var x: Node = h.find_child(n, true, false)
-				if x:
-					xs.append(x)
-			sets["heli_" + n.to_lower()] = xs
 		var crafts := []
 		for h in air.get_children():
 			if h is Node3D and (h as Node3D).visible:
 				print("PURSUIT_AB aircraft %s at %s" % [h.name, str((h as Node3D).global_position)])
 				crafts.append(h)
 		sets["air_all"] = crafts
-		for h in crafts:
-			sets["air_" + String(h.name)] = [h]
-		if heli and is_instance_valid(heli):
-			for d in heli.find_children("*", "Node3D", true, false):
-				if (d is VisualInstance3D or d is GPUParticles3D or d is CPUParticles3D) and (d as Node3D).is_visible_in_tree():
-					sets["h6_" + String(heli.get_path_to(d)).validate_filename()] = [d]
 	var glows := []
 	for c in cruisers:
 		if is_instance_valid(c) and c.get_node_or_null("PoliceGlow"):
@@ -232,13 +237,70 @@ func ab(out_dir: String) -> void:
 			omnis.append(l)
 	sets["spots"] = spots
 	sets["omnis"] = omnis
+	# Pieces the helicopter re-shows every frame are switched off at their inputs instead.
+	if heli and is_instance_valid(heli):
+		sets["heli_spot"] = ["energy"]
+		sets["heli_pool"] = ["pool"]
+		sets["heli_shaft"] = ["shaft"]
+	sets["wash_pool"] = ["wash:pool_gain"]
+	sets["wash_wall"] = ["wash:wall_gain"]
+	sets["wash_glare"] = ["wash:glare_gain"]
+	var n_i := 0
 	for key: String in sets:
 		var nodes: Array = sets[key]
-		for n in nodes:
-			n.set("visible", false)
 		for i in 3:
 			await tree.process_frame
-		tree.root.get_texture().get_image().save_png(out_dir.path_join("pab_%s.png" % key))
+		tree.root.get_texture().get_image().save_png(out_dir.path_join("pab_%02d_base.png" % n_i))
+		var keep: Variant = null
 		for n in nodes:
-			n.set("visible", true)
+			if n is String and String(n).begins_with("wash:"):
+				keep = []
+				for c in cruisers:
+					var g: Node = c.get_node_or_null("PoliceGlow")
+					if g and g.has_meta("mat"):
+						var gm: ShaderMaterial = g.get_meta("mat")
+						keep.append(gm.get_shader_parameter(String(n).substr(5)))
+						gm.set_shader_parameter(String(n).substr(5), 0.0)
+			elif n is String:
+				match String(n):
+					"energy":
+						keep = heli.get("searchlight_energy")
+						heli.set("searchlight_energy", 0.0)
+					"pool":
+						var pool := heli.find_child("Pool", true, false) as MeshInstance3D
+						keep = pool.transparency
+						pool.transparency = 1.0
+						for ch in pool.get_children():
+							(ch as GeometryInstance3D).transparency = 1.0
+					"shaft":
+						var sh := heli.find_child("Shaft", true, false) as GeometryInstance3D
+						keep = sh.transparency
+						sh.transparency = 1.0
+			else:
+				n.set("visible", false)
+		for i in 3:
+			await tree.process_frame
+		tree.root.get_texture().get_image().save_png(out_dir.path_join("pab_%02d_%s.png" % [n_i, key]))
+		for n in nodes:
+			if n is String and String(n).begins_with("wash:"):
+				var k := 0
+				for c in cruisers:
+					var g: Node = c.get_node_or_null("PoliceGlow")
+					if g and g.has_meta("mat"):
+						(g.get_meta("mat") as ShaderMaterial).set_shader_parameter(String(n).substr(5), keep[k])
+						k += 1
+			elif n is String:
+				match String(n):
+					"energy":
+						heli.set("searchlight_energy", keep)
+					"pool":
+						var pool := heli.find_child("Pool", true, false) as MeshInstance3D
+						pool.transparency = 0.0
+						for ch in pool.get_children():
+							(ch as GeometryInstance3D).transparency = 0.0
+					"shaft":
+						(heli.find_child("Shaft", true, false) as GeometryInstance3D).transparency = 0.0
+			else:
+				n.set("visible", true)
+		n_i += 1
 		print("PURSUIT_AB %s: %d nodes hidden" % [key, nodes.size()])
