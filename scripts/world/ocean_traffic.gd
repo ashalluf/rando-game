@@ -504,17 +504,6 @@ func push_wakes() -> void:
 		var d := cam.distance_to(v.world_pos)
 		if d > wake_range:
 			continue
-		list.append([d, v])
-	list.sort_custom(func(a: Array, b: Array) -> bool: return a[0] < b[0])
-	_wake_a.resize(16)
-	_wake_b.resize(16)
-	var n := mini(list.size(), 16)
-	for i in 16:
-		if i >= n:
-			_wake_a[i] = Vector4.ZERO
-			_wake_b[i] = Vector4.ZERO
-			continue
-		var v: Vessel = list[i][1]
 		var bow := v.bow_xz()
 		var sp := v.speed
 		var strength := 1.0
@@ -527,12 +516,26 @@ func push_wakes() -> void:
 			sp = 2.2
 			strength = 0.55
 		var trail := clampf(sp * 22.0 + v.length * 4.0, 40.0, 520.0)
-		_wake_a[i] = Vector4(bow.x, bow.y, v.heading.x, v.heading.y)
 		# Whole metres of hull, plus the strength under 1 (ocean.gdshader decodes both).
-		_wake_b[i] = Vector4(sp, v.beam(), trail, floorf(v.length * 0.96) + clampf(strength, 0.0, 1.0) * 0.99)
+		list.append([d, Vector4(bow.x, bow.y, v.heading.x, v.heading.y),
+			Vector4(sp, v.beam(), trail, floorf(v.length * 0.96) + clampf(strength, 0.0, 1.0) * 0.99)])
+	# The player's boats under way (BoatSea), nearest first with the vessels.
+	list.append_array(BoatSea.entries(cam, wake_range))
+	list.sort_custom(func(a: Array, b: Array) -> bool: return a[0] < b[0])
+	_wake_a.resize(16)
+	_wake_b.resize(16)
+	var n := mini(list.size(), 16)
+	for i in 16:
+		if i >= n:
+			_wake_a[i] = Vector4.ZERO
+			_wake_b[i] = Vector4.ZERO
+			continue
+		_wake_a[i] = list[i][1]
+		_wake_b[i] = list[i][2]
 	mat.set_shader_parameter("wake_a", _wake_a)
 	mat.set_shader_parameter("wake_b", _wake_b)
 	mat.set_shader_parameter("wake_count", n)
+	BoatSea.apply(mat)
 
 
 # --- Stills ---------------------------------------------------------------------------------------
