@@ -2,6 +2,7 @@
 	"_doc": "Wave 8 reference cameras (tools/refcams/README.md), the same format as cameras.json and cameras_w7.json. One row a camera, each on its own line. Run with REFCAMS_JSON=tools/refcams/cameras_w8.json.",
 	"resolution": [1280, 720],
 	"cameras": [
+		{"name": "hill_home_dusk", "label": "A cantilever hill home's pool deck on the front range (estate 392, 159 m up) at 19:15 clear, looking south over the basin: the infinity pool, the glass wall lit inside, downtown's lights below", "eye": [599.2, 160.6, -1893.5, 170.0, -9.0], "hour": 19.25, "weather": "clear", "fov": 55},
 		{"name": "suburb_night", "label": "A suburban street in the valley at 21:30 clear, on the pavement looking east: lit rooms and TVs, porch lights, lawns, parked cars, the street lamps", "eye": [1979.0, 1.7, 4256.8, -96.0, 1.0], "agl": true, "hour": 21.5, "weather": "clear", "fov": 55, "dog_walker": {"dist": 7.5, "side": -0.5}}
 	]
 }
