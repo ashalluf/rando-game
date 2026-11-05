@@ -373,6 +373,10 @@ static var debris_streaks: bool = OS.get_environment("BLAST_STREAKS") != "0"
 ## against a wall (`wall_blast()`: smoke pouring from the hole, masonry and glass raining down).
 ## BLAST_RING=0 / BLAST_WALL=0 are the A/Bs.
 static var ring_enabled: bool = OS.get_environment("BLAST_RING") != "0"
+## Round 13: the street lit white-orange under the burst for its first frames, then the core's
+## embers (`shaders/blast_ground_flash.gdshader`): what reads first from the air. BLAST_GROUND_FLASH=0.
+static var ground_flash_enabled: bool = OS.get_environment("BLAST_GROUND_FLASH") != "0"
+static var _flash_shader: Shader
 static var wall_enabled: bool = OS.get_environment("BLAST_WALL") != "0"
 static var wall_smoke_seconds: float = 22.0
 static var _ring_shader: Shader
@@ -915,6 +919,33 @@ static func ground_ring(parent: Node, ground: Vector3, normal: Vector3, reach: f
 	q.global_transform = Transform3D(WeaponFX._basis_up(normal), ground + normal * 0.12)
 	var tw := q.create_tween()
 	tw.tween_method(func(a: float): m.set_shader_parameter("age", a), 0.0, 6.0, 6.0)
+	tw.tween_callback(q.queue_free)
+	ground_flash(q, reach)
+	return q
+
+
+## The ground flash under the burst (round 13): a quad of 0.55 x the dust reach on the ring's own
+## node (so it rides the same transform and dies with it), additive, fog-free. Returns the quad.
+static func ground_flash(ring: Node3D, reach: float) -> MeshInstance3D:
+	if not ground_flash_enabled or ring == null:
+		return null
+	if _flash_shader == null:
+		_flash_shader = preload("res://shaders/blast_ground_flash.gdshader")
+	var m := ShaderMaterial.new()
+	m.shader = _flash_shader
+	m.set_shader_parameter("noise3d", Blast3.noise_texture())
+	m.set_shader_parameter("seed", randf() * 7.0)
+	var q := MeshInstance3D.new()
+	q.name = "BlastGroundFlash"
+	var pm := PlaneMesh.new()
+	pm.size = Vector2.ONE * reach * 1.1
+	q.mesh = pm
+	q.material_override = m
+	q.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	q.position = Vector3(0.0, 0.03, 0.0)
+	ring.add_child(q)
+	var tw := q.create_tween()
+	tw.tween_method(func(a: float): m.set_shader_parameter("age", a), 0.0, 4.0, 4.0)
 	tw.tween_callback(q.queue_free)
 	return q
 

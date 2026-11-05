@@ -368,6 +368,11 @@ func _round11(parent: Node) -> void:
 	var ring := Blast4.ground_ring(parent, _top + Vector3(-60.0, 0.0, -60.0), Vector3.UP, 20.0)
 	_t._check(not Blast4.ring_enabled or (ring != null and (ring.material_override as ShaderMaterial).shader.resource_path.ends_with("blast_ring.gdshader")),
 		"explosions_4: a shock ring is laid on the ground")
+	var gf: Node = ring.get_node_or_null("BlastGroundFlash") if ring != null else null
+	var gsrc := FileAccess.get_file_as_string("res://shaders/blast_ground_flash.gdshader")
+	_t._check(not (Blast4.ring_enabled and Blast4.ground_flash_enabled) or (gf != null
+		and gsrc.contains("blend_add") and gsrc.contains("fog_disabled")),
+		"explosions_4: the ground flash lights the street under the burst (additive, fog-free)")
 	if ring != null:
 		ring.queue_free()
 	var wall := StaticBody3D.new()
