@@ -70,6 +70,7 @@ static func apply(lay: Dictionary, plan: CityPlan) -> void:
 	var on := 1.0 if enabled else 0.0
 	for m: ShaderMaterial in [mat, flame, plume]:
 		m.set_shader_parameter("night_look", on)
+	RcRefineryRoad.apply_plant(mat)
 	if not enabled:
 		return
 	var tips := flare_tips(lay, plan)

@@ -151,6 +151,7 @@ float fbm(vec2 p) {
 #include "res://shaders/wet_road_mirror.gdshaderinc"
 #include "res://shaders/rain_day_mirror.gdshaderinc"
 #include "res://shaders/road_lane_wear.gdshaderinc"
+#include "res://shaders/refinery_road.gdshaderinc"
 
 
 // Raindrop rings on standing water, as a tangent-space slope (xy). Three offset layers of cells,
@@ -595,6 +596,15 @@ void fragment() {
 		float k = rain_day * cover * max(standing, film);
 		SPECULAR *= 1.0 - rdm_spec_cut * k;
 		glow += cs_as_uniform(sky_tint.rgb) * (rdm_wall * tone * fres_d * k);
+	}
+	// The refinery's flares and masts on its perimeter streets (refinery_road.gdshaderinc; rr_on 0 on
+	// every other road, which skips it).
+	if (rr_on > 0.5) {
+		vec3 rr_alb = ALBEDO;
+		float rr_rough = ROUGHNESS;
+		glow += rr_light(world_pos, CAMERA_POSITION_WORLD, rr_alb, rr_rough, clamp(lamp_factor, 0.0, 1.0));
+		ALBEDO = rr_alb;
+		ROUGHNESS = rr_rough;
 	}
 	EMISSION = glow;
 }
