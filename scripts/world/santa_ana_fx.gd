@@ -259,7 +259,7 @@ func _build_glow() -> void:
 	if BrushFireLook.enabled:
 		_glow_mat.set_shader_parameter("look", 1.0)
 		_glow_mat.set_shader_parameter("flank_fall", BrushFireLook.FLANK_FALL)
-		_glow_mat.set_shader_parameter("foot", BrushFireLook.FOOT_DROP / glow_height)
+		_glow_mat.set_shader_parameter("foot", (BrushFireLook.FOOT_DROP - BrushFireLook.LINE_SINK) / glow_height)
 	_glow = MeshInstance3D.new()
 	_glow.name = "FireGlow"
 	_glow.mesh = quad

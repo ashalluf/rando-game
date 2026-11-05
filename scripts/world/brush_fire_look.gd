@@ -24,11 +24,11 @@ const PLUME_RISE := Vector2(7.0, 12.0)
 ## How hard the wind lays the column over (m/s2 along SANTA_ANA_DIR; the old 0.55).
 const PLUME_LEAN := 1.25
 ## Smoke colour (linear) and how dark the thick cores are.
-const SMOKE_COL := Vector3(0.20, 0.17, 0.145)
+const SMOKE_COL := Vector3(0.17, 0.15, 0.135)
 const CORE_SHADE := 0.45
 ## The fire's light on the column: it reaches this far up (m; the old 210).
-const GLOW_FALL := 420.0
-const GLOW_COL := Vector3(0.55, 0.20, 0.05)
+const GLOW_FALL := 240.0
+const GLOW_COL := Vector3(0.40, 0.12, 0.025)
 
 ## The pall: flat puffs drifting downwind a kilometre up.
 const PALL_PUFFS := 46
@@ -43,7 +43,10 @@ const PALL_OPACITY := 0.42
 const FIRE_WIDTH := 640.0
 const GLOW_HEIGHT := 300.0
 const FOOT_DROP := 70.0
-const FLANK_FALL := 0.24
+const FLANK_FALL := 0.42
+## The line's crest stands this far under the site (m): the drawn ridge is lower than the
+## real one out there, and a line just behind the crest reads as a fire over the ridge.
+const LINE_SINK := 40.0
 
 ## The sky's smoke at dusk and after dark (DayNight; Colours as DayNight hands its own over).
 const SMOKE_RIM := Color(0.66, 0.40, 0.22)
