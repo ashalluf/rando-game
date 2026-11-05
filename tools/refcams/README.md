@@ -166,11 +166,33 @@ terminal at 22:00 clear from the quay's apron. Its optional `port_t` key holds P
 refcams_shot.gd; rows without it leave the clock alone). `OCCLUSION=0` turns occlusion culling off
 for a run. `stack_aerial` (rc4-stack-aerial): the four-level stack from 150 m over the ground
 north-west of it, 17:30 clear, toward downtown; `shot_frames` 90 lets the connectors' traffic fill
-before the shot.
+before the shot. `metro_station` (rc4-metro-station): on the Coral Line's
+underground island at 7th St toward the bank's escalators and the glass lift, a train dwelling on
+the left with its doors open. Its optional `rail_at` key (`"<station>[:<dir>[:<seconds from
+mid-dwell>]]"`, LightRailSystem's RAIL_AT per camera) sets the light rail's clock when the row is
+staged and holds it until the shot; while it is held, every placement of the parked player calls
+`MetroStation.admit()` (an eye under the city's ground box is otherwise thrown out to the street
+each step, and the tunnel train is hidden with it).
 
+
+## Wave 7's cameras (`cameras_w7.json`)
+
+`lowrider_meet` (rc4-lowrider-meet): the Saturday lowrider meet on Z#4 (x 810-900, seed 1337) at
+19:30 clear, eye level in the road beside the row. Its optional `lowrider_meet` key
+(`{"on": 1, "pose": "i:routine:seconds[:side],..."}`) holds every meet on (LOWRIDER_MEET=1) and
+freezes row cars mid-routine (LOWRIDER_POSE), set before the city loads (`_lowrider_meet()` in
+refcams_shot.gd). `tools/rc4_lowrider_meet_probe.gd` prints the row (stances, lamps, routines)
+and the crowd headless.
 ## Wave 8's cameras (`cameras_w8.json`)
 
-Run with `REFCAMS_JSON=tools/refcams/cameras_w8.json`. `storm_downtown`: Flower St south of 8th
+Run with `REFCAMS_JSON=tools/refcams/cameras_w8.json`. `hill_home_dusk`: estate 392's pool deck on
+the front range (a cantilever house, 159 m up) at 19:15 clear, looking south over the basin past
+the infinity pool, the lit glass wall on the right. The eye's y is absolute (no `agl`): the pad's
+deck. `tools/rc5_hill_home/probe.tscn` (EST=n) prints an estate's wings, deck and pool in world
+space for framing another one. On this box an opengl3 city run can hang in the occlusion raycast
+(0 % CPU after the far city loads): `OCCLUSION=0` on refcams.py's environment.
+
+`storm_downtown`: Flower St south of 8th
 toward the towers, 20:30 storm, five staged street cars. Its optional `storm_flash` key
 (`{"dist": m, "az": degrees (0 = +x, -90 = north), "hold": level}`) forces a strike through
 `Weather.force_strike()` as the staging starts and holds its flash and bolt (StormDrama) until the
