@@ -1417,7 +1417,7 @@ static func canopy_blob() -> Mesh:
 	# The same sphere less its zero-area triangles: Godot's SphereMesh repeats each pole vertex
 	# round the ring, so 12 of its 36 triangles are slivers of no area that draw nothing - a third
 	# of the far city's 110 k canopies' triangles (perf-audit-3). Same vertices, same pixels.
-	var out := without_degenerate(mesh)
+	var out := PerfSix.canopy_with_lod(without_degenerate(mesh))
 	_cache["canopy_blob"] = out
 	return out
 

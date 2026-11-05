@@ -1377,6 +1377,8 @@ func _light_report(label: String) -> void:
 	print("LIGHTS %s car=%d (in view %d) lamps=%d (in view %d)" % [label, counts[0], counts[1], counts[2], counts[3]])
 
 
+## Node names carry chunk / tile coordinates ("Sky_3_-2", "RockFar_2_-4"): one system, one stem.
+static var _osplit_rx: RegEx = RegEx.create_from_string("_-?\\d+(?=_|$)")
 const SPLIT_CATEGORIES := ["Vehicle", "Pedestrian", "Building", "Trees", "Grass", "Camp", "LotFill", "Houses", "Industrial", "Parks", "River", "LightRail", "Birds", "SeaLife", "Billboards", "Vendors", "PhysProps", "StreetProps", "FarCity", "FarGround", "Landmark", "Other"]
 
 
@@ -1417,7 +1419,7 @@ func _geo_split(player: Node3D, anchor: Vector3, hold: Vector3, boost: bool, fov
 			for gi: GeometryInstance3D in nodes[c]:
 				if not is_instance_valid(gi):
 					continue
-				var stem: String = c + "/" + String(gi.name).rstrip("0123456789_").replace("BatchShadow_", "Batch_")
+				var stem: String = c + "/" + _osplit_rx.sub(String(gi.name), "", true).rstrip("0123456789_").replace("BatchShadow_", "Batch_")
 				if not stems.has(stem):
 					stems[stem] = []
 					est[stem] = 0
