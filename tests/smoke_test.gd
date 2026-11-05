@@ -2595,6 +2595,8 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	await load("res://tests/valets_checks.gd").new().run(self, city)
 	# Boats (tests/speedboats_checks.gd): the speedboat and jet ski at the marina, on the water.
 	await load("res://tests/speedboats_checks.gd").new().run(self, city)
+	# The speedboat_golden refcam (tests/rc5_speedboat_checks.gd, BoatSea): the wake on the sea.
+	await load("res://tests/rc5_speedboat_checks.gd").new().run(self, city)
 	# Life in the water (tests/sea_life_checks.gd): dolphins, pelicans, sea lions on the buoys, a whale.
 	await load("res://tests/sea_life_checks.gd").new().run(self, city)
 	# THE PIT, the boardwalk's skate park (tests/skate_park_checks.gd): the pits, the terrace, the

@@ -4492,3 +4492,10 @@ none of either.
   per variant and batched, never per copy; a studio keeps its asphalt (the industrial ground with
   `kept`, worn only by tyre tracks); the basecamp's gaps hold carts and the doors chairs, from the
   layout alone, after every roll; the lot's walkers mostly wear crew blacks. RC4_FILM_LOT=0 is the A/B.
+- **2026-11-05 The speedboat refcam: a boat under way writes its wake into the sea (rc5-speedboat,
+  HANDOFF "The speedboat at golden hour").** A new reference camera (`speedboat_golden`, wave 8's
+  table) chases the SALTRUNNER at 60 km/h into the 17:45 sun path. Decisions: the player's boats hand
+  their wakes to the ocean shader exactly as the scripted vessels do (one list, nearest first), never
+  as particle quads on the water; a wake's foam is braided lines on an aerated sheet that emits the
+  evening's light, not a lit white band; spray is a low sheet off the chines; a boat's transom carries
+  its invented name. BOAT_SEA=0 is the A/B.

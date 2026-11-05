@@ -168,3 +168,12 @@ for a run. `stack_aerial` (rc4-stack-aerial): the four-level stack from 150 m ov
 north-west of it, 17:30 clear, toward downtown; `shot_frames` 90 lets the connectors' traffic fill
 before the shot.
 
+
+## Wave 8's cameras (`cameras_w8.json`)
+
+Run with `REFCAMS_JSON=tools/refcams/cameras_w8.json`. `speedboat_golden` (rc5-speedboat): the
+SALTRUNNER at speed 300 m off the beach town at 17:45 clear, a chase eye into the sun path. Its
+`boat` key (`tools/refcams/boat_stage.gd`, the same interface as chase_stage.gd) re-centres the world
+on `at`, puts the player in a fresh boat heading `heading` (the --spawn yaw), holds the throttle
+`ticks` physics ticks, and lays a free eye `chase` = [back, side, up, aim ahead] metres off the hull
+every frame up to the shot; optional `kind`, `look`, `boost`, `steer`. The row's own eye is unused.
