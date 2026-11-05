@@ -655,7 +655,8 @@ static func _do_wait_bus(p: Pedestrian, step: Dictionary, delta: float) -> void:
 static func _do_board(p: Pedestrian, step: Dictionary, delta: float) -> void:
 	var bus_v: Variant = step.bus
 	var bus := bus_v as Vehicle if is_instance_valid(bus_v) else null
-	if bus == null or not bus.is_traffic():
+	# A bus pooled out of the tree is still "traffic" (its global transform errors): call it off.
+	if bus == null or not bus.is_inside_tree() or not bus.is_traffic():
 		_abort(p)
 		return
 	var fit := bus.get_node_or_null("BusFittings") as BigVehicles.BusFittings
@@ -1250,7 +1251,7 @@ static func _bus_at(stop: Dictionary) -> Array:
 		if not is_instance_valid(b):
 			continue
 		var bus := b as Vehicle
-		if bus == null or not bus.is_traffic():
+		if bus == null or not bus.is_inside_tree() or not bus.is_traffic():
 			continue
 		var t: Dictionary = bus.traffic
 		if int(t.axis) != int(stop.axis) or int(t.index) != int(stop.index) or int(t.dir) != int(stop.dir):

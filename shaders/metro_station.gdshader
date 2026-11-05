@@ -30,9 +30,16 @@ uniform float ambient_keep = 0.3;
 // Linear colours of the light (4000 K LED) and of the bounce.
 uniform vec3 light_color = vec3(1.0, 0.93, 0.84);
 uniform vec3 bounce_color = vec3(0.80, 0.76, 0.70);
+// Wave 7 (MetroLook, refcam metro_station): the polished floors mirror the light lines over them
+// (worked out here, emitted by Fresnel; 0 = the old matte floor), and the ad lightboxes on the
+// walls (K_AD: the billboard atlas, UV = atlas coordinates baked into the mesh) glow `ad_glow`.
+uniform float mirror_gain = 0.0;
+uniform float ad_glow = 1.3;
+uniform sampler2D ad_atlas : source_color, filter_linear_mipmap, repeat_disable;
 
 varying vec3 sp;
 varying vec3 sn;
+varying vec3 cam_sp;
 
 const int K_TILE = 1;
 const int K_TERRAZZO = 2;
@@ -51,12 +58,17 @@ const int K_TACTILE = 14;
 const int K_DARK = 15;
 const int K_MAP = 16;
 const int K_CEIL = 17;
+const int K_AD = 18;
 
 void vertex() {
 	vec2 rel = VERTEX.xz - st_origin;
 	vec2 r = vec2(-st_dir.y, st_dir.x);
 	sp = vec3(dot(rel, st_dir), VERTEX.y - st_base, dot(rel, r));
 	sn = vec3(dot(NORMAL.xz, st_dir), NORMAL.y, dot(NORMAL.xz, r));
+	// The camera in the station's frame (the same for every vertex: the mirror's eye).
+	vec3 cm = (inverse(MODEL_MATRIX) * vec4(CAMERA_POSITION_WORLD, 1.0)).xyz;
+	vec2 crel = cm.xz - st_origin;
+	cam_sp = vec3(dot(crel, st_dir), cm.y - st_base, dot(crel, r));
 }
 
 float h21(vec2 p) {
@@ -115,6 +127,49 @@ float fixtures(vec3 p, vec3 n) {
 		e += 0.5 * tl * smoothstep(box_u - 2.0, box_u + 6.0, abs(p.x)) * (1.0 - smoothstep(70.0, 108.0, abs(p.x)));
 	}
 	return e;
+}
+
+// One line light seen in a floor's mirror: the reflected ray met the strip's plane at q; `w` its
+// half width, `blur` how far the polish spreads it there; peak 1 on a sharp mirror.
+float mirror_line(vec3 q, float v, float w, float u_half, float blur) {
+	float dv = max(abs(q.z - v) - w, 0.0);
+	float m = exp(-dv * dv / (blur * blur)) * w / max(w, blur * 0.6);
+	return m * (1.0 - smoothstep(u_half - 0.4, u_half + 0.6 + blur, abs(q.x)));
+}
+
+// What a polished floor at p mirrors of the ceiling's light lines (relative to a lamp's own
+// emission), with the floor's roughness spreading each line along the view. 0 off the floors.
+float floor_mirror(vec3 p, vec3 eye, float rough) {
+	vec3 vd = normalize(p - eye);
+	if (vd.y > -0.02) {
+		return 0.0;
+	}
+	vec3 r = vec3(vd.x, -vd.y, vd.z);
+	bool conc = p.y > conc_floor - 0.4;
+	float hc = conc ? conc_ceil - 0.06 : plat_ceil - 0.12;
+	float t = (hc - p.y) / max(r.y, 0.02);
+	vec3 q = p + r * t;
+	// The polish is not a perfect plane: the reflection wanders a little across the lines.
+	q.z += (vnoise(p.xz * vec2(0.35, 1.7)) - 0.5) * 0.05 * t;
+	float blur = 0.015 + t * (0.006 + rough * 0.05);
+	float e = 0.0;
+	if (conc) {
+		float cu = conc_u - 0.5;
+		e += mirror_line(q, -4.4, 0.09, cu, blur);
+		e += mirror_line(q, 4.4, 0.09, cu, blur);
+		e += 0.6 * mirror_line(q, 0.0, 0.09, cu, blur);
+	} else {
+		float pu = box_u - 6.0;
+		e += mirror_line(q, -2.7, 0.09, pu, blur);
+		e += mirror_line(q, 2.7, 0.09, pu, blur);
+		e += 0.6 * mirror_line(q, -6.4, 0.06, pu, blur);
+		e += 0.6 * mirror_line(q, 6.4, 0.06, pu, blur);
+	}
+	// The ceiling's own lit panels between the lines: a faint warm sheen in the polish.
+	e += 0.035;
+	float cosv = clamp(-vd.y, 0.0, 1.0);
+	float fres = 0.05 + 0.95 * pow(1.0 - cosv, 5.0);
+	return e * fres * (1.0 - rough);
 }
 
 void fragment() {
@@ -223,6 +278,12 @@ void fragment() {
 		c *= mix(0.95 + 0.06 * h21(floor(fc / vec2(1.2, 0.6))), 0.35, reveal);
 		rough = 0.5;
 		metal = 0.3 * (1.0 - reveal);
+	} else if (kind == K_AD) {
+		// An ad lightbox: the print lit from behind, under a sheet of glass.
+		c = cs_in(texture(ad_atlas, UV).rgb);
+		emit = c * ad_glow;
+		rough = 0.08;
+		spec = 0.5;
 	} else if (kind == K_MAP) {
 		// A lit system map: pale ground, the line as a coral band, station dots, district tints.
 		vec2 s = UV;
@@ -236,10 +297,18 @@ void fragment() {
 	}
 	float under = smoothstep(-0.4, -3.0, sp.y);
 	float light = fixtures(sp, n) * light_energy * under;
-	if (kind == K_DARK || kind == K_LAMP || kind == K_TEXT || kind == K_SCREEN || kind == K_MAP) {
+	if (kind == K_DARK || kind == K_LAMP || kind == K_TEXT || kind == K_SCREEN || kind == K_MAP || kind == K_AD) {
 		light *= kind == K_DARK ? 0.0 : 0.3;
 	}
 	vec3 lit = c * light_color * light * (1.0 - metal * 0.6) + c * bounce_color * 0.04 * under;
+	if (mirror_gain > 0.0 && n.y > 0.9 && (kind == K_TERRAZZO || kind == K_TACTILE || kind == K_PAINT)) {
+		float mg = mirror_gain;
+#if CURRENT_RENDERER == RENDERER_FORWARD_PLUS
+		// Forward+ adds its own screen-space and probe reflections on top: half the drawn mirror.
+		mg *= 0.5;
+#endif
+		emit += light_color * 5.0 * light_energy * under * mg * floor_mirror(sp, cam_sp, rough);
+	}
 	ALBEDO = cs_out(c * mix(1.0, ambient_keep, under));
 	EMISSION = cs_out(emit + lit);
 	ROUGHNESS = rough;

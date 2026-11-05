@@ -1400,6 +1400,16 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   (`cuts_in()`), macro_ground's `cut_rect2` sinks the plane; LightRailSystem / LightRailTrain draw
   tunnel trains while `MetroStation.showing`. `METRO_STATION=0` is the A/B; probe
   `tools/metro/probe.gd`; checks `tests/metro_underground_checks.gd`.
+- The metro station refcam (wave 7, `metro_station` in `tools/refcams/cameras_w7.json`, its
+  `rail_at` key holds a train at the terminus; docs/HANDOFF.md "The metro station refcam"):
+  `MetroLook` (`scripts/world/metro_look.gd`): the floors mirror the light lines
+  (metro_station.gdshader `floor_mirror()`, halved on Forward+), ad lightboxes from the billboard
+  atlas (K_AD 18, atlas UV in the mesh) where blank map boards stood, a lift car, the bullet's "C"
+  on the cars, the cars' saloons lit by their LEDs underground (lrv_glass `underground`,
+  `MetroLook.saloon()`). `MetroCrowd` (`scripts/npc/metro_crowd.gd`): MetroRiders ride the bank's
+  escalators (level 2, standing on the step), alighters ride up, arrivals refill the island while
+  `MetroStation.showing`. `METRO_LOOK=0` / `METRO_CROWD=0` the A/Bs; checks
+  `tests/rc4_metro_station_checks.gd`.
 - Freight rail (2026-10-05, "freight trains on the industrial rail"; HANDOFF 9do): the **Arroyo
   Pacific's Harbor Subdivision** (invented railroad, mark APXR) down ALAMEDA ST (a pinned real
   street that runs the whole map). **The line is a DATA TABLE** (`FreightRail`,
@@ -2155,6 +2165,13 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   and a distance fade.
   `NIGHT_AERIAL=0` the A/B; `tools/rc2_night_aerial/hide_probe.gd` pins a glow on its node; checks
   `tests/rc2_night_aerial_checks.gd`.
+- Downtown from a helicopter at night (wave 7, refcam `heli_night` in `tools/refcams/cameras_w7.json`,
+  docs/HANDOFF.md "Downtown from a helicopter at 22:30"): `RcHeliNight`
+  (`scripts/world/rc4_heli_night.gd`, the `rc4_heli_night` global): a lit crown's LID keeps
+  `LID_GLOW` of its glow (tower_crown.gdshader: a lit band round a dark roof, not a lightbox), a far
+  helipad's green perimeter is a row of lamps (building_lod kind 5, `PAD_LAMP_EVERY`), the unfinished
+  towers carry a few lit floors and red lights on their frames. `RC4_HELI_NIGHT=0` is the A/B;
+  checks `tests/rc4_heli_night_checks.gd`.
 - The night street review (2026-10-30, docs/HANDOFF.md "The night street at eye level"):
   `NightStreetReview` (`scripts/world/night_street_review.gd`) holds the balance: the moon's key
   (`MOON` 0.09: at 0.3 it lit streets evenly blue at ~45 % of the noon sun and hid the lamps),
@@ -2289,6 +2306,14 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   slow (`TrafficManager._street_kind()`, its roll reused). `LOWRIDERS=0` the A/B, `LOWRIDER_MEET=1`
   forces meets on, `LOWRIDER_POSE=i:hop:0.7` freezes row car i mid-routine; `car_shot.gd --each=25,26
   HYDRAULICS=hop`; probe `tools/lowrider_probe.gd`; checks `tests/lowriders_checks.gd`.
+- The lowrider meet at eye level (wave 7 refcam `lowrider_meet` in `tools/refcams/cameras_w7.json`,
+  docs/HANDOFF.md "The lowrider meet at eye level"): `LowriderMeetLook`
+  (`scripts/world/lowrider_meet_look.gd`, one hook in `LowriderMeet._park()`): a parked row car is
+  empty (lamps off) in a hashed display stance (`stance_for()`: laid, locked, three, nose;
+  `Hydraulics.set_stance()`), a three-wheel lifts its wheel `three_lift` 0.45 m, the crowd rings the
+  performing cars and sits in the chairs (`people_spots()`, `sitter_spots()`). The row's
+  `lowrider_meet` key holds meets on and poses cars. `RC4_LOWRIDER_MEET=0` is the A/B; checks
+  `tests/rc4_lowrider_meet_checks.gd`.
 - Night aerial (2026-10-05, VISUAL_ROADMAP #62, docs/HANDOFF.md "The night aerial"): past the
   streamed range the city's night is worked out per pixel in the far shaders, never simulated
   or placed. **Traffic lights**: `shaders/far_traffic.gdshaderinc` (`traffic_lights()`,
@@ -2637,6 +2662,15 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   Stills: `HOSPITAL=front|bay|roof|aerial` (`HOSPITAL_AT=medical`, `HOSPITAL_T` how far into the
   bay) on `still_shot.gd` (`HospitalStage`); probe `tools/hospital/probe.tscn` (every hospital
   and its EYEs); checks `tests/hospital_checks.gd`.
+- The ER at night (2026-11-02, refcam `hospital_er` in `tools/refcams/cameras_w7.json`, staged by
+  `"stage": "hospital"` -> `tools/refcams/hospital_stage.gd`; docs/HANDOFF.md "The ER's ambulance
+  court at night"): `RcHospitalEr` (`scripts/world/rc4_hospital_er.gd`, hooks in HospitalBuild
+  `_ground()` / `_er_bay()` and `EmergencyCar._bay_height()`): the court and the walk beside it are
+  a LEVEL deck at the campus floor (`court_y()`: the block's highest corner) with an eased ramp the
+  last `RAMP_FROM` m to the pavement, own mesh and collision (the relief-following slab sank 1.9 m
+  under the bays and the ambulances at the medical centre); a deep red light box raised clear of
+  the fascia, a lit soffit and LED panels, two floods on the fascia, the ER wall glazed.
+  `RC4_HOSPITAL=0` is the A/B; checks `tests/rc4_hospital_er_checks.gd`.
 - Service vehicles (2026-10-05, "the city's working vehicles doing their jobs"; HANDOFF 9dm):
   `ServiceVehicles` (`scripts/vehicles/service_vehicles.gd`) - a side-loader garbage truck, a
   street sweeper, a rollback tow truck, an ice-cream truck and a delivery van (BodyType
@@ -3664,6 +3698,15 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   .culvert_mesh`; a drop inlet in the ditch when the road is benched). `_plant_hills` skips the bed
   after its rolls. `ARROYOS=0` is the A/B; probes `tools/arroyos/` (`net_probe` a map,
   `probe` culvert EYEs); checks `tests/arroyos_checks.gd`.
+- The hill home's pool deck at dusk (wave 8, refcam `hill_home_dusk` in
+  `tools/refcams/cameras_w8.json`, estate 392; docs/HANDOFF.md "The hill home's pool deck at dusk"):
+  `Rc5HillHome` (`scripts/world/rc5_hill_home.gd`): hill_glass `rc5` one open-plan room lit in
+  downlight pools (no bay partitions; the pane random quantised - an interpolated varying through a
+  sin hash is per-pixel static), hill_pool `rc5` lamp-lit dark water mirroring the lit glass beside
+  it (offset in COLOR.b, `pool_wall()`), an additive spill on the paving (`hh_spill`,
+  `shaders/rc5_hill_spill.gdshader`), BackyardKit's loungers, no terrace tree in the pool's view.
+  `RC5_HILL_HOME=0` is the A/B; probe `tools/rc5_hill_home/probe.tscn` (EST=); checks
+  `tests/rc5_hill_home_dusk_checks.gd`.
 - Far estates (2026-10-05, docs/HANDOFF.md "Hillside estates at night"): past the FULL chunks
   (LOD chunks and Skyline) `EstateFar.parts(plan, m, real)` (pure, hashes of the seed) adds to
   HillHomeKit's house, from `HillHomeKit.plan_home()`: the pad's garden over the pavers, the
