@@ -1465,7 +1465,8 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   MultiMesh's range was measured to a 520 m chunk's centre: `tie_range()`), a northward track piece
   keeps its ties (FreightKit.ties() threw the ladder's kilometres away), the ladder has a bed, weeds
   along every bed in 40 m cells, crushed-rock ballast and graffiti / weathered panels on cars (the
-  `rc4` uniforms of freight_track / freight_stock). `RC4_FREIGHT_YARD=0` is the A/B; checks
+  `rc4` uniforms of freight_track / freight_stock), the valleys between storage beds filled level
+  (`throat_fill()`: open, each stood up as a wedge), switch stands at the turnouts. `RC4_FREIGHT_YARD=0` is the A/B; checks
   `tests/rc4_freight_yard_checks.gd`.
 - Cars fly (owner, 2026-09-20: "easily fly cars around the way I fly the main character"). A
   car that leaves the ground goes into stabilised flight (`Vehicle._fly()`): it holds itself

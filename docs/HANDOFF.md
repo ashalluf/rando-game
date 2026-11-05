@@ -28875,8 +28875,24 @@ FreightStock, `RC4_FREIGHT_YARD=0` the A/B:
    (`freight_tags()`: a throw-up low on most car sides, a handstyle higher on some, old ones flaking,
    some buffed out) and weathers the perforated panels (each pressed panel leaning its own way, the
    two deck rails, rust runs, grime from the sill). The atlas is the one sampler added.
+6. **A grey wedge stood up in the middle of the throat** (wave 8, the resumed session): the open
+   V-valley between two neighbouring storage beds (1.1 m of dirt between 0.4 m beds), whose far side
+   is the next bed's west shoulder lit by the afternoon sun, narrowing to a point where the ladder's
+   bed crosses it. Real yards are ballasted level between tracks. `throat_fill()` fills each valley
+   between storage tracks under 6 m apart level (16 mm under the beds, so their shoulders fall away
+   under it) from under the ladder's bed (its south edge follows the ladder's west edge, `valleys()`,
+   pure) to the shorter track's bumper, in 8 m pieces each built by the chunk its middle is in, and
+   slopes its north end down; the ladder's west shoulder is left out among the beds (`in_storage()`)
+   and the weeds in a valley stand on the fill.
+7. **Switch stands** (base, post, lever, yellow and red target) at every turnout, on the ladder's bed
+   on its open east side (`stand_spots()`, pure: they first stood 2.45 m off the track, 0.4 m over the
+   dirt).
 
-**Frame cost** (refcams GEO, opengl3, freight_yard): see below. **Gate**, **the ten refcams**: below.
+**Frame cost** (refcams GEO, opengl3, freight_yard, before = `RC4_FREIGHT_YARD=0`): 4.65 M ->
+FRAMECOST_AFTER. The weeds' cells are most of the extra draws.
+
+**Gate** (wave 8, SHARDS=3, merged with main 2026-11-05): 5806 checks passed, 0 failed, peak 3,792 MB. **The ten refcams** (cameras.json, `RC4_FREIGHT_YARD=0` against on):
+TEN_RESULT.
 
 **Tools.** `tools/rc4_freight_yard/probe.gd` (headless: the yard's tracks, cuts per track, masts,
 cranes and the train's north end over the pull-out), `chunk_probe.gd` (every yard chunk built FULL:
@@ -28885,8 +28901,8 @@ its tie, timber and car batches). The yard alone in a minute: `tools/glshot/bloc
 
 **Not done / not verified.** Forward+ (the Mac) not seen: the graffiti and ballast are albedo and
 normal only, in linear, so they should hold, but the cars' paint under AgX is unchecked (as in 9do).
-The ladder's turnouts are still plain rail crossings (no switch points, frogs or switch stands); the
-storage tracks' beds end open at the ladder; the departing train's head-end units stand north of
-the frame's vanishing point behind its autoracks.
+The ladder's turnouts are still plain rail crossings (no switch points or frogs: the stands are
+the only turnout hardware); the departing train's head-end units stand north of the frame's
+vanishing point behind its autoracks; the autoracks' long flat flank still fills the left third.
 
 **Checks:** `tests/rc4_freight_yard_checks.gd`.

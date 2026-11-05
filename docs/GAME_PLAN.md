@@ -4499,4 +4499,5 @@ none of either.
   bed, from two bugs that every other view hid. Decisions: a chunk-wide batch's draw range is set
   from its own extent (a range is measured to the batch's centre, and the yard's chunks are 520 m
   wide); railway ground is never clean (weeds by hash along the beds, crushed angular ballast) and
-  freight cars carry graffiti and weather like the real ones. RC4_FREIGHT_YARD=0 is the A/B.
+  freight cars carry graffiti and weather like the real ones; a yard is one ballast field, level
+  between neighbouring tracks (never open valleys between beds). RC4_FREIGHT_YARD=0 is the A/B.
