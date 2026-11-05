@@ -183,6 +183,9 @@ func _built(city: Node3D, plan: CityPlan, line: LightRail, f: Dictionary) -> voi
 			var r := n as MetroRider
 			var y: float = ws.to_world(r.global_position).y - float(f.y0)
 			var want_y := (float(f.plat) if r.level == 0 else MetroStation.CONC_FLOOR)
+			if r.level == 2:
+				# On a bank escalator (MetroCrowd, wave 7): on the step where it is.
+				want_y = r._esc_point(r.esc_u).y - float(f.y0)
 			level_ok = level_ok and absf(y - want_y) < 1.2
 	_check(riders >= 3 and level_ok, "people wait in the station, on their floors (%d)" % riders)
 	# The A/B and the rolls: the same chunk built again with the station off keeps everything else.

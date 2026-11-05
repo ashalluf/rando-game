@@ -21,6 +21,7 @@ static var _steps: Dictionary = {}
 ## Starts timing `stage` (a name; nest them freely).
 static func start(stage: String) -> void:
 	_marks[stage] = Time.get_ticks_usec()
+	LoadPulse.stage(stage)
 
 
 ## Ends `stage` and prints its line; returns its milliseconds.
@@ -29,6 +30,7 @@ static func stop(stage: String) -> float:
 	_marks.erase(stage)
 	var ms := float(Time.get_ticks_usec() - t0) / 1000.0
 	print("LOADING %s: %d ms (at %d ms)" % [stage, roundi(ms), Time.get_ticks_msec()])
+	LoadPulse.tick()
 	return ms
 
 
@@ -69,6 +71,7 @@ static func loaded(tree: SceneTree) -> void:
 	if profiling:
 		print_profile()
 	print("LOADING total: %d ms (at %d ms)" % [Time.get_ticks_msec(), Time.get_ticks_msec()])
+	print_memory()
 	# LOAD_FIRST_MINUTE=<s>: watch what still pops in after the load for that long, then quit.
 	# (Loaded by path: the Sfx autoload compiles this script before the other autoloads exist.)
 	if OS.get_environment("LOAD_FIRST_MINUTE") not in ["", "0"] and tree:
@@ -76,3 +79,15 @@ static func loaded(tree: SceneTree) -> void:
 		return
 	if quit_after_load() and tree:
 		tree.quit()
+
+
+## One line of what the load holds (mac-launch): the engine's own heap and the renderer's video
+## memory (textures, buffers) - on Apple Silicon the GPU's memory IS the machine's RAM, so a Mac
+## with 8 or 16 GB swaps once the two together pass what is free. 0 for video under headless.
+static func print_memory() -> void:
+	var mb := 1048576.0
+	print("LOADING memory: static %d MB (peak %d MB), video %d MB (textures %d MB, buffers %d MB)" % [
+			roundi(OS.get_static_memory_usage() / mb), roundi(OS.get_static_memory_peak_usage() / mb),
+			roundi(Performance.get_monitor(Performance.RENDER_VIDEO_MEM_USED) / mb),
+			roundi(Performance.get_monitor(Performance.RENDER_TEXTURE_MEM_USED) / mb),
+			roundi(Performance.get_monitor(Performance.RENDER_BUFFER_MEM_USED) / mb)])
