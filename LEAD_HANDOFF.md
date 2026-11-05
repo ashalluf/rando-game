@@ -1,3 +1,8 @@
+# Wave 8 lead (2026-11-05, new account)
+Batch 51 is ON MAIN (2f2fb8f5; shard 2 re-gated green, 2,241 checks, 3.8 GB). Wave 8 = 25 sessions,
+roster sessions_w8.tsv, tasks tasks_w8.tsv. The wave-7 sessions below were on the old account: their
+open branches are resumed by wave-8 sessions of the same slug. Next batch is 52.
+
 # Lead handoff (paused 2026-11-02 ~22:50 UTC, usage limit)
 
 Everything is PAUSED: the local gate killed, every fleet session interrupted. Read CLAUDE.md,
