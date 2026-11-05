@@ -163,20 +163,28 @@ static func _prime() -> void:
 	parent.add_child(holder)
 	var probe := ReflectionProbe.new()
 	probe.update_mode = ReflectionProbe.UPDATE_ONCE
-	probe.size = Vector3(4, 4, 4)
+	probe.size = Vector3(0.05, 0.05, 0.05)
 	holder.add_child(probe)
 	for mode in [OmniLight3D.SHADOW_CUBE, OmniLight3D.SHADOW_DUAL_PARABOLOID]:
 		var omni := OmniLight3D.new()
 		omni.shadow_enabled = true
 		omni.omni_shadow_mode = mode
-		omni.omni_range = 2.0
+		omni.omni_range = 0.02
 		omni.light_energy = 0.0001
 		omni.position = Vector3(0, 0, -1)
 		holder.add_child(omni)
+	# No geometry in these frames (the far plane a centimetre past the near one, the probe and the
+	# lights a few centimetres across): only the environment's passes run, so nothing waits on a
+	# mesh pipeline (with the player and the sky in view this was 82 s of no frame on lavapipe).
+	var far_was := cam.far if cam else 0.0
+	if cam:
+		cam.far = cam.near + 0.01
 	_priming = true
 	for i in PRIME_FRAMES:
 		tick(true)
 	_priming = false
+	if cam:
+		cam.far = far_was
 	holder.queue_free()
 
 
