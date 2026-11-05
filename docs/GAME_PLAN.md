@@ -4492,3 +4492,12 @@ none of either.
   per variant and batched, never per copy; a studio keeps its asphalt (the industrial ground with
   `kept`, worn only by tyre tracks); the basecamp's gaps hold carts and the doors chairs, from the
   layout alone, after every roll; the lot's walkers mostly wear crew blacks. RC4_FILM_LOT=0 is the A/B.
+- **2026-11-05 The arena_night refcam: an event plaza is lit by its own screens and walls
+  (rc5-arena-night, HANDOFF "STARLIGHT PLAZA on an event night").** A new reference camera
+  (`arena_night`, wave 8's table) stands in STARLIGHT PLAZA's crowd at 21:00 looking at the screen
+  wall, the theatre and HOTEL ALTAIR. Decisions: a landmark's blank wall gets architectural light
+  (LED blades, parapet coves, its name lit) rather than staying a dark box; a giant screen lights
+  the ground in front of it in the colour it is showing, worked out by the screen's own shader
+  maths (never a second clock); a hotel's crown is lit from inside; LED is a dull line by day; an
+  event night (a hash per night, ARENA_EVENT forces it) brings searchlights and a fuller plaza.
+  ARENA_NIGHT=0 is the A/B.

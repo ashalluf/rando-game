@@ -86,16 +86,14 @@ static func crowd_gain(base: int) -> int:
 	return roundi(float(base) * EVENT_CROWD)
 
 
-## An unshaded glow whose vertex colours are display numbers (decoded on Forward+), times `gain`.
-static func led_material(key: String, gain: float) -> StandardMaterial3D:
+## The LED's material (shaders/arena_led.gdshader): the vertex colour in display numbers times
+## `gain`, full after dark, dull by day.
+static func led_material(key: String, gain: float) -> ShaderMaterial:
 	if _mats.has(key):
 		return _mats[key]
-	var mat := StandardMaterial3D.new()
-	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	mat.vertex_color_use_as_albedo = true
-	mat.vertex_color_is_srgb = true
-	mat.albedo_color = Color(gain, gain, gain)
-	mat.disable_receive_shadows = true
+	var mat := ShaderMaterial.new()
+	mat.shader = load("res://shaders/arena_led.gdshader")
+	mat.set_shader_parameter("gain", gain)
 	_mats[key] = mat
 	return mat
 
@@ -150,7 +148,7 @@ static func spill(parent: Node3D, at: Vector3, w: float, fwd: Vector3, seed_valu
 	var quad := QuadMesh.new()
 	quad.size = Vector2(1.0, 1.0)
 	var mi := MeshInstance3D.new()
-	mi.name = "ArenaSpill"
+	mi.name = "ArenaSpill%d" % parent.get_child_count()
 	mi.mesh = quad
 	mi.material_override = mat
 	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
