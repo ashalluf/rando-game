@@ -1974,6 +1974,16 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   light keeps `landing_side` of its glare off axis; a patrol helicopter's shaft is `PATROL_BEAM` of a
   pursuit's. A refcam row's staged aircraft prints `REFCAM <name> air at x,y,z`. `AIRPORT_NIGHT=0`
   is the A/B; `jet_shot.gd NIGHT=1 [AN=0]` both renderers; checks `tests/rc3_airport_night_checks.gd`.
+- The terminal's departures kerb (wave 7, refcam `terminal_curb` in `tools/refcams/cameras_w7.json`,
+  docs/HANDOFF.md "The terminal's departures kerb"): `TerminalCurb` (`scripts/world/terminal_curb.gd`,
+  one hook at the end of `Landmarks._build_dropoff()`, near copy only) lays a kerb stone with a white
+  face, steel bollards, concrete slabs, door pylons, loading plates, benches, a check-in podium,
+  carts, a planted median across the lanes, and glass vestibules (`vestibule()`, from
+  AirportTerminal); `CurbTraveller`s stand in groups at pure `spots()` (all under the terminal's
+  chunk) with code-built luggage laid for those who spawned; `loop_speed()` (TrafficManager's loop)
+  stops a share of kerb-lane cars at the kerb on their hazards; `loop_car()` adds taxis and white
+  shuttle vans. `TERMINAL_CURB=0` is the A/B; probe `tools/terminal_curb/probe.gd`; checks
+  `tests/rc4_terminal_curb_checks.gd`.
 - Shop signs: storefront sign bands carry real names. `Building` picks how many window bays
   make one shop per face (`_shop_spans()`, hashed from the seed, never from `_rng`) and passes
   it to the shader as `shop_span`, so the bands the shader draws and the `TextMesh` names the
