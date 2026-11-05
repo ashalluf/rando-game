@@ -1,0 +1,7 @@
+{
+	"_doc": "Wave 8 reference cameras (tools/refcams/README.md), the same format as cameras.json and cameras_w7.json. One row a camera, each on its own line. Run with REFCAMS_JSON=tools/refcams/cameras_w8.json.",
+	"resolution": [1280, 720],
+	"cameras": [
+		{"name": "farmers_market", "label": "Palm St's farmers' market on a Saturday at 10:00 clear, eye level in the aisle between the two rows of canopies: produce, shoppers, stallholders", "eye": [1222.0, 1.65, -3834.5, -97.0, -4.0], "agl": true, "hour": 10.0, "weather": "clear", "fov": 55, "market_day": 1}
+	]
+}
