@@ -1196,6 +1196,7 @@ static var _lamp_mat: ShaderMaterial
 static func concrete_material() -> ShaderMaterial:
 	if _concrete_mat == null:
 		RiverLook.apply()
+		RiverNight.apply()
 		_concrete_mat = ShaderMaterial.new()
 		_concrete_mat.shader = load("res://shaders/river_concrete.gdshader")
 		_concrete_mat.set_shader_parameter("concrete_tex", PropFactory.texture("concrete", "Color"))
@@ -1209,6 +1210,7 @@ static func concrete_material() -> ShaderMaterial:
 static func water_material() -> ShaderMaterial:
 	if _water_mat == null:
 		RiverLook.apply()
+		RiverNight.apply()
 		_water_mat = ShaderMaterial.new()
 		_water_mat.shader = load("res://shaders/river_water.gdshader")
 		_water_mat.set_shader_parameter("half_width", LaRiver.LF_BOTTOM_HALF + LaRiver.LF_SIDE * (LaRiver.WATER_DEPTH / LaRiver.LF_DEPTH))

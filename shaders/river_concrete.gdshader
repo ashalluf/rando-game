@@ -24,8 +24,10 @@ global uniform float ground_detail;
 global uniform vec3 sun_direction;
 global uniform float night_factor;
 global uniform float river_look;
+global uniform float lamp_factor;
 
 #include "res://shaders/color_space.gdshaderinc"
+#include "res://shaders/river_night.gdshaderinc"
 
 uniform sampler2D concrete_tex : source_color, filter_linear_mipmap_anisotropic, repeat_enable;
 uniform sampler2D concrete_nrm : hint_normal, filter_linear_mipmap_anisotropic, repeat_enable;
@@ -53,6 +55,7 @@ uniform float tag_strength = 0.95;
 
 varying vec4 v_kind;
 varying vec2 v_uv2;
+varying vec3 rn_world;
 
 uint ihash(uint x) {
 	x ^= x >> 16u;
@@ -168,6 +171,7 @@ vec3 graffiti(vec3 col, vec2 uv, float side, float detail, float pitch, float od
 void vertex() {
 	v_kind = COLOR;
 	v_uv2 = UV2;
+	rn_world = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
 }
 
 void fragment() {
@@ -349,7 +353,45 @@ void fragment() {
 #else
 		float gain = 0.5;
 #endif
-		EMISSION = cs_out(col * bounce_light * shade * day * gain * (kind == 0 ? 1.0 : 0.45));
+		vec3 em = col * bounce_light * shade * day * gain * (kind == 0 ? 1.0 : 0.45);
+		if (river_night > 0.5 && lamp_factor > 0.01) {
+			float lf = smoothstep(0.01, 0.5, lamp_factor);
+			vec3 wp = rn_world + origin_shift;
+			em += col * rn_light(wp, wn) * lf;
+			float damp = kind == 1 ? wet_band : 0.0;
+			if (damp > 0.05) {
+				// rc4-river-night: the damp silt by the low flow holds a blurred mirror of the lit
+				// bridges (no bank test: the bed sees along the channel).
+				vec3 vw = normalize((INV_VIEW_MATRIX * vec4(VIEW, 0.0)).xyz);
+				vec3 rr = reflect(-vw, wn);
+				if (rr.y > 0.0) {
+					vec3 glow = vec3(0.0);
+					vec4 br = rn_mirror(wp, rr, vec2(1.0, 0.0), 0.0, 1e4, 1e4, 0.0, 1.0, 0.03, glow);
+					float fr = 0.03 + 0.5 * pow(1.0 - clamp(dot(wn, vw), 0.0, 1.0), 5.0);
+					em += glow * fr * damp * 0.05 * lf;
+				}
+			}
+		}
+		EMISSION = cs_out(em);
+	} else if (river_night > 0.5 && lamp_factor > 0.01 && kind != 7) {
+		// rc4-river-night: the bridges' own fixtures on their piers, walls and coping, and the
+		// ribbon's arches washed by their LEDs.
+		vec3 wp = rn_world + origin_shift;
+		vec3 wn = normalize((INV_VIEW_MATRIX * vec4(NORMAL, 0.0)).xyz);
+		float lf = smoothstep(0.01, 0.5, lamp_factor);
+		vec3 em = col * rn_light(wp, wn);
+		if (kind == 5) {
+			em += col * rn_led * rn_rib_glow(wp) * rn_rib_wash;
+		}
+		EMISSION = cs_out(em * lf);
+	}
+	if (river_night > 0.5 && lamp_factor > 0.01 && kind <= 2) {
+		// rc4-river-night: after dark the channel's floor sees a strip of sky between its banks,
+		// none of the city's glow on the horizon: the ambient is held down there (the bed and the
+		// banks' feet; the top of a bank sees the city again).
+		float sky_view = kind == 0 ? mix(0.62, 1.0, smoothstep(1.0, 6.0, height)) : 0.62;
+		AO = mix(1.0, sky_view, smoothstep(0.01, 0.5, lamp_factor));
+		AO_LIGHT_AFFECT = 0.0;
 	}
 	ROUGHNESS = rough;
 	SPECULAR = 0.4;

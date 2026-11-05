@@ -307,6 +307,13 @@ already mapped so milestone 2 is script-only.
   (IdleRelax), never per frame. Props hang from the fist, not the wrist. Close-up hair shine is
   broken by strands and clumps; lips are toned toward the skin. PERSON_CLOSEUP=0 is the A/B.
 
+- **2026-11-02 The refinery's road at night (rc4-refinery-road, HANDOFF "The refinery's road at
+  night").** The street outside the plant is lit by what really lights it: the flares and the fence
+  masts' light is worked out in the road shader as light times the surface's albedo (never another
+  additive wash, which flattens tarmac and paint alike), on every road and pavement within reach so
+  it never stops at a street's edge; the street lamps along an industrial perimeter are old and
+  patchy. A flare trails soot; a tank's floods are fans of light on its paint. RC4_REFINERY_ROAD=0
+  is the A/B.
 - **2026-11-02 The refinery at night (rc3-refinery-night, HANDOFF "The refinery at night").** A
   flare's light on the plant is worked out in the plant's own shader from the real flame positions
   (every tier, both renderers, no OmniLight), not a light node that only FULL chunks carry; each
@@ -4502,3 +4509,11 @@ none of either.
   per variant and batched, never per copy; a studio keeps its asphalt (the industrial ground with
   `kept`, worn only by tyre tracks); the basecamp's gaps hold carts and the doors chairs, from the
   layout alone, after every roll; the lot's walkers mostly wear crew blacks. RC4_FILM_LOT=0 is the A/B.
+- **2026-11-02 The river_night refcam: a structure's own lights light its surroundings, and water at
+  night mirrors what is lit (rc4-river-night, HANDOFF "The LA River at night").** A new reference
+  camera (`river_night`, wave 7's table) on the LA River's bed 65 m south of the 6th St ribbon bridge
+  at 21:30. Decisions: a bridge's lights are worked out analytically in the river's own shaders from
+  the bridge's frame (never real lights: the channel would need dozens); the water's mirror of the
+  bridges is ray-traced against the same frames, softened by a calmer normal than the riffles' (the
+  full riffles broke a lit arch into specks); a canyon floor's ambient is held down after dark (AO),
+  never by darkening its albedo. RIVER_NIGHT=0 is the A/B.

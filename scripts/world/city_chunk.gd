@@ -2491,7 +2491,7 @@ func _build_roads(block: Dictionary) -> void:
 		LaHillsBuild.stretch(self, CityPlan.AXIS_Z, Rect2(rect.position.x, rz - wz * 0.5, rect.size.x, wz))
 	# The intersection square at the +X +Z corner.
 	if plan.road_open(CityPlan.AXIS_X, ix + 1, rz) or plan.road_open(CityPlan.AXIS_Z, iz + 1, rx):
-		_road_slab(Rect2(rx - wx * 0.5, rz - wz * 0.5, wx, wz), asphalt, look_x.material)
+		_road_slab(Rect2(rx - wx * 0.5, rz - wz * 0.5, wx, wz), asphalt, RcRefineryRoad.junction_material(look_x.material, plan, ix + 1, iz + 1))
 	elif LaHills.is_stairs(plan, CityPlan.AXIS_X, ix + 1, iz) or LaHills.is_stairs(plan, CityPlan.AXIS_Z, iz + 1, ix):
 		LaHillsBuild.junction(self, Rect2(rx - wx * 0.5, rz - wz * 0.5, wx, wz))
 	if level == Level.FULL:
@@ -2576,6 +2576,8 @@ func _road_look(axis: int, index: int, params: Dictionary) -> Dictionary:
 	# Which way its street lamps run, for the glow the road wears seen from afar at night
 	# (road.gdshader): an AXIS_X road stands at an x and runs along Z.
 	material.set_shader_parameter("lamp_axis", 1 if axis == CityPlan.AXIS_X else 2)
+	# The refinery's perimeter streets take its flares' and masts' light (RcRefineryRoad).
+	material = RcRefineryRoad.road_material(material, plan, axis, index)
 	return {
 		"material": material,
 		"line": Color(0.95, 0.95, 0.9) if white else Color(0.95, 0.8, 0.2),
@@ -2872,6 +2874,7 @@ func _block_surface(block: Dictionary, params: Dictionary, rng: RandomNumberGene
 	# Pavement: the same wear shader as the road, but with expansion joints and far less
 	# patching and staining, so a sidewalk reads as poured slabs rather than a grey plane.
 	var paving_mat := PropFactory.road(paving[0], paving[1], paving_tint, hash([plan.seed, ix, iz, "paving"]), rng.randf_range(1.2, 1.9), 0.45)
+	paving_mat = RcRefineryRoad.paving_material(paving_mat, plan, rect)
 	# A FULL block's outer ring of pavement is Kerbs' (cut for ramps, aprons and tree wells).
 	var pave := rect
 	if Kerbs.takes(self, rect):
@@ -4308,13 +4311,18 @@ func _add_street_lamp(at: Vector3, facing: Vector2) -> void:
 	# The pool as the head throws it (NightLamps; NIGHT_LAMPS=0 the old dot).
 	var pool := NightLamps.pool_instance(lp, head, at)
 	var box: Vector3 = lp.box
+	# Along the refinery's perimeter streets a share are out and the rest dim (RcRefineryRoad).
+	var rr := RcRefineryRoad.lamp_state(plan, Vector2(at.x, at.z))
+	if not rr.is_empty():
+		pool[1] = Color(pool[1].r, pool[1].g, pool[1].b, pool[1].a * float(rr.pool))
+		lp.custom = Color(lp.custom.r, lp.custom.g, 1.0 if rr.out else 0.0, lp.custom.a)
 	_add_prop("lamp", at, Color(0.28, 0.29, 0.32), [
 		[lp.key, lp.mesh, lp.xform, lp.paint, lp.custom],
 		["lamp_pool", PropFactory.light_pool(), pool[0], pool[1], pool[2]],
-	] + _night_atmos(lp.lights, head, at, size), [[box, at + Vector3(0.0, box.y * 0.5, 0.0), 0.0]])
+	] + ([] if rr.get("out", false) else _night_atmos(lp.lights, head, at, size)), [[box, at + Vector3(0.0, box.y * 0.5, 0.0), 0.0]])
 	_batch.set_no_shadow("lamp_pool")
 	NightAtmos.finish_batch(_batch)
-	if level != Level.FULL:
+	if level != Level.FULL or rr.get("out", false):
 		return
 	var light := OmniLight3D.new()
 	light.position = head + Vector3(0.0, _gy(at.x, at.z) - 0.25, 0.0)
@@ -4324,6 +4332,8 @@ func _add_street_lamp(at: Vector3, facing: Vector2) -> void:
 	# full strength and blew the road out.
 	light.omni_attenuation = maxf(1.4 * log(LAMP_LIGHT_HEIGHT) / log(maxf(head.y - at.y - 0.25, LAMP_LIGHT_HEIGHT)), 1.1)
 	NightLamps.tune_light(light, head.y - at.y - 0.25)
+	if not rr.is_empty():
+		light.set_meta("lamp_gain", float(light.get_meta("lamp_gain", 1.0)) * float(rr.light))
 	light.light_color = NightCity.lamp_light(Vector2(at.x, at.z))
 	light.light_energy = 0.0
 	light.shadow_enabled = false

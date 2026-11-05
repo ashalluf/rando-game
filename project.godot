@@ -431,3 +431,7 @@ golf_morning={
 "type": "float",
 "value": 1.0
 }
+river_night={
+"type": "float",
+"value": 1.0
+}
