@@ -28838,3 +28838,61 @@ smooth normals on Forward+ are unproved. No crew AT WORK (no shoot, no dolly, ca
 driven: the film-shoot session's area); the stage walls are as they were; the trailers' variants all
 share three dressings, so a long row repeats every third; the far LOD of the trailers is the old
 `lod_box` path. Checks: `tests/rc4_film_lot_checks.gd` (10). Probe: `tools/rc4_film_lot/crew_probe.tscn`.
+
+## 9d?. The thunderstorm downtown: the storm_downtown refcam (fleet wave 8, `wt/rc5-storm-downtown`)
+
+**The camera** (new, `tools/refcams/cameras_w8.json`, `storm_downtown`): Flower St just south of
+8th, eye 1.7 m, looking north up the street to the towers, 20:30 in a STORM, a strike held for the
+still, five street cars staged on Flower (`street_cars`). A new optional row key, `storm_flash`
+(`{"dist", "az" degrees, 0 = +x, -90 = north, "hold"}`), is handled in `refcams_shot.gd`
+(`_stage_storm_flash()` / `_release_storm_flash()`): `Weather.force_strike()` with StormDrama's
+held-flash path (STORM_FLASH_HOLD's), released after the shot. Staged street cars are now reported
+at the shot like the freeway ones.
+
+**What read fake, worst first** (the before: main with `RC5_STORM=0`):
+1. **The held night strike lit the street like an overcast noon**: p50 167 (the same frame between
+   strikes 48), the whole street, the facades and the sky one beige-white haze; the bolt barely
+   showed. Bisected in a small scene (fwd_block_shot.tscn, opengl3, 3.5 min a shot): both the
+   flash's LIGHT (Weather's lightning directional light and the sun's flash term, already x0.22 at
+   night by StormDrama) and the sky's flash in its CUBEMAP pass (the radiance that is the sky
+   ambient, every mirror and the aerial-perspective fog) did it; the in-view flash, an even
+   blue-white added to the sodium deck, read beige.
+2. **Every street lamp's reflection was a white rod down the wet road** (NightAtmos' streak, the
+   rain's look): in a storm the water is beaten by rain and whipped by wind and holds no long
+   bright column.
+3. **The storm's night curtain was a warm veil** over every dark facade and the sky (the curtain's
+   even 0.12 veil plus the sheets' gain, in its night tint), the far towers flat orange shapes; the
+   inner curtain's cell-wide streaks read as slanted bands and a grid of soft blocks.
+4. **Black discs in the sky**: StormDrama's litter, thrown up at 0.3 and up to 24 cm, billboarded;
+   the ones near the lens hung over the street as big dark ovals.
+
+**The fixes** (`RcStorm`, `scripts/world/rc5_storm.gd`, every number; `RC5_STORM=0` puts each back
+exactly; every new shader path sits behind a uniform whose default is the old look):
+- **The night flash**: `light_gain()` (0.3 at full moonlight) on the lightning light and the sun's
+  flash meta (DayNight's flash ambient follows it); the sky's new `flash_cube` (0.12 at night: the
+  flash's share in the cubemap pass), `flash_color` (colder at night, 0.5 / 0.62 / 1.0) and the
+  spread x0.35 (the cloud base round the bolt lit, the rest of the deck darker) - `dress_sky()`,
+  Weather's flash hook after StormDrama's. Days are untouched (all of it weighted by moonlight).
+- **Lamp streaks in a storm**: night_wet.gdshader `storm` (StormDrama's weight, `dress_streaks()`
+  each tick): the column 1.7x wider and its hot core cut, broken into short pitted runs, x0.45.
+  Plain rain (street_night) keeps its streaks.
+- **The storm curtain at night**: Weather's curtain shader `night_veil` (0.3 of the even veil at
+  night), `night_sheets` (half the sheets' gain at night), `thin` (the streak a sharp line in its
+  cell, inner curtain only); scaled by the storm's weight, so rain is untouched (`dress_curtain()`).
+- **Litter**: rise 0.1, at most 13 cm.
+
+**Numbers** (refcams opengl3, one load each, `RC5_STORM=0` / on): storm_downtown p5/p50/p95
+69/167/210 -> 30/88/182, saturation 0.143 -> 0.203 (the cold flash against the warm lamps), CCT
+5504 K -> 5699 K, triangles 6.55 M -> 6.41 M, draws 3,173 -> 3,126 (run-to-run noise: nothing
+was added to the scene).
+
+**Not done / not seen**: no Forward+ (lavapipe) still of the downtown street (it does not fit the
+box): the colder flash colour and the cubemap share are judged on opengl3 only - on the Mac the
+sky's flash adds in linear HDR and may want `RC5_FC` / `RC5_CR` lower or higher (the env names are
+read at load for tuning); the cars' wipers and tyre spray are in the frame but small (the staged
+cars keep 5-9 m/s, the camera's own car is not staged); the far towers between strikes still go
+orange in the storm's fog (DayNight's storm fog colours, not touched).
+
+Checks: `tests/rc5_storm_downtown_checks.gd` (the switch, the night flash numbers, the sky's
+spread and colour, the curtains at night and in plain rain, the lamp streak's storm break-up, the
+litter, every shader default, the camera row and its staging key).

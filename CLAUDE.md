@@ -2159,6 +2159,13 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   point, collapsed while dry); road.gdshader's mirrored windows smear (`mirror_window*`,
   `mirror_sky`). `NIGHT_STREET_REVIEW=0` is the A/B; bookmarks `tools/night_street/` (shoot.sh
   full city, shoot_fwd.sh small scenes, measure.py); checks `tests/night_street_review_checks.gd`.
+- The thunderstorm downtown (2026-11-05, refcam `storm_downtown` in `tools/refcams/cameras_w8.json`,
+  its `storm_flash` key holds a strike; docs/HANDOFF.md "The thunderstorm downtown"): `RcStorm`
+  (`scripts/world/rc5_storm.gd`): at night a strike's light is 0.3 of StormDrama's, the sky's flash
+  in its cubemap pass (`flash_cube`: ambient, mirrors, aerial fog) 0.12, tighter and colder
+  (`flash_color`); in a storm the lamps' wet streaks break up (night_wet `storm`), the curtain's night
+  veil / sheets thin (`night_veil`, `night_sheets`, `thin`), the litter stays low. `RC5_STORM=0` is
+  the A/B; checks `tests/rc5_storm_downtown_checks.gd`.
 - The rainy night street (2026-10-31, docs/HANDOFF.md "The rainy night street, refcam review"):
   `RainStreetNight` (`scripts/world/rain_street_night.gd`): NightAtmos' lamp streak is a soft
   rippled column peaked at the mirror point (night_wet `look2`), `WetCarGlints` lays the same streak
