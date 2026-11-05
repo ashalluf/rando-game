@@ -35,6 +35,13 @@ static func report(shot: Object, cam_name: String) -> void:
 		var twin: Variant = node.get_meta("shadow_twin") if node.has_meta("shadow_twin") else null
 		if not groups.has(g):
 			groups[g] = []
+		if node.has_meta("cells"):
+			# PerfSix.cell_batch(): the node draws nothing, its cells draw the instances.
+			var cells: Array = node.get_meta("cells")
+			var ctw: Array = node.get_meta("cell_twins")
+			for ci in cells.size():
+				(groups[g] as Array).append({"node": cells[ci], "twin": ctw[ci], "extra": null})
+			continue
 		(groups[g] as Array).append({"node": node, "twin": twin, "extra": extra})
 	var keys := groups.keys()
 	keys.sort()

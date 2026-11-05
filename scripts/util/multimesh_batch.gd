@@ -154,6 +154,7 @@ func build(parent: Node3D) -> Dictionary:
 			_set_draw_distance(twin, minf(draw_distance, shadow_distance) if draw_distance > 0.0 and shadow_distance > 0.0 else maxf(draw_distance, shadow_distance))
 			parent.add_child(twin)
 			node.set_meta("shadow_twin", twin)
+		PerfSix.cell_batch(node, node.get_meta("shadow_twin") if node.has_meta("shadow_twin") else null, batch.mesh, xforms, batch.colors, batch.custom)
 	ContactShadows.batch_contacts(_batches, nodes, parent)
 	_batches.clear()
 	return nodes
@@ -221,6 +222,7 @@ static func hide_instance(node: MultiMeshInstance3D, index: int) -> void:
 		var twin := node.get_meta("shadow_twin") as MultiMeshInstance3D if node.has_meta("shadow_twin") else null
 		if twin and is_instance_valid(twin) and index < twin.multimesh.instance_count:
 			twin.multimesh.set_instance_transform(index, gone)
+		PerfSix.hide_in_cell(node, index, gone)
 		ContactShadows.hide_contact(node, index)
 
 

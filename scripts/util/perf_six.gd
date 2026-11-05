@@ -107,3 +107,95 @@ static func kit_shadow(kit: MultiMeshBatch, key: String, draw_distance: float) -
 	if batch.is_empty() or batch.get("no_shadow", false) or float(batch.get("shadow_reach", 0.0)) > 0.0:
 		return
 	kit.set_shadow_reach(key, draw_distance)
+
+
+## Experimental (FOLIAGE_CELLS=1, off by default): a foliage batch (a scanned plant's FoliageLod
+## ladder, a palm's ladder) is drawn as cells of FOLIAGE_CELL metres, so each picks its own LOD.
+## A batch picks ONE level for every instance from its whole box, which for a chunk-wide batch the
+## camera stands in is level 0 for every tree in the chunk. The batch's own node keeps every
+## instance (everything that reads or hides one by index still does) but draws none
+## (visible_instance_count 0); the cells are its children, so they follow its visibility.
+static var foliage_cells := OS.get_environment("FOLIAGE_CELLS") == "1"
+static var FOLIAGE_CELL: float = float(OS.get_environment("FOLIAGE_CELL")) if OS.get_environment("FOLIAGE_CELL") != "" else 48.0
+
+
+static func cell_batch(node: MultiMeshInstance3D, twin: MultiMeshInstance3D, mesh: Mesh, xforms: Array, colors: Array, custom: Array) -> void:
+	if not foliage_cells or not (mesh.has_meta("foliage_ladder") or mesh.has_meta("palm_ladder")):
+		return
+	var cells := {}
+	var cell_of := PackedInt32Array()
+	var local := PackedInt32Array()
+	cell_of.resize(xforms.size())
+	local.resize(xforms.size())
+	for i in xforms.size():
+		var o: Vector3 = (xforms[i] as Transform3D).origin
+		var k := Vector2i(floori(o.x / FOLIAGE_CELL), floori(o.z / FOLIAGE_CELL))
+		if not cells.has(k):
+			cells[k] = []
+		local[i] = (cells[k] as Array).size()
+		(cells[k] as Array).append(i)
+	if cells.size() < 2:
+		return
+	var nodes: Array = []
+	var twins: Array = []
+	var ci := 0
+	for k: Vector2i in cells:
+		var idx: Array = cells[k]
+		var xs: Array = []
+		var cs: Array = []
+		var us: Array = []
+		for i: int in idx:
+			cell_of[i] = ci
+			xs.append(xforms[i])
+			cs.append(colors[i])
+			us.append(custom[i])
+		var buf := MultiMeshBatch._instance_buffer(xs, cs, us)
+		nodes.append(_cell_node(node, node.multimesh.mesh, buf, xs.size(), "Cell_%d" % ci))
+		twins.append(_cell_node(twin, twin.multimesh.mesh, buf, xs.size(), "Cell_%d" % ci) if twin else null)
+		ci += 1
+	node.multimesh.visible_instance_count = 0
+	if twin:
+		twin.multimesh.visible_instance_count = 0
+	node.set_meta("cells", nodes)
+	node.set_meta("cell_twins", twins)
+	node.set_meta("cell_of", cell_of)
+	node.set_meta("cell_local", local)
+
+
+static func _cell_node(parent: MultiMeshInstance3D, mesh: Mesh, buf: PackedFloat32Array, count: int, nm: String) -> MultiMeshInstance3D:
+	var mm := MultiMesh.new()
+	mm.transform_format = MultiMesh.TRANSFORM_3D
+	mm.use_colors = true
+	mm.use_custom_data = true
+	mm.mesh = mesh
+	mm.instance_count = count
+	mm.buffer = buf
+	var c := MultiMeshInstance3D.new()
+	c.name = nm
+	c.multimesh = mm
+	c.cast_shadow = parent.cast_shadow
+	c.gi_mode = parent.gi_mode
+	c.lod_bias = parent.lod_bias
+	c.material_override = parent.material_override
+	c.layers = parent.layers
+	c.visibility_range_begin = parent.visibility_range_begin
+	c.visibility_range_end = parent.visibility_range_end
+	c.visibility_range_end_margin = parent.visibility_range_end_margin
+	c.visibility_range_fade_mode = parent.visibility_range_fade_mode
+	parent.add_child(c)
+	return c
+
+
+## hide_instance()'s copy into the cell that draws the instance.
+static func hide_in_cell(node: MultiMeshInstance3D, index: int, gone: Transform3D) -> void:
+	if not node.has_meta("cells"):
+		return
+	var cell_of: PackedInt32Array = node.get_meta("cell_of")
+	if index >= cell_of.size():
+		return
+	var c := cell_of[index]
+	var li: int = (node.get_meta("cell_local") as PackedInt32Array)[index]
+	for list_key in ["cells", "cell_twins"]:
+		var mi = (node.get_meta(list_key) as Array)[c]
+		if mi != null and is_instance_valid(mi) and li < (mi as MultiMeshInstance3D).multimesh.instance_count:
+			(mi as MultiMeshInstance3D).multimesh.set_instance_transform(li, gone)
