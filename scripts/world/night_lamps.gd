@@ -96,10 +96,13 @@ static func tune_light(light: OmniLight3D, h: float) -> void:
 	if not enabled:
 		return
 	var hh := maxf(h, 2.5)
-	light.omni_range = maxf(light.omni_range, REACH_PER_HEIGHT * hh)
+	# NightGround (wave 8): a point source's d^-2 over 2 x the height - a pool under each lamp, the
+	# road between them dark (the city's lamps stand every 12 m staggered; at d^-1.5 over 2.4 h they
+	# washed the whole street evenly).
+	light.omni_range = maxf(light.omni_range, NightGround.reach_per_height(REACH_PER_HEIGHT) * hh)
 	# Steeper than the kit's eased decay: a pool under each lamp and dimmer road between them,
 	# never one even wash (the gain below puts the light under the head back where it was).
-	light.omni_attenuation = maxf(light.omni_attenuation, FALLOFF)
+	light.omni_attenuation = maxf(light.omni_attenuation, NightGround.falloff(FALLOFF))
 	light.light_color = light_color(light.light_color)
 	var gain := LIGHT_GAIN * pow(hh, light.omni_attenuation) / POST_FALLOFF
 	light.set_meta("lamp_gain", float(light.get_meta("lamp_gain", 1.0)) * gain)
