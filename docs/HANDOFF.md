@@ -28907,26 +28907,36 @@ just sound, no video". The ask: playable, no quality cut at all.
   the bake, the far rocks), `CityChunk.build()`, the far landmarks, `Skyline.build_near()`, every
   `LoadClock` stage. `DisplayServer.process_events()` with it (no spinning cursor). Main thread
   only; inactive (one bool) headless, on the web, under `--noload` / `--nohud`, `LOAD_PULSE=0`.
-- **The 3D held off on the RenderingDevice renderers.** Godot's Forward+ drains its WHOLE dirty
-  geometry list into the worker pool on any 3D render, visible or not
-  (`RenderForwardClustered::_fill_render_list` -> `_update_dirty_geometry_instances`): so while
-  loading, the window's `disable_3d` is on and a 4 x 4 RS viewport of an empty scenario is drawn
-  every frame - each frame hands every new surface's pipelines to the compilers and waits for none.
-  Before that, `_prime()` draws four frames of the nearly empty world with a probe and two shadowed
-  omnis beside the camera, so every global pipeline requirement (SDFGI, motion vectors, normal /
-  roughness, separate specular, probes, cube and paraboloid shadows - sticky flags in Godot) is set
-  before the city's surfaces are queued; set later, every surface is compiled again for it.
-  `drain()` (end of the loading screen): a low-priority fence task on the WorkerThreadPool (it runs
-  only once every high-priority task queued before it - the ubershaders and shader groups - has
-  started), polled with frames presented, then the 3D back on behind the shade until three frames
-  are steady, then the fade. The warm-up's quads and every `.gdshader` it loaded are kept until
-  then (a shader freed while its pipelines still wait makes the main thread wait for them).
-  Reflection probes do not render while loading. Compatibility keeps its old behaviour (it compiles
-  at draw time on the main thread), only the pulse's own frames skip the 3D.
+- **Shaders compiled one a frame, at boot** (RenderingDevice renderers; `LoadPulse.keep_shaders()`
+  / `compile_shaders()`). Read off `shader_rd.cpp` / `material_storage.cpp`: loading a Shader only
+  stores its code; its variants are compiled the first time a SURFACE using it is processed
+  (`ShaderData::is_valid()` -> `ShaderRD::version_is_valid()`), and the main thread waits there
+  (`_compile_ensure_finished`) while the variants run on the workers. Met for the first time
+  during the city build, every new shader was a frozen frame (2-15 s each on lavapipe while the
+  landmarks built). Now the boot draws one 2 cm quad per spatial shader into a private 4 px
+  viewport, one a frame, with "n / N shaders" on the picture: the same compile work, each frame
+  waiting for one shader. Two tries that did NOT work, kept in the comments: loading all shaders
+  at once (nothing compiles until first use), and handing all pipelines to the workers while
+  building (a new material's shader then waited behind the whole queue).
+- **The 3D held off.** While loading, the window's `disable_3d` is on: no loading-screen frame draws
+  the city. Godot's Forward+ drains its WHOLE dirty geometry list into the worker pool on any 3D
+  render, visible or not (`RenderForwardClustered::_fill_render_list` ->
+  `_update_dirty_geometry_instances`), so `feed()` (at the start of the loading screen, after the
+  city is built) switches on a 4 x 4 RS viewport of an empty scenario drawn every frame: from then
+  each frame hands every surface's pipelines to the compilers and waits for none. `settle()`
+  waits on a low-priority fence task (it runs only once every high-priority task queued before it -
+  the ubershaders - has started) with frames presented ("screen: city graphics"); `drain()` does
+  the same at the end, then the 3D comes back behind the shade until three frames are steady,
+  then the fade. Before the city exists `_prime()` draws four geometry-free frames with a 5 cm probe
+  and two tiny shadowed omnis, so every sticky global pipeline requirement (SDFGI, motion vectors,
+  normal / roughness, separate specular, probes, cube and paraboloid shadows) is set before any
+  city surface is queued. The warm-up's quads and every `.gdshader` stay referenced until the
+  drain. Reflection probes do not render while loading. Compatibility keeps its old behaviour
+  (it compiles at draw time), only the pulse's own frames skip the 3D.
 - **The sound**: the master bus is muted from the first frame to the fade.
 - **The boot scene** (`scenes/boot.tscn`, `scripts/util/boot.gd`, the main scene now): the picture
   at 1.3 s, then the game's scripts compiled a few a frame on the main thread in dependency order,
-  then the city. Most of the game is one dependency cycle, so one `load()` still compiles 15.4 s of
+  then the shaders (above), then the city. Most of the game is one dependency cycle, so one `load()` still compiles 15.4 s of
   it with the picture held still (never a splash or black). A loader THREAD was tried first and
   dropped: CityChunk's `const BUILDING_SCENE := preload(building.tscn)` came back broken (every
   building lot a SCRIPT ERROR) and a second run deadlocked. `BOOT_COMPILE=0` the A/B.

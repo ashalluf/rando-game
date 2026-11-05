@@ -35,8 +35,11 @@ Nothing was turned down to get this. The quality, the city and the settings are 
 ## How long it should take
 
 - **First launch after pulling an update** (new code, so every cache is cold): several minutes
-  on the first launch is still expected while Metal builds the pipelines. The loading screen shows
-  a clock and, near the end, "COMPILING GRAPHICS (FIRST LAUNCH ONLY)" with a count. Let it run.
+  on the first launch is still expected. The loading screen shows a clock. Early on it shows
+  "COMPILING SHADERS (FIRST LAUNCH ONLY)" counting through about 300 shaders, one per frame. Near
+  the end it shows "COMPILING GRAPHICS (FIRST LAUNCH ONLY)" with a count. Let it run. The bar may
+  pause for a few seconds at the very start, when Godot compiles the game's scripts all at once,
+  but the picture stays up.
 - **The next launch with the same code:** much shorter. The shaders are cached by Godot
   (`~/Library/Application Support/Godot/app_userdata/Rando Game/shader_cache`) and by macOS's own
   Metal cache. The basin painting and the far skyline are cached too (`load_cache` in the same

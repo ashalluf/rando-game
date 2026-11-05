@@ -6702,16 +6702,17 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   window presents frames for the WHOLE load. `LoadPulse` (`scripts/util/load_pulse.gd`) draws the
   loading art on its own RenderingServer canvas and `tick()` presents it with `force_draw()` from
   inside the long loops (`raw_height_at()`, chunk builds, far landmarks and tiles, LoadClock
-  stages) - any new load step longer than ~1 s gets a `LoadPulse.tick()` in its loop. On the
-  RenderingDevice renderers the window's 3D is OFF while loading and a 4 px off-screen viewport
-  makes every frame hand all new surfaces' pipelines to the worker threads (Godot drains its whole
-  dirty list on any 3D render); `drain()` waits on a fence task, then the city draws behind the
-  shade. Master bus muted until the fade. The main scene is `scenes/boot.tscn` (scripts compiled a
-  few a frame; never a loader thread: the cyclic preloads broke under one). Quality ignores the
-  loading screen's frames (it demoted to LOWEST before play). Shader baking stays OFF on 4.7.2
-  (godot#123266, #124539: baked Metal exports crash). `LOAD_PULSE=0` / `BOOT_COMPILE=0` the A/B;
-  `LOADING frame gap:` lines name any stall; probe `tools/mac_launch/pulse_probe.tscn`; checks
-  `tests/mac_launch_checks.gd`.
+  stages) - any new load step longer than ~1 s gets a `LoadPulse.tick()` in its loop. The main
+  scene is `scenes/boot.tscn`: scripts compiled a few a frame (never on a loader thread: the
+  cyclic preloads broke), then on RenderingDevice renderers every spatial shader compiled ONE A
+  FRAME (Godot compiles a material shader when a surface first uses it and the main thread waits
+  for it: met during the city build, each was a frozen frame). The window's 3D is OFF while
+  loading; the loading screen then feeds a 4 px off-screen viewport (any 3D render hands every
+  surface's pipelines to the worker threads) and `settle()` / `drain()` wait on fence tasks with
+  frames moving. Master bus muted until the fade. Quality ignores the loading screen's frames (it
+  demoted to LOWEST). Shader baking stays OFF on 4.7.2 (godot#123266, #124539). `LOAD_PULSE=0` /
+  `BOOT_COMPILE=0` the A/B; `LOADING frame gap:` lines name any stall; probe
+  `tools/mac_launch/pulse_probe.tscn`; checks `tests/mac_launch_checks.gd`.
 - Performance: `Quality` node in the city scene (`scripts/util/quality.gd`) starts desktop at
   **HIGH** (owner, 2026-09-21: "I need it PS5 level graphics" - global illumination is the single
   biggest difference between this and a modern-looking game) and steps down to MEDIUM, LOW and
