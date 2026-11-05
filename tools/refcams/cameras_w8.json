@@ -1,0 +1,7 @@
+{
+	"_doc": "Wave 8 reference cameras (tools/refcams/README.md), the same format as cameras.json and cameras_w7.json. One row a camera, each on its own line. Run with REFCAMS_JSON=tools/refcams/cameras_w8.json.",
+	"resolution": [1280, 720],
+	"cameras": [
+		{"name": "skate_park", "label": "THE PIT at 16:30 clear, eye level on the high deck by the pool, a skater mid-air over the far coping, the boardwalk and its palms behind", "eye": [-980.3, 6.0, -488.6, -137.0, -3.0], "agl": true, "hour": 16.5, "weather": "clear", "fov": 55, "skate_t": 2.4}
+	]
+}
