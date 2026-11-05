@@ -2,6 +2,6 @@
 	"_doc": "Wave 8 reference cameras (tools/refcams/README.md), the same format as cameras.json and cameras_w7.json. One row a camera, each on its own line. Run with REFCAMS_JSON=tools/refcams/cameras_w8.json.",
 	"resolution": [1280, 720],
 	"cameras": [
-		{"name": "construction_dusk", "label": "A downtown tower going up at 18:45 clear, from the pavement across the street from its hoarding: the crane and its red lamps, the open slabs under the netting, the hoist, the crew at the gate", "eye": [3394.0, 1.7, 75.0, 120.0, 28.0], "agl": true, "hour": 18.75, "weather": "clear", "fov": 66}
+		{"name": "construction_dusk", "label": "A downtown tower going up at 18:45 clear, from the pavement across the street from its hoarding: the crane and its red lamps, the open slabs under the netting, the hoist, the crew at the gate", "eye": [3394.0, 1.7, 75.0, 121.0, 31.0], "agl": true, "hour": 18.75, "weather": "clear", "fov": 68}
 	]
 }

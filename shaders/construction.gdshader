@@ -328,21 +328,21 @@ void fragment() {
 		// Fly posters and tags low on the boards.
 		if (printed_posters) {
 			// Wheat-paste runs (StreetWear's printed bills): per 9 m of board one run or none, a grid
-			// of 0.5 x 0.75 m sheets, often one poster repeated along the row, torn and faded with age.
+			// of 0.6 x 0.9 m sheets, often one poster repeated along the row, torn and faded with age.
 			float seg = floor(uv.x / 9.0);
 			float hs = hash12(vec2(seg, floor(h * 7.0) + 41.0));
 			// Never over the rendering (the first half of each 18 m panel when it shows).
 			float first = step(fract(seg * 0.5), 0.25);
 			float clear = 1.0 - first * show;
-			int cols = 3 + int(hash12(vec2(seg, 3.0)) * 6.0);
+			int cols = 5 + int(hash12(vec2(seg, 3.0)) * 7.0);
 			int rows = 1 + int(step(0.55, hash12(vec2(seg, 5.0))));
-			float x0 = seg * 9.0 + 0.6 + 2.5 * hash12(vec2(seg, 9.0));
+			float x0 = seg * 9.0 + 0.3 + (8.4 - float(cols) * 0.6) * hash12(vec2(seg, 9.0));
 			float y0 = 0.35 + 0.15 * hash12(vec2(seg, 12.0));
-			vec2 g = (uv - vec2(x0, y0)) / vec2(0.5, 0.75);
+			vec2 g = (uv - vec2(x0, y0)) / vec2(0.6, 0.9);
 			vec2 gi = floor(g);
 			float inside = step(0.0, g.x) * step(g.x, float(cols)) * step(0.0, g.y) * step(g.y, float(rows));
 			// fract(h) 0.26: the covered walkway's parapet, up in the air: no posters there.
-			if (hs > 0.35 && clear > 0.5 && inside > 0.5 && fract(h) < 0.1) {
+			if (hs > 0.2 && clear > 0.5 && inside > 0.5 && fract(h) < 0.1) {
 				float repeat = step(0.4, hash12(vec2(seg, 17.0)));
 				float pcell = floor(mix(hash12(vec2(seg, 19.0) + gi * 7.3), hash12(vec2(seg + gi.y, 19.0)), repeat) * 16.0);
 				vec2 luv = fract(g);
