@@ -15,6 +15,7 @@ func run(t: Node, city: Node3D) -> void:
 	var plan: CityPlan = city.plan
 	_camera_row()
 	_encoding()
+	_night_ground()
 	var e := _find_gas(city, plan)
 	_t._check(not e.is_empty(), "a gas station was found round the spawn for the GasNight checks")
 	if e.is_empty():
@@ -60,6 +61,37 @@ func _encoding() -> void:
 	var spot: Array = GasNight.light_spot(Vector2.ZERO, 27.0, 14.0, 4.9)
 	_t._check(float(spot[1]) >= Vector2(13.5, 7.0).length() + 4.0 and (spot[0] as Vector3).y < 4.9,
 		"the canopy's omni reaches past the canopy's corners (%.1f m) from under its soffit" % float(spot[1]))
+
+
+## NightGround: a street lamp's omni is a point source over twice its height, its light under the
+## head as before; the compat pool takes a share; the switch puts NightLamps' numbers back.
+func _night_ground() -> void:
+	var a := OmniLight3D.new()
+	a.omni_range = 16.0
+	a.omni_attenuation = 1.1
+	NightLamps.tune_light(a, 8.0)
+	var under := float(a.get_meta("lamp_gain", 1.0)) * pow(8.0, -a.omni_attenuation)
+	var between := float(a.get_meta("lamp_gain", 1.0)) * pow(8.0 * 1.7, -a.omni_attenuation)
+	var keep := NightGround.enabled
+	NightGround.enabled = false
+	var b := OmniLight3D.new()
+	b.omni_range = 16.0
+	b.omni_attenuation = 1.1
+	NightLamps.tune_light(b, 8.0)
+	var under_old := float(b.get_meta("lamp_gain", 1.0)) * pow(8.0, -b.omni_attenuation)
+	var between_old := float(b.get_meta("lamp_gain", 1.0)) * pow(8.0 * 1.7, -b.omni_attenuation)
+	NightGround.enabled = keep
+	_t._check(not NightLamps.enabled or (is_equal_approx(a.omni_attenuation, NightGround.FALLOFF) and is_equal_approx(a.omni_range, NightGround.REACH_PER_HEIGHT * 8.0)
+		and absf(under / under_old - 1.0) < 0.01 and between < between_old * 0.85 and is_equal_approx(b.omni_attenuation, NightLamps.FALLOFF)),
+		"NightGround: a street lamp's light under its head is unchanged (%.3f / %.3f) and darker between lamps (%.3f / %.3f)" % [under, under_old, between, between_old])
+	a.free()
+	b.free()
+	var pool := PropFactory.light_pool()
+	var mat := (pool as QuadMesh).material as ShaderMaterial
+	_t._check(is_equal_approx(float(mat.get_shader_parameter("street_compat")), NightGround.pool_compat()) and NightGround.pool_compat() < 1.0,
+		"NightGround: a street lamp's pool adds %.2f of itself on Compatibility (the omni lights the rest)" % float(mat.get_shader_parameter("street_compat")))
+	var src := FileAccess.get_file_as_string("res://shaders/light_pool.gdshader")
+	_t._check(src.contains("ALPHA *= street_compat;"), "light_pool.gdshader takes street_compat on Compatibility")
 
 
 func _find_gas(city: Node3D, plan: CityPlan) -> Dictionary:
