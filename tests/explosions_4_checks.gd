@@ -379,6 +379,12 @@ func _round11(parent: Node) -> void:
 	_t._check(rsrc.contains("uniform float air_fade") and gsrc.contains("air_near") and (ring == null
 		or float((ring.material_override as ShaderMaterial).get_shader_parameter("air_fade")) == (1.0 if Blast4.ring_air_fade else 0.0)),
 		"explosions_4: the ring and the ground flash are the air's view (faded near and grazing)")
+	var bm := ShaderMaterial.new()
+	bm.shader = load("res://shaders/blast_volume.gdshader")
+	Blast4.dress_volume(bm, true, false)
+	_t._check(float(bm.get_shader_parameter("burn5")) == (1.0 if Blast4.burn_enabled else 0.0)
+		and FileAccess.get_file_as_string("res://shaders/blast_volume.gdshader").contains("uniform float burn5 = 0.0;"),
+		"explosions_4: a fuel or gas ball burns longer (burn5, off by default in the shader)")
 	if ring != null:
 		ring.queue_free()
 	var wall := StaticBody3D.new()

@@ -129,6 +129,7 @@ static func dress_volume(mat: ShaderMaterial, fuel: bool, gas: bool) -> Array:
 	mat.set_shader_parameter("quiet4", quiet_jitter if quiet_enabled else 0.0)
 	mat.set_shader_parameter("core4", 1.0 if core_enabled else 0.0)
 	mat.set_shader_parameter("night4", 1.0 if night_enabled else 0.0)
+	mat.set_shader_parameter("burn5", 1.0 if burn_enabled else 0.0)
 	if dark_dust:
 		mat.set_shader_parameter("dust", Vector3(0.085, 0.077, 0.066))
 	return [Vector3(2.3, 2.1, 2.3) * big, Vector3(0.0, 2.0, 0.0) * big, life]
@@ -378,6 +379,8 @@ static var ring_enabled: bool = OS.get_environment("BLAST_RING") != "0"
 ## Round 13: the street lit white-orange under the burst for its first frames, then the core's
 ## embers (`shaders/blast_ground_flash.gdshader`): what reads first from the air. BLAST_GROUND_FLASH=0.
 ## Round 14: the ring fades for an eye near it or at a grazing look (BLAST_RING_AIR=0 the round-11 ring).
+## Round 15: fuel and gas balls burn longer (blast_volume.gdshader `burn5`). BLAST_BURN=0.
+static var burn_enabled: bool = OS.get_environment("BLAST_BURN") != "0"
 static var ring_air_fade: bool = OS.get_environment("BLAST_RING_AIR") != "0"
 static var ground_flash_enabled: bool = OS.get_environment("BLAST_GROUND_FLASH") != "0"
 static var _flash_shader: Shader
