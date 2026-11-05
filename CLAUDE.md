@@ -2283,6 +2283,14 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   slow (`TrafficManager._street_kind()`, its roll reused). `LOWRIDERS=0` the A/B, `LOWRIDER_MEET=1`
   forces meets on, `LOWRIDER_POSE=i:hop:0.7` freezes row car i mid-routine; `car_shot.gd --each=25,26
   HYDRAULICS=hop`; probe `tools/lowrider_probe.gd`; checks `tests/lowriders_checks.gd`.
+- The lowrider meet at eye level (wave 7 refcam `lowrider_meet` in `tools/refcams/cameras_w7.json`,
+  docs/HANDOFF.md "The lowrider meet at eye level"): `LowriderMeetLook`
+  (`scripts/world/lowrider_meet_look.gd`, one hook in `LowriderMeet._park()`): a parked row car is
+  empty (lamps off) in a hashed display stance (`stance_for()`: laid, locked, three, nose;
+  `Hydraulics.set_stance()`), a three-wheel lifts its wheel `three_lift` 0.45 m, the crowd rings the
+  performing cars and sits in the chairs (`people_spots()`, `sitter_spots()`). The row's
+  `lowrider_meet` key holds meets on and poses cars. `RC4_LOWRIDER_MEET=0` is the A/B; checks
+  `tests/rc4_lowrider_meet_checks.gd`.
 - Night aerial (2026-10-05, VISUAL_ROADMAP #62, docs/HANDOFF.md "The night aerial"): past the
   streamed range the city's night is worked out per pixel in the far shaders, never simulated
   or placed. **Traffic lights**: `shaders/far_traffic.gdshaderinc` (`traffic_lights()`,
