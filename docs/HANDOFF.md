@@ -29140,10 +29140,30 @@ wingsuit is edge-on.
 3. THE LATTICE museum's roof, right under the glide, was one flat 52 m white slab, the brightest
    thing in the frame. `Rc5Wingsuit.museum_roof()` lays the real building's skylight lattice:
    dark glazing inset 2.4 m, deep ribs on the veil's cell grid (near and far copies alike).
-Looked at and left: the concert hall's steel sails below him read as one flat sand colour at
-sunset. Mirroring the hour's sky in brushed_steel's emitted share changed nothing visible on opengl3
-(the look there is the renderer's own sky radiance on a metal), so it was reverted, not shipped.
+4. (The lead's review of the first stills.) The concert hall's steel sails under him read as flat
+   beige cardboard. Two findings, each from a render: (a) a debug that painted the steel pure red
+   came back (240, 89, 38) with green and blue flat - the evening height fog pooling at street level
+   adds a flat haze over the whole hall at 250 m, so anything darker than the fog only sinks into
+   its beige (a first try that mirrored the hour's sky in the emitted share changed nothing
+   visible); (b) the sun at 18:00 is in the SOUTH-west (DayNight: toward (-0.65, 0.11, 0.75)),
+   so from this north-west camera the visible faces are the shaded ones - a "face the sun" lobe
+   darkened exactly those into the fog. What shipped, brushed_steel `look`
+   (Rc5Wingsuit.steel_look()): the emitted mirror is this hour's sky (sky_tint's horizon through
+   cs_as_uniform, brighter toward the sun, a cooled zenith, the dark street under the horizon)
+   with a tone per panel, a mild face term (0.55..1), and the sun mirrored broad along the brushing
+   by the REFLECTED direction (pow 4 toward the sun, x3) - a bright streak that runs across each
+   curved sail where it turns the sun to the eye, the only thing that stands out of the fog -,
+   the renderer's own flat reflection cut to under half, the sun's glint capped at 1.6 and tinted.
+   All faded in as the sun sinks (none from ~29 degrees up): noon unchanged. In the camera the
+   west sails show streaks and darker turns; the middle of the hall still reads mostly as fog
+   colour (honest: a modest gain). Forward+: `tools/glshot/far_landmark_shot.gd GOLDEN=1` under
+   lavapipe (the hall alone; no sky radiance or fog there, so its base is darker than the city's).
+5. The lit crowns blew out to white discs at 18:00: DayNight's night_factor is already 0.7 at the
+   sunset (1 - clamp((elevation + 0.05) x 6)), and the crowns glowed from 0.15. tower_crown
+   `dusk_hold` (Rc5Wingsuit.crown_dusk_hold(), set by LandmarkDowntown._glow_material()) scales the
+   glow by smoothstep(0.55, 0.95, night_factor): a third at the sunset, full by 18:18 (so the
+   golden_aerial camera is unchanged).
 
 `WINGSUIT_LOOK=0` is the suit's A/B (the flat sheets, the old vapour), `RC5_WINGSUIT=0` the world's
-(the flat roof). `tools/glshot/far_landmark_shot.gd` takes `GOLDEN=1` now (a sun
+(the flat roof, the old steel, the crowns' early glow). `tools/glshot/far_landmark_shot.gd` takes `GOLDEN=1` now (a sun
 6 degrees up in the west under a sunset horizon). Checks: `tests/rc5_wingsuit_golden_checks.gd`.

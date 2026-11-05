@@ -124,7 +124,7 @@ func _roof() -> void:
 func _steel_and_crowns() -> void:
 	var st := FileAccess.get_file_as_string("res://shaders/brushed_steel.gdshader")
 	_t._check(st.contains("uniform float look = 0.0;") and st.contains("emission = mix(emission, e2, low);")
-		and st.contains("col *= mix(1.0, 0.45 * (0.4 + 0.6 * face), low);"),
+		and st.contains("col *= mix(1.0, 0.45 * (0.7 + 0.3 * face), low);"),
 		"the concert hall's steel: the low-sun look off by default and faded in by the sun's height (noon unchanged)")
 	_t._check(st.contains("min(g * 2.2, 1.6)"), "the steel's sun glint is capped under the look (no blown-out sail)")
 	var cc := FileAccess.get_file_as_string("res://scripts/world/landmark_civic_center.gd")

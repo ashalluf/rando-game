@@ -108,10 +108,15 @@ void fragment() {
 		vec2 nh = normalize(N.xz + vec2(1e-4));
 		float face = max(dot(nh, sh), 0.0);
 		float low = (1.0 - smoothstep(0.18, 0.5, sd.y)) * smoothstep(-0.08, 0.0, sd.y);
-		float shade = 0.25 + 0.75 * face;
-		vec3 e2 = mirror * steel_color * fres * pan * 1.35 * shade * (1.0 - 0.7 * night_factor);
+		float shade = 0.55 + 0.45 * face;
+		vec3 e2 = mirror * steel_color * fres * pan * 0.85 * shade * (1.0 - 0.7 * night_factor);
 		vec3 warm = normalize(h_now + vec3(0.06)) * 1.7;
-		e2 += warm * steel_color * pan * pow(face, 2.0) * 1.1 * (1.0 - 0.6 * seam);
+		// ... and the sun mirrored broad along the brushing: a streak that runs across each curved
+		// sail where it turns the low sun toward the eye, the rest of the sail darker. It has to be well
+		// over 1: the evening height fog pooling at street level adds a flat haze over the whole hall,
+		// and anything darker than that only sinks into the fog's colour.
+		float streak = pow(toward, 4.0) * smoothstep(-0.45, 0.05, refl.y);
+		e2 += warm * steel_color * pan * (0.25 * face + 3.0 * streak) * (1.0 - 0.6 * seam);
 		float g = lm_glint(refl, power);
 		e2 += normalize(h_now + vec3(0.08)) * min(g * 2.2, 1.6) * (1.0 - seam);
 		e2 += col * flood_color * flood_strength * lamp_factor * (0.25 + 0.75 * exp(-up / flood_reach));
@@ -119,7 +124,7 @@ void fragment() {
 		// All of it only while the sun is low: with it high, the steel exactly as before.
 		emission = mix(emission, e2, low);
 		// The renderer's own metal reflection a fraction of what it was.
-		col *= mix(1.0, 0.45 * (0.4 + 0.6 * face), low);
+		col *= mix(1.0, 0.45 * (0.7 + 0.3 * face), low);
 	}
 	col *= 1.0 - 0.55 * seam;
 	ALBEDO = col;

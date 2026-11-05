@@ -84,6 +84,10 @@ func run(st: SceneTree, cam: Dictionary, p: Node3D) -> void:
 	city.call("update_streaming", true)
 	await _fly(0.5)
 	var w := WorldState.to_world(player.global_position)
+	var dn: Node = city.get_node_or_null("DayNight")
+	var sun: Node3D = dn.get("_sun") if dn else null
+	if sun:
+		print("REFCAM wingsuit: sun toward %s, night_factor %.2f, lamp_factor %.2f" % [str(sun.global_basis.z), float(dn.get("night_factor")), float(dn.get("lamp_now"))])
 	var fx: Node = suit.get_node_or_null("WingsuitFx")
 	print("REFCAM wingsuit: at %s (wanted %s), %.1f m over the ground, %.1f m/s, gliding %s, vapour %s, camera %s" % [
 		str(w), str(target), w.y - plan.height_at(Vector2(w.x, w.z)), player.velocity.length(),
