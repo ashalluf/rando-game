@@ -152,7 +152,7 @@ void fragment() {
 			albedo = mix(albedo, vec3(0.18, 0.16, 0.13), 0.55 * foot * (0.6 + 0.4 * vnoise(uv * vec2(1.5, 2.0))));
 			// Each floodlight a bright fan up the shell from its foot, every ~14 m round it.
 			float fan = 0.35 + 0.65 * pow(abs(cos(uv.x / 14.0 * 3.14159 + param)), 3.0);
-			emit += to_lit(sodium) * tank_flood * lamp_factor * exp(-uv.y / max(h * 0.8, 1.0)) * fan;
+			emit += to_lit(sodium) * fh_level(tank_flood * lamp_factor * exp(-uv.y / max(h * 0.8, 1.0)) * fan);
 		}
 		metal = 0.2;
 		rough = 0.62;
@@ -349,7 +349,7 @@ void fragment() {
 		float weld = max(lines(uv.x, 4.2, 0.03), lines(uv.y, 3.0, 0.03));
 		albedo *= 1.0 - 0.08 * weld;
 		albedo = mix(albedo, vec3(0.42, 0.27, 0.16), 0.2 * streaks(uv * vec2(0.5, 1.0), h, param));
-		emit += to_lit(sodium) * tank_flood * 0.7 * lamp_factor * exp(-uv.y / max(h * 0.5, 1.0));
+		emit += to_lit(sodium) * fh_level(tank_flood * 0.7 * lamp_factor * exp(-uv.y / max(h * 0.5, 1.0)));
 		metal = 0.2;
 		rough = 0.55;
 		wet_k = 1.0;
