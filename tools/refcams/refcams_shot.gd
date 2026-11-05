@@ -38,6 +38,7 @@ func _initialize() -> void:
 	DirAccess.make_dir_recursive_absolute(_out_dir)
 	_golf_group()
 	_bonfire_lit()
+	_pump_car()
 	# OCCLUSION=0: occlusion culling off (still_shot's switch), to tell what is culled in plain sight.
 	if OS.get_environment("OCCLUSION") == "0":
 		get_root().use_occlusion_culling = false
@@ -389,6 +390,18 @@ func _bonfire_lit_for(cam: Dictionary) -> void:
 	bf.set("force_lit", int(cam.get("bonfire_lit", -1)))
 
 
+## A row's optional "pump_car" (wave 8's gas_station_night): 1 puts a car at a pump, its driver
+## beside it, on every gas station (GasNight.force_pump_car, as PUMP_CAR=1) whatever the station's
+## hash. Set before the city loads: the car is placed as its chunk builds.
+func _pump_car() -> void:
+	if OS.get_environment("PUMP_CAR") != "":
+		return
+	var only := OS.get_environment("ONLY").split(",", false)
+	for cam: Dictionary in _cameras().get("cameras", []):
+		if int(cam.get("pump_car", 0)) == 1 and (only.is_empty() or String(cam.name) in only):
+			OS.set_environment("PUMP_CAR", "1")
+
+
 ## A row's optional "golf_group" ("hole:stage[:tee[:count]]", wave 6's golf_morning) puts a group
 ## of golfers there whatever the hole's roll (GolfLife.force_group). Set before the city loads:
 ## golfers are spawned as the course's chunks build.
@@ -563,6 +576,21 @@ func _night_ab(scene: Node, png: String) -> void:
 		if nm.contains("pool") or nm.contains("spill") or nm.contains("glow"):
 			pools.append(n)
 	print("NIGHT_AB %d lamp lights, %d pool/spill/glow nodes" % [lamps.size(), pools.size()])
+	var eye := cam3.global_position if cam3 else Vector3.ZERO
+	for l in lamps:
+		var o := l as OmniLight3D
+		if o and o.is_visible_in_tree() and o.global_position.distance_to(eye) < 60.0:
+			print("NIGHT_AB lamp %s/%s at %s (d %.1f) energy %.2f range %.1f att %.2f" % [o.get_parent().name, o.name, (o.global_position - eye).snapped(Vector3.ONE * 0.1), o.global_position.distance_to(eye), o.light_energy, o.omni_range, o.omni_attenuation])
+	for n in pools:
+		var g := n as GeometryInstance3D
+		if g.is_visible_in_tree() and g is MultiMeshInstance3D and (g as MultiMeshInstance3D).multimesh:
+			var mm := (g as MultiMeshInstance3D).multimesh
+			var near := 0
+			for i in mm.visible_instance_count if mm.visible_instance_count >= 0 else mm.instance_count:
+				if (g.global_transform * mm.get_instance_transform(i)).origin.distance_to(eye) < 40.0:
+					near += 1
+			if near > 0:
+				print("NIGHT_AB pools %s/%s: %d within 40 m" % [g.get_parent().name, g.name, near])
 	var variants := ["nolamps", "nopools", "nomoon", "noamb", "nothing"]
 	for v: String in variants:
 		var saved := {}
