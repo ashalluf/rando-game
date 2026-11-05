@@ -65,6 +65,10 @@ const LIMB_MASS := {"left_arm": 3.5, "right_arm": 3.5, "left_leg": 9.0, "right_l
 static var _limb_cache: Dictionary = {}
 
 
+## RAGDOLL_PHYSICS_TICK=0: the jointed doll's settle clock on the frame time again (the A/B).
+static var PHYSICS_TICK: bool = OS.get_environment("RAGDOLL_PHYSICS_TICK") != "0"
+
+
 ## The real character as one tumbling body. False when the model cannot be loaded.
 func build_from_rig(path: String, look: int = -1) -> bool:
 	if not ResourceLoader.exists(path):
@@ -118,6 +122,12 @@ func _physics_process(delta: float) -> void:
 	_joints.clamp_spin()
 	if _joints.feel != null:
 		_joints.feel.step(delta)
+	# The settle and freeze clocks (and the rolling nudge) on the PHYSICS step: on a frame that ran
+	# long (a loaded box, a slow Mac frame) the process delta is seconds of wall time for a few
+	# ticks of motion, which aged a doll past settle_max and counted it still in mid-roll (the
+	# gate's stair doll froze on the top step). PHYSICS_TICK false is the old frame-time clock.
+	if PHYSICS_TICK and not _joints.tick(delta):
+		bodies = _joints.bodies()
 
 
 func _process(delta: float) -> void:
@@ -126,10 +136,13 @@ func _process(delta: float) -> void:
 	_age += delta
 	var busy := false
 	if _joints != null and not _joints.frozen:
-		if _joints.tick(delta):
-			busy = true
+		if not PHYSICS_TICK:
+			if _joints.tick(delta):
+				busy = true
+			else:
+				bodies = _joints.bodies()
 		else:
-			bodies = _joints.bodies()
+			busy = true
 	if bleed > 0.0:
 		busy = _blood_step(delta) or busy
 	if _anim != null and _anim.is_playing():

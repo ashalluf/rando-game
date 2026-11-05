@@ -4593,3 +4593,8 @@ none of either.
   as particle quads on the water; a wake's foam is braided lines on an aerated sheet that emits the
   evening's light, not a lit white band; spray is a low sheet off the chines; a boat's transom carries
   its invented name. BOAT_SEA=0 is the A/B.
+- 2026-11-05 (fleet wave 8, gate-flakes-2): the gate's last open flakes. A jointed doll's settle and
+  freeze clocks run on the physics step (a long frame froze dolls mid-fall, in play too on a slow
+  frame); shop doors and far-walker borrowing take only the plain crowd by script (a valet was sent
+  through a door for good); the crowd-flow passing check meets nearest the camera. RAGDOLL_PHYSICS_TICK=0
+  is the A/B.
