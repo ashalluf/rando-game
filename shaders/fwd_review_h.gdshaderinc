@@ -27,3 +27,19 @@ float fh_level(float x) {
 	return x <= 0.04045 ? x / 12.92 : pow((x + 0.055) / 1.055, 2.4);
 #endif
 }
+
+// A colour the shader EMITS as plain numbers that were judged on Compatibility, where they display
+// as written (industrial_walls.gdshader's glass mirror: on Forward+ it read as linear and the panes
+// were pale sheets of sky). Decoded on Forward+ (behind the switch), as written on Compatibility.
+// For colours (0..1), not HDR lamps.
+vec3 fh_display(vec3 c) {
+#if CURRENT_RENDERER == RENDERER_COMPATIBILITY
+	return c;
+#else
+	if (fwd_review_h < 0.5) {
+		return c;
+	}
+	c = max(c, vec3(0.0));
+	return mix(c / 12.92, pow((c + 0.055) / 1.055, vec3(2.4)), step(vec3(0.04045), c));
+#endif
+}

@@ -9,6 +9,13 @@ extends RefCounted
 ##   pool's faint tail, a few % of its centre, showed several times stronger on the Mac than in the
 ##   opengl3 stills, and the fire's pool spread into an orange carpet over the whole beach. They take
 ##   `display_add_fwd` (FwdReviewH.display_pool()): the display-number add on Forward+ only.
+## - The refinery's flares (refinery.gdshader, display numbers) and the port's floods (container /
+##   port_steel, renderer space) emitted colour x level with the level raw; Forward+ draws that as
+##   ~level^0.45, so steel far from a flare glowed orange all over on the Mac. fh_level()
+##   (shaders/fwd_review_h.gdshaderinc, the `fwd_review_h` global) decodes the level on Forward+.
+## - industrial_walls.gdshader's office and storefront glass emitted its sky mirror as plain numbers
+##   judged on Compatibility (where they display as written); Forward+ read them as linear and the
+##   panes were pale sheets of sky, ~3x the stills. fh_display() decodes the mirror on Forward+.
 ## Source text and statics only.
 
 var _t: Node
@@ -19,6 +26,14 @@ func _code(p: String) -> String:
 	for line in FileAccess.get_file_as_string(p).split("\n"):
 		lines.append(line.split("//")[0])
 	return "\n".join(lines)
+
+
+func _project_global(name: String) -> float:
+	var cfg := ConfigFile.new()
+	if cfg.load("res://project.godot") != OK:
+		return -1.0
+	var v = cfg.get_value("shader_globals", name, null)
+	return float((v as Dictionary).get("value", -1.0)) if v is Dictionary else -1.0
 
 
 func run(t: Node, _city: Node3D) -> void:
@@ -61,3 +76,24 @@ func run(t: Node, _city: Node3D) -> void:
 	FwdReviewH.display_pool(spare)
 	var on_v = (spare.surface_get_material(0) as ShaderMaterial).get_shader_parameter("display_add_fwd")
 	_t._check(off_v != true and on_v == true, "FWD_REVIEW_H=0 leaves the pools on the old linear add")
+	# The light levels: decoded on Forward+ only, behind the global, in the three shaders.
+	var inc := _code("res://shaders/fwd_review_h.gdshaderinc")
+	_t._check(inc.contains("float fh_level(float x) {\n#if CURRENT_RENDERER == RENDERER_COMPATIBILITY\n\treturn x;")
+		and inc.contains("if (fwd_review_h < 0.5) {\n\t\treturn x;") and inc.contains("pow((x + 0.055) / 1.055, 2.4)"),
+		"fh_level() is a no-op on Compatibility and with the switch off, the sRGB decode on Forward+")
+	var ref := _code("res://shaders/refinery.gdshader")
+	_t._check(ref.contains("fh_level(fl * flare_gain * (0.3 + 0.7 * night_factor))") and not ref.contains("* fl * flare_gain"),
+		"the refinery's flare light level goes through fh_level()")
+	_t._check(_code("res://shaders/container.gdshader").contains("fh_level(fl * flood_gain * lamp_factor)")
+		and _code("res://shaders/port_steel.gdshader").contains("fh_level(fl * flood_gain * lamp_factor * (1.0 - metal * 0.5))"),
+		"the port's floods on the containers and the steel go through fh_level()")
+	_t._check(is_equal_approx(_project_global("fwd_review_h"), 1.0), "the fwd_review_h global defaults on in project.godot")
+	_t._check(_code("res://scripts/world/sky_extras.gd").contains("FwdReviewH.apply()"), "SkyExtras sets the fwd_review_h global at load")
+	# (The render server's global getter is editor-only: the switch's value is FwdReviewH.enabled.)
+	FwdReviewH.apply()
+	var iw := _code("res://shaders/industrial_walls.gdshader")
+	_t._check(iw.contains("emit += fh_display(mirror * 0.55 * (1.0 - night_factor * 0.7)) * (1.0 - mull);")
+		and iw.contains('#include "res://shaders/fwd_review_h.gdshaderinc"'),
+		"the industrial glass's mirror is decoded on Forward+ (its coverage kept linear)")
+	_t._check(inc.contains("vec3 fh_display(vec3 c) {\n#if CURRENT_RENDERER == RENDERER_COMPATIBILITY\n\treturn c;"),
+		"fh_display() is a no-op on Compatibility")
