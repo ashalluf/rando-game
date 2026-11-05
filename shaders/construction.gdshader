@@ -45,6 +45,11 @@ uniform float trolley_period = 74.0;
 uniform float hook_period = 52.0;
 // Aviation lights after dark, and the arrow board's flash.
 uniform float lamp_energy = 4.0;
+// ConstructionDusk (refcam5 construction_dusk): the curtain wall's dusk mirror and the lit storeys
+// behind it; the hoarding's fly posters printed from StreetWear's paper atlas. Off = as before.
+uniform bool dusk_glass = false;
+uniform bool printed_posters = false;
+uniform sampler2D paper_atlas : source_color, filter_linear_mipmap_anisotropic, repeat_disable;
 uniform float arrow_energy = 3.0;
 
 global uniform float road_wetness;
@@ -316,10 +321,48 @@ void fragment() {
 		albedo *= 1.0 - 0.25 * j;
 		albedo *= 0.9 + 0.12 * vnoise(uv * vec2(0.4, 1.0));
 		// Fly posters and tags low on the boards.
-		vec2 pc = floor(uv / vec2(0.75, 0.6));
-		float poster = step(0.86, hash12(pc + 11.0)) * step(uv.y, 1.8) * step(0.35, uv.y);
-		vec3 pcol = mix(vec3(0.92, 0.88, 0.80), vec3(0.85, 0.25, 0.2), step(0.5, hash12(pc + 3.0)));
-		albedo = mix(albedo, pcol * (0.8 + 0.2 * vnoise(uv * 9.0)), poster * (1.0 - stripe));
+		if (printed_posters) {
+			// Wheat-paste runs (StreetWear's printed bills): per 9 m of board one run or none, a grid
+			// of 0.5 x 0.75 m sheets, often one poster repeated along the row, torn and faded with age.
+			float seg = floor(uv.x / 9.0);
+			float hs = hash12(vec2(seg, floor(h * 7.0) + 41.0));
+			// Never over the rendering (the first half of each 18 m panel when it shows).
+			float first = step(fract(seg * 0.5), 0.25);
+			float clear = 1.0 - first * show;
+			int cols = 3 + int(hash12(vec2(seg, 3.0)) * 6.0);
+			int rows = 1 + int(step(0.55, hash12(vec2(seg, 5.0))));
+			float x0 = seg * 9.0 + 0.6 + 2.5 * hash12(vec2(seg, 9.0));
+			float y0 = 0.35 + 0.15 * hash12(vec2(seg, 12.0));
+			vec2 g = (uv - vec2(x0, y0)) / vec2(0.5, 0.75);
+			vec2 gi = floor(g);
+			float inside = step(0.0, g.x) * step(g.x, float(cols)) * step(0.0, g.y) * step(g.y, float(rows));
+			if (hs > 0.35 && clear > 0.5 && inside > 0.5) {
+				float repeat = step(0.4, hash12(vec2(seg, 17.0)));
+				float pcell = floor(mix(hash12(vec2(seg, 19.0) + gi * 7.3), hash12(vec2(seg + gi.y, 19.0)), repeat) * 16.0);
+				vec2 luv = fract(g);
+				luv = vec2(luv.x, 1.0 - luv.y);
+				vec2 cc = vec2(mod(pcell, 8.0), floor(pcell / 8.0));
+				vec2 auv = (cc * vec2(256.0, 384.0) + clamp(luv, 0.004, 0.996) * vec2(256.0, 384.0)) / vec2(2048.0, 1024.0);
+				vec4 t = texture(paper_atlas, auv);
+				vec3 pc = disp(t.rgb);
+				float age = hash12(vec2(seg, 23.0) + gi);
+				float e = min(min(luv.x, 1.0 - luv.x), min(luv.y, 1.0 - luv.y));
+				float keep = fbm(luv * vec2(3.0, 4.5) + gi * 3.7 + seg) * 0.75 + e * 1.1 + luv.y * 0.2;
+				float torn = smoothstep(age * 0.55, age * 0.55 + 0.04, keep);
+				vec3 grey = vec3(dot(pc, vec3(0.3, 0.55, 0.15)));
+				pc = mix(pc, grey * 0.85 + vec3(0.13, 0.12, 0.09), age * 0.55);
+				pc *= 0.9 + 0.12 * fbm(luv * vec2(14.0, 18.0) + gi);
+				float paper = t.a * torn * (1.0 - stripe);
+				// The paper's back where a sheet tore away.
+				albedo = mix(albedo, vec3(0.78, 0.76, 0.70), (1.0 - torn) * step(0.5, t.a) * smoothstep(0.62, 0.7, vnoise(luv * 9.0 + gi)) * 0.6);
+				albedo = mix(albedo, pc, paper);
+			}
+		} else {
+			vec2 pc = floor(uv / vec2(0.75, 0.6));
+			float poster = step(0.86, hash12(pc + 11.0)) * step(uv.y, 1.8) * step(0.35, uv.y);
+			vec3 pcol = mix(vec3(0.92, 0.88, 0.80), vec3(0.85, 0.25, 0.2), step(0.5, hash12(pc + 3.0)));
+			albedo = mix(albedo, pcol * (0.8 + 0.2 * vnoise(uv * 9.0)), poster * (1.0 - stripe));
+		}
 		albedo *= 1.0 - 0.25 * (1.0 - smoothstep(0.0, 0.35, uv.y));
 		rough = 0.75;
 	} else if (k == 8) {
@@ -366,10 +409,30 @@ void fragment() {
 		vec3 city = mix(vec3(0.16, 0.16, 0.17), vec3(0.32, 0.31, 0.30), vnoise(vec2(atan(r.x, r.z) * 9.0, 0.5))) * (0.35 + 0.65 * (1.0 - night_factor));
 		float above = smoothstep(-0.02, 0.12, r.y + 0.08 * vnoise(vec2(atan(r.x, r.z) * 6.0, 2.0)));
 		vec3 mirror = mix(city, sky, above);
+		vec3 inner = vec3(0.0);
+		if (dusk_glass) {
+			// The sky brightens toward the horizon (the zenith's colour flat read as a black slab),
+			// the city under it a scatter of lit windows after dark, faded to its average past a pixel.
+			sky = sky_tint.rgb * mix(1.35, 0.6, smoothstep(0.0, 0.55, r.y));
+			float az = atan(r.x, r.z);
+			vec2 wc = vec2(az * 70.0, r.y * 110.0);
+			float fwc = max(fwidth(wc.x), fwidth(wc.y));
+			float win = mix(step(0.8, hash12(floor(wc))) * step(0.25, fract(wc.x)) * step(0.3, fract(wc.y)), 0.11, smoothstep(0.3, 1.0, fwc));
+			win *= smoothstep(-0.45, -0.03, r.y);
+			city = mix(city, vec3(0.06, 0.06, 0.07), lamp_factor) + vec3(1.0, 0.76, 0.48) * win * 0.8 * lamp_factor;
+			mirror = mix(city, sky, above);
+			// Behind the glass: storeys under fit-out, a share lit by temporary lights in runs of bays.
+			float storey = floor(uv.y / 3.6);
+			float run = floor(uv.x / 9.0);
+			float lit_s = step(0.42, hash12(vec2(storey * 3.1 + 0.7, run + floor(tw.x * 0.01) + floor(tw.y * 0.01) * 13.0)));
+			float fv = fract(uv.y / 3.6);
+			float tube = 0.65 + 0.35 * lines(uv.x, 1.8, 0.5);
+			inner = vec3(1.0, 0.88, 0.70) * lit_s * (0.14 + 0.85 * smoothstep(0.62, 0.9, fv) * tube) * lamp_factor * 0.85;
+		}
 		float mull = max(lines(uv.x, 1.5, 0.06), lines(uv.y, 3.6, 0.14));
 		float film = step(0.965, hash12(pnl + 5.0));
 		albedo = mix(vec3(0.03, 0.045, 0.05), vec3(0.36, 0.48, 0.56), film);
-		emit = mix(mirror * (0.25 + 0.75 * fres), vec3(0.0), film);
+		emit = mix(mirror * (0.25 + 0.75 * fres) + inner * (1.0 - fres), vec3(0.0), film);
 		albedo = mix(albedo, vec3(0.30, 0.31, 0.32), mull);
 		emit *= 1.0 - mull;
 		rough = mix(0.06, 0.6, max(mull, film));
