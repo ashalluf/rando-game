@@ -28921,7 +28921,14 @@ and how fast) and `REFCAM boat at ...` at the shot.
 
 `BOAT_SEA=0` is the A/B (no boat wakes, no glow, no sheets, the old foam quads, no lettering).
 
-**Numbers** (refcams opengl3): see the end of this section. Checks: `tests/rc5_speedboat_checks.gd`
+**Numbers** (refcams opengl3, speedboat_golden): BOAT_SEA=0 581,303 triangles / 267 draws / shadow
+89,800; on 582,738 / 269 / 90,378 (+0.25 % triangles, +2 draws: the transom's lettering and the
+spray sheets; the wake is shader work on the sea's existing pixels). Luma p5/p50/p95 22/134/229 ->
+21/134/229. The ten original cameras (`refcams.py compare`, main b45ba911 against this branch merged
+with main 2f2fb8f5): seven within tolerance; street_noon, street_night and freeway flagged by live
+traffic only (different cars and a bus in the frame; none of the three sees the sea). The beach,
+sunset and pier views are unchanged (pixel mean |d| 0.01). Gate (SHARDS=3, merged with main
+2f2fb8f5): 5,812 checks passed, 0 failed, peak 3.8 GB a shard. Checks: `tests/rc5_speedboat_checks.gd`
 (16: the shader default, the row, the transom per level and facing, the packing at 16 m/s, reach,
 the merge and the glow, still / marina / sinking hand none, BOAT_SEA=0, a freed boat leaves).
 
