@@ -87,7 +87,7 @@ func run(t: Node, _city: Node3D) -> void:
 	var ref := _code("res://shaders/refinery.gdshader")
 	_t._check(ref.contains("fh_level(fl * flare_gain * (0.3 + 0.7 * night_factor))") and not ref.contains("* fl * flare_gain"),
 		"the refinery's flare light level goes through fh_level()")
-	_t._check(ref.count("emit += to_lit(sodium) * fh_level(tank_flood") == 2, "so do the masts' sodium floods on the tanks")
+	_t._check(ref.count("fh_level(tank_flood") == 3, "so do the masts' sodium floods on the tanks (both looks and the cone roofs)")
 	_t._check(_code("res://shaders/container.gdshader").contains("fh_level(fl * flood_gain * lamp_factor)")
 		and _code("res://shaders/port_steel.gdshader").contains("fh_level(fl * flood_gain * lamp_factor * (1.0 - metal * 0.5))"),
 		"the port's floods on the containers and the steel go through fh_level()")

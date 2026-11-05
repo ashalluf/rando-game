@@ -29,6 +29,14 @@ extends CanvasLayer
 
 signal finished
 
+## True while a loading screen is up (Quality does not judge the machine by its frames).
+static var showing: bool = false
+## Every .gdshader the warm-up loaded, held for the session: a shader freed while its pipelines
+## still wait in the compilers' queue makes the main thread wait for them (mac-launch).
+static var _kept_shaders: Array[Shader] = []
+## The warm-up's quads and effects, kept until the pipelines are drained (LoadPulse.drain()).
+var _warm_holder: Node3D = null
+
 var _label: Label
 var _bar: ColorRect
 var _fill: ColorRect
@@ -50,7 +58,14 @@ var frame_usec: int = 0
 
 func _ready() -> void:
 	layer = 128
+	showing = true
 	_build_ui()
+
+
+func _exit_tree() -> void:
+	showing = false
+	if LoadPulse.active:
+		LoadPulse.end()
 
 
 func _build_ui() -> void:
@@ -116,6 +131,13 @@ var _t0: int = Time.get_ticks_msec()
 func _process(delta: float) -> void:
 	if _art == null:
 		return
+	# LoadPulse draws the picture (its own canvas over this one, the same art) from the first frame
+	# of the scene; this screen's art stays hidden under it.
+	if LoadPulse.active:
+		_art.visible = false
+		_glow.visible = false
+		LoadPulse.paint()
+		return
 	# Real time; the bar eases toward the progress rather than jumping.
 	_shown_progress = lerpf(_shown_progress, _progress, minf(delta * 6.0, 1.0))
 	if _tip < 0:
@@ -156,12 +178,22 @@ func _step(text: String, fraction: float) -> void:
 	_progress = fraction
 	if _label:
 		_label.text = text
+	LoadPulse.step(text, fraction)
 
 
 ## Runs the whole sequence. `city` is the CityStreamer. Awaits frames throughout so the bar
 ## actually draws; a loading screen that blocks the main thread shows nothing at all.
 func run(city: Node3D) -> void:
 	await _frames(2)
+	# RenderingDevice renderers: the city built so far is handed to the compilers now and waited
+	# for with the bar moving (LoadPulse.feed / settle); from here every new surface is handed over
+	# as it appears (the warm-up's, the rehearsal's), so their pipelines exist before play.
+	if LoadPulse.holding():
+		LoadClock.start("screen: city graphics")
+		LoadPulse.feed()
+		var ms: int = await LoadPulse.settle(get_tree())
+		print("LOADING city graphics settled: %d ms" % ms)
+		LoadClock.stop("screen: city graphics")
 	_step("Compiling shaders", 0.05)
 	LoadClock.start("screen: shaders and effects")
 	await _warm_shaders()
@@ -278,9 +310,15 @@ func run(city: Node3D) -> void:
 	LoadClock.start("screen: final streaming")
 	_preload_world(city)
 	LoadClock.stop("screen: final streaming")
+	# The pipelines handed to the compilers while the window drew no 3D, waited for here with the
+	# bar moving; then the city is drawn behind the shade until a frame is quick (LoadPulse).
+	await LoadPulse.drain(get_tree())
+	if _warm_holder and is_instance_valid(_warm_holder):
+		_warm_holder.queue_free()
 	_step("Ready", 1.0)
 	await _frames(2)
 	await _fade_out()
+	LoadPulse.end()
 	print("LOADING screen frames: %d waited, %d ms" % [frames_waited, frame_usec / 1000])
 	LoadClock.loaded(get_tree())
 	finished.emit()
@@ -320,6 +358,8 @@ func _warm_shaders() -> void:
 		var shader: Shader = load(path) as Shader
 		if shader == null:
 			continue
+		if not _kept_shaders.has(shader):
+			_kept_shaders.append(shader)
 		var mat := ShaderMaterial.new()
 		mat.shader = shader
 		var mi := MeshInstance3D.new()
@@ -380,7 +420,11 @@ func _warm_shaders() -> void:
 	_step("Compiling effects", 0.5)
 	await _frames(warm_frames)
 	await _frames(1)
-	holder.queue_free()
+	# Freed after the drain on the RenderingDevice renderers (its pipelines may still be queued).
+	if LoadPulse.holding():
+		_warm_holder = holder
+	else:
+		holder.queue_free()
 
 
 func _shader_files() -> PackedStringArray:
@@ -428,6 +472,7 @@ func _fade_out() -> void:
 		var a: float = 1.0 - clampf(t / 0.45, 0.0, 1.0)
 		if _shade:
 			_shade.modulate.a = a
+		LoadPulse.set_alpha(a)
 		await get_tree().process_frame
 
 
