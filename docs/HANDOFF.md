@@ -28889,10 +28889,13 @@ FreightStock, `RC4_FREIGHT_YARD=0` the A/B:
    dirt).
 
 **Frame cost** (refcams GEO, opengl3, freight_yard, before = `RC4_FREIGHT_YARD=0`): 4.65 M ->
-FRAMECOST_AFTER. The weeds' cells are most of the extra draws.
+4.86 M triangles (+4.4 %), 1,641 -> 1,662 draws, shadow 0.98 -> 1.04 M. The weeds' cells are most of the
+extra draws; the throat fill is a few quads a chunk.
 
 **Gate** (wave 8, SHARDS=3, merged with main 2026-11-05): 5806 checks passed, 0 failed, peak 3,792 MB. **The ten refcams** (cameras.json, `RC4_FREIGHT_YARD=0` against on):
-TEN_RESULT.
+9 of 10 identical within the noise (pixels 0.01-4.2 %, triangles within 2.5 %); freeway flagged
+(11 % of pixels, -4.9 % triangles): only the live freeway traffic differs (other cars in other
+lanes), the scene is the same.
 
 **Tools.** `tools/rc4_freight_yard/probe.gd` (headless: the yard's tracks, cuts per track, masts,
 cranes and the train's north end over the pull-out), `chunk_probe.gd` (every yard chunk built FULL:
