@@ -268,6 +268,11 @@ float detail(float period, float mpp) {
 // Forward+ review g (FwdReviewG): the near pane's traced room is decoded on Forward+ (building.gdshader,
 // fx_srgb_in()); the far pane's stand-ins for it are display numbers too, so they follow. 0 the A/B.
 global uniform float fwd_review_g;
+// The helicopter view at night (RcHeliNight, scripts/world/rc4_heli_night.gd): a far helipad's
+// green perimeter as a row of lamps, not one neon line. 0 = as it was.
+global uniform float rc4_heli_night;
+const float HN_PAD_EVERY = 3.0;
+const float HN_PAD_GAIN = 1.8;
 vec3 fg_room(vec3 c) {
 	return fwd_review_g > 0.5 ? cs_as_uniform(c) : c;
 }
@@ -1282,7 +1287,18 @@ void fragment() {
 				albedo = mix(albedo, yellow, (1.0 - smoothstep(0.3, 0.3 + tm * 2.0, ring)));
 				albedo = mix(albedo, white, hm);
 				// The green perimeter lights after dark: a lit edge out here.
-				emission += vec3(0.15, 1.0, 0.3) * 1.6 * lamp_factor * (1.0 - smoothstep(0.0, 0.35 + tm, abs(max(aq.x, aq.y) - (s * 0.5 - 0.25))));
+				float pad_line = 1.0 - smoothstep(0.0, 0.35 + tm, abs(max(aq.x, aq.y) - (s * 0.5 - 0.25)));
+				if (rc4_heli_night > 0.5) {
+					// Lamps every HN_PAD_EVERY m along the edge, a pixel at least; past a third of
+					// the spacing a pixel draws their mean.
+					float along = aq.x > aq.y ? q.y : q.x;
+					float lr = max(0.175, tm * 0.5);
+					float dd = abs(fract(along / HN_PAD_EVERY + 0.5) - 0.5) * HN_PAD_EVERY;
+					float lamp = 1.0 - smoothstep(lr - tm * 0.5, lr + tm * 0.5, dd);
+					float mean = 0.35 / max(HN_PAD_EVERY, max(tm, 0.35));
+					pad_line *= mix(lamp, mean, smoothstep(HN_PAD_EVERY * 0.3, HN_PAD_EVERY * 0.7, tm)) * HN_PAD_GAIN;
+				}
+				emission += vec3(0.15, 1.0, 0.3) * 1.6 * lamp_factor * pad_line;
 				rough = 0.75;
 			} else {
 				vec2 qq = custom.b > 0.5 ? vec2(q.y, q.x) : q;

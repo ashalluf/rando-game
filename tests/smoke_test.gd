@@ -2928,6 +2928,21 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	load("res://tests/rc4_film_lot_checks.gd").new().run(self, city)
 	# The LA River at night (tests/rc4_river_night_checks.gd, RiverNight): the bridges' frames in the river's shaders.
 	load("res://tests/rc4_river_night_checks.gd").new().run(self, city)
+	# The heli_night refcam (tests/rc4_heli_night_checks.gd, RcHeliNight): crown lids, pad lamps, the unfinished towers.
+	load("res://tests/rc4_heli_night_checks.gd").new().run(self, city)
+	# The metro station refcam (tests/rc4_metro_station_checks.gd, MetroLook, MetroCrowd): ads, the
+	# floor mirror, escalator riders, the bullet's letter, the camera row.
+	load("res://tests/rc4_metro_station_checks.gd").new().run(self, city)
+	# The lowrider_meet refcam (tests/rc4_lowrider_meet_checks.gd, LowriderMeetLook): stances, empty parked cars, the crowd.
+	await load("res://tests/rc4_lowrider_meet_checks.gd").new().run(self, city)
+	# The ER's ambulance court at night (tests/rc4_hospital_er_checks.gd, RcHospitalEr): sign, soffit, glazing.
+	load("res://tests/rc4_hospital_er_checks.gd").new().run(self, city)
+	# The hill_home_dusk refcam (tests/rc5_hill_home_dusk_checks.gd, Rc5HillHome): the camera row,
+	# the open-plan room, the pool, the spill, the loungers, the pool's view clear of terrace trees.
+	load("res://tests/rc5_hill_home_dusk_checks.gd").new().run(self, city)
+	# The Mac launch (tests/mac_launch_checks.gd, LoadPulse): the boot scene, the loop hooks, Quality
+	# frozen under the loading screen, the pulse inactive headless.
+	load("res://tests/mac_launch_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()
