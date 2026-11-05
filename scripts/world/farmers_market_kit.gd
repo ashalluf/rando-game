@@ -25,6 +25,8 @@ const C_WOOD := 8.0
 const C_CARD := 9.0
 const C_CLOTH := 10.0
 const C_BULB := 12.0
+## A festoon bulb: clear glass by day with a faint filament, its warm light (the vertex colour) at night.
+const C_GLASS_BULB := 13.0
 const C_LEAF := 14.0
 const C_CHALK := 16.0
 const C_CRUST := 18.0

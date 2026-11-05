@@ -156,6 +156,8 @@ void fragment() {
 		// sheet down a table's front read as the side of a box.
 		// (UV2.x over 0.935 is the sandbags, 0.95: no folds there.)
 		float hang = (1.0 - smoothstep(0.35, 0.6, abs(v_lnormal.y))) * step(UV2.x, 0.935);
+		float shade = 1.0;
+		vec2 cuv = UV;
 		if (hang > 0.0 && cloth_drape > 0.0) {
 			vec3 ln = normalize(v_lnormal);
 			float along = dot(v_local.xz, vec2(-ln.z, ln.x));
@@ -164,19 +166,31 @@ void fragment() {
 			float wave = sin(ph);
 			float h = wave * (0.002 + 0.01 * drop) * hang * cloth_drape;
 			NORMAL = fm_bump(NORMAL, VERTEX, h);
-			base *= 1.0 - 0.14 * hang * cloth_drape * (0.5 - 0.5 * wave) * (0.3 + 0.7 * drop);
+			shade = 1.0 - 0.14 * hang * cloth_drape * (0.5 - 0.5 * wave) * (0.3 + 0.7 * drop);
+			// The weave bunches into the folds: a check's verticals crowd in the valleys.
+			cuv.x += cos(ph) * (0.004 + 0.012 * drop) * hang * cloth_drape;
 		}
 		if (metal > 0.5) {
-			vec2 c = step(0.5, fract(UV * 9.0));
+			vec2 c = step(0.5, fract(cuv * 9.0));
 			float check = (c.x + c.y) * 0.5;
 			check = mix(check, 0.5, smoothstep(0.01, 0.05, px));
 			base = mix(vec3(0.85, 0.84, 0.8), base, 0.35 + 0.65 * check);
 		}
+		base *= shade;
 		metal = 0.0;
 	} else if (code == 12) {
 		// A lamp: the string's bulbs, a scale's display, a bollard's reflective band.
 		emit = base * mix(bulb_day, bulb_night, lamp);
 		rough = 0.15;
+		metal = 0.0;
+	} else if (code == 13) {
+		// A festoon bulb: clear glass by day (the sky and the canopy seen through it, a filament
+		// glowing faintly), its warm light (the vertex colour) at night. Lit as code 12 by day
+		// every bulb read as a solid yellow ball (refcam farmers_market, 2026-11-05).
+		vec3 glass = vec3(0.62, 0.63, 0.62);
+		base = mix(glass, base, lamp);
+		emit = cs_srgb_to_linear(COLOR.rgb) * mix(bulb_day * 0.5, bulb_night, lamp);
+		rough = 0.06;
 		metal = 0.0;
 	} else if (code == 14) {
 		// Leaves and petals: veins and a lighter tip, the crinkle in relief.
@@ -204,7 +218,7 @@ void fragment() {
 		base = cs_srgb_to_linear(v_paint);
 	}
 	// Grime from the road on what stands on it (not the lamps or the canvas up in the air).
-	if (code != 12 && code != 4 && code != 6 && code != 14 && code != 18) {
+	if (code != 12 && code != 13 && code != 4 && code != 6 && code != 14 && code != 18) {
 		float gh = clamp(1.0 - v_local.y / grime_height, 0.0, 1.0);
 		float n = fm_noise(v_local.xz * 4.0 + v_local.y * 3.0);
 		base *= 1.0 - grime * gh * (0.5 + 0.5 * n);
