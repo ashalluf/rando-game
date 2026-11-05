@@ -62,7 +62,8 @@ static func takes_fireball(is_pop: bool = false) -> bool:
 	if victim == null:
 		for v: Node in _volumes:
 			var vm := (v as MeshInstance3D).material_override as ShaderMaterial
-			if vm != null and float(vm.get_shader_parameter("t")) > float(v.get_meta("life", 99.0)) * 0.7:
+			var tv: Variant = vm.get_shader_parameter("t") if vm != null else null
+			if tv != null and float(tv) > float(v.get_meta("life", 99.0)) * 0.7:
 				victim = v
 				break
 	if victim == null:
