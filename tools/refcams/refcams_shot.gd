@@ -125,6 +125,7 @@ func _run() -> void:
 			if i == stage_at:
 				_stage_air(scene, cam)
 				traffic_staged = _stage_street_cars(cam, scene, plan)
+				_stage_storm_flash(cam, weather)
 				# A "park_car" row (cameras_w6.json, car_closeup): a parked car and the eye round it.
 				if cam.has("park_car"):
 					park = load("res://tools/refcams/park_stage.gd").new()
@@ -195,6 +196,7 @@ func _run() -> void:
 			if _eye_cam:
 				_eye_cam.make_current()
 		_write_frames(load_ms, shots)
+		_release_storm_flash(cam, weather)
 		if park:
 			park.call("finish")
 		if _stager != null:
@@ -236,6 +238,7 @@ func _stage_street_cars(cam: Dictionary, scene: Node, plan: Variant) -> bool:
 		var car: Variant = traffic.call("place_car", axis, best, int(c[1]), int(c[2]), float(c[0]), float(c[3]))
 		if car != null:
 			placed += 1
+			_fw_staged.append(car)
 	print("REFCAM %s: placed %d street cars on road %d (axis %d at %.1f)" % [cam.name, placed, best, axis, float(plan.road_pos(axis, best))])
 	return true
 
@@ -530,3 +533,30 @@ func _port_clock(cam: Dictionary) -> void:
 		pl.set("hold", true)
 	else:
 		pl.set("hold", OS.get_environment("PORT_HOLD") == "1")
+
+
+## A camera row's optional `storm_flash` (wave 8, storm_downtown): {"dist": metres, "az": degrees
+## (0 = +x, -90 = game north), "hold": the flash level held for the shot} - a lightning strike forced
+## through Weather.force_strike() as the camera's staging starts, its flash and bolt held by
+## StormDrama (STORM_FLASH_HOLD's path) until the shot is saved. Rows without the key strike nothing.
+func _stage_storm_flash(cam: Dictionary, weather: Node) -> void:
+	var spec: Variant = cam.get("storm_flash")
+	if not spec is Dictionary or weather == null or not weather.has_method("force_strike"):
+		return
+	var drama: Node = weather.get("_drama")
+	var az := deg_to_rad(float(spec.get("az", -90.0)))
+	if drama:
+		drama.set("_hold", float(spec.get("hold", 0.8)))
+	weather.call("force_strike", float(spec.get("dist", 1100.0)), Vector3(cos(az), 0.0, sin(az)))
+	if drama:
+		drama.set("_holding", float(spec.get("hold", 0.8)) > 0.0)
+	print("REFCAM %s: lightning at %.0f m, az %.0f, held %.2f" % [cam.name, float(spec.get("dist", 1100.0)), float(spec.get("az", -90.0)), float(spec.get("hold", 0.8))])
+
+
+func _release_storm_flash(cam: Dictionary, weather: Node) -> void:
+	if not cam.get("storm_flash") is Dictionary or weather == null:
+		return
+	var drama: Node = weather.get("_drama")
+	if drama:
+		drama.set("_holding", false)
+		drama.set("_hold", 0.0)

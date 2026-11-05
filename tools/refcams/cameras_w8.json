@@ -1,0 +1,7 @@
+{
+	"_doc": "Wave 8 reference cameras (tools/refcams/README.md), the same format as cameras.json and cameras_w7.json. One row a camera, each on its own line. Run with REFCAMS_JSON=tools/refcams/cameras_w8.json.",
+	"resolution": [1280, 720],
+	"cameras": [
+		{"name": "storm_downtown", "label": "A thunderstorm at 20:30 on Flower St just south of 8th, looking north up the street to the towers: rain sheets, a held lightning strike, the soaked street mirroring the lit towers and signals, traffic with wipers and spray", "eye": [2356.0, 1.7, 650.0, 0.0, 7.0], "agl": true, "hour": 20.5, "weather": "storm", "fov": 55, "storm_flash": {"dist": 1300, "az": -80, "hold": 0.85}, "street_cars": {"axis": "x", "at": 2359.4, "cars": [[628, -1, 0, 9], [548, -1, 1, 11], [480, -1, 0, 10], [575, 1, 0, 10], [510, 1, 1, 12], [440, 1, 0, 9]]}}
+	]
+}
