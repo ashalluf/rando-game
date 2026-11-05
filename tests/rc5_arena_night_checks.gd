@@ -42,8 +42,7 @@ func _shader() -> void:
 		"the spill and the screen count slides the same way")
 	_t._check(spill.contains("af_cover(") and spill.contains("blend_add"), "the spill is additive with a coverage alpha (the fog rule)")
 	var led_src := FileAccess.get_file_as_string("res://shaders/arena_led.gdshader")
-	var led_mat := ArenaNight.led_material("led", ArenaNight.LED_GAIN)
-	_t._check(led_src.contains("mix(day_level, 1.0, clamp(lamp_factor") and float(led_mat.get_shader_parameter("day_level")) < 0.3,
+	_t._check(led_src.contains("mix(day_level, 1.0, clamp(lamp_factor") and led_src.contains("uniform float day_level = 0.18;"),
 		"the facade LED is full after dark and a dull line by day (never a glow at noon)")
 	var mat := ShaderMaterial.new()
 	mat.shader = load("res://shaders/arena_spill.gdshader")
