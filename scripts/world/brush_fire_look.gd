@@ -27,8 +27,8 @@ const PLUME_LEAN := 1.25
 const SMOKE_COL := Vector3(0.17, 0.15, 0.135)
 const CORE_SHADE := 0.45
 ## The fire's light on the column: it reaches this far up (m; the old 210).
-const GLOW_FALL := 240.0
-const GLOW_COL := Vector3(0.40, 0.12, 0.025)
+const GLOW_FALL := 170.0
+const GLOW_COL := Vector3(0.34, 0.10, 0.02)
 
 ## The pall: flat puffs drifting downwind a kilometre up.
 const PALL_PUFFS := 46

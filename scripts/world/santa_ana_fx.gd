@@ -311,7 +311,7 @@ func drive(weight: float, plan: Variant, night: float, sun_col: Color, amb: Colo
 		_pall_mat.set_shader_parameter("sun_dir", sun)
 		_pall_mat.set_shader_parameter("light_col", Vector3(sun_col.r, sun_col.g, sun_col.b))
 		_pall_mat.set_shader_parameter("amb_col", Vector3(amb.r, amb.g, amb.b))
-		_pall_mat.set_shader_parameter("glow_col", BrushFireLook.GLOW_COL * 0.35 * (0.1 + 0.9 * night) * weight)
+		_pall_mat.set_shader_parameter("glow_col", BrushFireLook.GLOW_COL * 0.15 * (0.1 + 0.9 * night) * weight)
 	_smoke_mat.set_shader_parameter("opacity", clampf(weight * 1.2, 0.0, 1.0))
 	_smoke_mat.set_shader_parameter("fire_y", local.y)
 	_smoke_mat.set_shader_parameter("sun_dir", sun)
@@ -364,7 +364,7 @@ func _build_pall() -> void:
 	_pall_mat.shader = load("res://shaders/brush_smoke.gdshader")
 	_pall_mat.set_shader_parameter("look", 1.0)
 	_pall_mat.set_shader_parameter("smoke_col", BrushFireLook.SMOKE_COL * 1.15)
-	_pall_mat.set_shader_parameter("glow_fall", 900.0)
+	_pall_mat.set_shader_parameter("glow_fall", 450.0)
 	_pall_mat.set_shader_parameter("core_shade", 0.25)
 	quad.material = _pall_mat
 	_pall.mesh = quad
