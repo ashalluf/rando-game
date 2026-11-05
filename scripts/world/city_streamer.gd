@@ -216,6 +216,10 @@ var _view_dir: Vector2 = Vector2(0.0, -1.0)
 
 func _ready() -> void:
 	LoadClock.at("city scene ready begins")
+	# The loading picture from the first frame of the scene, the 3D held off and the sound muted
+	# until the city is ready (LoadPulse, mac-launch): everything below used to run with no frame.
+	if _loading_screen_wanted():
+		LoadPulse.begin(get_viewport())
 	add_to_group("city")
 	if OS.has_feature("web"):
 		max_pedestrians = mini(max_pedestrians, web_max_pedestrians)
@@ -307,6 +311,7 @@ func _build_far_landmarks() -> void:
 	if plan.macro == null:
 		return
 	for lm in Landmarks.all():
+		LoadPulse.tick()
 		var t_lm := Time.get_ticks_usec()
 		var holder := Node3D.new()
 		holder.name = "FarLandmark_" + lm.id
@@ -858,6 +863,17 @@ func finish_far_city() -> void:
 	LoadClock.stop("far city")
 
 
+## True when _start_loading_screen() will put the loading screen up (not headless, the web, or a
+## screenshot harness's --noload / --nohud).
+func _loading_screen_wanted() -> bool:
+	if not show_loading_screen or OS.has_feature("web") or DisplayServer.get_name() == "headless":
+		return false
+	for arg in OS.get_cmdline_user_args():
+		if arg == "--noload" or arg == "--nohud":
+			return false
+	return true
+
+
 ## Puts the loading screen up and lets it drive the warm-up. Deferred so the rest of _ready()
 ## finishes first - it needs the player, the camera and the plan to exist before it can build
 ## anything or draw a shader in front of anything.
@@ -1196,6 +1212,7 @@ func _build_ground() -> void:
 	# four shadow cascades every frame for nothing. It still RECEIVES, which is what matters.
 	mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	_ground.add_child(mesh)
+	LoadClock.start("ground: horizon tiles")
 	HorizonTiles.split(mesh)
 	add_child(_ground)
 	# The far ranges' ring out to the camera's far plane (FarRanges; null when FAR_RANGES=0).
@@ -1203,8 +1220,13 @@ func _build_ground() -> void:
 	if _far_ring:
 		HorizonTiles.split(_far_ring)
 		add_child(_far_ring)
+	LoadClock.stop("ground: horizon tiles")
+	LoadClock.start("ground: mountain occluder")
 	MountainOccluder.attach(self, plan.macro, macro_span)
+	LoadClock.stop("ground: mountain occluder")
+	LoadClock.start("ground: far rocks")
 	RockFar.attach(self, plan, _canopy_material)
+	LoadClock.stop("ground: far rocks")
 	_ground_body = StaticBody3D.new()
 	_ground_body.name = "GroundBody"
 	_ground_body.collision_layer = 1

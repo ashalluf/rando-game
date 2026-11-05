@@ -2890,6 +2890,8 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	# The refinery at night refcam (tests/rc3_refinery_night_checks.gd, RefineryNight): the camera
 	# row, the flares' light on the plant, the A/B.
 	load("res://tests/rc3_refinery_night_checks.gd").new().run(self, city)
+	# The refinery's road at night (tests/rc4_refinery_road_checks.gd, RcRefineryRoad): flares and masts on the street.
+	load("res://tests/rc4_refinery_road_checks.gd").new().run(self, city)
 	# The rooftop refcam (tests/rc3_rooftop_golden_checks.gd, RcRooftop, LandmarkRoofs): dressed tower roofs, the island.
 	load("res://tests/rc3_rooftop_golden_checks.gd").new().run(self, city)
 	# The oil field refcam (tests/rc3_oil_field_checks.gd, OilFieldPlanting): the hill planted, the pickups, the dirt's edge.
@@ -2924,6 +2926,23 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	# The film lot refcam (tests/rc4_film_lot_checks.gd, Rc4FilmLot): the camera row, the
 	# basecamp's dressing, the studio asphalt, the batched trailers.
 	load("res://tests/rc4_film_lot_checks.gd").new().run(self, city)
+	# The LA River at night (tests/rc4_river_night_checks.gd, RiverNight): the bridges' frames in the river's shaders.
+	load("res://tests/rc4_river_night_checks.gd").new().run(self, city)
+	# The heli_night refcam (tests/rc4_heli_night_checks.gd, RcHeliNight): crown lids, pad lamps, the unfinished towers.
+	load("res://tests/rc4_heli_night_checks.gd").new().run(self, city)
+	# The metro station refcam (tests/rc4_metro_station_checks.gd, MetroLook, MetroCrowd): ads, the
+	# floor mirror, escalator riders, the bullet's letter, the camera row.
+	load("res://tests/rc4_metro_station_checks.gd").new().run(self, city)
+	# The lowrider_meet refcam (tests/rc4_lowrider_meet_checks.gd, LowriderMeetLook): stances, empty parked cars, the crowd.
+	await load("res://tests/rc4_lowrider_meet_checks.gd").new().run(self, city)
+	# The ER's ambulance court at night (tests/rc4_hospital_er_checks.gd, RcHospitalEr): sign, soffit, glazing.
+	load("res://tests/rc4_hospital_er_checks.gd").new().run(self, city)
+	# The hill_home_dusk refcam (tests/rc5_hill_home_dusk_checks.gd, Rc5HillHome): the camera row,
+	# the open-plan room, the pool, the spill, the loungers, the pool's view clear of terrace trees.
+	load("res://tests/rc5_hill_home_dusk_checks.gd").new().run(self, city)
+	# The Mac launch (tests/mac_launch_checks.gd, LoadPulse): the boot scene, the loop hooks, Quality
+	# frozen under the loading screen, the pulse inactive headless.
+	load("res://tests/mac_launch_checks.gd").new().run(self, city)
 	# STARLIGHT PLAZA on an event night (tests/rc5_arena_night_checks.gd, ArenaNight): the screens'
 	# spill, the facades' LED, the hotel's crown, the searchlights, the camera row.
 	load("res://tests/rc5_arena_night_checks.gd").new().run(self, city)

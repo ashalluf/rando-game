@@ -307,6 +307,13 @@ already mapped so milestone 2 is script-only.
   (IdleRelax), never per frame. Props hang from the fist, not the wrist. Close-up hair shine is
   broken by strands and clumps; lips are toned toward the skin. PERSON_CLOSEUP=0 is the A/B.
 
+- **2026-11-02 The refinery's road at night (rc4-refinery-road, HANDOFF "The refinery's road at
+  night").** The street outside the plant is lit by what really lights it: the flares and the fence
+  masts' light is worked out in the road shader as light times the surface's albedo (never another
+  additive wash, which flattens tarmac and paint alike), on every road and pavement within reach so
+  it never stops at a street's edge; the street lamps along an industrial perimeter are old and
+  patchy. A flare trails soot; a tank's floods are fans of light on its paint. RC4_REFINERY_ROAD=0
+  is the A/B.
 - **2026-11-02 The refinery at night (rc3-refinery-night, HANDOFF "The refinery at night").** A
   flare's light on the plant is worked out in the plant's own shader from the real flame positions
   (every tier, both renderers, no OmniLight), not a light node that only FULL chunks carry; each
@@ -3770,6 +3777,20 @@ already mapped so milestone 2 is script-only.
   between them showed the void as a dark strip). Banks planted to the waterline and more boats tied
   up, every addition a hash after the old rolls. RC4_CANALS=0.
 
+- 2026-11-05 (wave 8, rc4-lowrider-meet): a lowrider meet reads as a show, not a car park: a parked
+  row car is empty with its lamps off and stands in a display stance by hash of its look, a
+  three-wheel takes its wheel 0.45 m off the road, and the crowd gathers round the cars performing
+  with people in the chairs. All hashes, after every roll. RC4_LOWRIDER_MEET=0 is the A/B.
+- **2026-11-05, the Mac launch (mac-launch).** The owner pressed Play and saw 5 minutes of logo,
+  then 10 of city sounds over a frozen window. Decided: the window presents a frame for the whole
+  load, never a splash or a stale frame with sound. The loading picture is drawn on its own canvas
+  and presented from inside every long loop. The 3D city is not drawn while it loads: on Forward+ a
+  draw waits for the pipelines it needs, and Godot compiles them on the worker threads anyway. The
+  city is drawn once the compilers are done. Sound stays off until the fade. Quality is never cut to
+  make it faster, and Quality no longer judges the machine by the loading screen. Shader baking
+  stays off while Godot 4.7.2's baked Metal exports crash (godot#123266, #124539). No loader
+  threads: the codebase's cyclic preloads broke under one.
+
 ## Correction: what build 135 (0ce833f) actually contained
 
 That commit's subject says "denser grass, real palm fronds, finer ground". It also shipped a
@@ -4492,6 +4513,41 @@ none of either.
   per variant and batched, never per copy; a studio keeps its asphalt (the industrial ground with
   `kept`, worn only by tyre tracks); the basecamp's gaps hold carts and the doors chairs, from the
   layout alone, after every roll; the lot's walkers mostly wear crew blacks. RC4_FILM_LOT=0 is the A/B.
+- **2026-11-02 The river_night refcam: a structure's own lights light its surroundings, and water at
+  night mirrors what is lit (rc4-river-night, HANDOFF "The LA River at night").** A new reference
+  camera (`river_night`, wave 7's table) on the LA River's bed 65 m south of the 6th St ribbon bridge
+  at 21:30. Decisions: a bridge's lights are worked out analytically in the river's own shaders from
+  the bridge's frame (never real lights: the channel would need dozens); the water's mirror of the
+  bridges is ray-traced against the same frames, softened by a calmer normal than the riffles' (the
+  full riffles broke a lit arch into specks); a canyon floor's ambient is held down after dark (AO),
+  never by darkening its albedo. RIVER_NIGHT=0 is the A/B.
+- 2026-11-05 (wave 8, rc4-heli-night): downtown seen from above at night never shows a crown's
+  lid as a lightbox (a lid keeps a few per cent of the crown's glow), a far helipad's perimeter is
+  lamps, not a neon line, and no tower stands pure black at night (the abandoned towers have work
+  lights and obstruction lights). RC4_HELI_NIGHT=0 is the A/B.
+- **2026-11-02 The metro station refcam: an underground platform is lit, reflected, advertised
+  and busy (rc4-metro-station, HANDOFF "The metro station refcam").** A new reference camera
+  (`metro_station`, wave 7's table) stands on the 7th St terminus' island toward the bank with a
+  train dwelling (`rail_at`). Decisions: the polished floor's mirror of the light lines is worked out
+  in the station's own shader (the reflected ray meets the ceiling's plane), never left to SSR,
+  which the web and opengl3 do not have; the walls' lit panels are ads from the existing billboard
+  atlas (no new art); the escalators carry standing riders and the platform refills from them while
+  the player is down there, inside the crowd cap. METRO_LOOK=0 / METRO_CROWD=0 are the A/Bs.
+- **2026-11-02 The hospital_er refcam: a vehicle court is a level deck, not ground
+  (rc4-hospital-er, HANDOFF "The ER's ambulance court at night").** A new reference camera
+  (`hospital_er`, wave 7's table) looks down the medical centre's ambulance court at 23:00 with an
+  ambulance staged backing in. Decisions: anything that stands at a campus's one floor level (bays,
+  canopy columns, paint, parked and backing vehicles) stands on a deck AT that level, ramped to the
+  street, never on a relief-following slab under it; a lit red sign glows under 1 and lets white
+  letters carry the bloom (red-heavy HDR goes salmon through AgX); a sign over a canopy is placed
+  where the canopy's fascia does not hide it from the approach. RC4_HOSPITAL=0 is the A/B.
+- **2026-11-05 The hill home's pool deck at dusk (rc5-hill-home-dusk, HANDOFF "The hill home's
+  pool deck at dusk").** A new reference camera (`hill_home_dusk`, wave 8's table) stands on a
+  cantilever house's pool deck on the front range at 19:15 looking south over the basin. Decisions:
+  a glass pavilion's room is one open plan lit in downlight pools, never a row of lit partitions; a
+  lit room or pool lights the paving in front of it (an additive spill, display numbers); a pool
+  mirrors the lit glass beside it; the terraced garden keeps out of an infinity pool's view (after
+  the rolls); a hash fed an interpolated varying is quantised first. RC5_HILL_HOME=0 is the A/B.
 - **2026-11-05 The arena_night refcam: an event plaza is lit by its own screens and walls
   (rc5-arena-night, HANDOFF "STARLIGHT PLAZA on an event night").** A new reference camera
   (`arena_night`, wave 8's table) stands in STARLIGHT PLAZA's crowd at 21:00 looking at the screen

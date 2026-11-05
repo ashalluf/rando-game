@@ -640,6 +640,8 @@ func _back_in(delta: float) -> void:
 func _bay_height(p: Vector2) -> float:
 	var inner: Rect2 = hospital.get("inner", Rect2())
 	if inner.grow(-0.5).has_point(p):
+		if RcHospitalEr.enabled and hospital.has("court"):
+			return RcHospitalEr.court_y_world(func(x: float, z: float) -> float: return _relief(Vector2(x, z)), hospital, p) + road_lift()
 		return float(hospital.get("floor_gy", _relief(p))) + CityChunk.SIDEWALK_TOP + HospitalBuild.LIFT_ROAD + road_lift()
 	return _relief(p) + CityChunk.ROAD_TOP + road_lift()
 
