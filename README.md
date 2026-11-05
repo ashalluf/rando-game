@@ -76,3 +76,10 @@ at 0.6 s full size. 72 the 150 m aerial on Forward+ (lavapipe): 0.15, 0.6, 2 s.
 - `78_r16_scorch_...` - the crater's soot: top row from 22 m up at 10 s (before left: a black
   spiky star; after right: a dark core with thinning streaks); bottom Forward+ at 5 m (before 1.2 s
   left, after 8 s right).
+- `79_r17_chain_golden_...` - a three-car chain at golden hour (2, 3.5, 6 s): before (top) the third
+  car's fireball fell back to cards (round orange balls); after (bottom) it is a volume.
+- `80_r18_car_9m_...` - a car's blast from 9 m (1.2 and 3 s): before (top) the pool light's white hot
+  spot on the road and flames all one height; after (bottom) the light up in the flames, softer,
+  tongues of their own heights. The car body and fuse timing are random per run.
+- `81_r18_before_flat_red_wedge_card_5m.jpg` - what the wedge debris looked like close up before
+  round 18 (a flat red-brown card); it is a seven-sided broken lump now.
