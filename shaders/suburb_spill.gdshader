@@ -15,7 +15,7 @@ global uniform float city_hour;
 #include "res://shaders/color_space.gdshaderinc"
 #include "res://shaders/house_nights.gdshaderinc"
 
-uniform float spill_gain = 0.32;
+uniform float spill_gain = 0.62;
 uniform float tv_gain = 0.85;
 
 varying flat vec4 inst;
@@ -52,7 +52,7 @@ void fragment() {
 		float s = 1.0 - UV.y;
 		float half_w = 0.5 * mix(inst.b, 1.0, s);
 		float across = 1.0 - smoothstep(half_w * 0.55, half_w, abs(UV.x - 0.5));
-		float along = smoothstep(0.0, 0.12, s) * pow(1.0 - s, 1.6);
+		float along = smoothstep(0.0, 0.1, s) * pow(1.0 - s, 1.3);
 		a = across * along * pass * inst.a * spill_gain;
 	}
 	a *= clamp(lamp_factor, 0.0, 1.0) * clamp(night_factor, 0.0, 1.0);

@@ -4,7 +4,9 @@ extends RefCounted
 ## crowd rolled. Loaded at run time (after the autoloads) by refcams_shot.gd, so it names Pedestrian.
 ##
 ##   {"dist": metres ahead of the eye along its heading, "side": metres to the right of that line,
-##    "seed": the walker's seed (its rig, look, dog's breed), "away": true walks away from the lens}
+##    "seed": the walker's seed (its rig, look, dog's breed), "away": true walks away from the lens,
+##    "at": [x, z] a TRUE world spot instead of dist / side, "yaw": the walk's heading in degrees
+##    (the game's yaw: 0 walks toward -z) instead of toward / away from the lens}
 ## Every field is optional. The walker is a plain Pedestrian with dog_share 1 and nothing else to
 ## do (no stops, no crossing, no crowd life), placed on the ground there, walking toward (or away
 ## from) the lens and put back on its spot every frame, so the walk cycle plays and the dog
@@ -31,6 +33,10 @@ static func stage(tree: SceneTree, scene: Node, cam: Camera3D, place: Callable, 
 	var right := fwd.cross(Vector3.UP)
 	var eye := cam.global_position
 	var spot := _ground(tree, eye + fwd * dist + right * side)
+	if spec.get("at", null) is Array:
+		var w: Array = spec.at
+		var local := WorldState.to_local(Vector3(float(w[0]), 0.0, float(w[1])))
+		spot = _ground(tree, Vector3(local.x, eye.y, local.z))
 	var ped := Pedestrian.new()
 	ped.setup(Rect2(spot.x - 40.0, spot.z - 40.0, 80.0, 80.0), 4.0, seed_value)
 	ped.pause_chance = 0.0
@@ -44,6 +50,9 @@ static func stage(tree: SceneTree, scene: Node, cam: Camera3D, place: Callable, 
 	scene.add_child(ped)
 	_made.append(ped)
 	var heading := fwd if away else -fwd
+	if spec.has("yaw"):
+		var yaw := deg_to_rad(float(spec.yaw))
+		heading = Vector3(-sin(yaw), 0.0, -cos(yaw))
 	var goal := Vector2(spot.x, spot.z) + Vector2(heading.x, heading.z) * 60.0
 	for i in 24:
 		await tree.process_frame

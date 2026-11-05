@@ -28,10 +28,12 @@ static var enabled: bool = OS.get_environment("SUBURB_NIGHT") != "0"
 const SPILL_KEY := "sn_spill"
 const SPILL_DISTANCE := 140.0
 ## A spill's reach from the wall (m) and how much wider than the pane it ends.
-const SPILL_REACH := 3.4
-const SPILL_SPREAD := 1.9
+const SPILL_REACH := 5.0
+const SPILL_SPREAD := 2.2
 ## A pane whose sill stands more than this over the yard is not a ground-floor window (m).
 const GROUND_FLOOR := 2.4
+## Metres over the yard the spill lies (over the lawn's blades' roots and the mulch).
+const SPILL_LIFT := 0.07
 ## The fixed pane rolls HouseBuild gives a garage door's lights and a mid-century door's light:
 ## not rooms, so no spill.
 const NOT_ROOMS := [0.1, 0.3]
@@ -72,7 +74,7 @@ static func window_spill(b: HouseBuild, a: Vector2, e: Vector2, y0: float, y1: f
 		return
 	var ch := b.ch
 	var foot := (b.L(a, y0) + b.L(e, y0)) * 0.5
-	var ground_y := ch._gy(foot.x, foot.z) + CityChunk.SIDEWALK_TOP + YardFill.LIFT + 0.03
+	var ground_y := ch._gy(foot.x, foot.z) + CityChunk.SIDEWALK_TOP + YardFill.LIFT + SPILL_LIFT
 	if foot.y - ground_y > GROUND_FLOOR or y1 - y0 < 0.5:
 		return
 	var out := b.N(n)
