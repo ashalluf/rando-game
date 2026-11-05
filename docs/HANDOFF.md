@@ -29801,3 +29801,68 @@ room (a row of sofas, a lamp per bay), not a modelled one; the deck has no lante
 lights of its own; the low parapet block at the left edge is plain; the city below is the far
 tiers (whatever they draw at night). Checks: `tests/rc5_hill_home_dusk_checks.gd`. Stills on
 `shots/rc5-hill-home-dusk`.
+
+## 9mr. The speedboat at golden hour, 2026-11-05 (fleet wave 8, `wt/rc5-speedboat`; VISUAL_ROADMAP "?")
+
+A new reference camera, `speedboat_golden` (`tools/refcams/cameras_w8.json`): the SALTRUNNER at
+16.6 m/s (60 km/h) 300 m off the beach town at 17:45 clear, a chase eye 15 m behind and 4 m over
+the water, heading 96 degrees - into the sun path - with the Palos Verdes headland on the left.
+
+**Staging** (`tools/refcams/boat_stage.gd`, the row's `boat` key; `refcams_shot.gd` hands a boat
+row to it like a `drive` row): the world is re-centred on the start and its sea built BEFORE the
+boat goes in (placed straight from the spawn, a pending re-centre twice put her hundreds of metres
+off - once in the surf, once on the sand), the throttle held 420 ticks, then a free eye laid off the
+hull's levelled heading every frame (`chase`: back, side, up, aim ahead). Keys: `at`, `heading`,
+`kind`, `look`, `boost`, `steer`, `ticks`, `chase`. It prints `REFCAM boat tick` lines (where she is
+and how fast) and `REFCAM boat at ...` at the shot.
+
+**What read fake, worst first, and what changed** (`BoatSea`, `scripts/vehicles/boat_sea.gd`):
+
+1. **No wake.** At 60 km/h the sea behind her was untouched: the player's boat never reached the
+   ocean shader's wake (only OceanTraffic's vessels did), and BoatWake's flat foam quads either sank
+   under the swell or drifted off as isolated blobs. Now every Boat registers with BoatSea, and
+   `OceanTraffic.push_wakes()` merges `BoatSea.entries()` into its list (nearest first, the same
+   packing: bow, heading, speed, beam, trail, hull + strength); with OceanTraffic off the first
+   boat's BoatWake pushes them alone (`push_alone()`). A boat in the marina basin (not the ocean
+   shader's water) keeps the old particle trail.
+2. **The wake read as a beam of light.** The shader's wash was a straight-edged milky band, blue-grey
+   (foam in ALBEDO is lit by the sky ambient, which at golden hour is the blue zenith), and the
+   Kelvin arms solid painted lines. A new `wake_glow` uniform (0 = the old foam, bit for bit; BoatSea
+   sets 1 on every push) turns on, inside `wake_foam()`: a ragged, wandering wash edge; the wash as
+   braided foam lines (a domain-warped streak field) on a faint aerated sheet; a boil of fine lumps
+   for the first 3 + 0.35 x speed metres off the transom; the arms broken into whitecap patches along
+   their length; and in the fragment the wakes' foam warmed a touch and EMITTING the horizon's light
+   plus, toward a low sun, the sun's (`foam_color * (haze * 0.4 + sun_col * toward * 0.35)`, the
+   pile-contact foam's convention), gated by its own foam amount so the faint scar does not glow.
+   It applies to every wake on the sea (vessels' too) while BoatSea is on.
+3. **Spray as dust and smoke.** The chine drops hung as white dots all over the frame, and a first
+   try at mist puffs read as steam. Now `BoatWake` (under BoatSea) throws a sheet of fine spray off
+   each chine (160 small puffs a side, 0.36 s, out and back, low) on a backlit copy of the mist
+   material (`spray_material()`, colours over 1: the puff texture averages ~0.65), with fewer drops.
+4. **A bare transom.** The one face a chase camera sees was a flat white sheet. `BoatSea.transom()`
+   (one hook line in `BoatKit.mesh()`, NEAR and MID only, 289 triangles) letters the boat's name in
+   its accent colour (`NAMES`, invented, one per accent), the home port (RANDO CITY) and an accent
+   pinstripe on it.
+
+`BOAT_SEA=0` is the A/B (no boat wakes, no glow, no sheets, the old foam quads, no lettering).
+
+**Numbers** (refcams opengl3, speedboat_golden): BOAT_SEA=0 581,303 triangles / 267 draws / shadow
+89,800; on 582,738 / 269 / 90,378 (+0.25 % triangles, +2 draws: the transom's lettering and the
+spray sheets; the wake is shader work on the sea's existing pixels). Luma p5/p50/p95 22/134/229 ->
+21/134/229. The ten original cameras (`refcams.py compare`, main b45ba911 against this branch merged
+with main 2f2fb8f5): seven within tolerance; street_noon, street_night and freeway flagged by live
+traffic only (different cars and a bus in the frame; none of the three sees the sea). The beach,
+sunset and pier views are unchanged (pixel mean |d| 0.01). Gate (SHARDS=3, merged with main
+2f2fb8f5): 5,812 checks passed, 0 failed, peak 3.8 GB a shard. Re-gated after merging main 50f463a4:
+5,868 passed, 2 failed - both "street closeup" (Batch_sg_plate differs with it off), in
+downtown_street_closeup_checks, which passes alone (`SMOKE_PARTS=downtown_street_closeup_checks`, 32
+of 32): a shard-order flake outside the boats. Checks: `tests/rc5_speedboat_checks.gd`
+(16: the shader default, the row, the transom per level and facing, the packing at 16 m/s, reach,
+the merge and the glow, still / marina / sinking hand none, BOAT_SEA=0, a freed boat leaves).
+
+**Not done / not verified.** Forward+ (the Mac) not seen: the foam's new emission is added in the
+renderer's own space like the existing contact-foam term (`haze`, `sun_col`), but its strength on
+Forward+ is unproved. The hull itself still reads simple from behind (flat gelcoat, boxy cushions);
+the bottom paint showing under a lifted stern can read as a glow against the sun. Spray is still
+billboard puffs (no velocity-aligned streaks). The swell on a clear evening is small, so "the hull
+on the swell" shows little pitching in this frame.

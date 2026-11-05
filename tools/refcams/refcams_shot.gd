@@ -107,6 +107,12 @@ func _run() -> void:
 			drive = load("res://tools/refcams/chase_stage.gd").new()
 			await drive.call("run", self, cam, player)
 			fov = player.get("camera").fov
+		elif cam.has("boat"):
+			# A "boat" row (cameras_w8.json, speedboat_golden): the player at the helm under way
+			# off the coast, a free chase eye on the hull (tools/refcams/boat_stage.gd).
+			OS.set_environment("EYE", "")
+			drive = load("res://tools/refcams/boat_stage.gd").new()
+			await drive.call("run", self, cam, player)
 		else:
 			_place(player, fov)
 			# The marine layer's morning damp (MarineMorning) wants the hour and the eye: soaked at once.

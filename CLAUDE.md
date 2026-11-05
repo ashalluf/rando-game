@@ -6684,6 +6684,12 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   the shallows. Never set its velocities in a tick that applies impulses (`_spin()`). The hero is
   drawn seated (`BoatRidePose`); FX `BoatWake`. `BOATS=0` the A/B; stills `BOAT=` on still_shot.gd;
   checks `tests/speedboats_checks.gd`.
+- The speedboat at golden hour (2026-11-05, refcam `speedboat_golden` in `tools/refcams/cameras_w8.json`,
+  its `boat` key staged by `tools/refcams/boat_stage.gd`; docs/HANDOFF.md "The speedboat at golden
+  hour"): `BoatSea` (`scripts/vehicles/boat_sea.gd`) - driven boats at sea hand their wakes to
+  ocean.gdshader through `OceanTraffic.push_wakes()` (alone: `push_alone()`), `wake_glow` braids the
+  wash and warms / lights the foam, BoatWake throws chine spray sheets (flat foam quads off at sea),
+  `transom()` letters the boat's name. `BOAT_SEA=0` is the A/B; checks `tests/rc5_speedboat_checks.gd`.
 - Swimming (2026-10-05, docs/HANDOFF.md "Swimming"): `Swim` (`scripts/player/swim.gd`, the
   player's child; `swim.step()` is the first thing in Player's tick after the car and does the whole
   tick in water). Where water is: `SwimWater` (`scripts/world/swim_water.gd`) - the sea and the bay

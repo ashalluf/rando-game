@@ -4586,3 +4586,10 @@ none of either.
   maths (never a second clock); a hotel's crown is lit from inside; LED is a dull line by day; an
   event night (a hash per night, ARENA_EVENT forces it) brings searchlights and a fuller plaza.
   ARENA_NIGHT=0 is the A/B.
+- **2026-11-05 The speedboat refcam: a boat under way writes its wake into the sea (rc5-speedboat,
+  HANDOFF "The speedboat at golden hour").** A new reference camera (`speedboat_golden`, wave 8's
+  table) chases the SALTRUNNER at 60 km/h into the 17:45 sun path. Decisions: the player's boats hand
+  their wakes to the ocean shader exactly as the scripted vessels do (one list, nearest first), never
+  as particle quads on the water; a wake's foam is braided lines on an aerated sheet that emits the
+  evening's light, not a lit white band; spray is a low sheet off the chines; a boat's transom carries
+  its invented name. BOAT_SEA=0 is the A/B.

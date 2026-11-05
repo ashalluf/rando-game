@@ -207,3 +207,12 @@ Run with `REFCAMS_JSON=tools/refcams/cameras_w8.json`. `skate_park` (rc5-skate-p
 Its optional `skate_t` key holds SkateParkLife's clock (seconds, the riders held: `_skate_clock()` in
 refcams_shot.gd, as SKATE_T= / SKATE_HOLD=1), so the first pool rider is at the top of his
 frontside air over the far coping. `tools/rc5_skate_park/air_probe.gd` lists every rider's air times.
+
+## Wave 8's cameras (`cameras_w8.json`)
+
+Run with `REFCAMS_JSON=tools/refcams/cameras_w8.json`. `speedboat_golden` (rc5-speedboat): the
+SALTRUNNER at speed 300 m off the beach town at 17:45 clear, a chase eye into the sun path. Its
+`boat` key (`tools/refcams/boat_stage.gd`, the same interface as chase_stage.gd) re-centres the world
+on `at`, puts the player in a fresh boat heading `heading` (the --spawn yaw), holds the throttle
+`ticks` physics ticks, and lays a free eye `chase` = [back, side, up, aim ahead] metres off the hull
+every frame up to the shot; optional `kind`, `look`, `boost`, `steer`. The row's own eye is unused.
