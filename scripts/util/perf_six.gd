@@ -89,3 +89,21 @@ static func planting_bias(node: GeometryInstance3D, mesh: Mesh, xforms: Array) -
 		var sc := x.basis.get_scale()
 		biggest = maxf(biggest, maxf(sc.x, maxf(sc.y, sc.z)))
 	node.lod_bias = maxf(biggest, 0.01)
+
+
+## The facade kit's casting pieces (awnings, balconies, fire escapes, window ACs, roof vents and
+## tanks, blade signs: Building._finish_kit()) cast from a twin of their own mesh, like the
+## roofline already did, so their shadow takes the shadow LOD scale (prop_twin_bias) instead of
+## the camera's. Same reach as the piece's draw distance: the same casters, lighter.
+## KIT_SHADOW_TWIN=0 the A/B.
+static var kit_shadow_twin := OS.get_environment("KIT_SHADOW_TWIN") != "0"
+
+
+## Called by Building._finish_kit() for each kind, before its draw distance is set.
+static func kit_shadow(kit: MultiMeshBatch, key: String, draw_distance: float) -> void:
+	if not kit_shadow_twin or not prop_shadow_lod:
+		return
+	var batch: Dictionary = kit._batches.get(key, {})
+	if batch.is_empty() or batch.get("no_shadow", false) or float(batch.get("shadow_reach", 0.0)) > 0.0:
+		return
+	kit.set_shadow_reach(key, draw_distance)

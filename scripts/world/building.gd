@@ -1974,6 +1974,7 @@ func _finish_kit() -> void:
 			# drops the lot once the nearest of them could no longer draw.
 			d = kit_mullion_distance + maxf(footprint.x, footprint.y) + height
 			_kit.set_no_shadow(key)
+		PerfSix.kit_shadow(_kit, key, d)
 		_kit.set_draw_distance(key, d)
 	_kit.build(self)
 	_kit = null

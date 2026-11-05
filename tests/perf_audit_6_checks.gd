@@ -2,7 +2,9 @@ extends RefCounted
 ## The sixth perf audit's cuts (docs/HANDOFF.md, the perf-audit-6 section) for tests/smoke_test.gd.
 ## Loaded at run time, so it compiles after the autoloads; reads the city as it stands.
 ##   - every building's rooftop air-conditioning units cast from a twin (and only from it);
-##   - street props' shadow twins pick their LOD at the trees' shadow scale.
+##   - street props' shadow twins pick their LOD at the trees' shadow scale;
+##   - every facade-kit piece that casts does it from a twin, never from itself;
+##   - the far city's canopies carry a coarse level and their tiles a bias of their biggest tree.
 
 var _t: Node
 
@@ -11,6 +13,8 @@ func run(t: Node, city: Node3D) -> void:
 	_t = t
 	_roof_units(city)
 	_prop_twins(city)
+	_kit_twins(city)
+	_canopy()
 
 
 func _roof_units(city: Node3D) -> void:
@@ -48,3 +52,38 @@ func _prop_twins(city: Node3D) -> void:
 			bad += 1
 	_t._check(twins > 0 and bad == 0,
 		"perf-audit-6: street props' shadow twins at the shadow LOD scale (%d twins, %d wrong)" % [twins, bad])
+
+
+func _kit_twins(city: Node3D) -> void:
+	var casting := 0
+	var twinned := 0
+	for n in city.find_children("Batch_kit_*", "MultiMeshInstance3D", true, false):
+		var node := n as MultiMeshInstance3D
+		if node.cast_shadow != GeometryInstance3D.SHADOW_CASTING_SETTING_OFF:
+			casting += 1
+		elif node.has_meta("shadow_twin"):
+			twinned += 1
+	var on := PerfSix.kit_shadow_twin and PerfSix.prop_shadow_lod
+	_t._check(twinned > 0 and (casting == 0) == on,
+		"perf-audit-6: facade-kit pieces cast from twins (%d twinned, %d casting themselves)" % [twinned, casting])
+
+
+func _canopy() -> void:
+	var m := PropFactory.canopy_blob()
+	_t._check(m.has_meta("canopy_lod") == PerfSix.canopy_lod and m.get_surface_count() == 1,
+		"perf-audit-6: the far canopy blob carries its coarse level exactly while CANOPY_LOD is on")
+	var tiles := 0
+	var bad := 0
+	var sky: Node = null
+	for c in (Engine.get_main_loop() as SceneTree).root.find_children("*", "Node3D", true, false):
+		if c is Skyline:
+			sky = c
+			break
+	if sky:
+		for n in sky.find_children("Planting_*", "MultiMeshInstance3D", false, false):
+			var mi := n as MultiMeshInstance3D
+			tiles += 1
+			if PerfSix.canopy_lod and mi.lod_bias < 1.0:
+				bad += 1
+	_t._check(sky == null or bad == 0,
+		"perf-audit-6: far planting tiles carry their biggest canopy's scale as LOD bias (%d tiles, %d wrong)" % [tiles, bad])
