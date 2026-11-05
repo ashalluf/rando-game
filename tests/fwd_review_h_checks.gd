@@ -15,7 +15,7 @@ extends RefCounted
 ##   (shaders/fwd_review_h.gdshaderinc, the `fwd_review_h` global) decodes the level on Forward+.
 ## - industrial_walls.gdshader's office and storefront glass emitted its sky mirror as plain numbers
 ##   judged on Compatibility (where they display as written); Forward+ read them as linear and the
-##   panes were pale sheets of sky, ~3x the stills. fh_display() decodes the mirror on Forward+.
+##   panes were pale sheets of sky. fh_display() decodes the mirror on Forward+.
 ## - nightlife_beam.gdshader's shafts from the street (Broadway night's look3 soft knee, tuned on
 ##   opengl3) were added in linear HDR on Forward+: the faint tail several times stronger, rods
 ##   again. With look3 and the switch, the street view adds in display numbers on Forward+.

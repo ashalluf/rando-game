@@ -28876,8 +28876,10 @@ shows ~35 % on the Mac, so every falloff tuned on the opengl3 stills is far flat
    PortNight wave 7): the same, `fh_level()`.
 5. **The industrial office and storefront glass** (industrial_walls.gdshader, RcVernon wave 6 and
    the older office glass): the sky mirror EMITTED as plain numbers judged on Compatibility, read as
-   linear by Forward+: ~3x brighter, pale panes. `fh_display()` decodes the mirror on Forward+ (its
-   frame coverage kept linear).
+   linear by Forward+: pale cyan panes. `fh_display()` decodes the mirror on Forward+ (its frame
+   coverage kept linear). vernon_industrial eye at 14:00, the office glass's luminance row by row
+   against the wall over it: before 80 / 83, after 64 / 55, opengl3 67 / 57 (scaled to the same
+   wall) - the mirror term alone was ~3x, the engine's own reflection off the glass is on top.
 6. **Broadway's searchlight shafts from the street** (nightlife_beam.gdshader `look3`, wave 6):
    the soft knee tuned on opengl3, added in linear HDR on Forward+ (tint x alpha raw): rods again.
    With look3 the street view adds in display numbers on Forward+; the air keeps its own tuning.
