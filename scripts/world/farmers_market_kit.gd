@@ -50,12 +50,22 @@ const TABLE_Z := 0.92
 
 static var _meshes: Dictionary = {}
 static var _material: ShaderMaterial
+## The farmers_market refcam's pass (wave 8, rc5-farmers-market; docs/HANDOFF.md "The farmers'
+## market from the aisle"): produce packed in hex layers at finer resolution with a calyx and a
+## stem, printed and taped cartons, and on the material skin relief, hanging cloth folds, a faint
+## bulb by day and the legs' grain along them. RC5_MARKET=0 is the A/B (the kit as it was).
+static var rc5: bool = OS.get_environment("RC5_MARKET") != "0"
 
 
 static func material() -> ShaderMaterial:
 	if _material == null:
 		_material = ShaderMaterial.new()
 		_material.shader = load("res://shaders/farmers_market.gdshader")
+		if not rc5:
+			_material.set_shader_parameter("skin_relief", 0.0)
+			_material.set_shader_parameter("cloth_drape", 0.0)
+			_material.set_shader_parameter("bulb_day", 0.6)
+			_material.set_shader_parameter("grain_along", 0.0)
 	return _material
 
 
@@ -523,7 +533,7 @@ static func _heap(g: Geo, xf: Transform3D, inner: Vector2, rim: float, rise: flo
 	var rm := Vector2(float(spec[4]), 0.0)
 	var mean: Color = colors[0]
 	# Under the top layer: a dome in the goods' darker colour, so nothing shows the crate's floor.
-	var fill := col(mean.darkened(0.6), code)
+	var fill := col(mean.darkened(0.6 if rc5 else 0.35), code)
 	var hx := inner.x * 0.5
 	var hz := inner.y * 0.5
 	var dome_top := rim + rise - r.y * 1.2
@@ -544,10 +554,15 @@ static func _heap(g: Geo, xf: Transform3D, inner: Vector2, rim: float, rise: flo
 		_berry_baskets(g, xf, inner, rim, rng)
 		g.mode = 0
 		return
-	if shape == "bunch" or shape == "carrot":
-		var step := r.x * 2.4 if shape == "bunch" else 0.075
+	if shape == "bunch" or shape == "carrot" or not rc5:
+		# Bunches lie in a grid; with RC5_MARKET=0 every heap is the old grid (the A/B).
+		var step := maxf(r.x, r.z) * 2.0
+		if shape == "bunch":
+			step = r.x * 2.4
+		elif shape == "carrot":
+			step = 0.075
 		var nx := maxi(1, int(inner.x / step))
-		var nz := maxi(1, int(inner.y / (r.z * 1.6)))
+		var nz := maxi(1, int(inner.y / (maxf(r.x, r.z) * 2.0 if shape != "bunch" and shape != "carrot" else r.z * 1.6)))
 		for a in nx:
 			for b in nz:
 				var u := lerpf(-hx, hx, (float(a) + 0.5) / nx) + rng.randf_range(-0.2, 0.2) * step
@@ -557,7 +572,15 @@ static func _heap(g: Geo, xf: Transform3D, inner: Vector2, rim: float, rise: flo
 				var d2 := (u / hx) * (u / hx) + (w / hz) * (w / hz)
 				var y := lerpf(rim - 0.02, rim + rise, clampf(1.0 - d2 * 0.5, 0.0, 1.0))
 				var cl: Color = colors[rng.randi() % colors.size()]
-				_item(g, xf, Vector3(u, y, w), r, shape, col(_jit(rng, cl, 0.12), code), rm, rng)
+				cl = _jit(rng, cl, 0.12)
+				_item(g, xf, Vector3(u, y, w), r, shape, col(cl, code), rm, rng)
+		# A second, sparser layer on the crown of the heap, so it reads as piled up.
+		if shape != "bunch" and shape != "carrot" and shape != "leafy" and nx * nz < 30:
+			for k in maxi(1, nx * nz / 6):
+				var u := rng.randf_range(-hx * 0.55, hx * 0.55)
+				var w := rng.randf_range(-hz * 0.5, hz * 0.5)
+				var cl: Color = colors[rng.randi() % colors.size()]
+				_item(g, xf, Vector3(u, rim + rise + r.y * 0.9, w), r, shape, col(_jit(rng, cl, 0.12), code), rm, rng)
 		g.mode = 0
 		return
 	# Round goods are packed the way a grower piles them (refcam farmers_market, 2026-11-05): a
@@ -609,19 +632,20 @@ static func _item(g: Geo, xf: Transform3D, p: Vector3, r: Vector3, shape: String
 	var stem := col(Color(0.22, 0.32, 0.1), C_LEAF)
 	match shape:
 		"sphere":
-			g.ellipsoid(Transform3D(b, at), r, 9, 4, cl, rm, 0, 0.0, 0.0, 0.62 * PI)
-			if is_equal_approx(cl.a * 20.0, C_PRODUCE) and r.y < 0.034:
+			g.ellipsoid(Transform3D(b, at), r, 9 if rc5 else 6, 4 if rc5 else 3, cl, rm, 0, 0.0, 0.0, 0.62 * PI)
+			if rc5 and is_equal_approx(cl.a * 20.0, C_PRODUCE) and r.y < 0.034:
 				# A tomato's green calyx: a few sepals round the stem.
 				_calyx(g, at + b * Vector3(0, r.y * 0.97, 0), b, r.x * 0.55, rng)
 		"oval":
-			g.ellipsoid(Transform3D(b, at), r, 9, 4, cl, rm, 0, 0.0, 0.0, 0.62 * PI)
+			g.ellipsoid(Transform3D(b, at), r, 9 if rc5 else 7, 4 if rc5 else 3, cl, rm, 0, 0.0, 0.0, 0.62 * PI)
 		"pear":
-			g.ellipsoid(Transform3D(b * Basis(Vector3.RIGHT, PI * 0.5), at), Vector3(r.x, r.z, r.y), 9, 6, cl, rm, 0, 0.0, 0.28)
+			g.ellipsoid(Transform3D(b * Basis(Vector3.RIGHT, PI * 0.5), at), Vector3(r.x, r.z, r.y), 9 if rc5 else 6, 6 if rc5 else 5, cl, rm, 0, 0.0, 0.28)
 		"lobed":
-			g.ellipsoid(Transform3D(b, at), r, 12, 4, cl, rm, 4, 0.1, 0.0, 0.62 * PI)
-			g.bar(at + b * Vector3(0, r.y * 0.9, 0), at + b * Vector3(0.004, r.y * 1.18, 0), 0.006, stem, Vector2(0.7, 0))
+			g.ellipsoid(Transform3D(b, at), r, 12 if rc5 else 8, 4 if rc5 else 3, cl, rm, 4, 0.1, 0.0, 0.62 * PI)
+			if rc5:
+				g.bar(at + b * Vector3(0, r.y * 0.9, 0), at + b * Vector3(0.004, r.y * 1.18, 0), 0.006, stem, Vector2(0.7, 0))
 		"pepper":
-			g.ellipsoid(Transform3D(b, at), r, 9, 4, cl, rm, 3, 0.18, 0.12, 0.62 * PI)
+			g.ellipsoid(Transform3D(b, at), r, 9 if rc5 else 6, 4 if rc5 else 3, cl, rm, 3, 0.18, 0.12, 0.62 * PI)
 			g.bar(at + b * Vector3(0, r.y * 0.85, 0), at + b * Vector3(0.008, r.y * 1.25, 0), 0.01, stem, Vector2(0.7, 0))
 		"leafy":
 			# A head of lettuce: three crumpled shells, the outer ones open and a shade darker.
@@ -820,6 +844,9 @@ const CARTON_INKS := [Color(0.12, 0.3, 0.16), Color(0.55, 0.1, 0.08), Color(0.1,
 
 static func _carton(g: Geo, xf: Transform3D, size: Vector3, kraft: Color, rng: RandomNumberGenerator) -> void:
 	var rm := Vector2(0.95, 0.0)
+	if not rc5:
+		g.box(xf, size, col(kraft, C_CARD), rm)
+		return
 	g.box(xf, size, col(_jit(rng, kraft, 0.05), C_CARD), rm)
 	var h := size * 0.5
 	var e := 0.002

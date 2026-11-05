@@ -58,6 +58,8 @@ float fm_noise3(vec3 p) {
 uniform float skin_relief = 1.0;
 // The table cloths' hanging folds (0: a flat sheet).
 uniform float cloth_drape = 1.0;
+// The aluminium's brushed grain along the legs (1) or across them (0, the old ripples).
+uniform float grain_along = 1.0;
 
 // The bump: perturb `n` (view space) by the height `h` (metres) over the surface at `p` (view space).
 vec3 fm_bump(vec3 n, vec3 p, float h) {
@@ -97,7 +99,8 @@ void fragment() {
 		// Aluminium and steel: a fine brushed grain, a few scuffs.
 		// The grain runs along a tube: the legs are upright, so it changes fast round them and slowly
 		// up them (it ran across them, and the near leg was a stack of ripples).
-		float g = mix(fm_noise(vec2((v_local.x + v_local.z) * 90.0, v_local.y * 3.0)), 0.5, smoothstep(0.004, 0.02, px));
+		vec2 gq = grain_along > 0.5 ? vec2((v_local.x + v_local.z) * 90.0, v_local.y * 3.0) : vec2(v_local.y * 90.0, v_local.x * 4.0 + v_local.z * 4.0);
+		float g = mix(fm_noise(gq), 0.5, smoothstep(0.004, 0.02, px));
 		rough = clamp(rough + (g - 0.5) * 0.2, 0.15, 0.9);
 		base *= 0.94 + 0.08 * g;
 	} else if (code == 4) {
