@@ -81,8 +81,8 @@ func _night_ground() -> void:
 	var under_old := float(b.get_meta("lamp_gain", 1.0)) * pow(8.0, -b.omni_attenuation)
 	var between_old := float(b.get_meta("lamp_gain", 1.0)) * pow(8.0 * 1.7, -b.omni_attenuation)
 	NightGround.enabled = keep
-	_t._check(not NightLamps.enabled or (is_equal_approx(a.omni_attenuation, NightGround.FALLOFF) and is_equal_approx(a.omni_range, NightGround.REACH_PER_HEIGHT * 8.0)
-		and absf(under / under_old - 1.0) < 0.01 and between < between_old * 0.85 and is_equal_approx(b.omni_attenuation, NightLamps.FALLOFF)),
+	_t._check(not NightLamps.enabled or (is_equal_approx(a.omni_attenuation, NightLamps.POINT_FALLOFF) and is_equal_approx(a.omni_range, NightLamps.POINT_REACH_PER_HEIGHT * 8.0)
+		and absf(under / under_old - 1.0) < 0.01 and between < between_old * 0.85 and is_equal_approx(b.omni_attenuation, NightLamps.FALLOFF) and is_equal_approx(b.omni_range, NightLamps.REACH_PER_HEIGHT * 8.0)),
 		"NightGround: a street lamp's light under its head is unchanged (%.3f / %.3f) and darker between lamps (%.3f / %.3f)" % [under, under_old, between, between_old])
 	a.free()
 	b.free()

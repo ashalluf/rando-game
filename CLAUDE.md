@@ -2122,7 +2122,7 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   `tools/night_lamps/lamp_street.tscn` (Forward+ in minutes); checks `tests/night_lamps_checks.gd`.
 - The night ground (wave 8, refcam `gas_station_night` in `tools/refcams/cameras_w8.json`,
   docs/HANDOFF.md "The gas station at 23:30"): `NightGround` (`scripts/world/night_ground.gd`) -
-  street-lamp omnis fall off d^-2 over 2 x the head's height (NightLamps.tune_light; the light under
+  street-lamp omnis fall off d^-2 over 2 x the head's height (NightLamps.POINT_FALLOFF in tune_light; the light under
   a head unchanged), a street lamp's pool on Compatibility adds `POOL_COMPAT` of itself
   (light_pool `street_compat`, as Forward+'s street_forward). `GasNight` (`scripts/world/gas_night.gd`,
   hooks in Roadside._gas()): the forecourt's UV2 carries the canopy (roadside.gdshader

@@ -11,7 +11,7 @@ extends RefCounted
 ## `street_forward` 0.4 of it (the omni already lights the road there).
 ##
 ## The fix, at the source and the same everywhere a street lamp stands:
-## * the omni falls off as a point source does, d^-FALLOFF (2.0), reaching REACH_PER_HEIGHT (2.0) x
+## * the omni falls off as a point source does, d^-2 (NightLamps.POINT_FALLOFF), reaching 2 x
 ##   its height. NightLamps.tune_light()'s gain normalises by h^attenuation, so the light UNDER each
 ##   head is unchanged; only the road between lamps darkens (about a third at 1.7 h);
 ## * on Compatibility a street lamp's pool takes POOL_COMPAT (0.45) of its strength
@@ -21,17 +21,9 @@ extends RefCounted
 
 static var enabled: bool = OS.get_environment("NIGHT_GROUND") != "0"
 
-const FALLOFF := 2.0
-const REACH_PER_HEIGHT := 2.0
+## The lamps' numbers live in NightLamps (POINT_FALLOFF, POINT_REACH_PER_HEIGHT, read through
+## NightLamps.falloff() / reach_per_height()); this is the switch and the compat pool share.
 const POOL_COMPAT := 0.45
-
-
-static func falloff(old: float) -> float:
-	return FALLOFF if enabled else old
-
-
-static func reach_per_height(old: float) -> float:
-	return REACH_PER_HEIGHT if enabled else old
 
 
 static func pool_compat() -> float:
