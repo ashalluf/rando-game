@@ -29451,7 +29451,10 @@ exactly; every new shader path sits behind a uniform whose default is the old lo
 **Numbers** (refcams opengl3, one load each, `RC5_STORM=0` / on): storm_downtown p5/p50/p95
 69/167/210 -> 30/88/182, saturation 0.143 -> 0.203 (the cold flash against the warm lamps), CCT
 5504 K -> 5699 K, triangles 6.55 M -> 6.41 M, draws 3,173 -> 3,126 (run-to-run noise: nothing
-was added to the scene).
+was added to the scene). The ten original cameras (`cameras.json`, one load each with
+`RC5_STORM=0` / on, merged with main 0e91f580): nine within the noise; `freeway` flagged at 8.2 mean
+pixel |d|, all of it the traffic's positions (the diff image is the cars alone); street_night (rain,
+untouched: every change is weighted by the storm or by a flash) 5.7, the rain's particles.
 
 **Not done / not seen**: no Forward+ (lavapipe) still of the downtown street (it does not fit the
 box): the colder flash colour and the cubemap share are judged on opengl3 only - on the Mac the
