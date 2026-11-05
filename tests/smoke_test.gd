@@ -2926,6 +2926,8 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	# The film lot refcam (tests/rc4_film_lot_checks.gd, Rc4FilmLot): the camera row, the
 	# basecamp's dressing, the studio asphalt, the batched trailers.
 	load("res://tests/rc4_film_lot_checks.gd").new().run(self, city)
+	# The LA River at night (tests/rc4_river_night_checks.gd, RiverNight): the bridges' frames in the river's shaders.
+	load("res://tests/rc4_river_night_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()

@@ -4499,3 +4499,11 @@ none of either.
   per variant and batched, never per copy; a studio keeps its asphalt (the industrial ground with
   `kept`, worn only by tyre tracks); the basecamp's gaps hold carts and the doors chairs, from the
   layout alone, after every roll; the lot's walkers mostly wear crew blacks. RC4_FILM_LOT=0 is the A/B.
+- **2026-11-02 The river_night refcam: a structure's own lights light its surroundings, and water at
+  night mirrors what is lit (rc4-river-night, HANDOFF "The LA River at night").** A new reference
+  camera (`river_night`, wave 7's table) on the LA River's bed 65 m south of the 6th St ribbon bridge
+  at 21:30. Decisions: a bridge's lights are worked out analytically in the river's own shaders from
+  the bridge's frame (never real lights: the channel would need dozens); the water's mirror of the
+  bridges is ray-traced against the same frames, softened by a calmer normal than the riffles' (the
+  full riffles broke a lit arch into specks); a canyon floor's ambient is held down after dark (AO),
+  never by darkening its albedo. RIVER_NIGHT=0 is the A/B.

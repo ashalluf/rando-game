@@ -28947,3 +28947,66 @@ wearing it, its verge weeds; the tanks' look on; the smoke node.
 (CrowdFlow's camera 160 m off), which passes alone (32 / 32): a shard-order flake, no pedestrian code
 on this branch. The refinery checks alone: 35 / 35. After merging batch 51 (8a480359) the gate
 ran clean: 5,814 of 5,814 (SHARDS=3).
+
+## 9mg. The LA River at night (wave 7 refcam4 `river_night`, branch `wt/rc4-river-night`)
+
+**The camera.** A new reference view, `river_night` in `tools/refcams/cameras_w7.json`: on the
+concrete bed beside the low flow, 65 m south of the 6th St ribbon bridge, looking up the channel
+(yaw 12, pitch 3) at its three spans, 21:30, clear, the eye 1.0 m over the bed (`[4486.6, 1.57, 262,
+12, 3]`, absolute y). `REFCAMS_JSON=tools/refcams/cameras_w7.json python3 tools/refcams/refcams.py
+run <dir> --only river_night` (~13 min on a fresh box: the city load is 11 of them). For fast work,
+`tools/glshot/fwd_block_shot.tscn` with `EYE=4486.6,-5.9,262,12,3 BLOCKS=home EXTRA="-1,-1;-1,0"`
+(y over the terrace there, 7.47 m) builds the three chunks the frame needs in two minutes on opengl3
+and fits lavapipe (Forward+) too.
+
+**What read fake** (main, `shots/rc4-river-night` 01), in the order the eye found it:
+1. The arches' LED strips lit nothing: a hairline under each rib, the rib itself the same moonlit
+   grey as the deck. The real viaduct's ribs ARE the light.
+2. The low flow was a black ribbon: the water mirrored the banks and the sky (RiverLook) but not
+   the bridge, so the camera's whole point - the lit arches in the water - was missing.
+3. Nothing under the bridge was lit: no fixtures, no pools on the bed, the banks or the piers; the
+   channel was evenly moonlit like a dim day ("day for night").
+4. The bed's ambient was the open sky's: a canyon floor at night read as bright as the street above.
+
+**What changed** (`RiverNight`, `scripts/world/river_night.gd`; `shaders/river_night.gdshaderinc`;
+the `river_night` global, default 1; `RIVER_NIGHT=0` is main bit for bit - no note, no fixtures,
+every shader branch off):
+- Every street bridge a chunk builds is NOTED (`RiverNight.note()`, one line in
+  `RiverBridges.jobs()`, both levels): its frame (origin and road direction in TRUE world, half
+  width, deck height, deck thickness, kind, the ribbon's span ends, the bed's edges, the piers). The
+  last `MAX` (6) noted go to both river materials as uniform arrays (`arrays()`, `push()`): the
+  chunks build round the player, so these are the bridges he can see. The shaders add
+  `origin_shift`.
+- **Fixtures under every deck** (`fixtures()`, a FULL job): a housing every `PITCH` 8 m over the
+  bed along both fascias, its lens on the river's lamp material (LED on the ribbon, warm on the
+  older bridges). `rn_light()` lights the concrete from those same points (downlights: a cone
+  aimed down, inverse square) - pools on the bed, the banks' feet and the piers, and on the low flow.
+- **The ribbon's ribs washed by their LEDs** (`rn_rib_glow()`, kind 5 concrete): the rib's centre
+  line is RiverBridges' own (`rn_rib()` = `RiverNight.rib_at()`: rise, lean, span ends), the LED
+  side (under the soffit) bright, the top softer.
+- **The water mirrors the bridges** (`rn_mirror()` in river_water.gdshader's night branch): the
+  reflected ray is intersected with the near rib's leaning plane, the near fascia and the far rib;
+  rib bodies, LED lines, deck lamp heads (each kind's height and spacing), the fixtures and the
+  fascia's lit foot; a hit the bank's slope stands in front of is dropped; the lines widen with the
+  ray's length and the riffles. The mirror ray takes a third of the riffles (`n2`): with all of
+  them a lit arch broke into white specks. The mirrored BANKS also take the fixtures' light
+  (`rw_mirror()` gained `wp` / `night`; by day it is the same arithmetic).
+- **The damp silt mirrors faintly** (river_concrete, kind 1, `wet_band`): the lit lines only, wide.
+- **The canyon floor's ambient** is held down after dark (`AO` 0.62 on the bed and notch, up a
+  bank to 1 by 6 m; `AO_LIGHT_AFFECT` 0 so the fixtures and the moon are untouched).
+Day is untouched: every block is behind `lamp_factor > 0.01` (a storm by day lights the fixtures,
+like the street lamps).
+
+**Cost** (the refcam's own GEO, opengl3): 3,333,429 tris / 1,041 draws / 760,675 shadow ->
+3,319,466 / 1,034 / 754,075 (two loads; within load noise: the fixtures are boxes in the chunk's
+existing Industrial walls mesh and quads in its lamp mesh, no new draw). Shader cost: up to six
+bridges a fragment, each rejected by distance first; the mirror only on water and damp silt.
+
+**Checks** `tests/rc4_river_night_checks.gd` (11): the gates, the include's numbers and rib
+against RiverNight / RiverBridges, the 6th St chunk noting its ribbon bridge and both materials
+carrying it, the fixtures over the bed, the empty table, the camera row on the bed facing the bridge.
+
+**Not done / not verified.** The arches' wash is uniform along each rib (the real viaduct's LEDs
+change colour; this is white); the downstream / upstream bridges reflect only where their rays
+are not under the banks; the far mountains read warm brown at night in the full city (not this
+area: the horizon plane). Mirrors of other lit things (the bank-road lamps) are not traced.

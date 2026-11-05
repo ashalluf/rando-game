@@ -3908,6 +3908,14 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   joints filtered per axis (`joint2()`), flow stains, a canyon bounce on what the sun misses, two
   graffiti layers and pieces on the ramp walls; `RiverDebris` lays weeds and litter on FULL beds.
   `RIVER_LOOK=0` is the A/B; checks `tests/rc2_river_checks.gd`.
+- The LA River at night (wave 7, refcam `river_night` in `tools/refcams/cameras_w7.json`,
+  docs/HANDOFF.md "The LA River at night"): `RiverNight` (`scripts/world/river_night.gd`, the
+  `river_night` global): every bridge a chunk builds is noted (`note()` in RiverBridges.jobs()) and
+  the last six go to both river materials as arrays in TRUE world (`shaders/river_night.gdshaderinc`):
+  the ribbon's arches washed by their LEDs, under-deck fixtures (real lenses, `fixtures()`) pooling on
+  bed, banks and piers, the low flow and damp silt mirroring ribs, lamps and fixtures, the floor's
+  ambient held down by AO. All behind `lamp_factor` (day bit-identical); `RIVER_NIGHT=0` is the A/B;
+  checks `tests/rc4_river_night_checks.gd`.
 - The coast highway (2026-10-05, docs/HANDOFF.md "The coast highway"): north of the beach town,
   where the front range meets the sea. `CoastHighway` (`scripts/world/coast_highway.gd`,
   `MacroMap.coast_highway`, built in `setup()` before the hill roads) is a pure plan in
