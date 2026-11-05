@@ -4492,3 +4492,11 @@ none of either.
   per variant and batched, never per copy; a studio keeps its asphalt (the industrial ground with
   `kept`, worn only by tyre tracks); the basecamp's gaps hold carts and the doors chairs, from the
   layout alone, after every roll; the lot's walkers mostly wear crew blacks. RC4_FILM_LOT=0 is the A/B.
+- **2026-11-05 The blast, rounds 13-18 (explosions-4 resumed, wave 8, HANDOFF "The blast, fourth
+  pass").** The aerial view gets a ground flash under the burst; the shock ring and the flash are
+  the air's view only (faded near the eye and at a grazing look: from the street they painted the
+  road cream); debris trails are soft torn wisps, not flat bands; fuel and gas balls burn longer;
+  the crater's soot is a core with thinning streaks, not a black starburst; a secondary pop never
+  takes the volume a chain's next car needs; torn sheets and faceted lumps replace flat debris
+  cards; flame tongues breathe to their own heights; the burning pool's light hangs in its flames.
+  Each part has its own =0 switch.

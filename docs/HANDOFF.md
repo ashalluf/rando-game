@@ -26898,6 +26898,42 @@ Checks: `_round11()`. Stills 64 on.
    rocket from 170 m). The bluish wash is the test room's fog.
 Checks: `_round11()`'s last lines. Stills 69 on.
 
+**Rounds 13-18, resumed in wave 8** (the round-13 head's "gate passed" had not been true; it was
+merged with main and gated green this time). Judged on blast_room_shot.gd at 5 m, 9 m, 30-60 m and
+150 m, noon / golden / night, opengl3, and the 5 m view again on Forward+ (lavapipe):
+1. **Round 13, the ground flash from the air.** `Blast4.ground_flash()` (a child of the shock ring,
+   `shaders/blast_ground_flash.gdshader`, additive, fog-free, zero at its edge): the street lit
+   white-orange round the burst for its first ~0.3 s, shrinking into the core's ember glow.
+   `BLAST_GROUND_FLASH=0`.
+2. **Round 14, the 5 m view.** (a) The debris trails were flat bands: two hard edges each, sharp
+   translucent arcs across the frame from inside the smoke. They carry UVs now and wear
+   `shaders/blast_ribbon.gdshader` (round profile across, value-noise tears along;
+   `BLAST_RIBBON_SOFT=0`). (b) The shock ring and the ground flash, made for the air, covered the
+   whole road in flat cream from eye height and drew a pale line along the horizon: both fade with
+   the eye's distance (28-70 m / 25-60 m) and a grazing look (`air_fade`, `BLAST_RING_AIR=0`).
+3. **Round 15, fuel and gas burn longer.** At 0.6-0.8 s a car's or a pump's ball was already a
+   uniform brown "broccoli". `burn5` in blast_volume.gdshader (`BLAST_BURN=0`; 0 is round 14 bit
+   for bit): slower cooling for fuel / gas, the soot shell later, the core's fire held longer; a
+   rocket untouched.
+4. **Round 16, the scorch.** On Forward+ the crater's soot fingers were solid black to their tips:
+   a cartoon starburst stretched toward a low eye. `Blast3.crater_maps()` with `Blast4.scorch_soft`:
+   a dark core with a ragged edge, streaks thinning out, patchy (`BLAST_SCORCH=0`). explosions_3's
+   finger check now reads the cover changing round the circle at 0.5 of the mark.
+5. **Round 17, the chain.** A chain's third car fell back to the fireball CARDS (round orange
+   balls): the first cars' secondary pops held every volume slot (`max_volumes` 4).
+   `Blast3.takes_fireball(is_pop)`: pops leave one slot free; a main blast takes the oldest pop's
+   slot, else a mushroom's past 70 % of its life (`Blast4.volume_room`, `BLAST_VOLUME_ROOM=0`).
+6. **Round 18, 9 m from a car.** Torn panels (`Blast4.panel_mesh()`) are ragged crumpled 14-sided
+   sheets and the wedges seven-sided lumps (`BlastAftermath._chunk_mesh`), not flat cards
+   (`BLAST_PANELS=0`); flame tongues each breathe to their own height, with holes and a
+   see-through outer flame round an opaque core (flame_tongue `look5`, `BLAST_FLAME5=0`); the
+   burning pool's OmniLight hangs 2.3 m up at 4.2 (was 1.1 m at 6.5: a white hot spot burnt into
+   the road through AgX; `BLAST_POOL_LIGHT=0`).
+
+Looked at and left: the night rocket at 60 m reads dim in the test room (no auto exposure there,
+and the night flash was held down on purpose in round 5); a pool fire still reads partly as a row of
+tongues - a low continuous fire bed under them would be the next step. Stills 73-79.
+
 ## 9lb. The camera lens (wave 5, `camera-lens`)
 
 **What.** The camera itself: exposure adaptation, the sun's flare, grain, the bloom's spread.
