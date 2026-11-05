@@ -93,7 +93,10 @@ func _ready() -> void:
 		# drew next to nothing), a touch denser, and lit by the sun in the shader (`look`).
 		vapour_min = 20.0
 		vapour_full = 62.0
-		vapour_alpha = 0.42
+		vapour_alpha = 0.55
+		# The vortex core is fat from the start: seen end-on from the chase camera a 5 cm thread
+		# was nothing at all.
+		vapour_width = Vector2(0.16, 1.3)
 	_fabric_mesh = ArrayMesh.new()
 	_fabric = MeshInstance3D.new()
 	_fabric.name = "Fabric"

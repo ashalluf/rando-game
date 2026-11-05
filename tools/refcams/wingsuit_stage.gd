@@ -84,9 +84,10 @@ func run(st: SceneTree, cam: Dictionary, p: Node3D) -> void:
 	city.call("update_streaming", true)
 	await _fly(0.5)
 	var w := WorldState.to_world(player.global_position)
-	print("REFCAM wingsuit: at %s (wanted %s), %.1f m over the ground, %.1f m/s, gliding %s, camera %s" % [
+	var fx: Node = suit.get_node_or_null("WingsuitFx")
+	print("REFCAM wingsuit: at %s (wanted %s), %.1f m over the ground, %.1f m/s, gliding %s, vapour %s, camera %s" % [
 		str(w), str(target), w.y - plan.height_at(Vector2(w.x, w.z)), player.velocity.length(),
-		str(suit.call("is_gliding")), str(WorldState.to_world(player.camera.global_position))])
+		str(suit.call("is_gliding")), str(fx.call("is_trailing") if fx else "-"), str(WorldState.to_world(player.camera.global_position))])
 
 
 func _hold_at(world: Vector3) -> void:

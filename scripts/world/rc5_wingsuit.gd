@@ -43,3 +43,4 @@ static func museum_roof(g: LandmarkGeo, r: Rect2, top: float, detailed: bool) ->
 		g.box("veil", Vector3(c.x, y, z), Vector3(field.size.x, RIB_DEPTH * 0.82, RIB_WIDTH), Color.WHITE, Basis(), bevel)
 		n += 1
 	return n
+

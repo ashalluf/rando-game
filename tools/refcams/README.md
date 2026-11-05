@@ -88,6 +88,14 @@ at the shot): tune `air_dist` / `air_side` from it.
 Run with `REFCAMS_JSON=tools/refcams/cameras_w6.json`. `rooftop_golden`: the black twins' north
 helipad (deck 215.55 m), 17:45 clear, looking SSW over the skyline to the basin and the sea.
 
+## Wave 8's cameras (`cameras_w8.json`)
+
+Run with `REFCAMS_JSON=tools/refcams/cameras_w8.json`. `wingsuit_golden` (rc5-wingsuit-golden): the
+hero gliding in his wingsuit ~120 m over Bunker Hill toward the skyline at 18:00 clear, shot from his
+OWN chase camera 6 m behind. Its `wingsuit` key (`tools/refcams/wingsuit_stage.gd`: at, heading,
+speed, lead, input, dist, look, fov) launches him `lead` seconds back along the trim glide so he
+passes `at` at the shot; the log prints where he is, his speed and whether the vapour trails.
+
 ## Running
 
 ```

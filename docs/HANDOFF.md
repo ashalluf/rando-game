@@ -28838,3 +28838,48 @@ smooth normals on Forward+ are unproved. No crew AT WORK (no shoot, no dolly, ca
 driven: the film-shoot session's area); the stage walls are as they were; the trailers' variants all
 share three dressings, so a long row repeats every third; the far LOD of the trailers is the old
 `lod_box` path. Checks: `tests/rc4_film_lot_checks.gd` (10). Probe: `tools/rc4_film_lot/crew_probe.tscn`.
+
+## 9d?. The wingsuit at golden hour (wave 8, refcam5 `wingsuit_golden`, branch `wt/rc5-wingsuit-golden`)
+
+A new reference camera: the hero in his wingsuit at 18:00 clear, shot from his OWN chase camera
+6 m behind, gliding ~120 m over Bunker Hill toward the downtown skyline (row in
+`tools/refcams/cameras_w8.json`, `REFCAMS_JSON=tools/refcams/cameras_w8.json python3
+tools/refcams/refcams.py run <dir> --only wingsuit_golden`, ~10 minutes and ~7.8 GB once the
+shader caches are warm; the first launch on a fresh box took 14 minutes and peaked at 11 GB).
+
+**Staging.** The row's `wingsuit` key is handled by `tools/refcams/wingsuit_stage.gd` (loaded by
+path from refcams_shot.gd, like the chase car's chase_stage.gd): the city is streamed round `at`
+(TRUE world, y over the plan's ground), then he is launched `lead` seconds back along the trim glide
+path (14 degrees down) at `speed`, the suit opened, the stick held at `input`, the suit's chase
+camera set to `dist` and `fov` and turned to `look` (yaw off his heading, pitch); the lead-in runs
+with 3D off and the last half second drawn. The log prints where he is at the shot (2439.6, 145.6,
+-881.7 against 2440, 145.1, -880 wanted), his speed (45 m/s), and whether the vapour trails.
+**Trap: a refcam's `fov` is VERTICAL** (Camera3D keeps the height): 60 is 91 degrees across, and
+the first framing put a 6 m chase's hero at a ninth of the frame. The row uses 44, and looks from
+12 degrees off his tail on the sun's side, 12 degrees down: straight behind and level, a gliding
+wingsuit is edge-on.
+
+**What read fake, worst first, and what changed:**
+1. The suit was a flat sheet: from a chase camera the wings were a dark line, and close up a
+   membrane with no volume. `WingsuitFx.look2` builds each membrane as an INFLATED two-skin wing
+   on a 16 x 9 grid (was 9 x 6): top and bottom skins apart by an airfoil's depth (`cell_depth`
+   0.11 m arm wings, 0.085 m tail; deepest a third back from the leading edge, none at the trailing
+   edge or the wingtip, where the skins meet), the top skin bulging between the chordwise seams
+   like ram-air cells (`cell_bulge`); UV2.y + 4 marks the bottom skin. The fabric shader takes a
+   satin sheen (RIM) and a brighter backlight under the pass. ~920 vertices in all (was 210),
+   rebuilt on skeleton_updated as before, the player's only.
+2. The vapour never showed: it started at 32 m/s and a trimmed glide is 30-45, and it was a 5 cm
+   white thread end-on to the chase camera. Now from 20 m/s, 0.16 m at birth, alpha 0.55, and in
+   the shader (`look`) the colour of the sky round it (never under half white) plus the sun's
+   forward scatter (`tree_sun`, `sun_direction`). The first version used the sky's linear colour
+   as is and drew a dark grey wisp at sunset, when the sun is on the horizon and tree_sun is ~0.
+3. THE LATTICE museum's roof, right under the glide, was one flat 52 m white slab, the brightest
+   thing in the frame. `Rc5Wingsuit.museum_roof()` lays the real building's skylight lattice:
+   dark glazing inset 2.4 m, deep ribs on the veil's cell grid (near and far copies alike).
+Looked at and left: the concert hall's steel sails below him read as one flat sand colour at
+sunset. Mirroring the hour's sky in brushed_steel's emitted share changed nothing visible on opengl3
+(the look there is the renderer's own sky radiance on a metal), so it was reverted, not shipped.
+
+`WINGSUIT_LOOK=0` is the suit's A/B (the flat sheets, the old vapour), `RC5_WINGSUIT=0` the world's
+(the flat roof). `tools/glshot/far_landmark_shot.gd` takes `GOLDEN=1` now (a sun
+6 degrees up in the west under a sunset horizon). Checks: `tests/rc5_wingsuit_golden_checks.gd`.

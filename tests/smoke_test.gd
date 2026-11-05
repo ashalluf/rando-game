@@ -2924,6 +2924,9 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	# The film lot refcam (tests/rc4_film_lot_checks.gd, Rc4FilmLot): the camera row, the
 	# basecamp's dressing, the studio asphalt, the batched trailers.
 	load("res://tests/rc4_film_lot_checks.gd").new().run(self, city)
+	# The wingsuit_golden refcam (tests/rc5_wingsuit_golden_checks.gd, WingsuitFx look2 / Rc5Wingsuit):
+	# the camera row, the two-skin wing, the sunlit vapour, THE LATTICE's roof lattice.
+	load("res://tests/rc5_wingsuit_golden_checks.gd").new().run(self)
 
 	city.queue_free()
 	_world_state().reset()

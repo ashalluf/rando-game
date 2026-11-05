@@ -40,7 +40,10 @@ void fragment() {
 		float phase = 0.35 + 0.65 * mu * mu + 2.2 * pow(mu, 10.0);
 		vec3 sky = cs_srgb_to_linear(sky_tint.rgb);
 		vec3 sun = min(tree_sun, vec3(2.5));
-		vec3 col = sky * 0.75 + sun * 0.38 * phase;
+		// A cloud is about as bright as the sky round it, in its colour: the sky's chroma at no less
+		// than half white (at sunset the sun is on the horizon and tree_sun is next to nothing).
+		float lum = max(dot(sky, vec3(0.2126, 0.7152, 0.0722)), 1e-3);
+		vec3 col = sky / lum * max(lum * 1.4, 0.5) * (0.8 + 0.5 * mu * mu) + sun * 0.38 * phase;
 		// Brightness (the script's night dimming) on top; never brighter than a lit cloud.
 		col = min(col * COLOR.r, vec3(1.6));
 		ALBEDO = cs_out(col);
