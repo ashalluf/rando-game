@@ -4492,3 +4492,10 @@ none of either.
   per variant and batched, never per copy; a studio keeps its asphalt (the industrial ground with
   `kept`, worn only by tyre tracks); the basecamp's gaps hold carts and the doors chairs, from the
   layout alone, after every roll; the lot's walkers mostly wear crew blacks. RC4_FILM_LOT=0 is the A/B.
+- **2026-11-05 The brush fire refcam: a ridge fire is smoke over the basin, not a lit cloud
+  (rc5-brush-fire, HANDOFF "The brush fire on a Santa Ana evening").** A new reference camera
+  (`brush_fire`, wave 8's cameras_w8.json): midtown at 18:30 in a Santa Ana toward the front-range
+  fire. The fire line sinks behind the crest and follows its flanks (the far ridge is drawn lower
+  than the real one, so a line at the true height floated in the sky); the column is dense and laid
+  over with a pall drifting downwind; from dusk the sky and fog go smoky amber. BRUSH_FIRE_LOOK=0
+  is the A/B.
