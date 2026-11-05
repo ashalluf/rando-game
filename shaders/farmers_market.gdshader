@@ -19,8 +19,9 @@ render_mode cull_disabled;
 
 global uniform float lamp_factor;
 
-// String-light bulbs by day (a little: they are on for the market) and at night.
-uniform float bulb_day = 0.6;
+// String-light bulbs by day (a faint filament glow: at 0.6 every bulb read as a lit yellow ball
+// at 10:00, refcam farmers_market) and at night.
+uniform float bulb_day = 0.18;
 uniform float bulb_night = 7.0;
 // How much sun the canvas lets through to its underside.
 uniform float canvas_through = 0.55;
