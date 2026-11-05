@@ -1,9 +1,30 @@
-# Handoff: Rando Game (written 2026-09-19; section 0000000000 is the newest state: fleet wave 4, 2026-10-31)
+# Handoff: Rando Game (written 2026-09-19; section 00000000000 is the newest state: fleet wave 8, 2026-11-05)
 
 This is the narrative handoff for whoever picks the project up next, from any Claude Code account
 or as a person. `CLAUDE.md` is the rulebook and `docs/GAME_PLAN.md` is the roadmap plus the
 decisions log; both stay the source of truth. This file is the story: where things stand, how
 the day-to-day work goes, what is fragile, what to do next. Read all three before touching code.
+
+## 00000000000. Fleet wave 8 (2026-11-05 ~19:35 UTC; read this first, then fleet/brief's LEAD_HANDOFF.md, then 0000000000)
+
+A new account's lead picked up from the wave-7 lead's pause (fleet/brief `LEAD_HANDOFF.md`). The
+owner: "deploy a million agents, get these graphics up to date, don't stop until I tell you or
+usage runs low". Sessions run `claude-opus-5-5`.
+
+- **Batch 51** (`gate-b51`: explosions-4 round 11, gate-flakes-2, two flake fixes) was re-gated
+  (shard 2, the one that had failed) and pushed to main with this section.
+- **Wave 8 = 25 cloud sessions** (tag `rando-wave8`, titles `w8 <slug>`), briefed by fleet/brief's
+  BRIEF.md (wave-8 edition) and `tasks_w8.tsv`; roster `sessions_w8.tsv`. The wave-7 sessions were
+  on another account and cannot be messaged from here, so their unfinished branches were RESUMED by
+  fresh sessions (`resume` kind: rc4-refinery-road, rc4-metro-station, rc4-lowrider-meet,
+  rc4-terminal-curb, rc4-heli-night, rc4-river-night, rc4-hospital-er, rc4-freight-yard,
+  explosions-4 rounds 13+, gate-flakes-2, web-hero-blue). New: twelve `refcam5` views in
+  `tools/refcams/cameras_w8.json` (storm_downtown, brush_fire, gas_station_night, police_pursuit,
+  wingsuit_golden, construction_dusk, suburb_night, farmers_market, skate_park, hill_home_dusk,
+  speedboat_golden, arena_night) and two infra (fwd-review-h, perf-audit-6).
+- The lead loop is unchanged (LEAD_HANDOFF.md): batches on `gate-bNN`, merge_branch.py, `--import`,
+  `SHARDS=3` gate, push main, stills to the owner. cameras_w8.json headers conflict between rc5
+  branches: keep one header and every row.
 
 ## 0000000000. Fleet wave 4 (2026-10-31 ~03:45 UTC; read this first, then 000000000)
 
@@ -28856,6 +28877,232 @@ driven: the film-shoot session's area); the stage walls are as they were; the tr
 share three dressings, so a long row repeats every third; the far LOD of the trailers is the old
 `lod_box` path. Checks: `tests/rc4_film_lot_checks.gd` (10). Probe: `tools/rc4_film_lot/crew_probe.tscn`.
 
+## 9mf. The refinery's road at night (refcam refinery_night follow-up, fleet wave 7, branch `wt/rc4-refinery-road`)
+
+**The camera** is wave 6's `refinery_night` (`tools/refcams/cameras_w6.json`, unchanged): the south
+street outside the plant at 22:30 clear. The brief: the foreground road read far too bright and flat
+grey against the dark plant.
+
+**Why it was grey** (found with `tools/glshot/fwd_block_shot.tscn`, which now takes `HIDE=` /
+`HIDE_CLASS=` and `LIST=`): hiding the OmniLights took the road from 161 to 106 (of 255), hiding the
+`lamp_pool` batch took it to 20. A mast-arm LED lamp stands three metres behind the camera on the south
+kerb; its pool - an UNSHADED ADDITIVE quad - and its neighbours' overlapped down the street, adding the
+same amount to tarmac and paint (so no texture and no contrast: a flat sheet), while the plant's flares
+and masts, which are not renderer lights, lit nothing outside the fence. On the way: **the refinery's
+pavement ring was invisible** - `FilmStudio._flat()` winds its quad face DOWN, so it was culled, and the
+street saw the horizon plane through a 4.5 m slot along every fence (the pale band under the fence in
+the before). The film studio uses the same function for its own ring: worth a look by whoever owns it.
+
+**What changed, in the order the eye lands** (`RcRefineryRoad`, `scripts/world/rc4_refinery_road.gd`;
+`RC4_REFINERY_ROAD=0` is the A/B of all of it):
+1. **The road takes the plant's light.** `shaders/refinery_road.gdshaderinc`, included by
+   road.gdshader behind `rr_on` (0 on every other road: they draw bit for bit as before). The flares'
+   flame bodies (`RefineryNight.flare_tips()`) and the fence-line masts (8 m inside the fence; the
+   process units' are too deep) as uniforms in TRUE world: diffuse as EMISSION x the surface's own
+   albedo (cosine over squared distance, half at `FLARE_HALF` 40 m; a mast's spill a pool by horizontal
+   distance, half at 12 m, 35 % of its floods), a patchy damp (darker, glossier), and the flames and
+   floods standing in it as glints (a normalised Blinn lobe of power 160). Dressed: every road within
+   `NEAR` 420 m of the plant's kerbs, the junction squares there, every block pavement (CityChunk's
+   per-block paving) and the refinery's pavement ring - all already one material each, so no draw call
+   is added. GDScript copy: `light_at()` (the checks hold the falloffs together).
+2. **The perimeter lamps are patchy**: a lamp within 32 m of the plant's kerbs is out on a hash
+   (`LAMP_OUT` 45 %: no pool, no omni, no halo, a dark head through street_lamp.gdshader's
+   INSTANCE_CUSTOM.b) or dim (pool x0.28, light x0.4). Three hook lines in `_add_street_lamp()`.
+3. **The pavement ring** (`ring_piece()`): wound face up, in 6 m cells (Industrial._ground_rect()'s
+   rule on Compatibility), with a kerb face down to the road along the plant's kerb.
+4. **The verge** (`verge()`): a 1.3 m strip of weedy dirt (Industrial's G_WEEDS) at the fence's foot
+   outside it and VacantKit's foxtail tufts, mustard and fennel along it, in 40 m batch cells, no
+   shadows, hashes of seed + place; none across the gate.
+5. **Soot off the flares**: `shaders/refinery_flare_smoke.gdshader`, one node a piece of
+   camera-facing puffs placed from TIME (Refinery._puff_mesh()'s layout, `add_smoke()` from
+   `Refinery.add_fx()`), leaving the top of the flame, leaning down the wind, lit orange from below by
+   the flame and dark above; in FULL chunks and RefineryFar's pieces alike.
+6. **The tanks**: their floods were an emission of sodium with no albedo and a 35 % floor on the fan
+   pattern - an even beige wash over every shell. `rc4_look` (refinery.gdshader, 0 by default; set by
+   `apply_plant()` from RefineryNight.apply()): a flood is light on the paint in a tight fan dying a
+   third of the way up, and the flares' light follows the facing more closely.
+
+**Numbers** (refcams, opengl3, refinery_night): p5/p50/p95 16/48/159 -> 14/36/102 (the road no longer a
+pale sheet); 3.82 M triangles / 1,434 draws -> 3.87 M / 1,439 (+1.4 %: the weed cells and the smoke).
+The ten original cameras, `RC4_REFINERY_ROAD=0` -> on from one tree (`refcams.py compare`): nine within
+tolerance (0-5.4 mean pixel |d|), street_noon flagged at 7.3 by a bus that was in one run only (live
+traffic); triangles -1.3 % .. +1.3 %. Forward+ (lavapipe, `tools/fwd_review_f/shoot.sh` at the eye with
+the camera's chunk and the site chunk, `BLOCKS=home EXTRA=0,-1`; 9 FULL chunks OOM-killed lavapipe): the
+road grey-green and a solid orange tank -> dark damp asphalt with a warm sheen toward the flares and
+flood fans on the tank; the glints needed `rr_glint_forward` 0.22 there (a pale sheet at the
+Compatibility gain). NEEDS MAC CHECK: the whole camera on Forward+ (only the small scene was seen).
+
+**Tools**: `tools/rc4_refinery_road/probe.tscn` (headless: the plant's rect, the perimeter roads, the
+flares and masts the road takes, `light_at()` along the south street, a lamp's state).
+
+**Checks** (`tests/rc4_refinery_road_checks.gd`, one line in smoke_test's city files): the shader
+block off by default and its falloffs the GDScript copy's; the flares and fence masts taken; the light
+falling off along the street; near roads dressed (a copy - the shared material untouched), far ones
+not; the perimeter lamps patchy and pure; the ring wound face up with its kerb faces; a FULL site chunk
+wearing it, its verge weeds; the tanks' look on; the smoke node.
+
+**Wave 8 resume** (merge of origin/main at 824c8d26): the camera unchanged (p5/p50/p95 14/36/102,
+3.91 M triangles / 1,457 draws; still `12_after_refinery_night_merged_main_w8.jpg`). Gate (SHARDS=3):
+5,810 of 5,811; the one failure pedestrian_flow's "two walkers on one line step round each other"
+(CrowdFlow's camera 160 m off), which passes alone (32 / 32): a shard-order flake, no pedestrian code
+on this branch. The refinery checks alone: 35 / 35. After merging batch 51 (8a480359) the gate
+ran clean: 5,814 of 5,814 (SHARDS=3).
+
+## 9mg. The LA River at night (wave 7 refcam4 `river_night`, branch `wt/rc4-river-night`)
+
+**The camera.** A new reference view, `river_night` in `tools/refcams/cameras_w7.json`: on the
+concrete bed beside the low flow, 65 m south of the 6th St ribbon bridge, looking up the channel
+(yaw 12, pitch 3) at its three spans, 21:30, clear, the eye 1.0 m over the bed (`[4486.6, 1.57, 262,
+12, 3]`, absolute y). `REFCAMS_JSON=tools/refcams/cameras_w7.json python3 tools/refcams/refcams.py
+run <dir> --only river_night` (~13 min on a fresh box: the city load is 11 of them). For fast work,
+`tools/glshot/fwd_block_shot.tscn` with `EYE=4486.6,-5.9,262,12,3 BLOCKS=home EXTRA="-1,-1;-1,0"`
+(y over the terrace there, 7.47 m) builds the three chunks the frame needs in two minutes on opengl3
+and fits lavapipe (Forward+) too.
+
+**What read fake** (main, `shots/rc4-river-night` 01), in the order the eye found it:
+1. The arches' LED strips lit nothing: a hairline under each rib, the rib itself the same moonlit
+   grey as the deck. The real viaduct's ribs ARE the light.
+2. The low flow was a black ribbon: the water mirrored the banks and the sky (RiverLook) but not
+   the bridge, so the camera's whole point - the lit arches in the water - was missing.
+3. Nothing under the bridge was lit: no fixtures, no pools on the bed, the banks or the piers; the
+   channel was evenly moonlit like a dim day ("day for night").
+4. The bed's ambient was the open sky's: a canyon floor at night read as bright as the street above.
+
+**What changed** (`RiverNight`, `scripts/world/river_night.gd`; `shaders/river_night.gdshaderinc`;
+the `river_night` global, default 1; `RIVER_NIGHT=0` is main bit for bit - no note, no fixtures,
+every shader branch off):
+- Every street bridge a chunk builds is NOTED (`RiverNight.note()`, one line in
+  `RiverBridges.jobs()`, both levels): its frame (origin and road direction in TRUE world, half
+  width, deck height, deck thickness, kind, the ribbon's span ends, the bed's edges, the piers). The
+  last `MAX` (6) noted go to both river materials as uniform arrays (`arrays()`, `push()`): the
+  chunks build round the player, so these are the bridges he can see. The shaders add
+  `origin_shift`.
+- **Fixtures under every deck** (`fixtures()`, a FULL job): a housing every `PITCH` 8 m over the
+  bed along both fascias, its lens on the river's lamp material (LED on the ribbon, warm on the
+  older bridges). `rn_light()` lights the concrete from those same points (downlights: a cone
+  aimed down, inverse square) - pools on the bed, the banks' feet and the piers, and on the low flow.
+- **The ribbon's ribs washed by their LEDs** (`rn_rib_glow()`, kind 5 concrete): the rib's centre
+  line is RiverBridges' own (`rn_rib()` = `RiverNight.rib_at()`: rise, lean, span ends), the LED
+  side (under the soffit) bright, the top softer.
+- **The water mirrors the bridges** (`rn_mirror()` in river_water.gdshader's night branch): the
+  reflected ray is intersected with the near rib's leaning plane, the near fascia and the far rib;
+  rib bodies, LED lines, deck lamp heads (each kind's height and spacing), the fixtures and the
+  fascia's lit foot; a hit the bank's slope stands in front of is dropped; the lines widen with the
+  ray's length and the riffles. The mirror ray takes a third of the riffles (`n2`): with all of
+  them a lit arch broke into white specks. The mirrored BANKS also take the fixtures' light
+  (`rw_mirror()` gained `wp` / `night`; by day it is the same arithmetic).
+- **The damp silt mirrors faintly** (river_concrete, kind 1, `wet_band`): the lit lines only, wide.
+- **The canyon floor's ambient** is held down after dark (`AO` 0.62 on the bed and notch, up a
+  bank to 1 by 6 m; `AO_LIGHT_AFFECT` 0 so the fixtures and the moon are untouched).
+Day is untouched: every block is behind `lamp_factor > 0.01` (a storm by day lights the fixtures,
+like the street lamps).
+
+**Cost** (the refcam's own GEO, opengl3): 3,333,429 tris / 1,041 draws / 760,675 shadow ->
+3,319,466 / 1,034 / 754,075 (two loads; within load noise: the fixtures are boxes in the chunk's
+existing Industrial walls mesh and quads in its lamp mesh, no new draw). Shader cost: up to six
+bridges a fragment, each rejected by distance first; the mirror only on water and damp silt.
+
+**Checks** `tests/rc4_river_night_checks.gd` (11): the gates, the include's numbers and rib
+against RiverNight / RiverBridges, the 6th St chunk noting its ribbon bridge and both materials
+carrying it, the fixtures over the bed, the empty table, the camera row on the bed facing the bridge.
+
+**Not done / not verified.** The arches' wash is uniform along each rib (the real viaduct's LEDs
+change colour; this is white); the downstream / upstream bridges reflect only where their rays
+are not under the banks; the far mountains read warm brown at night in the full city (not this
+area: the horizon plane). Mirrors of other lit things (the bank-road lamps) are not traced.
+## 9d?. The Mac launch: a frame for the whole load, the 3D held while Metal compiles, sound after the picture (fleet wave 8, infra `mac-launch`, 2026-11-05)
+
+**For the owner, in plain words.** After this, you see the RANDO loading screen within a second
+or two of pressing Play, with a moving bar, a clock and a counter, and no sound until the city
+appears. The first launch after an update is still the slow one, because your Mac builds every
+shader once: expect several minutes, with "COMPILING SHADERS (FIRST LAUNCH ONLY)" counting up.
+The second launch of the same build skips that and should be much shorter. If the Godot editor
+itself sits on "Importing" after you pull a lot of changes, that is the editor's own one-off
+re-import of the assets, before the game starts; let it finish once.
+
+**The owner's report** (main 2f2fb8f5, Godot 4.7.2 editor on a Mac Studio M2 Max, 32 GB, macOS
+14.2.1, Play): "it took 5 minutes for the Godot player to just show the Godot logo and then 5
+minutes later I can hear sounds of the world but still just the Godot logo, and now 10 minutes of
+just sound, no video". The ask: playable, no quality cut at all.
+
+**What froze the window** (read off the code and Godot 4.7.2's source, measured here):
+1. **No frame before the loading screen.** Loading `city.tscn` as the main scene compiles every
+   script (~650; the class graph is one big cycle), then `CityStreamer._ready()` runs the macro map,
+   the bake, the far landmarks, 18 FULL + 129 LOD chunks and the near far city in ONE call: 117 s
+   on this 4-core box cold (headless baseline, below) with no frame presented.
+2. **Every loading-screen frame drew the whole 3D city behind the shade.** On Forward+ / Metal a
+   draw waits for the ubershader pipeline of each surface it draws (`PipelineHashMapRD::get_pipeline
+   (wait = true)`); a first launch has none, so the first frame after the city existed waited for
+   thousands of pipelines, and every later frame for whatever streamed in since. That is the "10
+   minutes of sound, no video".
+3. **Ambience started in its `_ready()`** under all of it (the audio thread plays on).
+4. **`Quality` measured FPS through the loading screen** (seconds a frame) and stepped HIGH ->
+   MEDIUM -> LOW -> LOWEST before play began: a silent quality cut, and every step changed the
+   pipeline set again.
+
+**What changed.**
+- `LoadPulse` (`scripts/util/load_pulse.gd`): the loading art on its own RenderingServer canvas
+  (layer 129, the same wordmark, step, bar and a clock), presented by `tick()` with
+  `RenderingServer.force_draw()` once `interval_ms` (80) has gone by, from inside the long loops:
+  `MacroMap.raw_height_at()` (every terrain-heavy stage goes through it: the macro map's ridges,
+  the bake, the far rocks), `CityChunk.build()`, the far landmarks, `Skyline.build_near()`, every
+  `LoadClock` stage. `DisplayServer.process_events()` with it (no spinning cursor). Main thread
+  only; inactive (one bool) headless, on the web, under `--noload` / `--nohud`, `LOAD_PULSE=0`.
+- **Shaders compiled one a frame, at boot** (RenderingDevice renderers; `LoadPulse.keep_shaders()`
+  / `compile_shaders()`). Read off `shader_rd.cpp` / `material_storage.cpp`: loading a Shader only
+  stores its code; its variants are compiled the first time a SURFACE using it is processed
+  (`ShaderData::is_valid()` -> `ShaderRD::version_is_valid()`), and the main thread waits there
+  (`_compile_ensure_finished`) while the variants run on the workers. Met for the first time
+  during the city build, every new shader was a frozen frame (2-15 s each on lavapipe while the
+  landmarks built). Now the boot draws one 2 cm quad per spatial shader into a private 4 px
+  viewport, one a frame, with "n / N shaders" on the picture: the same compile work, each frame
+  waiting for one shader. Two tries that did NOT work, kept in the comments: loading all shaders
+  at once (nothing compiles until first use), and handing all pipelines to the workers while
+  building (a new material's shader then waited behind the whole queue).
+- **The 3D held off.** While loading, the window's `disable_3d` is on: no loading-screen frame draws
+  the city. Godot's Forward+ drains its WHOLE dirty geometry list into the worker pool on any 3D
+  render, visible or not (`RenderForwardClustered::_fill_render_list` ->
+  `_update_dirty_geometry_instances`), so `feed()` (at the start of the loading screen, after the
+  city is built) switches on a 4 x 4 RS viewport of an empty scenario drawn every frame: from then
+  each frame hands every surface's pipelines to the compilers and waits for none. `settle()`
+  waits on a low-priority fence task (it runs only once every high-priority task queued before it -
+  the ubershaders - has started) with frames presented ("screen: city graphics"); `drain()` does
+  the same at the end, then the 3D comes back behind the shade until three frames are steady,
+  then the fade. Before the city exists `_prime()` draws four geometry-free frames with a 5 cm probe
+  and two tiny shadowed omnis, so every sticky global pipeline requirement (SDFGI, motion vectors,
+  normal / roughness, separate specular, probes, cube and paraboloid shadows) is set before any
+  city surface is queued. The warm-up's quads and every `.gdshader` stay referenced until the
+  drain. Reflection probes do not render while loading. Compatibility keeps its old behaviour
+  (it compiles at draw time), only the pulse's own frames skip the 3D.
+- **The sound**: the master bus is muted from the first frame to the fade.
+- **The boot scene** (`scenes/boot.tscn`, `scripts/util/boot.gd`, the main scene now): the picture
+  at 1.3 s, then the game's scripts compiled a few a frame on the main thread in dependency order,
+  then the shaders (above), then the city. Most of the game is one dependency cycle, so one `load()` still compiles 15.4 s of
+  it with the picture held still (never a splash or black). A loader THREAD was tried first and
+  dropped: CityChunk's `const BUILDING_SCENE := preload(building.tscn)` came back broken (every
+  building lot a SCRIPT ERROR) and a second run deadlocked. `BOOT_COMPILE=0` the A/B.
+- **Quality** returns at once while `LoadPulse.active` or `LoadingScreen.showing`.
+- **Reports**: `LOADING frame gap: <ms> in '<step>'` for any gap over 2 s between frames (every frame
+  counts: `frame_post_draw`), `LOADING pulse frames: ... longest gap ...`, `LOADING graphics:
+  <pipelines> pipelines queued, fence <ms>`, `LOADING memory: static / video / textures / buffers`.
+  New sub-stages of the bake: `ground: horizon tiles`, `ground: mountain occluder`, `ground: far rocks`.
+
+**Shader baking (`shader_baker/enabled`), investigated, left OFF.** Godot 4.7.2's baked Metal exports
+abort on Apple Silicon: godotengine/godot#123266 (min_macos_version_arm64 below 14; the workaround
+14.00 is unconfirmed by #124539) and #124539 ("Not enough bytes for uniform in shader container",
+4.7.0 and 4.7.2, also at 15.00; it also poisons user://shader_cache so later unbaked builds crash
+until it is deleted). Both open, no milestone. Baking also cannot run in our CI: it is not supported
+with `--headless` (no GPU), Metal needs macOS with the Metal toolchain and a GUI session with a
+RenderingDevice (a GitHub macOS runner bills ~10x a Linux minute), and it bakes only the
+intermediate shaders (MIL for Metal), never the final pipelines - the step LoadPulse now runs in the
+background. When Godot fixes those: `shader_baker/enabled=true` and `application/min_macos_version_arm64="14.00"`
+(ours is 11.00) in the macOS preset, exported from the editor on a Mac or a macOS runner without
+`--headless`; verify the `.godot/exported/<hash>/shader_baker/macOS/metal/` folder is packed.
+
+**Caches that make the second launch fast** (nothing disables them): Godot's shader cache
+(`rendering/shader_compiler/shader_cache/enabled`, default on: user://shader_cache), the driver
+pipeline cache (default on), macOS's own Metal cache, and LoadCache (the bake and the far city;
+any script change misses it - every new build's first launch is cold).
 ## 9d?. The gate's intermittent failures, wave 8 (fleet wave 8, `gate-flakes-2` resumed, branch `wt/gate-flakes-2`)
 
 The task: section 9ks's "Still open" (the follower lagging its leader, ragdoll_feel's stair roll,
@@ -28897,4 +29144,4 @@ its `SHOTGUN_CRATE` line stand (the fire is a physics tick, the cooldown runs on
 only gets shorter on a slow frame; nothing found).
 
 **Runs** (`SHARDS=3`, shuffled, ~32 min each, shards 3.2-3.7 GB RSS): 21101 (cut short by a tool
-limit at ~4,800 checks: the valet), 21202 PASSED 5,797, RUNS_HERE.
+limit at ~4,800 checks: the valet), 21202 PASSED 5,797, 21303 PASSED 5,797 (both on 7f68e37f). Final unshuffled gate on the branch merged with main (batch 53a): FINAL_HERE.
