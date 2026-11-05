@@ -354,3 +354,9 @@ func _round9() -> void:
 	_t._check(Blast4.flash_night() <= 1.0 and Blast4.flash_night() >= Blast4.night_flash - 0.001
 		and Blast4.fire_night_gain() >= 1.0 and Blast4.fire_night_range() >= 1.0,
 		"explosions_4: night holds the flash down and lifts the fires (%.2f, %.2f)" % [Blast4.flash_night(), Blast4.fire_night_gain()])
+	var vm := ShaderMaterial.new()
+	vm.shader = load("res://shaders/blast_volume.gdshader")
+	Blast4.dress_volume(vm, true, false)
+	_t._check(float(vm.get_shader_parameter("night4")) == (1.0 if Blast4.night_enabled else 0.0)
+		and FileAccess.get_file_as_string("res://scripts/weapons/blast_debris.gd").contains("air_points.append(p.pos)"),
+		"explosions_4: night darkens the smoke's crowns; flying debris streaks, landed debris stands in tongues")
