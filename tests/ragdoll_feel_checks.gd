@@ -39,7 +39,8 @@ func run(t: Node, city: Node3D) -> void:
 	await _check_stagger(city, await _home(city, chunk))
 	await _check_trailing(city, await _home(city, chunk))
 	await _check_car(city, await _home(city, chunk))
-	await _check_stairs(city, await _home(city, chunk))
+	for r in maxi(int(OS.get_environment("RF_REPEAT")), 1):
+		await _check_stairs(city, await _home(city, chunk))
 	await _check_switch(city, await _home(city, chunk))
 	RagdollJoints.enabled = was[0]
 	RagdollJoints.joint_range = was[1]
@@ -247,6 +248,8 @@ func _check_stairs(city: Node3D, chunk: Node3D) -> void:
 	var froze_at := -1
 	var fastest := 0.0
 	var last := doll._pelvis()
+	# The doll's path, printed when it fails (shuffled gate 15202: it never left the top step).
+	var strace: Array = ["knock at %s, time %.2f, physics %d tps" % [doll._pelvis() - ground, Engine.time_scale, Engine.physics_ticks_per_second]]
 	for i in int((RagdollJoints.settle_max + 1.0) * 60.0):
 		await _ticks(1)
 		if not is_instance_valid(doll):
@@ -257,12 +260,15 @@ func _check_stairs(city: Node3D, chunk: Node3D) -> void:
 			froze_at = i
 		if j.feel != null and j.feel.rolling > 0.0:
 			rolled = true
-		if OS.get_environment("RF_DEBUG") == "1" and i % 20 == 0:
-			print("RF stairs %d hips %s frozen %s" % [i, doll._pelvis() - ground, j.frozen])
+		if i % 10 == 0:
+			strace.append("%d hips %s v %s frozen %s rolling %.2f still %.2f age %.2f" % [i, doll._pelvis() - ground, (j.parts["pelvis"] as RigidBody3D).linear_velocity if j.parts.has("pelvis") else Vector3.ZERO, j.frozen, j.feel.rolling if j.feel else -1.0, j._still, j.age])
 		if j.frozen:
 			break
 	# (Shuffled gate 15202: it stayed on the top step, 1.89 m up, never rolling: the message says
 	# when it froze and how fast the hips ever went.)
+	if not rolled or OS.get_environment("RF_DEBUG") == "1":
+		for line in strace:
+			print("RF_STAIRS ", line)
 	_check(rolled, "the doll knows it is rolling down the steps (froze at tick %d, hips at most %.1f m/s, feel %s)" % [froze_at, fastest, j.feel != null])
 	if not is_instance_valid(doll):
 		return
