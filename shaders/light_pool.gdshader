@@ -22,6 +22,9 @@ uniform float falloff : hint_range(0.5, 6.0) = 2.4;
 // the Mac (the metro kiosk's and the freeway's pools, fwd-review-e). With this on, Forward+ adds the
 // display-space amount decoded, which over a dark ground is what the opengl3 still shows.
 uniform bool display_add = false;
+// The same display-number add on Forward+ ONLY, nothing else (fwd-review-h: the bonfires' and the
+// landing lights' pools; display_add also eases the freeway's pools from the air, on both renderers).
+uniform bool display_add_fwd = false;
 // A street lamp's pool on Forward+, where the lamp's real light already lights the road (see below).
 uniform float street_forward = 0.4;
 // The night aerial review (NightAerial; NIGHT_AERIAL=0 sets the global 0): a road light's broad
@@ -118,7 +121,7 @@ void fragment() {
 		vec3 t = mix(tint * 12.92, 1.055 * pow(max(tint, vec3(0.0)), vec3(1.0 / 2.4)) - 0.055, step(vec3(0.0031308), tint));
 		ALBEDO = lp_to_linear(t * COLOR.rgb * clamp(ALPHA * street_forward, 0.0, 1.0));
 		ALPHA = 1.0;
-	} else if (display_add) {
+	} else if (display_add || display_add_fwd) {
 		// tint arrives decoded here (source_color): back to display numbers, the add, then decoded.
 		vec3 t = mix(tint * 12.92, 1.055 * pow(max(tint, vec3(0.0)), vec3(1.0 / 2.4)) - 0.055, step(vec3(0.0031308), tint));
 		ALBEDO = lp_to_linear(t * COLOR.rgb * clamp(ALPHA, 0.0, 1.0));

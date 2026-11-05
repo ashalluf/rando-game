@@ -14,3 +14,16 @@ static func param(mat: ShaderMaterial, name: String, fallback: float = 0.0) -> f
 	if v is float or v is int or v is bool:
 		return float(v)
 	return fallback
+
+
+## A broad additive pool on light_pool.gdshader added in DISPLAY numbers on Forward+
+## (`display_add_fwd`: fwd-review-e's `display_add` conversion, as the freeway's and the port's pools
+## have, without display_add's ease from the air): on the default path the tint is added
+## in linear HDR, so a pool's faint tail (a few % of its centre) shows several times stronger on the
+## Mac than in the opengl3 stills it was tuned on, and the pool spreads into a flat carpet (the
+## bonfires' firelight across the whole beach, the landing lights' pool down the runway).
+## Compatibility is untouched (the shader's branch is Forward+ only). Returns the mesh.
+static func display_pool(mesh: Mesh) -> Mesh:
+	if enabled and mesh != null and mesh.surface_get_material(0) is ShaderMaterial:
+		(mesh.surface_get_material(0) as ShaderMaterial).set_shader_parameter("display_add_fwd", true)
+	return mesh
