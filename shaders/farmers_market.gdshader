@@ -95,7 +95,9 @@ void fragment() {
 	float px = length(fwidth(v_local));
 	if (code == 2) {
 		// Aluminium and steel: a fine brushed grain, a few scuffs.
-		float g = mix(fm_noise(vec2(v_local.y * 90.0, v_local.x * 4.0 + v_local.z * 4.0)), 0.5, smoothstep(0.004, 0.02, px));
+		// The grain runs along a tube: the legs are upright, so it changes fast round them and slowly
+		// up them (it ran across them, and the near leg was a stack of ripples).
+		float g = mix(fm_noise(vec2((v_local.x + v_local.z) * 90.0, v_local.y * 3.0)), 0.5, smoothstep(0.004, 0.02, px));
 		rough = clamp(rough + (g - 0.5) * 0.2, 0.15, 0.9);
 		base *= 0.94 + 0.08 * g;
 	} else if (code == 4) {

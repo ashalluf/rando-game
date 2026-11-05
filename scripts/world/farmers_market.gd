@@ -73,8 +73,10 @@ const HOURS := [6.3, 7.4, 13.1, 14.3]
 const HOURS_JITTER := 0.45
 ## Kinds of stall: produce, flowers, bread, pantry (honey, jam, eggs).
 const KIND_ODDS := [0.58, 0.15, 0.15, 0.12]
-## Most shoppers a market has at its busiest (in the crowd cap), and by the hour (peak 9-11).
-const MAX_SHOPPERS := 34
+## Most shoppers a market has at its busiest (in the crowd cap), and by the hour (peak 9-11). 46,
+## not 34: at 10:00 on a Saturday 34 along a 100 m aisle left the near aisle empty (refcam
+## farmers_market, 2026-11-05).
+const MAX_SHOPPERS := 46
 const SHOPPER_KEYS := [[6.5, 0.0], [7.5, 0.25], [8.5, 0.75], [9.5, 1.0], [11.0, 1.0], [12.5, 0.7], [13.3, 0.25], [14.0, 0.0]]
 ## Shoppers stop at a stall for this long (seconds), and the share who stop at a free one.
 const BROWSE_SECONDS := Vector2(10.0, 32.0)
