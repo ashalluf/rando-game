@@ -29154,7 +29154,10 @@ spray sheets; the wake is shader work on the sea's existing pixels). Luma p5/p50
 with main 2f2fb8f5): seven within tolerance; street_noon, street_night and freeway flagged by live
 traffic only (different cars and a bus in the frame; none of the three sees the sea). The beach,
 sunset and pier views are unchanged (pixel mean |d| 0.01). Gate (SHARDS=3, merged with main
-2f2fb8f5): 5,812 checks passed, 0 failed, peak 3.8 GB a shard. Checks: `tests/rc5_speedboat_checks.gd`
+2f2fb8f5): 5,812 checks passed, 0 failed, peak 3.8 GB a shard. Re-gated after merging main 50f463a4:
+5,868 passed, 2 failed - both "street closeup" (Batch_sg_plate differs with it off), in
+downtown_street_closeup_checks, which passes alone (`SMOKE_PARTS=downtown_street_closeup_checks`, 32
+of 32): a shard-order flake outside the boats. Checks: `tests/rc5_speedboat_checks.gd`
 (16: the shader default, the row, the transom per level and facing, the packing at 16 m/s, reach,
 the merge and the glow, still / marina / sinking hand none, BOAT_SEA=0, a freed boat leaves).
 
