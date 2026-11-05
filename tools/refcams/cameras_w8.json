@@ -2,6 +2,6 @@
 	"_doc": "Wave 8 reference cameras (tools/refcams/README.md), the same format as cameras.json and cameras_w7.json. One row a camera, each on its own line. Run with REFCAMS_JSON=tools/refcams/cameras_w8.json.",
 	"resolution": [1280, 720],
 	"cameras": [
-		{"name": "gas_station_night", "label": "A roadside gas station at 23:30 clear, eye level from across the street over the forecourt: the lit canopy, the pumps, a car at a pump, the store window, the empty street", "eye": [-90.0, 1.7, 506.0, -110.0, 0.0], "agl": true, "hour": 23.5, "weather": "clear", "fov": 55, "pump_car": 1}
+		{"name": "gas_station_night", "label": "A roadside gas station at 23:30 clear, eye level from across the street over the forecourt: the lit canopy, the pumps, a car at a pump, the store window, the empty street", "eye": [-84.5, 1.7, 507.0, -108.0, 1.5], "agl": true, "hour": 23.5, "weather": "clear", "fov": 55, "pump_car": 1}
 	]
 }
