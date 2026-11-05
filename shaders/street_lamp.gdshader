@@ -40,6 +40,8 @@ varying float glow_y;
 varying vec3 obj;
 varying vec3 paint;
 varying flat float is_led;
+// 1 for a lamp that is out (RcRefineryRoad: along the refinery's perimeter streets), else 0.
+varying flat float is_out;
 varying float age;
 
 float h31(vec3 p) {
@@ -73,6 +75,7 @@ void vertex() {
 	paint = cs_srgb_to_linear(COLOR.rgb);
 	is_led = INSTANCE_CUSTOM.r;
 	age = INSTANCE_CUSTOM.g;
+	is_out = INSTANCE_CUSTOM.b;
 }
 
 void fragment() {
@@ -84,7 +87,7 @@ void fragment() {
 	float foot = 1.0 - smoothstep(0.05, 0.9, obj.y);
 	float grime = clamp(foot * 0.7 + smoothstep(0.55, 0.85, big) * 0.35, 0.0, 1.0) * wear * (0.45 + 0.55 * age);
 	vec3 lamp = is_led > 0.5 ? led_glow : sodium_glow;
-	float on = clamp(lamp_factor, 0.0, 1.0);
+	float on = clamp(lamp_factor, 0.0, 1.0) * (1.0 - step(0.5, is_out));
 
 	vec3 alb = galv_color;
 	float rough = 0.45;
