@@ -8,3 +8,4 @@ opengl3 (Compatibility) stills from refcams.py.
 - 02_before_hospital_er_RC4_HOSPITAL0.jpg - the final framing with the pass off (RC4_HOSPITAL=0): sign half hidden behind the fascia, court sunk under floating ambulances.
 - 03_after_hospital_er.jpg - the pass on: deep red light box clear of the fascia, lit soffit and LED panels, glazed ER wall, a level court deck with a lit ramp to the street.
 - 04_before_crop_court.jpg / 05_after_crop_court.jpg - the court, 1.8x.
+- 06_after_merged_main_hospital_er.jpg - the same camera after merging origin/main (2026-11-05): the pass holds.
