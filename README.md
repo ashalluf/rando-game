@@ -12,3 +12,8 @@ the 7th St terminus (`rail_at` "0:0").
 - `05_after_escalator_riders_lift_car.jpg` - closer to the bank: people standing on the escalators,
   the lift car (canopy, posts, kick plates) and the slab band in the shaft.
 - `06_after_bullet_C_on_the_car.jpg` - the car's line bullet with its "C" (rail_shot, an earlier eye; ads and the C).
+
+Wave 8 resume (merged with main b45ba911):
+- `07_after_merge_metro_station.jpg` - the camera on the merged branch, with the saloon fix.
+- `08_saloon_before_peach_after_led.jpg` - crop, left the earlier still (the car's saloon lit by the
+  golden-hour sky: peach), right now (lit by its own LED strips underground, lrv_glass `underground`).
