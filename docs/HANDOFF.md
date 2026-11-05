@@ -28853,7 +28853,8 @@ are built at the shot's hour.
    of the goods' colour, 6 x 3-segment ellipsoids, every skin smooth plastic. Now
    (`FarmersMarketKit._heap()`) round goods are a hexagonal layer a little tighter than touching
    with a second layer in its hollows over the crown, the fill darkened to read as the shadow between
-   them, 9-12 segments, a stem on lobed fruit and a five-sepal calyx on tomatoes (`_calyx()`); the
+   them, 8-10 segments (the packed first layer drawn as a two-ring cap: only its top shows between
+   its neighbours), a five-sepal calyx on tomatoes (`_calyx()`); the
    shader's `skin_relief` adds a derivative bump (`fm_bump()`: no tangents needed) - pebbly on the
    rough skins (avocado, citrus, peach: UV2.x roughness 0.42-0.62 and up), a faint dimple on the
    glossy ones - and a blush mottle across each fruit; leaves get a crinkle. Bunches and carrots keep
@@ -28876,8 +28877,8 @@ values, code 12 bulbs, 34 shoppers.
 plain ground, sun and sky, seconds a frame (`CAM`, `LOOK`, `FOV`; prints each table's triangles).
 
 **Frame cost** (the refcam's own numbers, opengl3 1280 x 720): main 6.12 M triangles, 3,407 draws,
-2.27 M shadow; after 6.50 M, 3,457, 2.45 M (+6 %: the finer produce, ~23-27k triangles a produce
-table near instead of 6-10k, and twelve more shoppers). The far level and the shadow twin are
+2.27 M shadow; after FINAL_NUMBERS. A produce table is 8-13k triangles near (6.4-10k before; the
+farmers_market_checks budget of 14k holds; a first try at 25-27k failed it). The far level and the shadow twin are
 unchanged (crates and heaps). Checks: `tests/rc5_farmers_market_checks.gd`.
 
 **Not done.** The vans behind the stalls are the road van's far twin (8k triangles) even at 3 m;

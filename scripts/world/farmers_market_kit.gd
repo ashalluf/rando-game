@@ -607,7 +607,7 @@ static func _heap(g: Geo, xf: Transform3D, inner: Vector2, rim: float, rise: flo
 			var y := lerpf(rim - 0.01, rim + rise, clampf(1.0 - d2 * 0.5, 0.0, 1.0))
 			layer.append(Vector3(uu, y, ww))
 			var cl: Color = colors[rng.randi() % colors.size()]
-			_item(g, xf, Vector3(uu, y, ww), r, shape, col(_jit(rng, cl, 0.12), code), rm, rng)
+			_item(g, xf, Vector3(uu, y, ww), r, shape, col(_jit(rng, cl, 0.12), code), rm, rng, true)
 			u += sp
 	# The second layer: in the hollow between three of the first, over the middle of the heap.
 	if shape != "leafy":
@@ -617,7 +617,7 @@ static func _heap(g: Geo, xf: Transform3D, inner: Vector2, rim: float, rise: flo
 			var u := -hx + rad * 0.85 + off
 			while u <= hx - rad * 0.5:
 				var d2 := (u / hx) * (u / hx) + (w / hz) * (w / hz)
-				if d2 < 0.45 and rng.randf() < 0.8:
+				if d2 < 0.45 and rng.randf() < 0.7:
 					var y := lerpf(rim - 0.01, rim + rise, clampf(1.0 - d2 * 0.5, 0.0, 1.0)) + r.y * 1.25
 					var cl: Color = colors[rng.randi() % colors.size()]
 					_item(g, xf, Vector3(u, y, w), r, shape, col(_jit(rng, cl, 0.12), code), rm, rng)
@@ -626,7 +626,12 @@ static func _heap(g: Geo, xf: Transform3D, inner: Vector2, rim: float, rise: flo
 
 
 ## One piece of produce at `p` (crate frame) of radii `r`.
-static func _item(g: Geo, xf: Transform3D, p: Vector3, r: Vector3, shape: String, cl: Color, rm: Vector2, rng: RandomNumberGenerator) -> void:
+## `buried` (RC5_MARKET: the packed first layer): only the top of it shows between its neighbours,
+## so it is drawn as a cap to just past its equator in two rings (the budget: a produce table stays
+## under 14k triangles near with twice the fruit).
+static func _item(g: Geo, xf: Transform3D, p: Vector3, r: Vector3, shape: String, cl: Color, rm: Vector2, rng: RandomNumberGenerator, buried: bool = false) -> void:
+	var rings := 2 if buried and rc5 else 3
+	var cap := 0.56 * PI if buried and rc5 else 0.62 * PI
 	var yaw := rng.randf() * TAU
 	var tilt := Basis(Vector3(rng.randf() - 0.5, 0, rng.randf() - 0.5).normalized(), rng.randf_range(0.0, 0.35)) if shape != "bunch" and shape != "carrot" else Basis()
 	var b := xf.basis * Basis(Vector3.UP, yaw) * tilt
@@ -634,20 +639,18 @@ static func _item(g: Geo, xf: Transform3D, p: Vector3, r: Vector3, shape: String
 	var stem := col(Color(0.22, 0.32, 0.1), C_LEAF)
 	match shape:
 		"sphere":
-			g.ellipsoid(Transform3D(b, at), r, 9 if rc5 else 6, 4 if rc5 else 3, cl, rm, 0, 0.0, 0.0, 0.62 * PI)
+			g.ellipsoid(Transform3D(b, at), r, 8 if rc5 else 6, rings, cl, rm, 0, 0.0, 0.0, cap)
 			if rc5 and is_equal_approx(cl.a * 20.0, C_PRODUCE) and r.y < 0.034:
 				# A tomato's green calyx: a few sepals round the stem.
 				_calyx(g, at + b * Vector3(0, r.y * 0.97, 0), b, r.x * 0.55, rng)
 		"oval":
-			g.ellipsoid(Transform3D(b, at), r, 9 if rc5 else 7, 4 if rc5 else 3, cl, rm, 0, 0.0, 0.0, 0.62 * PI)
+			g.ellipsoid(Transform3D(b, at), r, 8 if rc5 else 7, rings, cl, rm, 0, 0.0, 0.0, cap)
 		"pear":
-			g.ellipsoid(Transform3D(b * Basis(Vector3.RIGHT, PI * 0.5), at), Vector3(r.x, r.z, r.y), 9 if rc5 else 6, 6 if rc5 else 5, cl, rm, 0, 0.0, 0.28)
+			g.ellipsoid(Transform3D(b * Basis(Vector3.RIGHT, PI * 0.5), at), Vector3(r.x, r.z, r.y), 8 if rc5 else 6, 4 if buried and rc5 else 5, cl, rm, 0, 0.0, 0.28)
 		"lobed":
-			g.ellipsoid(Transform3D(b, at), r, 12 if rc5 else 8, 4 if rc5 else 3, cl, rm, 4, 0.1, 0.0, 0.62 * PI)
-			if rc5:
-				g.bar(at + b * Vector3(0, r.y * 0.9, 0), at + b * Vector3(0.004, r.y * 1.18, 0), 0.006, stem, Vector2(0.7, 0))
+			g.ellipsoid(Transform3D(b, at), r, 10 if rc5 else 8, rings, cl, rm, 4, 0.1, 0.0, cap)
 		"pepper":
-			g.ellipsoid(Transform3D(b, at), r, 9 if rc5 else 6, 4 if rc5 else 3, cl, rm, 3, 0.18, 0.12, 0.62 * PI)
+			g.ellipsoid(Transform3D(b, at), r, 8 if rc5 else 6, rings, cl, rm, 3, 0.18, 0.12, cap)
 			g.bar(at + b * Vector3(0, r.y * 0.85, 0), at + b * Vector3(0.008, r.y * 1.25, 0), 0.01, stem, Vector2(0.7, 0))
 		"leafy":
 			# A head of lettuce: three crumpled shells, the outer ones open and a shade darker.
@@ -675,7 +678,7 @@ static func _item(g: Geo, xf: Transform3D, p: Vector3, r: Vector3, shape: String
 			g.bar(at + b * Vector3(0, 0, r.z * 0.95), at + b * Vector3(0, 0.01, r.z * 1.15), 0.014, col(Color(0.5, 0.45, 0.3), C_WOOD), Vector2(0.8, 0))
 
 
-## A tomato's calyx: five thin green sepals star-shaped round the stem, a stub of stem.
+## A tomato's calyx: five thin green sepals star-shaped round the stem.
 static func _calyx(g: Geo, top: Vector3, b: Basis, reach: float, rng: RandomNumberGenerator) -> void:
 	var leaf := col(Color(0.2, 0.36, 0.1), C_LEAF)
 	var rm := Vector2(0.7, 0.0)
@@ -687,7 +690,6 @@ static func _calyx(g: Geo, top: Vector3, b: Basis, reach: float, rng: RandomNumb
 		var side := b * Vector3(-sin(a), 0.0, cos(a))
 		var tip := top + d * reach - up * reach * 0.25
 		g.tri(top - side * reach * 0.18, top + side * reach * 0.18, tip, up, leaf, rm)
-	g.bar(top, top + up * 0.01, 0.004, leaf, rm)
 
 
 ## A tapering cone from `a` (wide end, radius r) to `e` (the tip).

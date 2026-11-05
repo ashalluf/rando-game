@@ -12,7 +12,7 @@ extends RefCounted
 var _t: Object
 
 ## Triangles a produce table may hold near.
-const TABLE_BUDGET := 30000
+const TABLE_BUDGET := 14000
 
 
 func run(t: Object, city: Node3D) -> void:
@@ -67,7 +67,7 @@ func _produce() -> void:
 	var worst := 0
 	for v in int(FarmersMarketKit.VARIANTS[0]):
 		worst = maxi(worst, _tris(FarmersMarketKit.goods(0, v)))
-	_t._check(worst > 12000 and worst < TABLE_BUDGET,
+	_t._check(worst > 10000 and worst < TABLE_BUDGET,
 		"rc5-farmers-market: produce tables are finer and packed, under budget (%d near, budget %d)" % [worst, TABLE_BUDGET])
 	# A crate's heap: count the fruit in one oranges crate on the old and the new path.
 	var counts := []
