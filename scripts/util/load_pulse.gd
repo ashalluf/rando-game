@@ -274,6 +274,9 @@ static func tick(force: bool = false) -> void:
 	_last_us = Time.get_ticks_usec()
 	pulses += 1
 	pulse_usec += _last_us - t
+	# LOAD_PULSE_SHOT=<png>: the picture saved once, at the 200th pulse (a still for the docs).
+	if pulses == 200 and OS.get_environment("LOAD_PULSE_SHOT") != "" and is_instance_valid(_root):
+		_root.get_texture().get_image().save_png(OS.get_environment("LOAD_PULSE_SHOT"))
 
 
 ## Redraws the loading picture (no present: the normal frame or tick() presents it).
