@@ -27,6 +27,9 @@ static var _mat: StandardMaterial3D
 var _pieces: Array = [] # {node, pos, vel, spin, axis, landed, burn, t}
 var _flames: CPUParticles3D
 var _trail: CPUParticles3D
+## Round 10: the flames of pieces still in flight - short fire puffs dropped behind them, a
+## streak along the path (tongues standing up off a flying piece read as floating candles).
+var _flames_air: CPUParticles3D
 var _done := false
 var _age := 0.0
 ## Pieces flying or burning (not yet out).
@@ -125,6 +128,15 @@ func _throw(radius: float, push: float, count: int) -> void:
 		_flames.spread = 20.0
 		_flames.angle_min = 0.0
 		_flames.angle_max = 0.0
+	if Blast4.tongues() and Blast4.debris_streaks:
+		_flames_air = _emitter(count * 30, 0.22, WeaponFX._fire_material())
+		_flames_air.scale_amount_min = 0.22 * k
+		_flames_air.scale_amount_max = 0.42 * k
+		_flames_air.gravity = Vector3.ZERO
+		_flames_air.initial_velocity_max = 0.3
+		_flames_air.color_ramp = WeaponFX._ramp([Color(2.4, 1.5, 0.5, 1.0), Color(1.8, 0.85, 0.16, 0.85),
+			Color(0.7, 0.22, 0.05, 0.45), Color(0.06, 0.05, 0.04, 0.0)])
+		_grow(_flames_air, 1.3)
 	# The smoke trail: lit puffs left hanging where the piece was, growing and fading.
 	_trail = _emitter(count * (44 if Blast4.enabled and Blast4.debris_chunks else 26), 2.4, BlastFX.smoke_material())
 	_trail.scale_amount_min = 0.55 * k
@@ -149,7 +161,7 @@ func _throw(radius: float, push: float, count: int) -> void:
 		_ribbon.global_transform = Transform3D(Basis(), global_position)
 		for i in _pieces.size():
 			_rib_hist.append([])
-	for e: CPUParticles3D in [_flames, _trail]:
+	for e: CPUParticles3D in ([_flames, _trail, _flames_air] if _flames_air != null else [_flames, _trail]):
 		e.custom_aabb = AABB(Vector3(-reach, -reach, -reach), Vector3(reach, reach, reach) * 2.0)
 		e.emission_points = PackedVector3Array([Vector3.ZERO])
 		e.emitting = true
@@ -191,6 +203,7 @@ func _physics_process(dt: float) -> void:
 	_age += dt
 	var space := get_world_3d().direct_space_state if is_inside_tree() else null
 	var points := PackedVector3Array()
+	var air_points := PackedVector3Array()
 	var burning := 0
 	for p: Dictionary in _pieces:
 		if p.out:
@@ -248,7 +261,10 @@ func _physics_process(dt: float) -> void:
 			var tw := mi.create_tween()
 			tw.tween_property(mi, "scale", mi.scale * 0.6, 1.5)
 			continue
-		points.append(p.pos)
+		if _flames_air != null and not p.landed:
+			air_points.append(p.pos)
+		else:
+			points.append(p.pos)
 		burning += 1
 	if burning == 0:
 		_done = true
@@ -256,12 +272,19 @@ func _physics_process(dt: float) -> void:
 			_ribbon.visible = false
 		_flames.emitting = false
 		_trail.emitting = false
+		if _flames_air != null:
+			_flames_air.emitting = false
 		var t := create_tween()
 		t.tween_interval(_trail.lifetime * 1.4 + 1.6)
 		t.tween_callback(queue_free)
 		return
-	_flames.emission_points = points
-	_trail.emission_points = points
+	_flames.emission_points = points if points.size() > 0 else PackedVector3Array([Vector3(0.0, -1000.0, 0.0)])
+	_flames.emitting = points.size() > 0
+	_trail.emission_points = points + air_points
+	if _flames_air != null:
+		_flames_air.emitting = air_points.size() > 0
+		if air_points.size() > 0:
+			_flames_air.emission_points = air_points
 	if _ribbon != null:
 		_ribbons(dt)
 
