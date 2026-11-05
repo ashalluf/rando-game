@@ -610,7 +610,7 @@ static func _item(g: Geo, xf: Transform3D, p: Vector3, r: Vector3, shape: String
 	match shape:
 		"sphere":
 			g.ellipsoid(Transform3D(b, at), r, 9, 4, cl, rm, 0, 0.0, 0.0, 0.62 * PI)
-			if code == C_PRODUCE and r.y < 0.034:
+			if is_equal_approx(cl.a * 20.0, C_PRODUCE) and r.y < 0.034:
 				# A tomato's green calyx: a few sepals round the stem.
 				_calyx(g, at + b * Vector3(0, r.y * 0.97, 0), b, r.x * 0.55, rng)
 		"oval":
@@ -808,7 +808,39 @@ static func _stock(g: Geo, rng: RandomNumberGenerator, wood: Color) -> void:
 	g.abox(Vector3(cx, 0.17, -1.1), Vector3(0.6, 0.34, 0.4), col(Color(0.2, 0.36, 0.62), C_FIXED), Vector2(0.45, 0))
 	g.abox(Vector3(cx, 0.355, -1.1), Vector3(0.62, 0.04, 0.42), col(Color(0.92, 0.92, 0.9), C_FIXED), Vector2(0.45, 0))
 	for k in 2:
-		g.box(Transform3D(Basis(Vector3.UP, rng.randf_range(-0.2, 0.2)), Vector3(cx + rng.randf_range(-0.2, 0.2), 0.39 + 0.15 + k * 0.3, -1.1)), Vector3(0.45, 0.3, 0.32), col(Color(0.66, 0.5, 0.33), C_CARD), Vector2(0.95, 0))
+		_carton(g, Transform3D(Basis(Vector3.UP, rng.randf_range(-0.2, 0.2)), Vector3(cx + rng.randf_range(-0.2, 0.2), 0.39 + 0.15 + k * 0.3, -1.1)), Vector3(0.45, 0.3, 0.32), Color(0.66, 0.5, 0.33), rng)
+
+
+## A produce carton through `xf` (its centre) of `size`: the kraft box, and near only the flap
+## seam across the lid, packing tape over it and down both ends, a grower's print on the long
+## faces (a band and a block of ink) and a hand hole in each end. Plain kraft boxes read as
+## untextured blocks from the aisle (refcam farmers_market, 2026-11-05).
+const CARTON_INKS := [Color(0.12, 0.3, 0.16), Color(0.55, 0.1, 0.08), Color(0.1, 0.16, 0.36), Color(0.16, 0.14, 0.12)]
+
+
+static func _carton(g: Geo, xf: Transform3D, size: Vector3, kraft: Color, rng: RandomNumberGenerator) -> void:
+	var rm := Vector2(0.95, 0.0)
+	g.box(xf, size, col(_jit(rng, kraft, 0.05), C_CARD), rm)
+	var h := size * 0.5
+	var e := 0.002
+	g.mode = 1
+	# The flap seam: a dark line across the lid, then the tape over it and down the ends.
+	g.box(xf * Transform3D(Basis(), Vector3(0, h.y + e * 0.5, 0)), Vector3(size.x + 0.002, e, 0.006), col(kraft.darkened(0.6), C_FIXED), rm)
+	var tape := col(Color(0.78, 0.62, 0.38), C_FIXED)
+	var rm_tape := Vector2(0.3, 0.0)
+	g.box(xf * Transform3D(Basis(), Vector3(0, h.y + e, 0)), Vector3(size.x + 0.004, e, 0.05), tape, rm_tape)
+	for sx: float in [-1.0, 1.0]:
+		g.box(xf * Transform3D(Basis(), Vector3(sx * (h.x + e * 0.5), h.y - 0.04, 0)), Vector3(e, 0.08, 0.05), tape, rm_tape)
+		# A hand hole in the end.
+		g.box(xf * Transform3D(Basis(), Vector3(sx * (h.x + e * 0.4), h.y * 0.45, 0)), Vector3(e, 0.03, 0.09), col(Color(0.06, 0.05, 0.04), C_FIXED), rm)
+	# The print: a band round the bottom and a block with the grower's mark on each long face.
+	var ink: Color = CARTON_INKS[rng.randi() % CARTON_INKS.size()]
+	for sz: float in [-1.0, 1.0]:
+		var face := xf * Transform3D(Basis(), Vector3(0, 0, sz * (h.z + e * 0.5)))
+		g.box(face * Transform3D(Basis(), Vector3(0, -h.y + 0.035, 0)), Vector3(size.x - 0.02, 0.03, e), col(ink, C_FIXED), rm)
+		g.box(face * Transform3D(Basis(), Vector3(rng.randf_range(-0.05, 0.05), h.y * 0.25, 0)), Vector3(size.x * 0.45, size.y * 0.32, e), col(ink, C_FIXED), rm)
+		g.box(face * Transform3D(Basis(), Vector3(0, h.y * 0.25, sz * e)), Vector3(size.x * 0.32, size.y * 0.08, e), col(kraft, C_CARD), rm)
+	g.mode = 0
 
 
 ## A hanging-pan produce scale on the table.
@@ -1052,7 +1084,7 @@ static func packed(variant: int) -> Mesh:
 			_crate(g, xf, Vector3(0.43, 0.2, 0.62), _jit(rng, wood, 0.08))
 	# Cardboard boxes and a cooler.
 	for k in 3:
-		g.box(Transform3D(Basis(Vector3.UP, rng.randf_range(-0.3, 0.3)), Vector3(-0.2 + k * 0.42, 0.15, 0.55)), Vector3(0.42, 0.3, 0.32), col(Color(0.64, 0.49, 0.33), C_CARD), Vector2(0.95, 0))
+		_carton(g, Transform3D(Basis(Vector3.UP, rng.randf_range(-0.3, 0.3)), Vector3(-0.2 + k * 0.42, 0.15, 0.55)), Vector3(0.42, 0.3, 0.32), Color(0.64, 0.49, 0.33), rng)
 	g.abox(Vector3(1.0, 0.17, 0.45), Vector3(0.6, 0.34, 0.4), col(Color(0.2, 0.36, 0.62), C_FIXED), Vector2(0.45, 0))
 	var mesh := g.commit()
 	_meshes[key] = mesh

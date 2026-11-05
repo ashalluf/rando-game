@@ -13,6 +13,10 @@ func _initialize() -> void:
 	# The kit names classes that use autoloads: load it by path once they exist.
 	await process_frame
 	var kit: GDScript = load("res://scripts/world/farmers_market_kit.gd")
+	if kit == null or not kit.can_instantiate():
+		push_error("kit_shot: the kit does not compile")
+		quit(1)
+		return
 	var stage := Node3D.new()
 	get_root().add_child(stage)
 	var env := WorldEnvironment.new()
