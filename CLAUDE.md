@@ -4653,6 +4653,13 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   are baked `SkaterPerson` figures that wake into live people when hit or near gunfire.
   `SKATE_PARK=0` is the A/B, `SKATE_T=` / `SKATE_HOLD=1` the clock, `SKATE_DEBUG=1` prints EYEs;
   probe `tools/skate_park/probe.gd`; checks `tests/skate_park_checks.gd`.
+- The skate park refcam (wave 8, `skate_park` in `tools/refcams/cameras_w8.json`, docs/HANDOFF.md
+  "THE PIT at 16:30 from the deck"): `RcSkatePark` (`scripts/world/rc5_skate_park.gd`) -
+  skate_park.gdshader's `look5` (used concrete: pours, the wheel-rubber band, floor grime, a waxed
+  coping, dirt round the lip), the pool air `POOL_AIR` over the coping, the boardwalk's painted
+  boards / murals lit (`paint()`; they were unshaded). A row's `skate_t` holds SkateParkLife's
+  clock; `tools/rc5_skate_park/air_probe.gd` lists air times. `RC5_SKATE=0` the A/B; checks
+  `tests/rc5_skate_park_checks.gd`.
 - Pier park (2026-10-05, "an amusement park on a pier, Santa Monica-style, original"; HANDOFF 9ca):
   RANDO PIER (the `pier` landmark, (-940, -350)) is `PierPark` (`scripts/world/pier_park.gd`):
   the pier plus GULLWING PARK on a platform off its south side. Everything sits in the PARK'S

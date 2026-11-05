@@ -168,3 +168,11 @@ for a run. `stack_aerial` (rc4-stack-aerial): the four-level stack from 150 m ov
 north-west of it, 17:30 clear, toward downtown; `shot_frames` 90 lets the connectors' traffic fill
 before the shot.
 
+
+## Wave 8's cameras (`cameras_w8.json`)
+
+Run with `REFCAMS_JSON=tools/refcams/cameras_w8.json`. `skate_park` (rc5-skate-park): THE PIT at
+16:30 clear, eye level on the high deck west of the pool looking north-east over it to the boardwalk.
+Its optional `skate_t` key holds SkateParkLife's clock (seconds, the riders held: `_skate_clock()` in
+refcams_shot.gd, as SKATE_T= / SKATE_HOLD=1), so the first pool rider is at the top of his
+frontside air over the far coping. `tools/rc5_skate_park/air_probe.gd` lists every rider's air times.

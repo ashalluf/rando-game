@@ -4492,3 +4492,12 @@ none of either.
   per variant and batched, never per copy; a studio keeps its asphalt (the industrial ground with
   `kept`, worn only by tyre tracks); the basecamp's gaps hold carts and the doors chairs, from the
   layout alone, after every roll; the lot's walkers mostly wear crew blacks. RC4_FILM_LOT=0 is the A/B.
+- **2026-11-05 The skate park refcam: used concrete and lit paint (rc5-skate-park, HANDOFF "THE PIT
+  at 16:30 from the deck").** A new reference camera (`skate_park`, wave 8's table
+  `tools/refcams/cameras_w8.json`) stands on THE PIT's high deck by the pool at 16:30, a skater
+  held mid-air over the far coping (the row's `skate_t`), the boardwalk and its palms behind.
+  Decisions: a skate park's concrete is never clean - a cooler grey shotcrete with pours, a
+  broad band of wheel rubber round the transition that reads from across the park, grime at the
+  floor, a waxed coping and dirt round the lip on the deck; an air clears the coping by most of a
+  metre or it reads as standing; painted signs and murals are LIT paint (they were unshaded,
+  flat glowing colour). RC5_SKATE=0 is the A/B.
