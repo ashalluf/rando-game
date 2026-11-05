@@ -451,13 +451,13 @@ void fragment() {
 		albedo = mix(albedo, vec3(0.30, 0.31, 0.32), mull);
 		emit *= 1.0 - mull;
 		rough = mix(0.06, 0.6, max(mull, film));
-		// Float glass is a mirror: a lamp across the street is a small hard highlight in it, not a
-		// soft round bloom the size of a bay (ConstructionDusk).
-		if (dusk_glass) {
-			rough = mix(0.025, 0.6, max(mull, film));
-		}
 		metal = mix(0.2, 0.4, mull);
 		spec = 0.8;
+		// The mirror is emitted above, so the dusk glass keeps only a quarter of the renderer's own
+		// lobe (a light's highlight on it was a bright disc the size of a bay).
+		if (dusk_glass) {
+			spec = mix(0.2, 0.8, max(mull, film));
+		}
 	} else if (k == 12) {
 		// A lamp: the aviation obstruction lights (red), work lights; dim by day, lit after dark.
 		albedo = paint * 0.3;
