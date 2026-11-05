@@ -369,11 +369,19 @@ static var night_fire_range: float = 1.7
 ## Debris in flight streaks fire behind it; the tongues stand up once it lands
 ## (BlastDebris._flames_air). BLAST_STREAKS=0 is the A/B.
 static var debris_streaks: bool = OS.get_environment("BLAST_STREAKS") != "0"
+## Round 11: the shock ring on the ground (`ground_ring()`, what reads from the air) and a blast
+## against a wall (`wall_blast()`: smoke pouring from the hole, masonry and glass raining down).
+## BLAST_RING=0 / BLAST_WALL=0 are the A/Bs.
+static var ring_enabled: bool = OS.get_environment("BLAST_RING") != "0"
+static var wall_enabled: bool = OS.get_environment("BLAST_WALL") != "0"
+static var wall_smoke_seconds: float = 22.0
+static var _ring_shader: Shader
 
 
 static func dust_roll(parent: Node, ground: Vector3, normal: Vector3, reach: float) -> bool:
 	if not enabled or not dust_roll_enabled or parent == null:
 		return false
+	ground_ring(parent, ground, normal, reach * 1.25)
 	if _dust_ramps.is_empty() and dark_dust:
 		# Round 8: the skirt is grime and soot-laden debris near the ground, darker and denser
 		# (the pale beige read as a sunlit cloud bank, not street filth thrown out by a blast);
@@ -879,3 +887,156 @@ static func fire_night_gain() -> float:
 ## A fire light's reach at this hour.
 static func fire_night_range() -> float:
 	return lerpf(1.0, night_fire_range, _night())
+
+
+## The shock ring: a pale ragged band of dust racing out over the ground to `reach` metres.
+static func ground_ring(parent: Node, ground: Vector3, normal: Vector3, reach: float) -> MeshInstance3D:
+	if not enabled or not ring_enabled or parent == null:
+		return null
+	if _ring_shader == null:
+		_ring_shader = preload("res://shaders/blast_ring.gdshader")
+	var m := ShaderMaterial.new()
+	m.shader = _ring_shader
+	m.set_shader_parameter("noise3d", Blast3.noise_texture())
+	m.set_shader_parameter("reach", reach)
+	m.set_shader_parameter("seed", randf() * 7.0)
+	var q := MeshInstance3D.new()
+	q.name = "BlastRing"
+	var pm := PlaneMesh.new()
+	pm.size = Vector2.ONE * reach * 2.0
+	q.mesh = pm
+	q.material_override = m
+	q.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	parent.add_child(q)
+	q.global_transform = Transform3D(WeaponFX._basis_up(normal), ground + normal * 0.12)
+	var tw := q.create_tween()
+	tw.tween_method(func(a: float): m.set_shader_parameter("age", a), 0.0, 6.0, 6.0)
+	tw.tween_callback(q.queue_free)
+	return q
+
+
+## A blast against a wall (a rocket into a facade): found by rays round the blast point, it
+## leaves smoke pouring out of the hole and up the face for `wall_smoke_seconds` (with embers),
+## and masonry chunks and glass raining from it to the street. Returns true when there was a wall.
+static func wall_blast(node: Node, parent: Node, at: Vector3, radius: float) -> bool:
+	if not enabled or not wall_enabled or not (node is Node3D) or parent == null:
+		return false
+	var space := (node as Node3D).get_world_3d().direct_space_state
+	var best := {}
+	var best_d := 2.2
+	for k in 8:
+		var a := TAU * float(k) / 8.0
+		var to := at + Vector3(cos(a), 0.0, sin(a)) * 2.2
+		var hit := space.intersect_ray(PhysicsRayQueryParameters3D.create(at, to, 1))
+		if hit.is_empty() or absf((hit.normal as Vector3).y) > 0.4:
+			continue
+		var d := at.distance_to(hit.position)
+		if d < best_d:
+			best_d = d
+			best = hit
+	if best.is_empty():
+		return false
+	var wn: Vector3 = best.normal
+	var wp: Vector3 = best.position
+	# The ground under the hole: how far the masonry falls.
+	var down := space.intersect_ray(PhysicsRayQueryParameters3D.create(wp + wn * 1.0, wp + wn * 1.0 - Vector3.UP * 80.0, 1))
+	var drop := (wp.y - (down.position as Vector3).y) if not down.is_empty() else 6.0
+	if drop < 1.5:
+		return false # a blast at the foot of a wall: the ground's own dust and rubble take it
+	var b := WeaponFX._basis_up(wn)
+	# Smoke pouring out of the hole: lit smoke leaving along the wall's normal and rising up the face.
+	var sm := CPUParticles3D.new()
+	sm.name = "WallHoleSmoke"
+	sm.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	sm.amount = WeaponFX._count(70)
+	sm.lifetime = 5.0
+	sm.lifetime_randomness = 0.35
+	sm.local_coords = false
+	sm.emission_shape = CPUParticles3D.EMISSION_SHAPE_SPHERE
+	sm.emission_sphere_radius = radius * 0.12
+	sm.direction = Vector3(0.0, 1.0, 0.0) # local +Y: out of the wall
+	sm.spread = 28.0
+	sm.initial_velocity_min = 1.2
+	sm.initial_velocity_max = 2.6
+	sm.gravity = b.inverse() * Vector3(0.0, 1.6, 0.0) # buoyant: up the face, in local axes
+	sm.damping_min = 0.4
+	sm.damping_max = 0.9
+	sm.angle_min = -180.0
+	sm.angle_max = 180.0
+	sm.angular_velocity_min = -20.0
+	sm.angular_velocity_max = 20.0
+	sm.scale_amount_min = radius * 0.16
+	sm.scale_amount_max = radius * 0.28
+	var c := Curve.new()
+	c.max_value = 4.0
+	c.add_point(Vector2(0.0, 0.5))
+	c.add_point(Vector2(0.3, 1.4))
+	c.add_point(Vector2(1.0, 3.2))
+	sm.scale_amount_curve = c
+	sm.color_ramp = WeaponFX._ramp([Color(0.05, 0.045, 0.04, 0.0), Color(0.05, 0.045, 0.04, 0.8),
+		Color(0.08, 0.075, 0.07, 0.5), Color(0.12, 0.115, 0.11, 0.0)])
+	var quad := QuadMesh.new()
+	quad.size = Vector2.ONE
+	quad.material = BlastFX.smoke_material()
+	sm.mesh = quad
+	sm.custom_aabb = AABB(Vector3(-40.0, -10.0, -40.0), Vector3(80.0, 70.0, 80.0))
+	parent.add_child(sm)
+	sm.global_transform = Transform3D(b, wp + wn * 0.4)
+	var st := sm.create_tween()
+	st.tween_interval(wall_smoke_seconds * 0.6)
+	st.tween_property(sm, "color", Color(1, 1, 1, 0.0), wall_smoke_seconds * 0.4)
+	st.tween_callback(func(): sm.emitting = false)
+	st.tween_interval(sm.lifetime + 0.5)
+	st.tween_callback(sm.queue_free)
+	# Masonry and glass raining from the hole: chunks and glints thrown out, falling to the street
+	# (gone at the ground: their life is the fall's time).
+	var fall := sqrt(2.0 * maxf(drop, 1.0) / 9.8)
+	for kind in 2:
+		var r := CPUParticles3D.new()
+		r.name = "WallRain" if kind == 0 else "WallGlass"
+		r.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF if kind == 1 else GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+		r.amount = WeaponFX._count(34 if kind == 0 else 60)
+		r.one_shot = true
+		r.explosiveness = 0.75
+		r.lifetime = fall + 0.25
+		r.local_coords = false
+		r.emission_shape = CPUParticles3D.EMISSION_SHAPE_SPHERE
+		r.emission_sphere_radius = radius * 0.2
+		r.direction = Vector3(0.0, 1.0, 0.0)
+		r.spread = 70.0
+		r.initial_velocity_min = 2.0
+		r.initial_velocity_max = 7.0 if kind == 0 else 9.0
+		r.gravity = b.inverse() * Vector3(0.0, -9.8, 0.0)
+		r.angular_velocity_min = -400.0
+		r.angular_velocity_max = 400.0
+		r.particle_flag_rotate_y = true
+		if kind == 0:
+			if _rock_mesh == null:
+				_rock_mesh = BlastAftermath._chunk_mesh(6, Vector3(0.26, 0.16, 0.2), 29, Color(0.08, 0.075, 0.07), Color(0.3, 0.27, 0.24))
+			r.mesh = _rock_mesh
+			r.scale_amount_min = 0.5
+			r.scale_amount_max = 1.6
+			var mm := StandardMaterial3D.new()
+			mm.vertex_color_use_as_albedo = true
+			mm.roughness = 0.95
+			r.material_override = mm
+		else:
+			var gq := QuadMesh.new()
+			gq.size = Vector2(0.09, 0.12)
+			var gm := StandardMaterial3D.new()
+			gm.albedo_color = Color(0.55, 0.62, 0.62)
+			gm.metallic = 0.6
+			gm.roughness = 0.05
+			gm.cull_mode = BaseMaterial3D.CULL_DISABLED
+			gq.material = gm
+			r.mesh = gq
+			r.scale_amount_min = 0.6
+			r.scale_amount_max = 1.8
+		r.custom_aabb = AABB(Vector3(-30.0, -40.0, -30.0), Vector3(60.0, 50.0, 60.0))
+		parent.add_child(r)
+		r.global_transform = Transform3D(b, wp + wn * 0.3)
+		r.emitting = true
+		var rt := r.create_tween()
+		rt.tween_interval(r.lifetime + 1.0)
+		rt.tween_callback(r.queue_free)
+	return true
