@@ -72,6 +72,17 @@ func _run() -> void:
 				var qn := get_tree().current_scene.get_node_or_null("Quality")
 				if qn:
 					qn.call("apply_level", int(h.substr(2)))
+			elif h == "sun:noshadow" or h == "sun:shadow" or h.begins_with("sun:pssm"):
+				# The shadowed sun is drawn in an additive pass of its own on Compatibility.
+				for n in get_tree().root.find_children("*", "DirectionalLight3D", true, false):
+					var dl := n as DirectionalLight3D
+					if h == "sun:noshadow":
+						dl.shadow_enabled = false
+					elif h == "sun:shadow":
+						dl.shadow_enabled = true
+					else:
+						dl.directional_shadow_mode = int(h.substr(8)) as DirectionalLight3D.ShadowMode
+					print("AUTOPROBE_SUN %s shadow=%s mode=%d max=%.0f" % [dl.get_path(), dl.shadow_enabled, dl.directional_shadow_mode, dl.directional_shadow_max_distance])
 			elif h == "sun:on" or h == "omni:on":
 				for n in get_tree().root.find_children("*", "Light3D", true, false):
 					if (h == "sun:on") == (n is DirectionalLight3D):
@@ -149,10 +160,18 @@ func _run() -> void:
 						if h.begins_with("glob:") and h.contains("="):
 							var kv := h.substr(5).split("=")
 							RenderingServer.global_shader_parameter_set(kv[0], kv[1].to_float())
-			else:
+			elif h.begins_with("show:"):
+				# show:<substr> undoes a hide (one subtree at a time, then back).
 				for n in get_tree().root.find_children("*", "GeometryInstance3D", true, false):
-					if str(n.get_path()).contains(h):
+					if str(n.get_path()).contains(h.substr(5)):
+						(n as Node3D).visible = true
+			else:
+				var nh := 0
+				for n in get_tree().root.find_children("*", "GeometryInstance3D", true, false):
+					if str(n.get_path()).contains(h) and (n as Node3D).visible:
 						(n as Node3D).visible = false
+						nh += 1
+				print("AUTOPROBE_HID %s %d" % [h, nh])
 			print("AUTOPROBE_HIDE %d %s" % [i, hides[i - 1]])
 		_report(i)
 		var t1 := Time.get_ticks_msec()
