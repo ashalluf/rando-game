@@ -28902,3 +28902,9 @@ block off by default and its falloffs the GDScript copy's; the flares and fence 
 falling off along the street; near roads dressed (a copy - the shared material untouched), far ones
 not; the perimeter lamps patchy and pure; the ring wound face up with its kerb faces; a FULL site chunk
 wearing it, its verge weeds; the tanks' look on; the smoke node.
+
+**Wave 8 resume** (merge of origin/main at 824c8d26): the camera unchanged (p5/p50/p95 14/36/102,
+3.91 M triangles / 1,457 draws; still `12_after_refinery_night_merged_main_w8.jpg`). Gate (SHARDS=3):
+5,810 of 5,811; the one failure pedestrian_flow's "two walkers on one line step round each other"
+(CrowdFlow's camera 160 m off), which passes alone (32 / 32): a shard-order flake, no pedestrian code
+on this branch. The refinery checks alone: 35 / 35.
