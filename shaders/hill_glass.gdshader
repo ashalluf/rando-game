@@ -211,7 +211,14 @@ void fragment() {
 	}
 	// A sheer curtain drawn across a share of the bays, glowing when the room is lit.
 	float curtain = step(0.78, h11(bi * 4.7 + rnd * 13.0));
-	room = mix(room, vec3(0.86, 0.83, 0.77) * (day_l * 1.6 + lit_color * lit_energy * 0.75 * lit), curtain * 0.7);
+	if (open_plan) {
+		// A sheer: soft vertical folds, the room's light glowing through it, the room half seen.
+		float fold = 0.78 + 0.22 * sin(UV.x * 13.0 + sin(UV.x * 3.1) * 1.7);
+		vec3 sheer = vec3(0.86, 0.83, 0.77) * (day_l * 1.6 + lit_color * lit_energy * rc5_gain * 0.42 * lit) * fold;
+		room = mix(room, sheer, curtain * 0.55 * smoothstep(0.05, 0.25, UV.y) * (1.0 - smoothstep(2.5, 2.75, UV.y)));
+	} else {
+		room = mix(room, vec3(0.86, 0.83, 0.77) * (day_l * 1.6 + lit_color * lit_energy * 0.75 * lit), curtain * 0.7);
+	}
 	// Under a pixel the room is its average.
 	vec3 avg = tone * 0.6 * (day_l + lit_color * lit_energy * (open_plan ? 0.8 * rc5_gain * 0.5 : 0.8) * lit);
 	room = mix(avg, room, detail);

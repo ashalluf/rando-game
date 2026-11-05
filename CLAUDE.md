@@ -3658,6 +3658,15 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   .culvert_mesh`; a drop inlet in the ditch when the road is benched). `_plant_hills` skips the bed
   after its rolls. `ARROYOS=0` is the A/B; probes `tools/arroyos/` (`net_probe` a map,
   `probe` culvert EYEs); checks `tests/arroyos_checks.gd`.
+- The hill home's pool deck at dusk (wave 8, refcam `hill_home_dusk` in
+  `tools/refcams/cameras_w8.json`, estate 392; docs/HANDOFF.md "The hill home's pool deck at dusk"):
+  `Rc5HillHome` (`scripts/world/rc5_hill_home.gd`): hill_glass `rc5` one open-plan room lit in
+  downlight pools (no bay partitions; the pane random quantised - an interpolated varying through a
+  sin hash is per-pixel static), hill_pool `rc5` lamp-lit dark water mirroring the lit glass beside
+  it (offset in COLOR.b, `pool_wall()`), an additive spill on the paving (`hh_spill`,
+  `shaders/rc5_hill_spill.gdshader`), BackyardKit's loungers, no terrace tree in the pool's view.
+  `RC5_HILL_HOME=0` is the A/B; probe `tools/rc5_hill_home/probe.tscn` (EST=); checks
+  `tests/rc5_hill_home_dusk_checks.gd`.
 - Far estates (2026-10-05, docs/HANDOFF.md "Hillside estates at night"): past the FULL chunks
   (LOD chunks and Skyline) `EstateFar.parts(plan, m, real)` (pure, hashes of the seed) adds to
   HillHomeKit's house, from `HillHomeKit.plan_home()`: the pad's garden over the pavers, the

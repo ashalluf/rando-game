@@ -107,7 +107,7 @@ void fragment() {
 			vec3 T = normalize(wtan - vec3(0.0, wtan.y, 0.0));
 			// The ripples bend the image only a little (with the full ripple the wall's lower edge
 			// was a hard sawtooth); the reflection is softened by the water's roughness.
-			vec3 Rs = reflect(-V, normalize(mix(vec3(0.0, 1.0, 0.0), n, 0.3)));
+			vec3 Rs = reflect(-V, normalize(mix(vec3(0.0, 1.0, 0.0), n, 0.15)));
 			R = Rs;
 			float rx = dot(R, T);
 			float t = (off - q.x) / (abs(rx) < 1e-3 ? 1e-3 : rx);
@@ -119,7 +119,7 @@ void fragment() {
 				float glow = mix(0.45, 1.0, smoothstep(0.25, 2.6, hy)) * mix(0.6, 1.0, mull);
 				vec3 room = lit_glass * 1.3 * lamp * glow + sky * 0.4 * day;
 				float fres_s = 0.02 + 0.98 * pow(1.0 - clamp(dot(vec3(0.0, 1.0, 0.0), V), 0.0, 1.0), 5.0);
-				mir = mix(mir, room * fres_s * 1.2, smoothstep(0.2, 0.8, hy) * (1.0 - smoothstep(2.4, 3.1, hy)));
+				mir = mix(mir, room * fres_s * 0.5, smoothstep(0.2, 0.8, hy) * (1.0 - smoothstep(2.0, 3.1, hy)));
 			}
 		}
 		water = tank;

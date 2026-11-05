@@ -28838,3 +28838,70 @@ smooth normals on Forward+ are unproved. No crew AT WORK (no shoot, no dolly, ca
 driven: the film-shoot session's area); the stage walls are as they were; the trailers' variants all
 share three dressings, so a long row repeats every third; the far LOD of the trailers is the old
 `lod_box` path. Checks: `tests/rc4_film_lot_checks.gd` (10). Probe: `tools/rc4_film_lot/crew_probe.tscn`.
+
+## 9d?. The hill home's pool deck at dusk (fleet wave 8, refcam5 `hill_home_dusk`, branch `wt/rc5-hill-home-dusk`)
+
+**The view.** A new reference camera, the first row of `tools/refcams/cameras_w8.json` (created
+here, cameras_w7.json's header): estate 392 on the front range, a CANTILEVER house (HillHomeKit) at
+(577, -1909), its pad 159 m up facing due south over the basin. The eye stands on the pool deck
+behind the infinity pool (frame u 21, v 17; world (599.2, 160.6, -1893.5), y absolute, yaw 170,
+pitch -9, fov 55) at 19:15 clear: the pool and the loungers in front, the house's glass wall down
+the right under its flat roof, downtown and the basin's lights beyond. Two framings toward downtown
+itself (yaw -155, -140) were tried and dropped: a freeway deck runs just below the estate and
+fills them with trucks. Found with `tools/rc5_hill_home/probe.tscn` (EST=n prints an estate's
+wings, deck and pool in world space) over `tools/hill_homes/probe.tscn`'s list (cantilevers whose
+view faces the basin, the highest first).
+
+**What gave it away, in the order the eye found it, and the fixes** (`Rc5HillHome`,
+`scripts/world/rc5_hill_home.gd`; `RC5_HILL_HOME=0` is the A/B, the hill homes exactly as before):
+- **The room behind the glass was a blown-out beige box.** hill_glass.gdshader cut every glass
+  wall into 4.6 m bays with a side wall between them; through a side wall of glass at a grazing
+  look the ray met those partitions, so the house read as a row of flat lit walls, at
+  `lit_energy` 2.4 everywhere. `rc5`: one open-plan room 8.5 m deep (no partitions), the furniture
+  tested in the next two bays the ray crosses too, lit in pools under the downlight grid with the
+  dark between them, the back wall scalloped from the ceiling, the far end dimmer, at 0.62 of the
+  old light; the sheer curtains fold and let the room through.
+- **Static on every lit pane.** A binary speckle (`06_debug...` on the shots branch) on all lit
+  hill glass, already on main: the pane's random (COLOR.a) is one value at every vertex, but
+  interpolated it wobbles by an ulp, and the sin hashes (`h11(bi * 7.13 + rnd * 91.7)` and the
+  rest) blow that up into per-pixel noise. Quantised to 1/255 under the pass. Any shader that
+  feeds a varying to a sin hash has the same trap.
+- **The pool was a flat neon slab.** hill_pool.gdshader `rc5`: the water dark and deep, lit by
+  lamps in the near wall every `lamp_pitch` (2.6 m) with the light falling off across the tank,
+  the caustics only in that light; the sky mirrored by the reflected ray's elevation; and the lit
+  glass wall beside the pool mirrored in it - a plane at the pool's own UV.x offset, which
+  `Rc5HillHome.pool_wall()` packs into the water's COLOR.b (the wings standing beside the pool
+  along v with glass, within 6 m), the ray bent only by 15 % of the ripple (with all of it the
+  wall's top edge was a hard white sawtooth), at half the Fresnel.
+- **Lights that lit nothing.** The paving in front of the lit glass and round the glowing pool was
+  as dark as the night. A spill (`shaders/rc5_hill_spill.gdshader`: additive, fog off, added in
+  display numbers and decoded on Forward+, off by day) laid in front of every ground-floor glass
+  wall at the pad's level where the ground is the pad or the cantilever's deck (`glass_spill()`,
+  from `HillHomeBuild._glass()`), with the mullions' shadows in it, and in teal on the pool's
+  coping and stone (`pool_spill()`). Its own house surface `hh_spill` (in HillHomeKit.MATS and
+  NO_SHADOW).
+- **The loungers** were three grey boxes with a stick each: BackyardKit's chaise pair (frame,
+  legs, cushions with piping, a side table) in an outdoor fabric by hash, feet to the pool, two
+  pairs by a pool over 6.4 m.
+- **A terrace olive in front of the infinity pool**, its crown across the view the pool is built
+  for: terraced-garden trees within 2.5 m of the pool's u span are left out
+  (`Rc5HillHome.blocks_view()`, in HillHomeKit._plan_site after the tree's roll; every other tree
+  keeps its place - checked over 200 estates).
+
+**Numbers** (refcams, opengl3 1280x720, `OCCLUSION=0`; main b45ba911 -> branch): p5/p50/p95
+3/44/195 -> 4/55/154, crushed 10.7 % -> 7.2 %, 4.57 M -> 4.49 M triangles, 1,981 -> 1,959 draws
+(the olive gone pays for the loungers and the spill). Forward+ checked on lavapipe with
+`tools/glshot/hill_ground_shot.tscn DAYNIGHT=1 -- --hour=19.25` (the hill chunks only, no city):
+every fix holds there (stills 04 / 05); on Forward+ the glass's reflection in the pool is a
+little stronger than on Compatibility.
+
+**Traps.** On this box an opengl3 city run hung after the far city loaded with the process at
+0 % CPU (CLAUDE.md's occlusion-raycast lost wakeup); every run here used `OCCLUSION=0`. A new
+class_name needs `--import` before a headless tool sees it.
+
+**Not done / seen.** The sky at 19:15 is full night with stars in this game (the sun sets at
+18:00), not the dusk the task's words suggest; the hour was kept. The interior is still the traced
+room (a row of sofas, a lamp per bay), not a modelled one; the deck has no lanterns or string
+lights of its own; the low parapet block at the left edge is plain; the city below is the far
+tiers (whatever they draw at night). Checks: `tests/rc5_hill_home_dusk_checks.gd`. Stills on
+`shots/rc5-hill-home-dusk`.
