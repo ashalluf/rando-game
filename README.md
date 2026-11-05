@@ -12,3 +12,4 @@ refcam `refinery_night` (tools/refcams/cameras_w6.json), opengl3 stills.
 - 09_after_refinery_night_final.jpg - refcam after, final (tanks' floods in fans too)
 - 10_before_over_after_refinery_night.jpg - before (top) over after (bottom)
 - 11_ten_cameras_compare_off_vs_on.jpg - the ten original cameras, RC4_REFINERY_ROAD=0 over on (street_noon's only difference: a bus in one run)
+- 12_after_refinery_night_merged_main_w8.jpg - refcam after on the wave-8 merge of origin/main (824c8d26): unchanged, p5/p50/p95 14/36/102
