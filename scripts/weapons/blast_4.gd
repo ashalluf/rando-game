@@ -270,9 +270,9 @@ static func secondaries(node: Node, parent: Node, at: Vector3, radius: float, ga
 
 ## One secondary pop at `at` of `radius` (a fraction of the main blast's): no damage, no crater.
 static func pop(parent: Node, at: Vector3, radius: float) -> void:
-	if Blast3.takes_fireball():
+	if Blast3.takes_fireball(true):
 		# A pop is a fireball and a puff of soot, not a mushroom.
-		Blast3.spawn_volume(parent, at, radius, false, 3.0)
+		Blast3.spawn_volume(parent, at, radius, false, 3.0).set_meta("pop", true)
 	else:
 		WeaponFX._puff_layer(parent, at, WeaponFX._count(14), radius * 0.6, 0.8, radius * 0.3, radius * 0.9, 2.0,
 			WeaponFX._ramp([Color(4.0, 3.0, 1.8, 1.0), Color(2.0, 0.7, 0.14, 1.0), Color(0.6, 0.16, 0.04, 0.85),
@@ -383,6 +383,9 @@ static var ring_enabled: bool = OS.get_environment("BLAST_RING") != "0"
 static var burn_enabled: bool = OS.get_environment("BLAST_BURN") != "0"
 ## Round 16: the crater's soot a dark core with thinning streaks, not solid spikes (Blast3.crater_maps). BLAST_SCORCH=0.
 static var scorch_soft: bool = OS.get_environment("BLAST_SCORCH") != "0"
+## Round 17: pops keep a volume slot free for a main blast, which takes a pop's (or an old
+## mushroom's) slot when full (Blast3.takes_fireball). BLAST_VOLUME_ROOM=0.
+static var volume_room: bool = OS.get_environment("BLAST_VOLUME_ROOM") != "0"
 static var ring_air_fade: bool = OS.get_environment("BLAST_RING_AIR") != "0"
 static var ground_flash_enabled: bool = OS.get_environment("BLAST_GROUND_FLASH") != "0"
 static var _flash_shader: Shader

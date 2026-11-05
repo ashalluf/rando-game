@@ -387,6 +387,21 @@ func _round11(parent: Node) -> void:
 		"explosions_4: a fuel or gas ball burns longer (burn5, off by default in the shader)")
 	_t._check(FileAccess.get_file_as_string("res://scripts/weapons/blast_3.gd").contains("var soft5 := Blast4.enabled and Blast4.scorch_soft"),
 		"explosions_4: the crater's soot is a core with thinning streaks, not solid spikes")
+	if Blast4.volume_room and Blast3.enabled and not WeaponFX._web():
+		var vp := Node3D.new()
+		parent.add_child(vp)
+		var mx := Blast3.max_volumes
+		var made := 0
+		for i in mx + 2:
+			if Blast3.takes_fireball(true):
+				Blast3.spawn_volume(vp, _top + Vector3(0.0, 40.0, 0.0), 2.0, false, 3.0).set_meta("pop", true)
+				made += 1
+		Blast3._prune()
+		var pops := Blast3._volumes.size()
+		var main_ok := made == 0 or Blast3.takes_fireball()
+		_t._check(pops <= mx - 1 and main_ok,
+			"explosions_4: pops leave a volume for the next car, and a main blast takes a pop's (%d volumes, %d pops, main %s)" % [pops, made, main_ok])
+		vp.queue_free()
 	if ring != null:
 		ring.queue_free()
 	var wall := StaticBody3D.new()
