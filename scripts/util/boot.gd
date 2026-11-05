@@ -61,13 +61,8 @@ func _process(_delta: float) -> void:
 	_running = false
 	LoadPulse.note("")
 	LoadClock.stop("compile the game")
-	# Every shader file loaded now, before the city has a single surface: loading one hands its
-	# compile to the worker threads at once (RenderingDevice renderers), ahead of the flood of
-	# pipelines the city queues - queued behind that flood, the first material of a shader made the
-	# main thread wait for all of it (2-9 s without a frame on lavapipe while landmarks built).
-	LoadClock.start("queue the shaders")
-	LoadPulse.keep_shaders()
-	LoadClock.stop("queue the shaders")
+	# (Every shader file queued here, ahead of the city, was tried: it is a flood of its own -
+	# ~300 shaders' variant groups on the workers - and a landmark's new material waited behind it.)
 	get_tree().change_scene_to_file.call_deferred(CITY)
 
 
