@@ -60,7 +60,9 @@ static func houses(shot: Object, cam_name: String) -> void:
 			continue
 		var tris := 0
 		for s in mi.mesh.get_surface_count():
-			tris += int(RenderingServer.mesh_get_surface(mi.mesh.get_rid(), s).get("index_count", 0)) / 3
+			var surf := RenderingServer.mesh_get_surface(mi.mesh.get_rid(), s)
+			var ic := int(surf.get("index_count", 0))
+			tris += (ic if ic > 0 else int(surf.get("vertex_count", 0))) / 3
 		var box: AABB = mi.global_transform * mi.get_aabb()
 		var row: Array = by.get(String(mi.name), [0, 0])
 		if shot.call("_box_in_frustum", box, planes):
