@@ -221,6 +221,7 @@ func _glass(a: Vector2, b: Vector2, y0: float, y1: float, n: Vector2, rnd: float
 	tone.a = rnd
 	_quad("hh_glass", L(a, y1), L(b, y1), L(b, y0), L(a, y0), N(n), tone,
 		[Vector2(0.0, y1 - fl), Vector2(len, y1 - fl), Vector2(len, y0 - fl), Vector2(0.0, y0 - fl)])
+	Rc5HillHome.glass_spill(self, a, b, n, y0)
 
 
 ## An arch's glass (the fan over the opening's rect), on the hillside glass too.
@@ -477,12 +478,15 @@ func _pool() -> void:
 	else:
 		_sbox("coping", (u0 + u1) * 0.5, v1 + cop * 0.5, top, top + 0.16, u1 - u0 + cop * 2.0, cop)
 	# The water: COLOR.g the depth it reads as (0..1 over 2.5 m), UV metres.
-	_quad("hh_water", WY(u0, v0, wy), WY(u1, v0, wy), WY(u1, wv1, wy), WY(u0, wv1, wy), Vector3.UP, Color(0.0, 0.85, 0.0, 1.0),
+	_quad("hh_water", WY(u0, v0, wy), WY(u1, v0, wy), WY(u1, wv1, wy), WY(u0, wv1, wy), Vector3.UP, Color(0.0, 0.85, Rc5HillHome.pool_wall(h), 1.0),
 		[Vector2(0, 0), Vector2(u1 - u0, 0), Vector2(u1 - u0, wv1 - v0), Vector2(0, wv1 - v0)])
 	# Swimmable (Swim): a painted tank like the yard pools, its floor the pad's.
 	SwimWater.add_poly(ch, PackedVector2Array([Vector2(WY(u0, v0, 0).x, WY(u0, v0, 0).z), Vector2(WY(u1, v0, 0).x, WY(u1, v0, 0).z),
 		Vector2(WY(u1, v1, 0).x, WY(u1, v1, 0).z), Vector2(WY(u0, v1, 0).x, WY(u0, v1, 0).z)]), wy, wy - SwimWater.POOL_DEPTH, SwimWater.Kind.POOL)
+	Rc5HillHome.pool_spill(self, r, cop, inf)
 	# Loungers on the court side of the pool.
+	if Rc5HillHome.loungers(self, r):
+		return
 	var n := 2 + absi(hash([seed, "loungers"])) % 2
 	for k in n:
 		var lu := lerpf(u0 + 0.8, u1 - 0.8, (float(k) + 0.5) / n)
