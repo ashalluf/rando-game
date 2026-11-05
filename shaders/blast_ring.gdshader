@@ -15,6 +15,12 @@ uniform float reach = 30.0;
 uniform float age = 0.0;
 uniform float seed = 0.0;
 uniform vec3 dust = vec3(0.32, 0.29, 0.25);
+// Round 14: the ring is the air's view. From the street (a few metres, grazing) it covered the whole
+// road in a flat cream sheet with a pale line along the horizon: faded by the eye's distance and
+// the grazing angle (the dust roll is the street's view). `air_fade` 0 is round 11's ring.
+uniform float air_fade = 1.0;
+uniform float air_near = 28.0;
+uniform float air_far = 70.0;
 global uniform float night_factor;
 global uniform vec4 sky_tint;
 
@@ -34,6 +40,8 @@ void fragment() {
 	float a = max(band, inner * band + inner * 0.5) * (0.55 + 0.45 * fine);
 	a *= (1.0 - smoothstep(0.6, 5.5, age)) * smoothstep(0.0, 0.03, age);
 	a *= 1.0 - smoothstep(0.94, 1.0, r);
+	float seen = smoothstep(air_near, air_far, length(VERTEX)) * smoothstep(0.12, 0.35, abs(dot(NORMAL, VIEW)));
+	a *= mix(1.0, seen, air_fade);
 	if (a < 0.003) {
 		discard;
 	}

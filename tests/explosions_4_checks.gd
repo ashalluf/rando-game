@@ -313,7 +313,9 @@ func _round7(parent: Node) -> void:
 		and float(m.get_shader_parameter("core4")) == (1.0 if Blast4.core_enabled else 0.0),
 		"explosions_4: the young ball's heat follows its depth (core4, off by default)")
 	var r := Blast4.ribbon_material()
-	_t._check(r != null and r.transparency == BaseMaterial3D.TRANSPARENCY_ALPHA, "explosions_4: the debris smoke ribbons have their material")
+	_t._check(r != null and (r.transparency == BaseMaterial3D.TRANSPARENCY_ALPHA if r is StandardMaterial3D
+		else ((r as ShaderMaterial).shader.resource_path.ends_with("blast_ribbon.gdshader") and Blast4.ribbon_soft)),
+		"explosions_4: the debris smoke ribbons have their material (soft and torn by default)")
 	var bs := FileAccess.get_file_as_string("res://scripts/weapons/blast_debris.gd")
 	_t._check(bs.contains("_ribbon.global_transform = Transform3D(Basis(), global_position)"),
 		"explosions_4: the ribbons' box sits at the blast (at the world origin they were culled)")
@@ -368,6 +370,44 @@ func _round11(parent: Node) -> void:
 	var ring := Blast4.ground_ring(parent, _top + Vector3(-60.0, 0.0, -60.0), Vector3.UP, 20.0)
 	_t._check(not Blast4.ring_enabled or (ring != null and (ring.material_override as ShaderMaterial).shader.resource_path.ends_with("blast_ring.gdshader")),
 		"explosions_4: a shock ring is laid on the ground")
+	var gf: Node = ring.get_node_or_null("BlastGroundFlash") if ring != null else null
+	var gsrc := FileAccess.get_file_as_string("res://shaders/blast_ground_flash.gdshader")
+	_t._check(not (Blast4.ring_enabled and Blast4.ground_flash_enabled) or (gf != null
+		and gsrc.contains("blend_add") and gsrc.contains("fog_disabled")),
+		"explosions_4: the ground flash lights the street under the burst (additive, fog-free)")
+	var rsrc := FileAccess.get_file_as_string("res://shaders/blast_ring.gdshader")
+	_t._check(rsrc.contains("uniform float air_fade") and gsrc.contains("air_near") and (ring == null
+		or float((ring.material_override as ShaderMaterial).get_shader_parameter("air_fade")) == (1.0 if Blast4.ring_air_fade else 0.0)),
+		"explosions_4: the ring and the ground flash are the air's view (faded near and grazing)")
+	var bm := ShaderMaterial.new()
+	bm.shader = load("res://shaders/blast_volume.gdshader")
+	Blast4.dress_volume(bm, true, false)
+	_t._check(float(bm.get_shader_parameter("burn5")) == (1.0 if Blast4.burn_enabled else 0.0)
+		and FileAccess.get_file_as_string("res://shaders/blast_volume.gdshader").contains("uniform float burn5 = 0.0;"),
+		"explosions_4: a fuel or gas ball burns longer (burn5, off by default in the shader)")
+	_t._check(FileAccess.get_file_as_string("res://scripts/weapons/blast_3.gd").contains("var soft5 := Blast4.enabled and Blast4.scorch_soft"),
+		"explosions_4: the crater's soot is a core with thinning streaks, not solid spikes")
+	var fm := Blast4.flame_material()
+	_t._check(not Blast4.tongues() or (float((fm as ShaderMaterial).get_shader_parameter("look5")) == (1.0 if Blast4.flame_look5 else 0.0)),
+		"explosions_4: flame tongues of their own heights with holes (look5)")
+	var pm := Blast4.panel_mesh()
+	_t._check(pm != null and (not Blast4.panel_torn or pm.get_faces().size() >= 14 * 9),
+		"explosions_4: a torn panel is a ragged crumpled sheet (%d face verts)" % pm.get_faces().size())
+	if Blast4.volume_room and Blast3.enabled and not WeaponFX._web():
+		var vp := Node3D.new()
+		parent.add_child(vp)
+		var mx := Blast3.max_volumes
+		var made := 0
+		for i in mx + 2:
+			if Blast3.takes_fireball(true):
+				Blast3.spawn_volume(vp, _top + Vector3(0.0, 40.0, 0.0), 2.0, false, 3.0).set_meta("pop", true)
+				made += 1
+		Blast3._prune()
+		var pops := Blast3._volumes.size()
+		var main_ok := made == 0 or Blast3.takes_fireball()
+		_t._check(pops <= mx - 1 and main_ok,
+			"explosions_4: pops leave a volume for the next car, and a main blast takes a pop's (%d volumes, %d pops, main %s)" % [pops, made, main_ok])
+		vp.queue_free()
 	if ring != null:
 		ring.queue_free()
 	var wall := StaticBody3D.new()
@@ -388,3 +428,13 @@ func _round11(parent: Node) -> void:
 	var none := Blast4.wall_blast(_city, parent, base + Vector3(30.0, 6.0, 0.0), 9.0)
 	_t._check(not none, "explosions_4: no wall, no wall blast")
 	wall.queue_free()
+	var dsrc := FileAccess.get_file_as_string("res://scripts/weapons/blast_debris.gd")
+	_t._check(dsrc.contains("const RIB_MAX_LEN := 8.0") and dsrc.contains("Mesh.PRIMITIVE_TRIANGLES")
+		and not dsrc.contains("PRIMITIVE_TRIANGLE_STRIP"),
+		"explosions_4: debris ribbons are quads, at most 8 m (a joined strip drew wires across the sky)")
+	var heaps := 0
+	for c in parent.get_children():
+		if String(c.name).begins_with("WallHeap") or String(c.name).begins_with("WallSlabs"):
+			heaps += 1
+	_t._check(not (Blast4.wall_enabled and Blast4.heavy_masonry) or heaps >= 2,
+		"explosions_4: a wall blast throws slabs and leaves a heap at the foot (%d)" % heaps)

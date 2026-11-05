@@ -43,11 +43,34 @@ static var _box: BoxMesh
 
 ## True when this blast's fireball is the volume (the caller then leaves its fireball cards out).
 ## Asked by WeaponFX.explosion() before it lays the cards; `spawn_volume()` follows.
-static func takes_fireball() -> bool:
+static func takes_fireball(is_pop: bool = false) -> bool:
 	if not enabled or WeaponFX._web():
 		return false
 	_prune()
-	return _volumes.size() < max_volumes
+	if _volumes.size() < max_volumes - (1 if is_pop and Blast4.enabled and Blast4.volume_room else 0):
+		return true
+	if is_pop or not (Blast4.enabled and Blast4.volume_room):
+		return false
+	# Round 17 (Blast4.volume_room): a chain's third car found every slot taken by the first
+	# cars' secondary pops and fell back to the cards (round orange balls). A main blast takes
+	# the slot of the oldest pop, else of a mushroom past most of its life.
+	var victim: Node = null
+	for v: Node in _volumes:
+		if v.has_meta("pop"):
+			victim = v
+			break
+	if victim == null:
+		for v: Node in _volumes:
+			var vm := (v as MeshInstance3D).material_override as ShaderMaterial
+			var tv: Variant = vm.get_shader_parameter("t") if vm != null else null
+			if tv != null and float(tv) > float(v.get_meta("life", 99.0)) * 0.7:
+				victim = v
+				break
+	if victim == null:
+		return false
+	_volumes.erase(victim)
+	victim.queue_free()
+	return true
 
 
 ## True when a blast's chips and sparks are BlastBits (that land) rather than particles.
@@ -142,6 +165,7 @@ static func spawn_volume(parent: Node, at: Vector3, radius: float, fuel: bool, l
 			mat.set_shader_parameter("fade", Blast4.fade_at(v, life) if not v4.is_empty() else 1.0 - smoothstep(life * 0.55, life, v)),
 		0.0, life, life)
 	tw.tween_callback(mi.queue_free)
+	mi.set_meta("life", life)
 	_volumes.append(mi)
 	return mi
 
@@ -319,6 +343,10 @@ static func crater_maps(kind: int) -> Array:
 	noise.fractal_type = FastNoiseLite.FRACTAL_FBM
 	noise.fractal_octaves = 4
 	var smooth := Blast4.enabled and Blast4.crater_smooth
+	# Round 16 (Blast4.scorch_soft): solid soot fingers out to their tips drew a black cartoon
+	# starburst on Forward+ at 5 m (stretched toward a low eye). A dark core with a ragged edge,
+	# then streaks that thin out with the distance, patchy, never solid past the core.
+	var soft5 := Blast4.enabled and Blast4.scorch_soft
 	var fine := FastNoiseLite.new()
 	fine.noise_type = FastNoiseLite.TYPE_VALUE
 	fine.seed = 17
@@ -345,6 +373,8 @@ static func crater_maps(kind: int) -> Array:
 		var w := rng.randf_range(0.006, 0.05)
 		if smooth:
 			w = maxf(w, 0.014) # never thinner than a few texels across
+		if soft5:
+			w = maxf(w, 0.03)
 		var l := rng.randf_range(0.5, 0.97)
 		for b in bins:
 			var ang := TAU * float(b) / float(bins)
@@ -386,6 +416,12 @@ static func crater_maps(kind: int) -> Array:
 				a = halo * 0.32
 			# Soot: solid in the core, out along the fingers, thinning to their tips.
 			var soot := 1.0 - smoothstep(fr * 0.75, fr, r)
+			if soft5:
+				var core_r := 0.47 * (0.82 + 0.36 * nz)
+				var core := 1.0 - smoothstep(core_r * 0.65, core_r * 1.2, r)
+				var frac := clampf((r - core_r * 0.8) / maxf(fr - core_r * 0.8, 0.02), 0.0, 1.0)
+				var streak := (1.0 - smoothstep(0.0, 1.0, frac)) * 0.92 * (0.45 + 0.55 * nz)
+				soot = maxf(core, streak)
 			soot *= 0.75 + 0.25 * fz
 			# Specks of soot past the fingers.
 			if smooth:

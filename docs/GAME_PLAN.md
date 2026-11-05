@@ -4555,3 +4555,11 @@ none of either.
   lit room or pool lights the paving in front of it (an additive spill, display numbers); a pool
   mirrors the lit glass beside it; the terraced garden keeps out of an infinity pool's view (after
   the rolls); a hash fed an interpolated varying is quantised first. RC5_HILL_HOME=0 is the A/B.
+- **2026-11-05 The blast, rounds 13-18 (explosions-4 resumed, wave 8, HANDOFF "The blast, fourth
+  pass").** The aerial view gets a ground flash under the burst; the shock ring and the flash are
+  the air's view only (faded near the eye and at a grazing look: from the street they painted the
+  road cream); debris trails are soft torn wisps, not flat bands; fuel and gas balls burn longer;
+  the crater's soot is a core with thinning streaks, not a black starburst; a secondary pop never
+  takes the volume a chain's next car needs; torn sheets and faceted lumps replace flat debris
+  cards; flame tongues breathe to their own heights; the burning pool's light hangs in its flames.
+  Each part has its own =0 switch.
