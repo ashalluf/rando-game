@@ -359,6 +359,7 @@ func _build_searchlight() -> void:
 		core.position = Vector3(0.0, 0.0, 0.02)
 		core.scale = Vector3(0.5, 0.5, 1.0)
 		_pool.add_child(core)
+	PursuitLook.dress_searchlight(_pool, _beam_mat)
 
 
 # --- Flight -----------------------------------------------------------------------------------
@@ -556,9 +557,9 @@ func _aim_gear(dt: float) -> void:
 		var n: Vector3 = hit.normal
 		var tangent := n.cross(Vector3.RIGHT if absf(n.x) < 0.9 else Vector3.FORWARD).normalized()
 		var bitangent := n.cross(tangent).normalized()
-		var dia := 2.0 * reach * tan(deg_to_rad(searchlight_angle)) * 1.25 + 2.0
+		var dia := PursuitLook.pool_dia(reach, searchlight_angle)
 		# Columns scaled directly: Basis.scaled() would scale the WORLD axes (HANDOFF 9c).
-		_pool.global_transform = Transform3D(Basis(tangent * dia, bitangent * dia, n), hit.position + n * 0.25)
+		_pool.global_transform = Transform3D(Basis(tangent * dia, bitangent * dia, n), hit.position + n * PursuitLook.pool_lift())
 	else:
 		_pool.visible = false
 	_beam.visible = not volumetric
@@ -567,7 +568,7 @@ func _aim_gear(dt: float) -> void:
 		var gain := AirportNight.PATROL_BEAM if AirportNight.enabled and task == "patrol" else 1.0
 		if gain != _beam_gain:
 			_beam_gain = gain
-			_beam_mat.set_shader_parameter("strength", 0.22 * gain)
+			_beam_mat.set_shader_parameter("strength", (PursuitLook.SHAFT_STRENGTH if PursuitLook.enabled else 0.22) * gain)
 		var wide := reach * tan(deg_to_rad(searchlight_angle))
 		_beam.transform = Transform3D(Basis(Vector3.RIGHT, PI * 0.5).scaled_local(Vector3(wide, reach, wide)), _spot.position + Vector3(0.0, 0.0, -reach * 0.5))
 

@@ -61,7 +61,7 @@ func run(st: SceneTree, cam: Dictionary, car: Vehicle, fwd: Vector3, player: Nod
 	for row: Array in p.get("cruisers", []):
 		var off := -fwd * float(row[0]) + right * float(row[1])
 		var w := at + off
-		w.y = _road_top(car, w) + 0.6
+		w.y = _road_top(car, w) + 0.9
 		var c: Variant = police.call("spawn_cruiser", w, yaw, "pursue")
 		if c == null:
 			continue
@@ -156,24 +156,82 @@ func finish() -> void:
 ## pool, its light, its shaft; the cruisers' glows; the cruisers' real lights), saved as
 ## pab_<piece>.png in `out_dir`.
 func ab(out_dir: String) -> void:
+	for c in cruisers:
+		if not is_instance_valid(c):
+			continue
+		var g: Node = c.get_node_or_null("PoliceGlow")
+		var walls := ""
+		if g:
+			for w in ["WallA", "WallB"]:
+				var wm := g.get_node_or_null(w) as Node3D
+				walls += " %s found %s at %s" % [w, str(wm.get_meta("found", false)), str(WorldState.to_world(wm.global_position).round())] if wm else ""
+		var st := PhysicsServer3D.body_get_direct_state(c.get_rid())
+		for k in st.get_contact_count():
+			var o: Object = st.get_contact_collider_object(k)
+			print("REFCAM pursuit contact %s local %s v %.1f" % [str(o.get_path()) if o is Node else str(o), str(st.get_contact_local_position(k) - st.transform.origin), c.linear_velocity.length()])
+		if g and g.has_meta("mat"):
+			var gm: ShaderMaterial = g.get_meta("mat")
+			print("REFCAM pursuit wash point_pool %s pattern %s side %d" % [str(gm.get_shader_parameter("point_pool")), str(gm.get_shader_parameter("pattern")), int(c.call("flash_side", PoliceNightLook.clock))])
+		print("REFCAM pursuit cruiser %s at %s lit %s glow %s%s" % [c.name, str(WorldState.to_world(c.global_position).round()), str(c.call("bar_lit")), str(g.visible) if g else "none", walls])
 	if OS.get_environment("PURSUIT_AB") != "1":
 		return
 	var sets := {}
-	if heli and is_instance_valid(heli):
+	if air:
 		for n in ["Pool", "Beam", "Shaft"]:
-			var x: Node = heli.find_child(n, true, false)
-			if x:
-				sets["heli_" + n.to_lower()] = [x]
+			var xs := []
+			for h in air.get_children():
+				var x: Node = h.find_child(n, true, false)
+				if x:
+					xs.append(x)
+			sets["heli_" + n.to_lower()] = xs
+		var crafts := []
+		for h in air.get_children():
+			if h is Node3D and (h as Node3D).visible:
+				print("PURSUIT_AB aircraft %s at %s" % [h.name, str((h as Node3D).global_position)])
+				crafts.append(h)
+		sets["air_all"] = crafts
+		for h in crafts:
+			sets["air_" + String(h.name)] = [h]
+		if heli and is_instance_valid(heli):
+			for d in heli.find_children("*", "Node3D", true, false):
+				if (d is VisualInstance3D or d is GPUParticles3D or d is CPUParticles3D) and (d as Node3D).is_visible_in_tree():
+					sets["h6_" + String(heli.get_path_to(d)).validate_filename()] = [d]
 	var glows := []
 	for c in cruisers:
 		if is_instance_valid(c) and c.get_node_or_null("PoliceGlow"):
 			glows.append(c.get_node("PoliceGlow"))
 	sets["glows"] = glows
+	var nl := []
+	for c in cruisers:
+		if is_instance_valid(c) and c.get_node_or_null("NightLights"):
+			nl.append(c.get_node("NightLights"))
+	sets["cruiser_nightlights"] = nl
+	if heli and is_instance_valid(heli):
+		var hl := []
+		for n in ["Pool", "Searchlight"]:
+			var x: Node = heli.find_child(n, true, false)
+			if x:
+				hl.append(x)
+		sets["heli_light_all"] = hl
 	var lights := []
 	for n in tree.root.find_children("*", "OmniLight3D", true, false):
 		if (n as Node3D).is_visible_in_tree() and n.get_parent() is PoliceNightLook:
 			lights.append(n)
 	sets["police_lights"] = lights
+	var spots := []
+	var omnis := []
+	var cam := tree.root.get_viewport().get_camera_3d()
+	for n in tree.root.find_children("*", "Light3D", true, false):
+		var l := n as Light3D
+		if not l.is_visible_in_tree() or l is DirectionalLight3D:
+			continue
+		if l is SpotLight3D:
+			spots.append(l)
+			print("PURSUIT_AB spot %s energy %.1f at %.0f m" % [str(l.get_path()), l.light_energy, l.global_position.distance_to(cam.global_position)])
+		elif l.global_position.distance_to(cam.global_position) < 60.0:
+			omnis.append(l)
+	sets["spots"] = spots
+	sets["omnis"] = omnis
 	for key: String in sets:
 		var nodes: Array = sets[key]
 		for n in nodes:
