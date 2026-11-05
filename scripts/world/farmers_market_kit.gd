@@ -523,7 +523,7 @@ static func _heap(g: Geo, xf: Transform3D, inner: Vector2, rim: float, rise: flo
 	var rm := Vector2(float(spec[4]), 0.0)
 	var mean: Color = colors[0]
 	# Under the top layer: a dome in the goods' darker colour, so nothing shows the crate's floor.
-	var fill := col(mean.darkened(0.35), code)
+	var fill := col(mean.darkened(0.6), code)
 	var hx := inner.x * 0.5
 	var hz := inner.y * 0.5
 	var dome_top := rim + rise - r.y * 1.2
@@ -544,31 +544,59 @@ static func _heap(g: Geo, xf: Transform3D, inner: Vector2, rim: float, rise: flo
 		_berry_baskets(g, xf, inner, rim, rng)
 		g.mode = 0
 		return
-	var step := maxf(r.x, r.z) * 2.0
-	if shape == "bunch":
-		step = r.x * 2.4
-	elif shape == "carrot":
-		step = 0.075
-	var nx := maxi(1, int(inner.x / step))
-	var nz := maxi(1, int(inner.y / (maxf(r.x, r.z) * 2.0 if shape != "bunch" and shape != "carrot" else r.z * 1.6)))
-	for a in nx:
-		for b in nz:
-			var u := lerpf(-hx, hx, (float(a) + 0.5) / nx) + rng.randf_range(-0.2, 0.2) * step
-			var w := lerpf(-hz, hz, (float(b) + 0.5) / nz) + rng.randf_range(-0.2, 0.2) * step
-			u = clampf(u, -hx + r.x * 0.8, hx - r.x * 0.8)
-			w = clampf(w, -hz + r.x * 0.8, hz - r.x * 0.8)
-			var d2 := (u / hx) * (u / hx) + (w / hz) * (w / hz)
-			var y := lerpf(rim - 0.02, rim + rise, clampf(1.0 - d2 * 0.5, 0.0, 1.0))
+	if shape == "bunch" or shape == "carrot":
+		var step := r.x * 2.4 if shape == "bunch" else 0.075
+		var nx := maxi(1, int(inner.x / step))
+		var nz := maxi(1, int(inner.y / (r.z * 1.6)))
+		for a in nx:
+			for b in nz:
+				var u := lerpf(-hx, hx, (float(a) + 0.5) / nx) + rng.randf_range(-0.2, 0.2) * step
+				var w := lerpf(-hz, hz, (float(b) + 0.5) / nz) + rng.randf_range(-0.2, 0.2) * step
+				u = clampf(u, -hx + r.x * 0.8, hx - r.x * 0.8)
+				w = clampf(w, -hz + r.x * 0.8, hz - r.x * 0.8)
+				var d2 := (u / hx) * (u / hx) + (w / hz) * (w / hz)
+				var y := lerpf(rim - 0.02, rim + rise, clampf(1.0 - d2 * 0.5, 0.0, 1.0))
+				var cl: Color = colors[rng.randi() % colors.size()]
+				_item(g, xf, Vector3(u, y, w), r, shape, col(_jit(rng, cl, 0.12), code), rm, rng)
+		g.mode = 0
+		return
+	# Round goods are packed the way a grower piles them (refcam farmers_market, 2026-11-05): a
+	# hexagonal layer a little tighter than touching, so no fill shows between them, and a second
+	# layer sat in the hollows of the first over the crown of the heap. On a 2 m grid with the
+	# old 0.2-step jitter each crate showed its dark fill dome between the fruit like a tray of toys.
+	var rad := maxf(r.x, r.z)
+	var sp := rad * (1.86 if shape != "leafy" else 1.7)
+	var dz := sp * 0.866
+	var nz := maxi(1, int((inner.y - rad * 0.6) / dz) + 1)
+	var layer: Array[Vector3] = []
+	for b in nz:
+		var w := -hz + rad * 0.85 + float(b) * dz
+		if w > hz - rad * 0.5:
+			break
+		var off := sp * 0.5 if b % 2 == 1 else 0.0
+		var u := -hx + rad * 0.85 + off
+		while u <= hx - rad * 0.5:
+			var uu := u + rng.randf_range(-0.07, 0.07) * sp
+			var ww := w + rng.randf_range(-0.07, 0.07) * sp
+			var d2 := (uu / hx) * (uu / hx) + (ww / hz) * (ww / hz)
+			var y := lerpf(rim - 0.01, rim + rise, clampf(1.0 - d2 * 0.5, 0.0, 1.0))
+			layer.append(Vector3(uu, y, ww))
 			var cl: Color = colors[rng.randi() % colors.size()]
-			cl = _jit(rng, cl, 0.12)
-			_item(g, xf, Vector3(u, y, w), r, shape, col(cl, code), rm, rng)
-	# A second, sparser layer on the crown of the heap, so it reads as piled up.
-	if shape != "bunch" and shape != "carrot" and shape != "leafy" and nx * nz < 30:
-		for k in maxi(1, nx * nz / 6):
-			var u := rng.randf_range(-hx * 0.55, hx * 0.55)
-			var w := rng.randf_range(-hz * 0.5, hz * 0.5)
-			var cl: Color = colors[rng.randi() % colors.size()]
-			_item(g, xf, Vector3(u, rim + rise + r.y * 0.9, w), r, shape, col(_jit(rng, cl, 0.12), code), rm, rng)
+			_item(g, xf, Vector3(uu, y, ww), r, shape, col(_jit(rng, cl, 0.12), code), rm, rng)
+			u += sp
+	# The second layer: in the hollow between three of the first, over the middle of the heap.
+	if shape != "leafy":
+		for b in nz - 1:
+			var w := -hz + rad * 0.85 + (float(b) + 0.5) * dz
+			var off := sp * 0.5 if b % 2 == 0 else 0.0
+			var u := -hx + rad * 0.85 + off
+			while u <= hx - rad * 0.5:
+				var d2 := (u / hx) * (u / hx) + (w / hz) * (w / hz)
+				if d2 < 0.45 and rng.randf() < 0.8:
+					var y := lerpf(rim - 0.01, rim + rise, clampf(1.0 - d2 * 0.5, 0.0, 1.0)) + r.y * 1.25
+					var cl: Color = colors[rng.randi() % colors.size()]
+					_item(g, xf, Vector3(u, y, w), r, shape, col(_jit(rng, cl, 0.12), code), rm, rng)
+				u += sp
 	g.mode = 0
 
 
@@ -581,15 +609,19 @@ static func _item(g: Geo, xf: Transform3D, p: Vector3, r: Vector3, shape: String
 	var stem := col(Color(0.22, 0.32, 0.1), C_LEAF)
 	match shape:
 		"sphere":
-			g.ellipsoid(Transform3D(b, at), r, 6, 3, cl, rm, 0, 0.0, 0.0, 0.62 * PI)
+			g.ellipsoid(Transform3D(b, at), r, 9, 4, cl, rm, 0, 0.0, 0.0, 0.62 * PI)
+			if code == C_PRODUCE and r.y < 0.034:
+				# A tomato's green calyx: a few sepals round the stem.
+				_calyx(g, at + b * Vector3(0, r.y * 0.97, 0), b, r.x * 0.55, rng)
 		"oval":
-			g.ellipsoid(Transform3D(b, at), r, 7, 3, cl, rm, 0, 0.0, 0.0, 0.62 * PI)
+			g.ellipsoid(Transform3D(b, at), r, 9, 4, cl, rm, 0, 0.0, 0.0, 0.62 * PI)
 		"pear":
-			g.ellipsoid(Transform3D(b * Basis(Vector3.RIGHT, PI * 0.5), at), Vector3(r.x, r.z, r.y), 6, 5, cl, rm, 0, 0.0, 0.28)
+			g.ellipsoid(Transform3D(b * Basis(Vector3.RIGHT, PI * 0.5), at), Vector3(r.x, r.z, r.y), 9, 6, cl, rm, 0, 0.0, 0.28)
 		"lobed":
-			g.ellipsoid(Transform3D(b, at), r, 8, 3, cl, rm, 4, 0.1, 0.0, 0.62 * PI)
+			g.ellipsoid(Transform3D(b, at), r, 12, 4, cl, rm, 4, 0.1, 0.0, 0.62 * PI)
+			g.bar(at + b * Vector3(0, r.y * 0.9, 0), at + b * Vector3(0.004, r.y * 1.18, 0), 0.006, stem, Vector2(0.7, 0))
 		"pepper":
-			g.ellipsoid(Transform3D(b, at), r, 6, 3, cl, rm, 3, 0.18, 0.12, 0.62 * PI)
+			g.ellipsoid(Transform3D(b, at), r, 9, 4, cl, rm, 3, 0.18, 0.12, 0.62 * PI)
 			g.bar(at + b * Vector3(0, r.y * 0.85, 0), at + b * Vector3(0.008, r.y * 1.25, 0), 0.01, stem, Vector2(0.7, 0))
 		"leafy":
 			# A head of lettuce: three crumpled shells, the outer ones open and a shade darker.
@@ -615,6 +647,21 @@ static func _item(g: Geo, xf: Transform3D, p: Vector3, r: Vector3, shape: String
 		"squash":
 			g.ellipsoid(Transform3D(b, at), r, 7, 4, cl, rm, 0, 0.0, -0.2)
 			g.bar(at + b * Vector3(0, 0, r.z * 0.95), at + b * Vector3(0, 0.01, r.z * 1.15), 0.014, col(Color(0.5, 0.45, 0.3), C_WOOD), Vector2(0.8, 0))
+
+
+## A tomato's calyx: five thin green sepals star-shaped round the stem, a stub of stem.
+static func _calyx(g: Geo, top: Vector3, b: Basis, reach: float, rng: RandomNumberGenerator) -> void:
+	var leaf := col(Color(0.2, 0.36, 0.1), C_LEAF)
+	var rm := Vector2(0.7, 0.0)
+	var up := b * Vector3.UP
+	var turn := rng.randf() * TAU
+	for k in 5:
+		var a := turn + TAU * float(k) / 5.0
+		var d := b * Vector3(cos(a), 0.0, sin(a))
+		var side := b * Vector3(-sin(a), 0.0, cos(a))
+		var tip := top + d * reach - up * reach * 0.25
+		g.tri(top - side * reach * 0.18, top + side * reach * 0.18, tip, up, leaf, rm)
+	g.bar(top, top + up * 0.01, 0.004, leaf, rm)
 
 
 ## A tapering cone from `a` (wide end, radius r) to `e` (the tip).
