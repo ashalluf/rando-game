@@ -4577,3 +4577,12 @@ none of either.
   floor, a waxed coping and dirt round the lip on the deck; an air clears the coping by most of a
   metre or it reads as standing; painted signs and murals are LIT paint (they were unshaded,
   flat glowing colour). RC5_SKATE=0 is the A/B.
+- **2026-11-05 The arena_night refcam: an event plaza is lit by its own screens and walls
+  (rc5-arena-night, HANDOFF "STARLIGHT PLAZA on an event night").** A new reference camera
+  (`arena_night`, wave 8's table) stands in STARLIGHT PLAZA's crowd at 21:00 looking at the screen
+  wall, the theatre and HOTEL ALTAIR. Decisions: a landmark's blank wall gets architectural light
+  (LED blades, parapet coves, its name lit) rather than staying a dark box; a giant screen lights
+  the ground in front of it in the colour it is showing, worked out by the screen's own shader
+  maths (never a second clock); a hotel's crown is lit from inside; LED is a dull line by day; an
+  event night (a hash per night, ARENA_EVENT forces it) brings searchlights and a fuller plaza.
+  ARENA_NIGHT=0 is the A/B.

@@ -2957,6 +2957,9 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	load("res://tests/rc5_skate_park_checks.gd").new().run(self)
 	# Forward+ review h (tests/fwd_review_h_checks.gd, FwdReviewH): waves 6-7's look work on the Mac's renderer.
 	load("res://tests/fwd_review_h_checks.gd").new().run(self, city)
+	# STARLIGHT PLAZA on an event night (tests/rc5_arena_night_checks.gd, ArenaNight): the screens'
+	# spill, the facades' LED, the hotel's crown, the searchlights, the camera row.
+	load("res://tests/rc5_arena_night_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()

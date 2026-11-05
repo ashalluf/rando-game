@@ -29663,3 +29663,74 @@ container and port steel shaders, one of a colour on the industrial glass, and t
 shafts' display-number add (the same few ALU as fwd-review-e's display_add). Gate: SHARDS=3, 5,932
 checks passed, 0 failed, peak RSS 3,854 MB (a shard; an earlier run's street-closeup flake passed
 alone, 61 / 61 with this branch's checks).
+
+## 9mq. STARLIGHT PLAZA on an event night (fleet wave 8, refcam5 `arena_night`, branch `wt/rc5-arena-night`)
+
+A new reference camera, `arena_night` in `tools/refcams/cameras_w8.json`: STARLIGHT PLAZA (the arena
+district's entertainment plaza, LandmarkArenaDistrict `_live_plaza`) at 21:00 clear, the eye 1.7 m
+over the paving at the plaza's south-east, in the crowd, looking north-west (yaw 36, pitch 22, fov
+62) at the theatre's glass lobby, the screen wall on the cinema block and HOTEL ALTAIR's crown behind
+the theatre. Its `arena_event` key (1) makes the night an event night (as ARENA_EVENT=1; handled by
+`_arena_event()` in refcams_shot.gd, set before the city loads). The district's site rects in world
+XZ: `tools/rc5_arena_night/site_probe.gd` (seed 1337: plaza block x 2072.5-2217.5, z 1021.8-1195.4;
+its open ground x 2124.5-2191.5, z 1063.8-1195.4; hotel x 1977-2067, z 1022-1092; arena x 1977.5-2217.5,
+z 1275-1475).
+
+### What gave it away (before, main b45ba911)
+
+1. **Two blank walls.** The theatre's dark box over its lobby and the cinema block over the screens were
+   ~40 % of the frame: flat navy panels, a faint lavender uplight, nothing on them.
+2. **The screens lit nothing.** 200 m2 of LED and the paving under it as dark as a car park; the crowd
+   stood in the dark in front of a lit wall.
+3. **The hotel read as an office slab.** Its "lit crown" was white fins in a plain unshaded band, which
+   at 190 m showed as a few dotted lines; from the plaza the top just ended.
+4. **No event.** An arena plaza at 21:00 on a game night with no searchlights and the crowd of a quiet
+   evening.
+
+### What changed (`ArenaNight`, `scripts/world/arena_night.gd`)
+
+- `facades()` (near and far copies alike): LED blades every `BLADE_PITCH` up the theatre's plaza face
+  from over its name to the parapet, a violet-to-magenta gradient faded at both ends; warm coves along
+  both parapets and over the screens; "STARLIGHT PLAZA" in lit channel letters between the screens and
+  the parapet. The LED is `shaders/arena_led.gdshader`: unshaded, the vertex colour in display numbers
+  x `gain`, handed over by `cs_as_uniform()`, full after dark and `day_level` (0.18) of it by day, so
+  the golden and downtown aerials never see a glowing facade at noon.
+- `spill()`: one additive quad on the paving in front of each wall screen (62 m deep) and the theatre's
+  LED column, `shaders/arena_spill.gdshader`. Its colour is the screen's CURRENT slide, picked with the
+  screen shader's own lines (slot, the two hues from lm_hash21, the wipe; the checks hold the two
+  shaders' lines equal), added in display numbers on both renderers with a coverage alpha (the fog
+  rule). On Forward+ desktop one cool OmniLight in front of the wall (`screen_light()`, lamp_light
+  group) lights the people.
+- `hotel_crown()`: a lantern of lit glass inside the crown's fins (four steps, brightest low), LED
+  bands at its foot and lip, the fins themselves lit (`crown_fin_key()`), the long faces' name 4.6 m
+  (was 3.2).
+- `event_tonight(seed, night)`: a hash against `EVENT_ODDS` 0.62 (ARENA_EVENT=1 / 0 forces it), asked
+  at the detailed build from 17:30 on. An event night puts two searchlight carts (NightLife's SkyBeam
+  and cart) at the plaza's north corners leaning over the screen wall and two flanking the arena's
+  marquee leaning toward the plaza, and the plaza's crowd x `EVENT_CROWD` 1.8 (`crowd_gain()`;
+  PlazaCrowd still caps the density).
+
+Hooks: LandmarkArenaDistrict `_live_plaza` (spill per screen, facades, column spill, the light, the
+event), `_arena` (the marquee's searchlights), `_live_hotel` (crown, fin key, name height), `crowds()`
+(the event crowd). ARENA_NIGHT=0 is the A/B (the district as before).
+
+### Proof
+
+- opengl3 refcam before / after: shots/rc5-arena-night `01`, `02`, `03` (crown crop `05`).
+  p5/p50/p95 10/31/156 -> 10/33/172, saturation 0.456 -> 0.442.
+- Forward+ (lavapipe, `tools/glshot/far_landmark_shot.gd IDS=live_plaza NIGHT=1 DIST=95`, the plaza
+  alone): shots `04`, ARENA_NIGHT=0 over on - the blades keep their violet, the spill is a soft
+  coloured wash, no flat disc.
+- Frame cost at the camera (GEO, opengl3): 5.04 M -> 5.38 M triangles, 2,743 -> 2,979 draws, shadow
+  1.32 M -> 1.47 M. Most of it is the event night's fuller plaza (more people) and the two searchlight
+  carts; the LED and the spill are a handful of draws.
+- Checks: `tests/rc5_arena_night_checks.gd` (the spill / screen shader lines, events, the plaza's
+  pools and LED near and far, the crown, the searchlights, the camera row on the plaza, the A/B).
+
+### Not done
+
+- The spill quads and the screen light are static in position; the spill's colour follows the slide,
+  the omni does not (one cool average).
+- The arena's own drum screens and the marquee throw no spill (out of this camera).
+- The foreground paving at the eye (beyond the screens' 62 m) stays dark: the plaza's four masts are
+  its only other light.

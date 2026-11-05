@@ -88,6 +88,14 @@ at the shot): tune `air_dist` / `air_side` from it.
 Run with `REFCAMS_JSON=tools/refcams/cameras_w6.json`. `rooftop_golden`: the black twins' north
 helipad (deck 215.55 m), 17:45 clear, looking SSW over the skyline to the basin and the sea.
 
+## Wave 8's cameras (`cameras_w8.json`)
+
+Run with `REFCAMS_JSON=tools/refcams/cameras_w8.json`. `arena_night` (rc5-arena-night): STARLIGHT
+PLAZA at 21:00 clear, eye level in the crowd at the plaza's south-east looking north-west at the
+screen wall, the theatre's lobby and HOTEL ALTAIR's crown. Its optional `arena_event` key (1 / 0)
+makes the night an event night or a quiet one (ArenaNight, as ARENA_EVENT; set before the city
+loads). `tools/rc5_arena_night/site_probe.gd` prints the district's site rects in world XZ.
+
 ## Running
 
 ```

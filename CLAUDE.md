@@ -4946,6 +4946,14 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   included by building.gdshader AND building_lod.gdshader (change one, both change). Landmark
   facade windows are coverage by pixel footprint. `CIVIC_GROUNDS=0` / `ROOF_WEATHER=0` the A/B;
   probe `tools/civic_grounds/probe.tscn`; checks `tests/rc_downtown_aerial_checks.gd`.
+- STARLIGHT PLAZA on an event night (wave 8, refcam `arena_night` in `tools/refcams/cameras_w8.json`,
+  its `arena_event` key = ARENA_EVENT; docs/HANDOFF.md "STARLIGHT PLAZA on an event night"):
+  `ArenaNight` (`scripts/world/arena_night.gd`, hooks in LandmarkArenaDistrict): LED blades and
+  parapet coves on the plaza's blank walls and its name lit, near and far; each screen's light on
+  the paving (`shaders/arena_spill.gdshader` picks the screen's slide colour as led_screen.gdshader
+  does - change both; checked), a cool omni on Forward+ desktop; the hotel's crown lit from inside;
+  on event nights (`event_tonight()`, a hash) searchlight carts (SkyBeam) on the plaza and by the
+  marquee and a fuller plaza. `ARENA_NIGHT=0` is the A/B; checks `tests/rc5_arena_night_checks.gd`.
 - Broadway's theatre district (2026-10-05, HANDOFF "Broadway"): `Broadway`
   (`scripts/world/broadway.gd`) places eleven invented movie palaces by their REAL house numbers on
   S Broadway (`THEATRES`, `address_z()` through the real cross streets) on the Broadway-fronting lot
