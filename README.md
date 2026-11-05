@@ -83,3 +83,12 @@ at 0.6 s full size. 72 the 150 m aerial on Forward+ (lavapipe): 0.15, 0.6, 2 s.
   tongues of their own heights. The car body and fuse timing are random per run.
 - `81_r18_before_flat_red_wedge_card_5m.jpg` - what the wedge debris looked like close up before
   round 18 (a flat red-brown card); it is a seven-sided broken lump now.
+
+## Round 19 (the lead's review of 79)
+- `82_r19_chain_golden_30m_...` - the same chain at golden hour, 1.6 / 2.4 / 2.8 / 3.6 / 6 s, before
+  (top) / after (bottom): each chain car and pop flashes a hot white-yellow core before it browns;
+  the burning fuel along the road is puddles of different sizes and heights.
+- `84_r19_chain_crop_...` - crops of the fireballs at 1.6 / 2.4 / 2.8 s (fuse timing is random per run).
+- `83_r19_fuel_16m_...` - a car's fuel from 16 m at 3 and 7 s: before (top) the trail's even fence of
+  tongues (stretched pools); after (bottom) a deep puddle burning high by the car, smaller ones
+  further out with dry road between.
