@@ -2937,6 +2937,9 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	await load("res://tests/rc4_lowrider_meet_checks.gd").new().run(self, city)
 	# The ER's ambulance court at night (tests/rc4_hospital_er_checks.gd, RcHospitalEr): sign, soffit, glazing.
 	load("res://tests/rc4_hospital_er_checks.gd").new().run(self, city)
+	# The hill_home_dusk refcam (tests/rc5_hill_home_dusk_checks.gd, Rc5HillHome): the camera row,
+	# the open-plan room, the pool, the spill, the loungers, the pool's view clear of terrace trees.
+	load("res://tests/rc5_hill_home_dusk_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()

@@ -4532,3 +4532,10 @@ none of either.
   street, never on a relief-following slab under it; a lit red sign glows under 1 and lets white
   letters carry the bloom (red-heavy HDR goes salmon through AgX); a sign over a canopy is placed
   where the canopy's fascia does not hide it from the approach. RC4_HOSPITAL=0 is the A/B.
+- **2026-11-05 The hill home's pool deck at dusk (rc5-hill-home-dusk, HANDOFF "The hill home's
+  pool deck at dusk").** A new reference camera (`hill_home_dusk`, wave 8's table) stands on a
+  cantilever house's pool deck on the front range at 19:15 looking south over the basin. Decisions:
+  a glass pavilion's room is one open plan lit in downlight pools, never a row of lit partitions; a
+  lit room or pool lights the paving in front of it (an additive spill, display numbers); a pool
+  mirrors the lit glass beside it; the terraced garden keeps out of an infinity pool's view (after
+  the rolls); a hash fed an interpolated varying is quantised first. RC5_HILL_HOME=0 is the A/B.

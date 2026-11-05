@@ -183,3 +183,11 @@ each step, and the tunnel train is hidden with it).
 freezes row cars mid-routine (LOWRIDER_POSE), set before the city loads (`_lowrider_meet()` in
 refcams_shot.gd). `tools/rc4_lowrider_meet_probe.gd` prints the row (stances, lamps, routines)
 and the crowd headless.
+## Wave 8's cameras (`cameras_w8.json`)
+
+Run with `REFCAMS_JSON=tools/refcams/cameras_w8.json`. `hill_home_dusk`: estate 392's pool deck on
+the front range (a cantilever house, 159 m up) at 19:15 clear, looking south over the basin past
+the infinity pool, the lit glass wall on the right. The eye's y is absolute (no `agl`): the pad's
+deck. `tools/rc5_hill_home/probe.tscn` (EST=n) prints an estate's wings, deck and pool in world
+space for framing another one. On this box an opengl3 city run can hang in the occlusion raycast
+(0 % CPU after the far city loads): `OCCLUSION=0` on refcams.py's environment.
