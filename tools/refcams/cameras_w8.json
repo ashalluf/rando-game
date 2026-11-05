@@ -1,0 +1,7 @@
+{
+	"_doc": "Wave 8 reference cameras (tools/refcams/README.md), the same format as cameras.json and cameras_w7.json. One row a camera, each on its own line. Run with REFCAMS_JSON=tools/refcams/cameras_w8.json.",
+	"resolution": [1280, 720],
+	"cameras": [
+		{"name": "wingsuit_golden", "label": "The hero in his wingsuit at 18:00 clear, from his chase camera 6 m behind, gliding ~120 m over Bunker Hill toward the downtown skyline", "eye": [2440.0, 120.0, -880.0, 204.0, -12.0], "agl": true, "hour": 18.0, "weather": "clear", "fov": 44, "wingsuit": {"at": [2440.0, 120.0, -880.0], "heading": 192.0, "speed": 46.0, "lead": 2.5, "dist": 6.0, "look": [12.0, -12.0], "fov": 44.0}}
+	]
+}

@@ -105,6 +105,13 @@ func _run() -> void:
 			drive = load("res://tools/refcams/chase_stage.gd").new()
 			await drive.call("run", self, cam, player)
 			fov = player.get("camera").fov
+		elif cam.has("wingsuit"):
+			# A "wingsuit" row (cameras_w8.json, wingsuit_golden): the hero gliding in his suit, the
+			# shot from his own chase camera (tools/refcams/wingsuit_stage.gd).
+			OS.set_environment("EYE", "")
+			drive = load("res://tools/refcams/wingsuit_stage.gd").new()
+			await drive.call("run", self, cam, player)
+			fov = player.get("camera").fov
 		else:
 			_place(player, fov)
 			# The marine layer's morning damp (MarineMorning) wants the hour and the eye: soaked at once.

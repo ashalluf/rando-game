@@ -619,6 +619,8 @@ static func _museum(s: Rect2, y0: float, parent: Node3D, statics: StaticBody3D, 
 	# The coping over the veil's top edge, and the roof.
 	g.box("veil", Vector3(r.get_center().x, y0 + h + 0.35, r.get_center().y), Vector3(r.size.x + 0.4, 0.7, r.size.y + 0.4), Color.WHITE, Basis(), 0.1 if detailed else 0.0)
 	LandmarkGeo.shape_box(statics, Vector3(r.get_center().x, y0 + h + 0.35, r.get_center().y), Vector3(r.size.x + 0.4, 0.7, r.size.y + 0.4))
+	if Rc5Wingsuit.enabled:
+		Rc5Wingsuit.museum_roof(g, r, y0 + h + 0.7, detailed)
 	batch.add("museum_name", Signage.text_mesh(MUSEUM_NAME, 0.7, Signage.Letters.PRINT),
 		Transform3D(LandmarkArenaDistrict._face(PI, 1.0), Vector3(r.get_center().x, y0 + 3.0, r.end.y + 0.95)), Color(0.15, 0.15, 0.16))
 	batch.set_no_shadow("museum_name")

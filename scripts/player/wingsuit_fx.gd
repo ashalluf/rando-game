@@ -22,6 +22,19 @@ extends Node3D
 ## Grid of each membrane (along the edge it hangs from, and across it).
 const GRID_U := 9
 const GRID_V := 6
+## The wingsuit refcam pass (rc5-wingsuit-golden, docs/HANDOFF.md "The wingsuit at golden hour"):
+## each membrane is an INFLATED two-skin wing on a finer grid - a top and a bottom skin apart by
+## an airfoil's thickness (`cell_depth`, deepest a third of the way back from the leading edge,
+## none at the trailing edge or the wingtip), the top skin bulging between the chordwise seams
+## like ram-air cells -, the vapour lit by the low sun, and it starts at a trimmed glide's speed.
+## WINGSUIT_LOOK=0 is the A/B (the single flat sheets and the old vapour).
+static var look2: bool = OS.get_environment("WINGSUIT_LOOK") != "0"
+const GRID_U2 := 16
+const GRID_V2 := 9
+## Depth of the inflated wing (m, top skin to bottom at its thickest): arm wings, tail wing.
+@export var cell_depth: Vector2 = Vector2(0.11, 0.085)
+## Share of the depth the top skin bulges more between two seams (the ram-air cells).
+@export var cell_bulge: float = 0.35
 ## How far each wing bows out behind him (m) at full spread, and how deep the trailing edge's
 ## scallop is (share of the chord).
 @export var billow: float = 0.09
@@ -75,6 +88,12 @@ static func vapour_material() -> ShaderMaterial:
 
 
 func _ready() -> void:
+	if look2:
+		# Vapour from a trimmed glide's speed up (it flew at 32-80 m/s: a trimmed glide, 30-45,
+		# drew next to nothing), a touch denser, and lit by the sun in the shader (`look`).
+		vapour_min = 20.0
+		vapour_full = 62.0
+		vapour_alpha = 0.42
 	_fabric_mesh = ArrayMesh.new()
 	_fabric = MeshInstance3D.new()
 	_fabric.name = "Fabric"
@@ -90,6 +109,8 @@ func _ready() -> void:
 	_ribbons.top_level = true
 	_ribbons.mesh = _ribbon_mesh
 	_ribbons.material_override = vapour_material()
+	vapour_material().set_shader_parameter("look", 1.0 if look2 else 0.0)
+	_fabric_mat.set_shader_parameter("look", 1.0 if look2 else 0.0)
 	_ribbons.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	_ribbons.visible = false
 	add_child(_ribbons)
@@ -290,26 +311,71 @@ func _rebuild() -> void:
 func _grid(verts: PackedVector3Array, normals: PackedVector3Array, tangents: PackedFloat32Array,
 		uvs: PackedVector2Array, uv2s: PackedVector2Array, idx: PackedInt32Array, front: Vector3,
 		s: float, kind: float, shape: Callable) -> void:
-	var base := verts.size()
+	var gu := GRID_U2 if look2 else GRID_U
+	var gv := GRID_V2 if look2 else GRID_V
 	var pts := []
-	for j in GRID_V + 1:
-		var v := float(j) / GRID_V
-		for i in GRID_U + 1:
-			var u := float(i) / GRID_U
+	for j in gv + 1:
+		var v := float(j) / gv
+		for i in gu + 1:
+			var u := float(i) / gu
 			var uu := u * s if kind == 0.0 else lerpf(0.5, u, s)
 			var p: Vector3 = shape.call(uu, v)
 			p -= front * billow * s * sin(PI * minf(uu * 1.2, 1.0)) * sin(PI * v * 0.9 + 0.1)
 			pts.append(p)
-	for j in GRID_V + 1:
-		var acc_u := 0.0
-		for i in GRID_U + 1:
-			var k := j * (GRID_U + 1) + i
+	if not look2:
+		_skin(verts, normals, tangents, uvs, uv2s, idx, front, kind, pts, gu, gv, 1.0)
+		return
+	# The inflated wing: the sheet's normal (toward his back, -front), the airfoil's depth along it.
+	var depth := (cell_depth.x if kind == 0.0 else cell_depth.y) * s
+	var top := []
+	var bot := []
+	var along := 0.0
+	for j in gv + 1:
+		var v := float(j) / gv
+		along = 0.0
+		for i in gu + 1:
+			var u := float(i) / gu
+			var k := j * (gu + 1) + i
 			var p: Vector3 = pts[k]
-			var pu: Vector3 = pts[k + 1] - p if i < GRID_U else p - pts[k - 1]
-			var pv: Vector3 = pts[k + GRID_U + 1] - p if j < GRID_V else p - pts[k - GRID_U - 1]
+			var pu: Vector3 = pts[k + 1] - p if i < gu else p - pts[k - 1]
+			var pv: Vector3 = pts[k + gu + 1] - p if j < gv else p - pts[k - gu - 1]
+			if i > 0:
+				along += p.distance_to(pts[k - 1])
 			var n := pu.cross(pv)
 			n = n.normalized() if n.length_squared() > 1e-12 else -front
 			if n.dot(-front) < 0.0:
+				n = -n
+			# Airfoil: none at the leading edge (the arm or the crotch fills it) or the trailing
+			# edge, deepest a third of the way back.
+			var t := depth * sqrt(v) * (1.0 - v) / 0.385
+			if kind == 0.0:
+				t *= 1.0 - smoothstep(0.72, 1.0, u)
+			else:
+				t *= sqrt(sin(PI * u))
+			# The cells: the top skin bulges between the chordwise seams (every `panel` m).
+			var cell := sin(PI * fposmod(along / 0.26, 1.0))
+			top.append(p + n * t * (0.68 + cell_bulge * 0.68 * (cell - 0.6)))
+			bot.append(p - n * t * 0.32)
+	_skin(verts, normals, tangents, uvs, uv2s, idx, front, kind, top, gu, gv, 1.0)
+	_skin(verts, normals, tangents, uvs, uv2s, idx, front, kind, bot, gu, gv, -1.0)
+
+
+## One skin of a membrane from its grid of points: normals toward his back (`side` 1) or his
+## front (-1), UV in metres, UV2 (u, v) with 2 added to v on the tail wing and 4 on a bottom skin.
+func _skin(verts: PackedVector3Array, normals: PackedVector3Array, tangents: PackedFloat32Array,
+		uvs: PackedVector2Array, uv2s: PackedVector2Array, idx: PackedInt32Array, front: Vector3,
+		kind: float, pts: Array, gu: int, gv: int, side: float) -> void:
+	var base := verts.size()
+	for j in gv + 1:
+		var acc_u := 0.0
+		for i in gu + 1:
+			var k := j * (gu + 1) + i
+			var p: Vector3 = pts[k]
+			var pu: Vector3 = pts[k + 1] - p if i < gu else p - pts[k - 1]
+			var pv: Vector3 = pts[k + gu + 1] - p if j < gv else p - pts[k - gu - 1]
+			var n := pu.cross(pv)
+			n = n.normalized() if n.length_squared() > 1e-12 else -front
+			if n.dot(-front) * side < 0.0:
 				n = -n
 			var t := pu.normalized() if pu.length_squared() > 1e-12 else Vector3.RIGHT
 			if i > 0:
@@ -317,17 +383,17 @@ func _grid(verts: PackedVector3Array, normals: PackedVector3Array, tangents: Pac
 			var acc_v := 0.0
 			if j > 0:
 				for jj in j:
-					acc_v += ((pts[(jj + 1) * (GRID_U + 1) + i] as Vector3) - (pts[jj * (GRID_U + 1) + i] as Vector3)).length()
+					acc_v += ((pts[(jj + 1) * (gu + 1) + i] as Vector3) - (pts[jj * (gu + 1) + i] as Vector3)).length()
 			verts.append(p)
 			normals.append(n)
 			tangents.append_array([t.x, t.y, t.z, 1.0])
 			uvs.append(Vector2(acc_u, acc_v))
-			uv2s.append(Vector2(float(i) / GRID_U, float(j) / GRID_V + kind * 2.0))
-	for j in GRID_V:
-		for i in GRID_U:
-			var a := base + j * (GRID_U + 1) + i
+			uv2s.append(Vector2(float(i) / gu, float(j) / gv + kind * 2.0 + (4.0 if side < 0.0 else 0.0)))
+	for j in gv:
+		for i in gu:
+			var a := base + j * (gu + 1) + i
 			var b := a + 1
-			var c := a + GRID_U + 1
+			var c := a + gu + 1
 			var d := c + 1
 			idx.append_array([a, b, d, a, d, c])
 
