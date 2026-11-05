@@ -1,0 +1,186 @@
+extends RefCounted
+## The "pursuit" staging of a reference camera (tools/refcams/cameras_w8.json, police_pursuit): a
+## police chase round the player's car of a "drive" row (chase_stage.gd). Loaded by path from
+## chase_stage.gd once the autoloads exist (it names Police, PoliceCar and Vehicle).
+##
+## The drive row's optional "pursuit" key (every field optional):
+##   {"stars": 3,                        the wanted level (the light bars, the sirens, the helicopter)
+##    "cruisers": [[behind, across], ...] cruisers `behind` metres back from the player's car (centre
+##                                        to centre, along the way he drives) and `across` metres to
+##                                        his right, driven at his speed
+##    "heli": [dist, side, height],       the police helicopter staged that far ahead of the car's
+##                                        camera, `side` to its right, its searchlight on him; height
+##                                        over the default orbit height (0 = AirTraffic's own)
+##    "look": [yaw, pitch]}               the chase camera turned off its chase view (degrees, yaw to
+##                                        the left +), held there: a look round at what follows him
+## The police are switched on but dispatch nothing of their own (caps zero, no roadblocks, nobody
+## shooting, the trail never lost); the staged cruisers are `scripted` (their own driving off) and
+## held at the player's speed every physics tick like his car, mask world only so nothing they
+## touch stops them. POLICE_PURSUIT=0 in the environment stages none of it (the A/B of the staging).
+
+var tree: SceneTree
+var city: Node
+var police: Node
+var air: Node
+var cruisers: Array = []
+var offsets: Array = []
+var _saved := {}
+var _look := Vector2.ZERO
+var _has_look := false
+var heli: Node = null
+
+
+static func wanted(cam: Dictionary) -> bool:
+	return OS.get_environment("POLICE_PURSUIT") != "0" and (cam.get("drive", {}) as Dictionary).has("pursuit")
+
+
+## Before the lead-in: the stars, the cruisers at their places round `car` (already on the road,
+## facing `fwd`), the helicopter.
+func run(st: SceneTree, cam: Dictionary, car: Vehicle, fwd: Vector3, player: Node) -> void:
+	tree = st
+	city = tree.current_scene
+	var p: Dictionary = (cam.get("drive", {}) as Dictionary).get("pursuit", {})
+	police = city.get_node_or_null("Police")
+	if police == null:
+		print("REFCAM pursuit: no Police node")
+		return
+	police.call("_ensure_refs")
+	for key in ["cruisers_per_star", "officers_per_star", "roadblock_stars", "heavy_stars", "lose_seconds", "accuracy_base"]:
+		_saved[key] = police.get(key)
+	police.set("cruisers_per_star", PackedInt32Array([0, 0, 0, 0, 0, 0]))
+	police.set("officers_per_star", PackedInt32Array([0, 0, 0, 0, 0, 0]))
+	police.set("roadblock_stars", 99)
+	police.set("heavy_stars", 99)
+	police.set("lose_seconds", 1.0e6)
+	police.set("accuracy_base", 0.0)
+	police.set("enabled", true)
+	police.call("set_wanted", int(p.get("stars", 3)))
+	var right := Vector3(-fwd.z, 0.0, fwd.x)
+	var yaw := atan2(-fwd.x, -fwd.z)
+	var at := WorldState.to_world(car.global_position)
+	for row: Array in p.get("cruisers", []):
+		var off := -fwd * float(row[0]) + right * float(row[1])
+		var w := at + off
+		w.y = _road_top(car, w) + 0.6
+		var c: Variant = police.call("spawn_cruiser", w, yaw, "pursue")
+		if c == null:
+			continue
+		var pc := c as Vehicle
+		pc.set("scripted", true)
+		pc.set("mode", 1) # PURSUE: the siren and the bar run
+		pc.collision_mask = 1
+		pc.hold_crash_watch(6)
+		cruisers.append(pc)
+		offsets.append(Vector2(float(row[0]), float(row[1])))
+	if p.has("look"):
+		var l: Array = p.look
+		_look = Vector2(deg_to_rad(float(l[0])), deg_to_rad(float(l[1]) if l.size() > 1 else 0.0))
+		_has_look = true
+	# The helicopter: staged from the player's camera (AirTraffic.stage("police")), which follows him.
+	air = city.get_node_or_null("AirTraffic")
+	if air and p.has("heli"):
+		var h: Array = p.heli
+		var pcam := player.get("camera") as Camera3D
+		if pcam:
+			var lift := float(h[2]) if h.size() > 2 else 0.0
+			var keep: float = float(air.get("police_orbit_height"))
+			air.set("police_orbit_height", keep + lift)
+			heli = air.call("stage", "police", pcam, float(h[0]), float(h[1]) if h.size() > 1 else 0.0)
+			air.set("police_orbit_height", keep)
+	print("REFCAM pursuit: %d stars, %d cruisers, heli %s" % [int(police.get("stars")), cruisers.size(), heli.name if heli else "none"])
+
+
+## Every physics tick of the lead-in and the settle: the cruisers kept at the player's speed, in
+## their lanes, and the camera's look held.
+func steer(car: Vehicle, v: float, player: Node) -> void:
+	var f := -car.global_basis.z
+	f.y = 0.0
+	f = f.normalized()
+	for i in cruisers.size():
+		var c: Vehicle = cruisers[i]
+		if not is_instance_valid(c):
+			continue
+		var right := Vector3(-f.z, 0.0, f.x)
+		var o: Vector2 = offsets[i]
+		var want: Vector3 = car.global_position - f * o.x + right * o.y
+		var err: Vector3 = want - c.global_position
+		err.y = 0.0
+		var cf := -c.global_basis.z
+		cf.y = 0.0
+		cf = cf.normalized()
+		var vel: Vector3 = f * v + err * 1.5
+		c.linear_velocity = Vector3(vel.x, c.linear_velocity.y, vel.z)
+		var turn := cf.signed_angle_to(f, Vector3.UP)
+		c.angular_velocity = Vector3(c.angular_velocity.x * 0.5, turn * 3.0, c.angular_velocity.z * 0.5)
+		c.hold_crash_watch(2)
+	police.call("report_sighting")
+	if _has_look:
+		var dc: Node = _drive_cam(player)
+		if dc:
+			dc.set("_free_yaw", float(dc.get("_chase_yaw")) + _look.x)
+			dc.set("_free_pitch", float(dc.get("_chase_pitch")) + _look.y)
+			dc.set("_auto", 0.0)
+			dc.set("_hold", 1.0e6)
+
+
+func _drive_cam(player: Node) -> Node:
+	for n in player.find_children("*", "Node", true, false):
+		if n.get_script() and String((n.get_script() as Script).resource_path).ends_with("drive_cam.gd"):
+			return n
+	return null
+
+
+func _road_top(car: Vehicle, world: Vector3) -> float:
+	var plan: Variant = city.get("plan")
+	var gy: float = plan.height_at(Vector2(world.x, world.z)) if plan else world.y
+	var top := WorldState.to_local(Vector3(world.x, gy + 40.0, world.z))
+	var q := PhysicsRayQueryParameters3D.create(top, top + Vector3.DOWN * 80.0, 1)
+	q.exclude = [car.get_rid()]
+	var hit := car.get_world_3d().direct_space_state.intersect_ray(q)
+	return WorldState.to_world(hit.position).y if not hit.is_empty() else gy
+
+
+## After the shot: the chase stood down and the police as they were.
+func finish() -> void:
+	if police == null:
+		return
+	police.call("clear")
+	for key in _saved:
+		police.set(key, _saved[key])
+	if air and air.has_method("clear_all"):
+		air.set("forced_stars", -1)
+	print("REFCAM pursuit: stood down")
+
+
+## PURSUIT_AB=1: the frame again with each piece of the chase hidden in turn (the helicopter's
+## pool, its light, its shaft; the cruisers' glows; the cruisers' real lights), saved as
+## pab_<piece>.png in `out_dir`.
+func ab(out_dir: String) -> void:
+	if OS.get_environment("PURSUIT_AB") != "1":
+		return
+	var sets := {}
+	if heli and is_instance_valid(heli):
+		for n in ["Pool", "Beam", "Shaft"]:
+			var x: Node = heli.find_child(n, true, false)
+			if x:
+				sets["heli_" + n.to_lower()] = [x]
+	var glows := []
+	for c in cruisers:
+		if is_instance_valid(c) and c.get_node_or_null("PoliceGlow"):
+			glows.append(c.get_node("PoliceGlow"))
+	sets["glows"] = glows
+	var lights := []
+	for n in tree.root.find_children("*", "OmniLight3D", true, false):
+		if (n as Node3D).is_visible_in_tree() and n.get_parent() is PoliceNightLook:
+			lights.append(n)
+	sets["police_lights"] = lights
+	for key: String in sets:
+		var nodes: Array = sets[key]
+		for n in nodes:
+			n.set("visible", false)
+		for i in 3:
+			await tree.process_frame
+		tree.root.get_texture().get_image().save_png(out_dir.path_join("pab_%s.png" % key))
+		for n in nodes:
+			n.set("visible", true)
+		print("PURSUIT_AB %s: %d nodes hidden" % [key, nodes.size()])
