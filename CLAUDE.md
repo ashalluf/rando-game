@@ -146,6 +146,11 @@ cars lifts `PhysicsBudget.max_active_bodies` for it (a busy city sits at the cap
 the SAME frame when a live system re-checks the condition (CarPanic's kerb); a system that sends
 walkers off (doors, errands) takes plain `_lives()` walkers without `no_trim` only; a shared grid
 keyed on the camera reads the game window's camera; gate loops run from a separate worktree.
+**Wave 8** (docs/HANDOFF.md "The gate's intermittent failures, wave 8"): a timer that decides what
+physics does (settle, freeze, age) runs on the physics step, never the frame time (a loaded frame is
+seconds: `Ragdoll.PHYSICS_TICK`); "the plain crowd" is `StreetErrands.plain()` (the script), never
+`_lives()` (valets, vendors, buskers ... say true); stage what CrowdFlow must see well inside its
+35 m `RANGE` of the camera.
 
 Download a Linux headless-capable build with:
 
