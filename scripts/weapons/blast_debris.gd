@@ -392,7 +392,7 @@ func _ribbons(dt: float) -> void:
 			a *= 1.0 - smoothstep(RIB_MAX_LEN * 0.6, RIB_MAX_LEN, run)
 			# Gone near the lens: a piece flying past the camera dragged a band across the frame.
 			a *= smoothstep(4.0, 10.0, eye.distance_to(pos))
-			verts.append([pos - side * w - org, pos + side * w - org, Color(0.11, 0.1, 0.095, a), (eye - pos).normalized()])
+			verts.append([pos - side * w - org, pos + side * w - org, Color(0.11, 0.1, 0.095, a), (eye - pos).normalized(), run + float(k) * 3.7])
 			if run > RIB_MAX_LEN:
 				break
 		for v in verts.size() - 1:
@@ -407,6 +407,7 @@ func _ribbons(dt: float) -> void:
 				var V: Array = t[0]
 				_rib_mesh.surface_set_normal(V[3])
 				_rib_mesh.surface_set_color(V[2])
+				_rib_mesh.surface_set_uv(Vector2(float(t[1]), float(V[4])))
 				_rib_mesh.surface_add_vertex(V[t[1]])
 	if any:
 		_rib_mesh.surface_end()

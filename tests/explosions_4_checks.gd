@@ -313,7 +313,9 @@ func _round7(parent: Node) -> void:
 		and float(m.get_shader_parameter("core4")) == (1.0 if Blast4.core_enabled else 0.0),
 		"explosions_4: the young ball's heat follows its depth (core4, off by default)")
 	var r := Blast4.ribbon_material()
-	_t._check(r != null and r.transparency == BaseMaterial3D.TRANSPARENCY_ALPHA, "explosions_4: the debris smoke ribbons have their material")
+	_t._check(r != null and (r.transparency == BaseMaterial3D.TRANSPARENCY_ALPHA if r is StandardMaterial3D
+		else ((r as ShaderMaterial).shader.resource_path.ends_with("blast_ribbon.gdshader") and Blast4.ribbon_soft)),
+		"explosions_4: the debris smoke ribbons have their material (soft and torn by default)")
 	var bs := FileAccess.get_file_as_string("res://scripts/weapons/blast_debris.gd")
 	_t._check(bs.contains("_ribbon.global_transform = Transform3D(Basis(), global_position)"),
 		"explosions_4: the ribbons' box sits at the blast (at the world origin they were culled)")
@@ -373,6 +375,10 @@ func _round11(parent: Node) -> void:
 	_t._check(not (Blast4.ring_enabled and Blast4.ground_flash_enabled) or (gf != null
 		and gsrc.contains("blend_add") and gsrc.contains("fog_disabled")),
 		"explosions_4: the ground flash lights the street under the burst (additive, fog-free)")
+	var rsrc := FileAccess.get_file_as_string("res://shaders/blast_ring.gdshader")
+	_t._check(rsrc.contains("uniform float air_fade") and gsrc.contains("air_near") and (ring == null
+		or float((ring.material_override as ShaderMaterial).get_shader_parameter("air_fade")) == (1.0 if Blast4.ring_air_fade else 0.0)),
+		"explosions_4: the ring and the ground flash are the air's view (faded near and grazing)")
 	if ring != null:
 		ring.queue_free()
 	var wall := StaticBody3D.new()

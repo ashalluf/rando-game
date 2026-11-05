@@ -64,7 +64,9 @@ static var max_awnings: int = 6
 ## A continuous smoke ribbon behind each burning piece of debris, and longer burns on the ground
 ## (BlastDebris._ribbons()). BLAST_RIBBONS=0 is the A/B.
 static var debris_ribbons: bool = OS.get_environment("BLAST_RIBBONS") != "0"
-static var _ribbon_mat: StandardMaterial3D
+static var _ribbon_mat: Material
+## Round 14: debris trails drawn with a soft, torn profile (shaders/blast_ribbon.gdshader). BLAST_RIBBON_SOFT=0.
+static var ribbon_soft: bool = OS.get_environment("BLAST_RIBBON_SOFT") != "0"
 static var pit_depth: float = 0.35 # metres of depth per metre of pit radius
 static var _pit_shader: Shader
 static var _lip_mat: StandardMaterial3D
@@ -375,6 +377,8 @@ static var debris_streaks: bool = OS.get_environment("BLAST_STREAKS") != "0"
 static var ring_enabled: bool = OS.get_environment("BLAST_RING") != "0"
 ## Round 13: the street lit white-orange under the burst for its first frames, then the core's
 ## embers (`shaders/blast_ground_flash.gdshader`): what reads first from the air. BLAST_GROUND_FLASH=0.
+## Round 14: the ring fades for an eye near it or at a grazing look (BLAST_RING_AIR=0 the round-11 ring).
+static var ring_air_fade: bool = OS.get_environment("BLAST_RING_AIR") != "0"
 static var ground_flash_enabled: bool = OS.get_environment("BLAST_GROUND_FLASH") != "0"
 static var _flash_shader: Shader
 static var wall_enabled: bool = OS.get_environment("BLAST_WALL") != "0"
@@ -811,16 +815,23 @@ static func _awning_scraps(parent: Node, xf: Transform3D, col: Color, width: flo
 
 
 ## The debris ribbons' material: soot that takes the sun and sky, see-through by its alpha.
-static func ribbon_material() -> StandardMaterial3D:
+static func ribbon_material() -> Material:
 	if _ribbon_mat == null:
-		_ribbon_mat = StandardMaterial3D.new()
-		_ribbon_mat.vertex_color_use_as_albedo = true
-		_ribbon_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-		_ribbon_mat.cull_mode = BaseMaterial3D.CULL_DISABLED
-		_ribbon_mat.depth_draw_mode = BaseMaterial3D.DEPTH_DRAW_DISABLED
-		_ribbon_mat.roughness = 1.0
-		_ribbon_mat.specular_mode = BaseMaterial3D.SPECULAR_DISABLED
-		_ribbon_mat.disable_receive_shadows = true
+		if ribbon_soft:
+			# Round 14: a soft torn profile across the band (a flat band drew hard arcs at 5 m).
+			var sm := ShaderMaterial.new()
+			sm.shader = preload("res://shaders/blast_ribbon.gdshader")
+			_ribbon_mat = sm
+			return _ribbon_mat
+		var m := StandardMaterial3D.new()
+		m.vertex_color_use_as_albedo = true
+		m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		m.cull_mode = BaseMaterial3D.CULL_DISABLED
+		m.depth_draw_mode = BaseMaterial3D.DEPTH_DRAW_DISABLED
+		m.roughness = 1.0
+		m.specular_mode = BaseMaterial3D.SPECULAR_DISABLED
+		m.disable_receive_shadows = true
+		_ribbon_mat = m
 	return _ribbon_mat
 
 
@@ -908,6 +919,7 @@ static func ground_ring(parent: Node, ground: Vector3, normal: Vector3, reach: f
 	m.set_shader_parameter("noise3d", Blast3.noise_texture())
 	m.set_shader_parameter("reach", reach)
 	m.set_shader_parameter("seed", randf() * 7.0)
+	m.set_shader_parameter("air_fade", 1.0 if ring_air_fade else 0.0)
 	var q := MeshInstance3D.new()
 	q.name = "BlastRing"
 	var pm := PlaneMesh.new()

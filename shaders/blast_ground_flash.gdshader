@@ -14,6 +14,10 @@ uniform sampler3D noise3d : filter_linear, repeat_enable;
 uniform float age = 0.0;
 uniform float seed = 0.0;
 uniform float gain = 1.0;
+// The air's view only: from the street the blast's OmniLight already lights the road, and this
+// quad added over it at a grazing look painted the whole road a flat cream.
+uniform float air_near = 25.0;
+uniform float air_far = 60.0;
 global uniform float night_factor;
 
 void fragment() {
@@ -34,6 +38,7 @@ void fragment() {
 	vec3 c = (hot + ember) * gain * mix(1.0, 1.6, night_factor);
 	// Exactly zero at the quad's edge: an additive tail draws the quad.
 	c *= 1.0 - smoothstep(0.8, 0.98, r);
+	c *= smoothstep(air_near, air_far, length(VERTEX)) * smoothstep(0.15, 0.4, abs(dot(NORMAL, VIEW)));
 	if (max(c.r, max(c.g, c.b)) < 0.002) {
 		discard;
 	}
