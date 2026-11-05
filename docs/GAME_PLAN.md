@@ -4477,6 +4477,21 @@ none of either.
   custom (the default's alpha selects the NightLamps point source - a bug other features' pools
   still carry); a refcam row may hold a system's clock (`port_t`) to frame a moment.
   PORT_NIGHT=0 is the A/B.
+- **2026-11-02 The four-level stack from the air (rc4-stack-aerial, HANDOFF "The four-level stack
+  from the air").** A new reference camera (`stack_aerial`, wave 7's table) looks down on the stack
+  from 150 m at 17:30. Decisions: a deck's shade on the ground depends on how high the deck is, not
+  only how near (under a 40 m connector the sun gets in, so ivy and trees grow); the stack's right
+  of way is planted from one pure list of spots that the FULL chunks plant as real trees and the
+  LOD ring and far city draw as canopies; a tall column is drawn thicker inside its existing
+  clearance; the connectors' traffic follows the hour. RC4_STACK=0 is the A/B.
+- **2026-11-02 The film lot refcam: a studio's basecamp is moulded vehicles on a kept street
+  (rc4-film-lot, HANDOFF "The film lot at 14:00").** A new reference camera (`film_lot`, wave 7's
+  table) stands in the SUNSPIRE lot's studio street at 14:00 toward the water tower. Decisions: a
+  production trailer, grip truck or golf cart is never a stack of boxes - a shell lofted round a
+  rounded section with its fittings - and a code-built vehicle repeated down a street is built once
+  per variant and batched, never per copy; a studio keeps its asphalt (the industrial ground with
+  `kept`, worn only by tyre tracks); the basecamp's gaps hold carts and the doors chairs, from the
+  layout alone, after every roll; the lot's walkers mostly wear crew blacks. RC4_FILM_LOT=0 is the A/B.
 - **2026-11-02 The freight_yard refcam: what the eye stands on must be there (rc4-freight-yard,
   HANDOFF "The freight yard at 16:30").** A new reference camera (`freight_yard`, wave 7's table) at
   eye level where the yard's ladder meets the storage tracks, a train pulling out (its clock held by
