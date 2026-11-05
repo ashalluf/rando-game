@@ -5,9 +5,9 @@ extends RefCounted
 ## whatever its instance count (CLAUDE.md, measurement trap 3). Prints "TRUE_<camera> <group> ..."
 ## lines; tools/perf_audit_6/true_table.py tabulates two runs.
 
-static func report(shot: Node, cam_name: String) -> void:
+static func report(shot: Object, cam_name: String) -> void:
 	var groups := {}
-	var scene: Node = shot.current_scene
+	var scene: Node = shot.get("current_scene")
 	for n in scene.find_children("*", "MultiMeshInstance3D", true, false):
 		var node := n as MultiMeshInstance3D
 		if node.multimesh == null or node.multimesh.mesh == null:
@@ -45,16 +45,16 @@ static func report(shot: Node, cam_name: String) -> void:
 
 ## The houses' meshes (HouseKit.commit(): one per material a chunk, no LODs), by material: camera
 ## (in the frustum) and shadow (cascades the swept box reaches), like _true_tris.
-static func houses(shot: Node, cam_name: String) -> void:
-	var cam: Camera3D = shot.get_root().get_camera_3d()
+static func houses(shot: Object, cam_name: String) -> void:
+	var cam: Camera3D = (shot as SceneTree).root.get_camera_3d()
 	var planes := cam.get_frustum()
 	var sun: DirectionalLight3D = null
-	for n in shot.current_scene.find_children("*", "DirectionalLight3D", true, false):
+	for n in (shot.get("current_scene") as Node).find_children("*", "DirectionalLight3D", true, false):
 		if (n as DirectionalLight3D).shadow_enabled:
 			sun = n
 			break
 	var by := {}
-	for n in shot.current_scene.find_children("House_*", "MeshInstance3D", true, false):
+	for n in (shot.get("current_scene") as Node).find_children("House_*", "MeshInstance3D", true, false):
 		var mi := n as MeshInstance3D
 		if not mi.is_visible_in_tree() or mi.mesh == null:
 			continue
