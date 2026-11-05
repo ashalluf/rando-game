@@ -7242,6 +7242,13 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   few frames (a muzzle flash) does not veil the fog: the fog's temporal blend damps it.
   `fwd_block_shot.gd BLOCKS=0` is a weather sky on Forward+ in three minutes; `FLASH=` holds a
   muzzle flash. `FWD_REVIEW_G=0` is the A/B; checks `tests/fwd_review_g_checks.gd`.
+- And one more (fwd-review-h, 2026-11-05, HANDOFF "Forward+ review h"): **a light LEVEL a
+  renderer-space or display-number shader works out itself (a falloff, a pool's alpha) is raw on
+  both** - Compatibility draws colour x level, Forward+ ~colour x level^0.45 (a tank 150 m from a
+  flare glowed orange all over). Hand it over with `fh_level()` / `fh_display()`
+  (`shaders/fwd_review_h.gdshaderinc`), or add a broad light_pool in display numbers
+  (`display_add_fwd`, `FwdReviewH.display_pool()`). Linear-on-both (cs_out) shaders are safe.
+  `FWD_REVIEW_H=0` the A/B; checks `tests/fwd_review_h_checks.gd`.
 - Native screenshots without a browser: `tools/glshot/building_shot.gd` (one building),
   `tools/glshot/block_shot.tscn` (a few FULL city blocks alone, no far city: a block's ground and
   furniture) and `tools/glshot/city_shot.gd` (the city at a `--spawn`) render with the real
