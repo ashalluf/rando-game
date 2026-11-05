@@ -73,7 +73,9 @@ of the downloaded app. We are not using it yet, for three reasons:
 3. Baking only saves the first of the two steps. Godot's docs say the final pipeline step always
    happens on your Mac. That step is the one the new loading screen now runs in the background.
 
-When a Godot release fixes those two bugs, we can bake with `shader_baker/enabled=true` in the
+A separate, manual-only workflow is ready for that day (`.github/workflows/mac-baked.yml`: a macOS
+runner, the baker on, never released, never blocking the normal build). When a Godot release fixes
+those two bugs, we can bake with `shader_baker/enabled=true` in the
 macOS export preset. That needs `application/min_macos_version_arm64` set to 14.00 (yours is
 14.2.1) and the export run from the editor on a Mac (or a macOS build machine with a GPU).
 

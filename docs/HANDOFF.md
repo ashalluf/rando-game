@@ -29012,6 +29012,14 @@ are not under the banks; the far mountains read warm brown at night in the full 
 area: the horizon plane). Mirrors of other lit things (the bank-road lamps) are not traced.
 ## 9d?. The Mac launch: a frame for the whole load, the 3D held while Metal compiles, sound after the picture (fleet wave 8, infra `mac-launch`, 2026-11-05)
 
+**For the owner, in plain words.** After this, you see the RANDO loading screen within a second
+or two of pressing Play, with a moving bar, a clock and a counter, and no sound until the city
+appears. The first launch after an update is still the slow one, because your Mac builds every
+shader once: expect several minutes, with "COMPILING SHADERS (FIRST LAUNCH ONLY)" counting up.
+The second launch of the same build skips that and should be much shorter. If the Godot editor
+itself sits on "Importing" after you pull a lot of changes, that is the editor's own one-off
+re-import of the assets, before the game starts; let it finish once.
+
 **The owner's report** (main 2f2fb8f5, Godot 4.7.2 editor on a Mac Studio M2 Max, 32 GB, macOS
 14.2.1, Play): "it took 5 minutes for the Godot player to just show the Godot logo and then 5
 minutes later I can hear sounds of the world but still just the Godot logo, and now 10 minutes of
