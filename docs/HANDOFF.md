@@ -28871,9 +28871,12 @@ shows ~35 % on the Mac, so every falloff tuned on the opengl3 stills is far flat
    flares' light (RefineryNight, wave 6) and the masts' sodium floods up every shell (older, the
    same pattern) - every tank orange from foot to roof on Forward+, grey with a warm foot and rim on
    opengl3 (refinery_night eye, 22:30). `fh_level()` (shaders/fwd_review_h.gdshaderinc: the level
-   sRGB-decoded on Forward+) on the three levels.
+   sRGB-decoded on Forward+) on the three levels. Tank luminance on Forward+ (150,80,30) -> (52,34,24):
+   dark steel, a warm foot and rim (opengl3 (85,73,65): greyer, its brighter night ambient). The
+   flares alone were a small share of it; the masts' sodium fans up the shells were most.
 4. **The container terminal's floods** (container.gdshader / port_steel.gdshader, renderer space,
-   PortNight wave 7): the same, `fh_level()`.
+   PortNight wave 7): the same, `fh_level()`. port_night eye: the far stacks (77,56,41) -> (46,34,29),
+   opengl3 (45,40,43).
 5. **The industrial office and storefront glass** (industrial_walls.gdshader, RcVernon wave 6 and
    the older office glass): the sky mirror EMITTED as plain numbers judged on Compatibility, read as
    linear by Forward+: pale cyan panes. `fh_display()` decodes the mirror on Forward+ (its frame
