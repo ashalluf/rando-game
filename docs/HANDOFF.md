@@ -26954,9 +26954,21 @@ merged with main and gated green this time). Judged on blast_room_shot.gd at 5 m
    burning pool's OmniLight hangs 2.3 m up at 4.2 (was 1.1 m at 6.5: a white hot spot burnt into
    the road through AgX; `BLAST_POOL_LIGHT=0`).
 
+7. **Round 19, the lead's review of 79** (a chain at golden hour): (a) the volumes brown within
+   ~0.2 s, so a chain's later cars and its pops read as muted brown clouds with orange dots where
+   the old cards had been a hot mass: `Blast4.hot_core()` (`shaders/blast_hot_core.gdshader`, an
+   additive, fog-free, camera-facing card, black-body white-yellow to red from blackbody4's numbers,
+   lumpy, rising with the ball) on every fuel / gas blast (`Blast3.spawn_volume`) and every pop for
+   0.4-0.5 s (`BLAST_HOT_CORE=0`; not on the web, whose cards start white-hot). (b) The fuel trail
+   was two stretched pools: an even fence of equal tongues across the road. `fuel_trail()` now lays
+   2-4 puddles a direction (`BLAST_FUEL_PUDDLES=0`): metres 1.9 shrinking to 0.75 outward, dry road
+   between (`BlastPool.spawn(..., radius_m, gain)`), each puddle's flames as tall as it is deep
+   (`BlastPool.flame_gain`, scaling the tongues' size) and fewer of them on a small one. The trail
+   cap is 16 puddles. Stills 82-83.
+
 Looked at and left: the night rocket at 60 m reads dim in the test room (no auto exposure there,
 and the night flash was held down on purpose in round 5); a pool fire still reads partly as a row of
-tongues - a low continuous fire bed under them would be the next step. Stills 73-79.
+tongues (round 19 breaks the trail into puddles; the main pool is still one ring). Stills 73-83.
 
 ## 9lb. The camera lens (wave 5, `camera-lens`)
 

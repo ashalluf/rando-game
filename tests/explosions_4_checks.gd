@@ -393,6 +393,15 @@ func _round11(parent: Node) -> void:
 	var pm := Blast4.panel_mesh()
 	_t._check(pm != null and (not Blast4.panel_torn or pm.get_faces().size() >= 14 * 9),
 		"explosions_4: a torn panel is a ragged crumpled sheet (%d face verts)" % pm.get_faces().size())
+	var hc := Blast4.hot_core(parent, _top + Vector3(30.0, 6.0, 30.0), 6.0, 0.4)
+	var hsrc := FileAccess.get_file_as_string("res://shaders/blast_hot_core.gdshader")
+	_t._check(not Blast4.hot_core_enabled or WeaponFX._web() or (hc != null and hsrc.contains("blend_add") and hsrc.contains("fog_disabled")),
+		"explosions_4: a fuel blast and each pop get a short hot black-body core (additive, fog-free)")
+	if hc != null:
+		hc.queue_free()
+	var fsrc := FileAccess.get_file_as_string("res://scripts/weapons/blast_pool.gd")
+	_t._check(fsrc.contains("var flame_gain: float = 1.0") and fsrc.contains("radius_m: float = -1.0"),
+		"explosions_4: a fuel trail is puddles of their own sizes and flame heights")
 	if Blast4.volume_room and Blast3.enabled and not WeaponFX._web():
 		var vp := Node3D.new()
 		parent.add_child(vp)
