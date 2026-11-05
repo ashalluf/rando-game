@@ -74,7 +74,7 @@ func _car(t: Node, city: Node3D) -> void:
 	h.call("advance", 1.0)
 	var up := (car._wheel_rigs[1][0] as Node3D).position.y - float(car._wheel_rigs[1][5])
 	var other := (car._wheel_rigs[0][0] as Node3D).position.y - float(car._wheel_rigs[0][5])
-	_t._check(up > 0.45 and other < 0.01, "parked on three: one front wheel %.2f m off the road, the other down" % up)
+	_t._check(up > float(h.get("three_lift")) * 0.85 and other < 0.01, "parked on three: one front wheel %.2f m off the road, the other down" % up)
 	h.call("set_stance", LowriderMeetLook.Stance.LAID, 1.0)
 	h.call("perform", "three", -1.0)
 	h.call("advance", 2.0)
