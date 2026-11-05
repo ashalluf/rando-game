@@ -3774,6 +3774,14 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   barriers, never the deck top (`DECK_LAYER`, out of their cull mask); freeway cars' lamps reach
   `FAR_LIGHTS`. refcams' `freeway_cars` key stages freeway traffic. `FREEWAY_NIGHT=0` is the A/B;
   checks `tests/rc3_freeway_night_checks.gd`.
+- The stack from the air (wave 7, refcam `stack_aerial` in `tools/refcams/cameras_w7.json`,
+  docs/HANDOFF.md "The four-level stack from the air"): `RcStack` (`scripts/world/rc4_stack.gd`):
+  a deck's shade on the right of way falls off with its clearance (`bareness()`: bare only under
+  low decks), the stack's right of way is a mixed ground cover (lot_yard COLOR.b) planted with
+  groves and oleander where crowns clear the deck over them (`spots()`, pure; FULL real trees,
+  LOD / far canopies from the same spots), tall stack columns drawn thicker (`column_r()`), the
+  connectors' cars by the hour (`cars_per_link()`). `RC4_STACK=0` is the A/B; checks
+  `tests/rc4_stack_aerial_checks.gd`.
 - Footbridges (2026-10-30, docs/HANDOFF.md "Footbridges"): `Footbridges` (pure placement: boulevards
   >= 22 m by schools / parks, one freeway slot of 36 segments at a time with caged stair towers on
   the corridor lots), `FootbridgeKit` (one mesh, `shaders/footbridge.gdshader`, kind in COLOR.a / 16),
@@ -5179,6 +5187,14 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   kit has its own `cyl()` / `cone()`. `FILM_STUDIO=0` is the A/B. Probe
   `tools/film_studio/probe.tscn`; checks `tests/film_studio_checks.gd`
   (`tools/film_studio/checks_only.tscn` alone).
+- The film lot refcam (wave 7, `film_lot` in `tools/refcams/cameras_w7.json`, docs/HANDOFF.md "The
+  film lot at 14:00"): `Rc4FilmLot` (`scripts/world/rc4_film_lot.gd`): trailers, grip trucks and golf
+  carts lofted round rounded sections (`section()` / `loft()`), built ONCE per variant (`cached()`)
+  and placed through the chunk's batch (a trailer is ~75 ms of GDScript); the studio ground is the
+  industrial material with industrial_ground's `kept` (no failed asphalt, no weeds) and tyre tracks
+  along the streets; the basecamp dressed (`dressing()`, pure: carts in the gaps, chairs, racks,
+  cable ramps); three in four walkers dressed as crew (`dress_crew()`). `RC4_FILM_LOT=0` is the A/B;
+  checks `tests/rc4_film_lot_checks.gd`.
 - The marketplace lane (2026-10-05, docs/HANDOFF.md "Paseo de las Golondrinas"): `PuebloLane`
   (`scripts/world/pueblo_lane.gd`), the FORM of the real historic lane and plaza across Alameda
   from the station, invented names, a civic block site (`CivicSites.SITES["pueblo_lane"]`, the
