@@ -124,6 +124,7 @@ func _run() -> void:
 		for i in frames:
 			if i == stage_at:
 				_stage_air(scene, cam)
+				_stage_rail(cam, scene)
 				traffic_staged = _stage_street_cars(cam, scene, plan)
 				# A "park_car" row (cameras_w6.json, car_closeup): a parked car and the eye round it.
 				if cam.has("park_car"):
@@ -173,6 +174,7 @@ func _run() -> void:
 			_hero_report(player, cam.name)
 		if traffic_staged:
 			scene.get_node("Traffic").set("staged", false)
+		_unstage_rail(scene)
 		var png := _out_dir.path_join("%s.png" % cam.name)
 		get_root().get_texture().get_image().save_png(png)
 		var c: Array = await _geo_report("GEO_%s" % cam.name)
@@ -415,6 +417,10 @@ func _place(player: Node3D, fov: float) -> void:
 	if _eye_cam:
 		player.global_position = _eye_cam.global_position
 	player.set("velocity", Vector3.ZERO)
+	# An eye in the underground station (rail_at rows): the parked player is let through the city's
+	# ground box at once, or each step throws him out to the street and the tunnel train is hidden.
+	if _rail_held and player is PhysicsBody3D:
+		(load("res://scripts/world/metro_station.gd") as GDScript).call("admit", player)
 	# A staged camera puts the hero in the shot, at the stage's spot, facing down the street.
 	if _stager != null and _stager.get("hero_at") != Vector3.INF:
 		player.visible = true
@@ -530,3 +536,37 @@ func _port_clock(cam: Dictionary) -> void:
 		pl.set("hold", true)
 	else:
 		pl.set("hold", OS.get_environment("PORT_HOLD") == "1")
+
+
+## A row's optional "rail_at" ("<station>[:<dir>[:<seconds from mid-dwell>]]", wave 7's
+## metro_station): the light rail's clock set so a train dwells at that station, and held there
+## until the shot is taken (LightRailSystem's RAIL_AT / RAIL_HOLD, per camera).
+var _rail_held := false
+
+
+func _stage_rail(cam: Dictionary, scene: Node) -> void:
+	if not cam.has("rail_at"):
+		return
+	var sys := scene.get_node_or_null("LightRail")
+	var line: Variant = sys.get("line") if sys else null
+	if line == null:
+		print("REFCAM %s: no light rail to stage" % cam.name)
+		return
+	# LightRail is reached through its script: naming it compiles it before the autoloads exist.
+	var lr: Variant = (line as Object).get_script()
+	var at := String(cam.rail_at).split(":", false)
+	lr.clock = float(line.call("clock_at_station", at[0].to_int(), at[1].to_int() if at.size() > 1 else 0,
+		at[2].to_float() if at.size() > 2 else 0.0))
+	sys.set("hold", true)
+	sys.call("step")
+	_rail_held = true
+	print("REFCAM %s: light rail clock %.1f (%s)" % [cam.name, float(lr.clock), cam.rail_at])
+
+
+func _unstage_rail(scene: Node) -> void:
+	if not _rail_held:
+		return
+	var sys := scene.get_node_or_null("LightRail")
+	if sys:
+		sys.set("hold", OS.get_environment("RAIL_HOLD") == "1")
+	_rail_held = false

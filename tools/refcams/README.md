@@ -166,5 +166,10 @@ terminal at 22:00 clear from the quay's apron. Its optional `port_t` key holds P
 refcams_shot.gd; rows without it leave the clock alone). `OCCLUSION=0` turns occlusion culling off
 for a run. `stack_aerial` (rc4-stack-aerial): the four-level stack from 150 m over the ground
 north-west of it, 17:30 clear, toward downtown; `shot_frames` 90 lets the connectors' traffic fill
-before the shot.
-
+before the shot. `metro_station` (rc4-metro-station): on the Coral Line's
+underground island at 7th St toward the bank's escalators and the glass lift, a train dwelling on
+the left with its doors open. Its optional `rail_at` key (`"<station>[:<dir>[:<seconds from
+mid-dwell>]]"`, LightRailSystem's RAIL_AT per camera) sets the light rail's clock when the row is
+staged and holds it until the shot; while it is held, every placement of the parked player calls
+`MetroStation.admit()` (an eye under the city's ground box is otherwise thrown out to the street
+each step, and the tunnel train is hidden with it).

@@ -2930,6 +2930,9 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	load("res://tests/rc4_river_night_checks.gd").new().run(self, city)
 	# The heli_night refcam (tests/rc4_heli_night_checks.gd, RcHeliNight): crown lids, pad lamps, the unfinished towers.
 	load("res://tests/rc4_heli_night_checks.gd").new().run(self, city)
+	# The metro station refcam (tests/rc4_metro_station_checks.gd, MetroLook, MetroCrowd): ads, the
+	# floor mirror, escalator riders, the bullet's letter, the camera row.
+	load("res://tests/rc4_metro_station_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()
