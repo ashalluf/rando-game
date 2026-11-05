@@ -29494,4 +29494,6 @@ Checks: `tests/fwd_review_h_checks.gd`.
 **Frame cost:** no node, mesh, material or draw is added (GEO unchanged by construction, not
 re-measured): a uniform branch and an sRGB decode of one scalar per lit pixel in the refinery,
 container and port steel shaders, one of a colour on the industrial glass, and the pools' and
-shafts' display-number add (the same few ALU as fwd-review-e's display_add).
+shafts' display-number add (the same few ALU as fwd-review-e's display_add). Gate: SHARDS=3, 5,932
+checks passed, 0 failed, peak RSS 3,854 MB (a shard; an earlier run's street-closeup flake passed
+alone, 61 / 61 with this branch's checks).
