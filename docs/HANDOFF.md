@@ -28945,4 +28945,5 @@ wearing it, its verge weeds; the tanks' look on; the smoke node.
 3.91 M triangles / 1,457 draws; still `12_after_refinery_night_merged_main_w8.jpg`). Gate (SHARDS=3):
 5,810 of 5,811; the one failure pedestrian_flow's "two walkers on one line step round each other"
 (CrowdFlow's camera 160 m off), which passes alone (32 / 32): a shard-order flake, no pedestrian code
-on this branch. The refinery checks alone: 35 / 35.
+on this branch. The refinery checks alone: 35 / 35. After merging batch 51 (8a480359) the gate
+ran clean: 5,814 of 5,814 (SHARDS=3).
