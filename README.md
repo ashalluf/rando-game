@@ -63,3 +63,16 @@ Round 12/13: 69 the debris smoke ribbons before (long straight grey wires across
 (short broken puffs, under 8 m each, widening and fading with age). 70 the heavier masonry burst on
 a facade at 30 m and 14 m (slabs, pale masonry dust, a rubble heap at the foot). 71 the 14 m view
 at 0.6 s full size. 72 the 150 m aerial on Forward+ (lavapipe): 0.15, 0.6, 2 s.
+
+## Wave 8 (resumed session): rounds 13-16
+- `73_r13_air_150m_ground_flash_...` - from 150 m up: before (top) / after (bottom) the ground flash
+  under the burst (0.05, 0.15, 0.4, 2 s), crops round the blast.
+- `74_r14_5m_...` - the rocket from 5 m (opengl3) at 0.1 / 0.4 / 1.2 s: before (top) the trails' hard
+  arcs and the shock ring + ground flash painting the whole road cream; after (bottom) soft torn
+  trails, the ring and flash only from the air, the dust roll on a grey road.
+- `75_r14_forward_plus_5m_...` - the same on Forward+ (lavapipe), 0.4 / 1.2 s: the pale horizon line
+  and the big translucent arcs are gone.
+- `76_r15_car_noon_...`, `77_r15_gas_night_...` - fuel and gas balls burn longer (top before).
+- `78_r16_scorch_...` - the crater's soot: top row from 22 m up at 10 s (before left: a black
+  spiky star; after right: a dark core with thinning streaks); bottom Forward+ at 5 m (before 1.2 s
+  left, after 8 s right).
