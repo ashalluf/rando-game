@@ -1,11 +1,11 @@
 explosions-4	session_01Q7NKyy4z54AhArHMTTrVbs	running
 rc4-refinery-road	session_01Q7NKyz1C9c5uzJdkavhnWL	merged b52
-rc4-metro-station	session_01Q7NKywGs9KwP2ugYGzbDYG	running
-rc4-lowrider-meet	session_01Q7NKywa9wvJtmHVUuc3pag	running
+rc4-metro-station	session_01Q7NKywGs9KwP2ugYGzbDYG	merged b53 (main 10568972)
+rc4-lowrider-meet	session_01Q7NKywa9wvJtmHVUuc3pag	merged b53 (main 10568972)
 rc4-terminal-curb	session_01Q7NKyyFHTQATD5m1EvSkXP	running
-rc4-heli-night	session_01Q7NKyxUeLaxRMz7TSC8nvA	running
+rc4-heli-night	session_01Q7NKyxUeLaxRMz7TSC8nvA	merged b53 (main 10568972)
 rc4-river-night	session_01Q7NKyzu5Zv3Yd6xzj3jpYb	merged b52
-rc4-hospital-er	session_01Q7NKyxvEDfMjnvJeHov7Af	running
+rc4-hospital-er	session_01Q7NKyxvEDfMjnvJeHov7Af	merged b53 (main 10568972)
 rc4-freight-yard	session_01Q7NKyx2xWp98FXaaYF7BT3	running
 gate-flakes-2	session_01Q7NKyyvsSfmPGjH8PZUS8x	running
 web-hero-blue	session_01Q7NKz1HQkk7j1gPt7ygTKR	running
@@ -18,7 +18,7 @@ rc5-construction-dusk	session_01Q7NKz1tGjPy6mU5Jp3yTRC	running
 rc5-suburb-night	session_01Q7NKyy3azSKLb9sePuFePS	running
 rc5-farmers-market	session_01Q7NKyy2BuChPWWNCVArZud	running
 rc5-skate-park	session_01Q7NKz1MmC66Aqqnq9MVivS	running
-rc5-hill-home-dusk	session_01Q7NKyyLMoGqosJq9UFEY2d	running
+rc5-hill-home-dusk	session_01Q7NKyyLMoGqosJq9UFEY2d	merged b53 (main 10568972)
 rc5-speedboat	session_01Q7NKyzxwFfJmL2sczFoA82	running
 rc5-arena-night	session_01Q7NKyxGVr97NRqpWw19Cs2	running
 fwd-review-h	session_01Q7NKyzZVrQeyt9q3ocESrk	running
