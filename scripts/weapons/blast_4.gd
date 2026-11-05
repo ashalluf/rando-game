@@ -381,6 +381,8 @@ static var ring_enabled: bool = OS.get_environment("BLAST_RING") != "0"
 ## Round 14: the ring fades for an eye near it or at a grazing look (BLAST_RING_AIR=0 the round-11 ring).
 ## Round 15: fuel and gas balls burn longer (blast_volume.gdshader `burn5`). BLAST_BURN=0.
 static var burn_enabled: bool = OS.get_environment("BLAST_BURN") != "0"
+## Round 16: the crater's soot a dark core with thinning streaks, not solid spikes (Blast3.crater_maps). BLAST_SCORCH=0.
+static var scorch_soft: bool = OS.get_environment("BLAST_SCORCH") != "0"
 static var ring_air_fade: bool = OS.get_environment("BLAST_RING_AIR") != "0"
 static var ground_flash_enabled: bool = OS.get_environment("BLAST_GROUND_FLASH") != "0"
 static var _flash_shader: Shader

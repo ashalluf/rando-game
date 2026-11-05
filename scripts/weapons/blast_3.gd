@@ -319,6 +319,10 @@ static func crater_maps(kind: int) -> Array:
 	noise.fractal_type = FastNoiseLite.FRACTAL_FBM
 	noise.fractal_octaves = 4
 	var smooth := Blast4.enabled and Blast4.crater_smooth
+	# Round 16 (Blast4.scorch_soft): solid soot fingers out to their tips drew a black cartoon
+	# starburst on Forward+ at 5 m (stretched toward a low eye). A dark core with a ragged edge,
+	# then streaks that thin out with the distance, patchy, never solid past the core.
+	var soft5 := Blast4.enabled and Blast4.scorch_soft
 	var fine := FastNoiseLite.new()
 	fine.noise_type = FastNoiseLite.TYPE_VALUE
 	fine.seed = 17
@@ -345,6 +349,8 @@ static func crater_maps(kind: int) -> Array:
 		var w := rng.randf_range(0.006, 0.05)
 		if smooth:
 			w = maxf(w, 0.014) # never thinner than a few texels across
+		if soft5:
+			w = maxf(w, 0.03)
 		var l := rng.randf_range(0.5, 0.97)
 		for b in bins:
 			var ang := TAU * float(b) / float(bins)
@@ -386,6 +392,12 @@ static func crater_maps(kind: int) -> Array:
 				a = halo * 0.32
 			# Soot: solid in the core, out along the fingers, thinning to their tips.
 			var soot := 1.0 - smoothstep(fr * 0.75, fr, r)
+			if soft5:
+				var core_r := 0.47 * (0.82 + 0.36 * nz)
+				var core := 1.0 - smoothstep(core_r * 0.65, core_r * 1.2, r)
+				var frac := clampf((r - core_r * 0.8) / maxf(fr - core_r * 0.8, 0.02), 0.0, 1.0)
+				var streak := (1.0 - smoothstep(0.0, 1.0, frac)) * (1.0 - 0.6 * frac) * 0.8 * (0.4 + 0.6 * nz)
+				soot = maxf(core, streak)
 			soot *= 0.75 + 0.25 * fz
 			# Specks of soot past the fingers.
 			if smooth:

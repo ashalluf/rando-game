@@ -385,6 +385,8 @@ func _round11(parent: Node) -> void:
 	_t._check(float(bm.get_shader_parameter("burn5")) == (1.0 if Blast4.burn_enabled else 0.0)
 		and FileAccess.get_file_as_string("res://shaders/blast_volume.gdshader").contains("uniform float burn5 = 0.0;"),
 		"explosions_4: a fuel or gas ball burns longer (burn5, off by default in the shader)")
+	_t._check(FileAccess.get_file_as_string("res://scripts/weapons/blast_3.gd").contains("var soft5 := Blast4.enabled and Blast4.scorch_soft"),
+		"explosions_4: the crater's soot is a core with thinning streaks, not solid spikes")
 	if ring != null:
 		ring.queue_free()
 	var wall := StaticBody3D.new()
