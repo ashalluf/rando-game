@@ -4524,3 +4524,11 @@ none of either.
   which the web and opengl3 do not have; the walls' lit panels are ads from the existing billboard
   atlas (no new art); the escalators carry standing riders and the platform refills from them while
   the player is down there, inside the crowd cap. METRO_LOOK=0 / METRO_CROWD=0 are the A/Bs.
+- **2026-11-02 The hospital_er refcam: a vehicle court is a level deck, not ground
+  (rc4-hospital-er, HANDOFF "The ER's ambulance court at night").** A new reference camera
+  (`hospital_er`, wave 7's table) looks down the medical centre's ambulance court at 23:00 with an
+  ambulance staged backing in. Decisions: anything that stands at a campus's one floor level (bays,
+  canopy columns, paint, parked and backing vehicles) stands on a deck AT that level, ramped to the
+  street, never on a relief-following slab under it; a lit red sign glows under 1 and lets white
+  letters carry the bloom (red-heavy HDR goes salmon through AgX); a sign over a canopy is placed
+  where the canopy's fascia does not hide it from the approach. RC4_HOSPITAL=0 is the A/B.
