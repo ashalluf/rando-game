@@ -562,7 +562,7 @@ static func hot_core(parent: Node, at: Vector3, radius: float, life: float = -1.
 	var tw := q.create_tween()
 	tw.tween_method(func(a: float):
 		m.set_shader_parameter("age", a)
-		q.scale = Vector3.ONE * (0.55 + 0.6 * sqrt(a)), 0.0, 1.0, life)
+		q.scale = Vector3.ONE * (0.3 + 0.75 * sqrt(a)), 0.0, 1.0, life)
 	tw.parallel().tween_property(q, "global_position", at + Vector3.UP * radius * 0.85, life).set_ease(Tween.EASE_OUT)
 	tw.tween_callback(q.queue_free)
 	return q

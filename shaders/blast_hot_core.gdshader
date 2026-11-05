@@ -44,9 +44,9 @@ void fragment() {
 	vec3 c = bb(k) * body * gain;
 #if CURRENT_RENDERER != RENDERER_COMPATIBILITY
 	// Forward+ adds these numbers in linear HDR over a volume that is already white-hot at first
-	// (the Mac): a quarter of them, and never the white plateau, or the first frames bloom into a
+	// (the Mac): a fifth of them, and never the white plateau, or the first frames bloom into a
 	// flat white disc (fwd-review-e's rule for additive quads). Compatibility tonemaps them raw.
-	c = bb(min(k, 0.86)) * body * gain * 0.3;
+	c = bb(min(k, 0.86)) * body * gain * 0.18;
 #endif
 	// It flares up in a few frames and goes in the last third of its life.
 	c *= smoothstep(0.0, 0.06, age) * (1.0 - smoothstep(0.6, 1.0, age));
