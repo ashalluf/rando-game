@@ -67,6 +67,15 @@ func _run() -> void:
 							pl.local_coords = true
 						"restart":
 							pl.restart()
+			elif h.begins_with("q:"):
+				# q:<level> runs Quality.apply_level() as a native build does at start (the web never does).
+				var qn := get_tree().current_scene.get_node_or_null("Quality")
+				if qn:
+					qn.call("apply_level", int(h.substr(2)))
+			elif h == "sun:on" or h == "omni:on":
+				for n in get_tree().root.find_children("*", "Light3D", true, false):
+					if (h == "sun:on") == (n is DirectionalLight3D):
+						(n as Light3D).visible = true
 			elif h == "omni:off" or h == "sun:off" or h == "omni:count":
 				var nl := 0
 				for n in get_tree().root.find_children("*", "Light3D", true, false):
@@ -112,8 +121,8 @@ func _run() -> void:
 							q.multimesh.mesh = qm
 						"cq:dump":
 							var mm := q.multimesh
-							for i in mm.visible_instance_count:
-								print("AUTOPROBE_CQ %d %s col=%s cu=%s" % [i, mm.get_instance_transform(i), mm.get_instance_color(i), mm.get_instance_custom_data(i)])
+							for k in mm.visible_instance_count:
+								print("AUTOPROBE_CQ %d %s col=%s cu=%s" % [k, mm.get_instance_transform(k), mm.get_instance_color(k), mm.get_instance_custom_data(k)])
 			elif h == "mm:scan":
 				_mm_scan()
 			elif h == "list:big":
