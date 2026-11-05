@@ -160,6 +160,23 @@ func _run() -> void:
 						if h.begins_with("glob:") and h.contains("="):
 							var kv := h.substr(5).split("=")
 							RenderingServer.global_shader_parameter_set(kv[0], kv[1].to_float())
+			elif h.begins_with("gmat:"):
+				# gmat:<uniform>=<float> on the horizon plane's material (and so the far ring).
+				var gm: ShaderMaterial = get_tree().current_scene.get("_ground_material")
+				var kv2 := h.substr(5).split("=")
+				if gm:
+					var v0: Variant = gm.get_shader_parameter(kv2[0])
+					if kv2[1] == "nil":
+						gm.set_shader_parameter(kv2[0], null)
+					elif v0 is bool or kv2[0] == "aerial_review" or kv2[0] == "macro_mirror":
+						gm.set_shader_parameter(kv2[0], kv2[1] == "1")
+					elif v0 is int or kv2[0] == "paint_debug":
+						gm.set_shader_parameter(kv2[0], int(kv2[1]))
+					else:
+						gm.set_shader_parameter(kv2[0], kv2[1].to_float())
+					print("AUTOPROBE_GMAT %s was %s now %s" % [kv2[0], v0, gm.get_shader_parameter(kv2[0])])
+			elif h == "mat:ground":
+				_dump_ground()
 			elif h.begins_with("show:"):
 				# show:<substr> undoes a hide (one subtree at a time, then back).
 				for n in get_tree().root.find_children("*", "GeometryInstance3D", true, false):
@@ -337,3 +354,28 @@ func _mm_scan() -> void:
 				if bad < 40:
 					print("AUTOPROBE_MMBAD %s i=%d/%d big=%.1f o=%s" % [mi.get_path(), i, vis, big, x.origin.round()])
 	print("AUTOPROBE_MMSCAN nodes=%d bad=%d" % [nodes, bad])
+
+
+## mat:ground (web-hero-blue): every uniform of the horizon plane's material (the far mountains
+## read lime on the web), textures by size and format, to diff a web run against a native one.
+func _dump_ground() -> void:
+	var m: Material = get_tree().current_scene.get("_ground_material")
+	if not (m is ShaderMaterial):
+		print("AUTOPROBE_MAT not a ShaderMaterial")
+		return
+	var sm := m as ShaderMaterial
+	for u in sm.shader.get_shader_uniform_list():
+		var v: Variant = sm.get_shader_parameter(u.name)
+		if v is Texture2D:
+			var t := v as Texture2D
+			var img := t.get_image()
+			var px := ""
+			if img:
+				if img.is_compressed():
+					img.decompress()
+				px = "%s c=%s m=%s" % [img.get_format(), img.get_pixel(img.get_width() / 2, img.get_height() / 4), img.get_pixel(img.get_width() / 2, img.get_height() / 2)]
+			print("AUTOPROBE_MAT %s tex %dx%d %s" % [u.name, t.get_width(), t.get_height(), px])
+		else:
+			print("AUTOPROBE_MAT %s = %s" % [u.name, v])
+	for gname in ["sky_tint", "sun_direction", "night_factor", "lamp_factor", "wind_factor", "aerial_review", "night_flight"]:
+		print("AUTOPROBE_GLOB %s = %s" % [gname, RenderingServer.global_shader_parameter_get(gname)])
