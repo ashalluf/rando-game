@@ -60,7 +60,7 @@ const FOG_MIX := 0.55
 
 ## Litter: amount and size (the old 90 and 0.08-0.22 m).
 const LITTER_AMOUNT := 160
-const LITTER_SIZE := Vector2(0.14, 0.34)
+const LITTER_SIZE := Vector2(0.11, 0.26)
 ## Ash flakes in the air round the player.
 const ASH_AMOUNT := 120
 
