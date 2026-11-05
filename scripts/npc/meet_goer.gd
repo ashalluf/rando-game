@@ -10,6 +10,8 @@ var home := Vector2.ZERO
 var home_yaw: float = 0.0
 ## Which way the road runs (CityPlan.AXIS_*), to look along the row.
 var road_axis: int = 0
+## Sits in one of the meet's folding chairs from the start (LowriderMeetLook.sitter_spots()).
+var sitter: bool = false
 var _beat: float = 0.0
 var _show_car: Node3D
 
@@ -35,6 +37,9 @@ func _roll_life(seed_value: int) -> void:
 
 func _ready() -> void:
 	super()
+	if sitter and _life_ok and _plan_sit(true):
+		_act_left = INF
+		return
 	_stand(true)
 
 
@@ -70,6 +75,13 @@ func _do_act(delta: float) -> void:
 	if _stage != Stage.DOING or not _life_ok:
 		return
 	_beat -= delta
+	if _act == CrowdLife.Act.SIT:
+		# In a chair: the sit clip stays; only the eyes follow the show.
+		if _beat <= 0.0:
+			_beat = _life.randf_range(1.5, 4.0)
+			_show_car = _performing_car()
+			_life_look = _show_car.global_position + Vector3.UP * 0.9 if _show_car != null else Vector3.INF
+		return
 	# Whatever is putting on a show within reach takes everybody's eyes.
 	if _show_car != null and is_instance_valid(_show_car):
 		_life_look = _show_car.global_position + Vector3.UP * 0.9

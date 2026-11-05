@@ -18,6 +18,10 @@ global uniform float night_factor;
 global uniform vec4 sky_tint;
 global uniform vec3 sun_direction;
 global uniform vec3 origin_shift;
+// The helicopter view at night (RcHeliNight): a crown's LID (a face looking up) keeps HN_LID_GLOW
+// of the glow, so from above a lit top is a lit band round a dark roof, not a lightbox. 0 = off.
+global uniform float rc4_heli_night;
+const float HN_LID_GLOW = 0.08;
 // The skyline's glass by day (building.gdshader has the same): the crown mirrors this hour's sky,
 // its clouds, the towers round it and the sun; the ribs are box filtered.
 #include "res://shaders/skyline_glass.gdshaderinc"
@@ -42,6 +46,10 @@ uniform float part_height = 20.0;
 void fragment() {
 	float lit = COLOR.a;
 	vec3 glow = COLOR.rgb;
+	if (rc4_heli_night > 0.5) {
+		float wny = normalize((INV_VIEW_MATRIX * vec4(NORMAL, 0.0)).xyz).y;
+		lit *= mix(1.0, HN_LID_GLOW, smoothstep(0.8, 0.97, wny));
+	}
 	float frame = 0.0;
 	bool sg = sg_on();
 	if (pattern == 1) {
