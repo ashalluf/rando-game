@@ -957,7 +957,7 @@ static func _hoarding(ch: CityChunk, st: SurfaceTool, site: Dictionary, g: float
 			K.box(st, Transform3D(Basis(Vector3.UP, yaw), Vector3(dm.x, y0 + WALKWAY_H + 0.15, dm.y)), Vector3(len, 0.3, depth + 0.2), K.K_STEEL, Color(0.20, 0.32, 0.22))
 			K.box(st, Transform3D(Basis(Vector3.UP, yaw), Vector3(dm.x, y0 + WALKWAY_H + 0.31, dm.y)), Vector3(len, 0.03, depth + 0.2), K.K_FORM, Color(0.62, 0.55, 0.42), -1.0, 0, 32)
 			var pk := (a + b) * 0.5 + out * (depth + 0.1)
-			K.box(st, Transform3D(Basis(Vector3.UP, yaw + PI), Vector3(pk.x, y0 + WALKWAY_H + 0.85, pk.y)), Vector3(len, 1.1, 0.03), K.K_HOARDING, Color.WHITE, float(way) + 0.01, 0, 32)
+			K.box(st, Transform3D(Basis(Vector3.UP, yaw + PI), Vector3(pk.x, y0 + WALKWAY_H + 0.85, pk.y)), Vector3(len, 1.1, 0.03), K.K_HOARDING, Color.WHITE, float(way) + (0.26 if ConstructionDusk.enabled else 0.01), 0, 32)
 			_shape(ch, Vector3(len, 0.35, depth + 0.2), Transform3D(Basis(Vector3.UP, yaw), Vector3(dm.x, y0 + WALKWAY_H + 0.17, dm.y)))
 			var t4 := 1.2
 			while t4 < len:

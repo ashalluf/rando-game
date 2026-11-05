@@ -336,7 +336,8 @@ void fragment() {
 			vec2 g = (uv - vec2(x0, y0)) / vec2(0.5, 0.75);
 			vec2 gi = floor(g);
 			float inside = step(0.0, g.x) * step(g.x, float(cols)) * step(0.0, g.y) * step(g.y, float(rows));
-			if (hs > 0.35 && clear > 0.5 && inside > 0.5) {
+			// fract(h) 0.26: the covered walkway's parapet, up in the air: no posters there.
+			if (hs > 0.35 && clear > 0.5 && inside > 0.5 && fract(h) < 0.1) {
 				float repeat = step(0.4, hash12(vec2(seg, 17.0)));
 				float pcell = floor(mix(hash12(vec2(seg, 19.0) + gi * 7.3), hash12(vec2(seg + gi.y, 19.0)), repeat) * 16.0);
 				vec2 luv = fract(g);
