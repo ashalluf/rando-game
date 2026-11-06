@@ -3053,6 +3053,9 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	# The pueblo_lane refcam (tests/rc5_pueblo_lane_checks.gd, PuebloLaneLook): the lane's crowd by
 	# the hour, sellers, worn brick, weathered stall paint, the camera row.
 	load("res://tests/rc5_pueblo_lane_checks.gd").new().run(self, city)
+	# The coast_highway refcam (tests/rc5_coast_highway_checks.gd, Rc5CoastHighway, CoastFlutes): the
+	# fluted bluff, the traffic by the hour and its first fill, real garage doors, the camera row.
+	load("res://tests/rc5_coast_highway_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()
