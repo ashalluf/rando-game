@@ -298,6 +298,26 @@ builds every yard sale for a Saturday at the row's hour (YARD_SALE_DAY / YARD_SA
 
 `marina_night` (rc5-marina-night): the marina at 21:00 clear from the north end of the east
 headwalk, west down the lane along the north quay (no staging keys). `MARINA_NIGHT=0` is its A/B.
+`freight_trench` (rc5-freight-trench): the Alameda trench at 12:00 clear from the south edge of the
+Spring Blvd bridge looking south, a northbound stack train coming on under the bridges. Its optional
+`freight_s` key ("<s>[:<dir>[:<seconds before>]]", FREIGHT_S) holds the freight line's clock with a
+train's leading end at s (dir 0 north), `freight_kind` (0 stack, 1 manifest, 2 autorack) picks the
+consist (FREIGHT_KIND). `tools/freight/probe.gd` prints the junctions' s.
+
+## Wave 8's cameras (`cameras_w8.json`)
+
+`stunt_jump` (rc5-stunt-jump): `"stage": "stunt"` with a `stunt` key runs `stunt_stage.gd`: a car
+held mid-flight `t` s after a StuntRamps site's lip at `speed` m/s (`site` an id from
+`tools/stunt_ramps/probe.tscn`, `body`, `paint`, `pitch`, `roll`), the jump's look given that
+age by StuntJumpFX.stage() (dust, clods, hanging wheels), the free eye and its aim point in the
+RAMP's frame (`eye`, `look`: +Z the way it is ridden, origin at its foot). Env `STUNT_EYE=x,y,z`,
+`STUNT_LOOK=x,y,z`, `STUNT_T`, `STUNT_SPEED` override the row for framing.
+
+## Wave 8: `bus_stop_rain`
+
+A Wilshire bus stop at 18:00 in rain. `"stage": "bus"` with a `bus` key (`at` [x, z] TRUE world: the
+stop nearest it; `dir`; `pull` metres short of the stop; `doors`; `queue` riders; `seed`) runs
+`bus_stage.gd`: the bus at its stop, doors open, the stop's StreetErrands queue filled.
 
 `fire_station_night` (rc5-fire-station-night): STATION 79 on 7th St downtown at 21:00 clear, from the
 far pavement as an engine goes out on a call. `"stage": "fire_station"` runs
