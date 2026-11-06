@@ -354,6 +354,8 @@ static func _material(chunk: CityChunk, key: String) -> Material:
 			return PropFactory.pbr("concrete", 3.0, Color(0.86, 0.84, 0.80) if key == "wall" else Color(0.95, 0.94, 0.92))
 		"rail_glass":
 			return ReplicaHouses.material("h_rail")
+		"hh_glass":
+			return HillHomeKit.material(key)
 	return HouseKit.material(key)
 
 
@@ -559,6 +561,9 @@ static func _house_far(chunk: CityChunk, c: CoastHighway, hs: Dictionary) -> voi
 ## ceiling over a deck on pilings, its street face a garage, a door and high windows, a balcony on
 ## a two-storey house, a roof terrace on some, the stair from the deck down to the sand.
 static func _house(chunk: CityChunk, c: CoastHighway, g: Geo, hs: Dictionary) -> void:
+	if CoastHouses.enabled:
+		CoastHouses.build(chunk, c, g, hs)
+		return
 	var xf := _frame(c, hs)
 	var w := float(hs.z1) - float(hs.z0)
 	var hw := w * 0.5
@@ -584,32 +589,7 @@ static func _house(chunk: CityChunk, c: CoastHighway, g: Geo, hs: Dictionary) ->
 	var sea := b.z
 	var street := -b.z
 	var side := b.x
-	# The floor slab and the soffit under it.
-	g.box("h_flat", Transform3D(b, P.call(0.0, fy - SLAB * 0.5, depth * 0.5)), Vector3(hw, SLAB * 0.5, depth * 0.5), CONCRETE)
-	# The skirt under the street side, down into the sand.
-	var skirt := depth * SKIRT_AT
-	g.quad("h_flat", P.call(-hw, PILE_FOOT, skirt), P.call(hw, PILE_FOOT, skirt), P.call(hw, fy - SLAB, skirt), P.call(-hw, fy - SLAB, skirt), sea, CONCRETE)
-	for sx: float in [-1.0, 1.0]:
-		g.quad("h_flat", P.call(sx * hw, PILE_FOOT, 0.0), P.call(sx * hw, PILE_FOOT, skirt), P.call(sx * hw, fy - SLAB, skirt), P.call(sx * hw, fy - SLAB, 0.0), side * sx, CONCRETE)
-	# Pilings under the sea side and the deck, braced.
-	var pile_col := PILE_WOOD if style == CoastHighway.Style.CEDAR or style == CoastHighway.Style.BOARD else CONCRETE
-	var pile_key := "h_trim" if pile_col == PILE_WOOD else "h_flat"
-	var cols := maxi(2, int(w / 3.4) + 1)
-	var rows := [skirt + (depth - skirt) * 0.5, depth - 0.4, depth + deck - 0.3]
-	for zi in rows.size():
-		var pz: float = rows[zi]
-		var top_y := fy - SLAB if zi < 2 else fy - 0.25
-		for xi in cols:
-			var px := lerpf(-hw + 0.4, hw - 0.4, float(xi) / float(cols - 1))
-			g.box(pile_key, Transform3D(b, P.call(px, (PILE_FOOT + top_y) * 0.5, pz)), Vector3(0.16, (top_y - PILE_FOOT) * 0.5, 0.16), pile_col, 63 & ~(1 << 3))
-		# X bracing between the outer pilings of the row.
-		if zi < 2 and (int(hs.seed) >> zi) % 2 == 0:
-			for xi in cols - 1:
-				var xa := lerpf(-hw + 0.4, hw - 0.4, float(xi) / float(cols - 1))
-				var xb := lerpf(-hw + 0.4, hw - 0.4, float(xi + 1) / float(cols - 1))
-				_brace(g, P.call(xa, sand + 0.4, pz), P.call(xb, top_y - 0.3, pz), sea, pile_key, pile_col)
-				_brace(g, P.call(xa, top_y - 0.3, pz), P.call(xb, sand + 0.4, pz), sea, pile_key, pile_col)
-	g.boxes.append([Transform3D(b, P.call(0.0, fy - SLAB * 0.5, depth * 0.5)), Vector3(hw, SLAB * 0.5, depth * 0.5)])
+	_base(g, P, b, hs, hw, depth, deck, fy, style)
 	# The storeys. Each floor: the sea face glazed, the street face and sides with their openings.
 	for f in floors:
 		var y0 := fy + f * STOREY
@@ -725,6 +705,40 @@ static func _house(chunk: CityChunk, c: CoastHighway, g: Geo, hs: Dictionary) ->
 	# Planters, palms and lanterns on the street side (Rc5CoastHighway).
 	Rc5CoastHighway.dress_house(chunk, c, g, hs, wall_col)
 
+
+## The floor slab, the concrete skirt under the street side and the braced pilings under the sea
+## side and the deck (shared with CoastHouses, which builds the house on them).
+static func _base(g: Geo, P: Callable, b: Basis, hs: Dictionary, hw: float, depth: float, deck: float, fy: float, style: int) -> void:
+	var w := hw * 2.0
+	var sand := 0.45
+	var sea := b.z
+	var side := b.x
+	# The floor slab and the soffit under it.
+	g.box("h_flat", Transform3D(b, P.call(0.0, fy - SLAB * 0.5, depth * 0.5)), Vector3(hw, SLAB * 0.5, depth * 0.5), CONCRETE)
+	# The skirt under the street side, down into the sand.
+	var skirt := depth * SKIRT_AT
+	g.quad("h_flat", P.call(-hw, PILE_FOOT, skirt), P.call(hw, PILE_FOOT, skirt), P.call(hw, fy - SLAB, skirt), P.call(-hw, fy - SLAB, skirt), sea, CONCRETE)
+	for sx: float in [-1.0, 1.0]:
+		g.quad("h_flat", P.call(sx * hw, PILE_FOOT, 0.0), P.call(sx * hw, PILE_FOOT, skirt), P.call(sx * hw, fy - SLAB, skirt), P.call(sx * hw, fy - SLAB, 0.0), side * sx, CONCRETE)
+	# Pilings under the sea side and the deck, braced.
+	var pile_col := PILE_WOOD if style == CoastHighway.Style.CEDAR or style == CoastHighway.Style.BOARD else CONCRETE
+	var pile_key := "h_trim" if pile_col == PILE_WOOD else "h_flat"
+	var cols := maxi(2, int(w / 3.4) + 1)
+	var rows := [skirt + (depth - skirt) * 0.5, depth - 0.4, depth + deck - 0.3]
+	for zi in rows.size():
+		var pz: float = rows[zi]
+		var top_y := fy - SLAB if zi < 2 else fy - 0.25
+		for xi in cols:
+			var px := lerpf(-hw + 0.4, hw - 0.4, float(xi) / float(cols - 1))
+			g.box(pile_key, Transform3D(b, P.call(px, (PILE_FOOT + top_y) * 0.5, pz)), Vector3(0.16, (top_y - PILE_FOOT) * 0.5, 0.16), pile_col, 63 & ~(1 << 3))
+		# X bracing between the outer pilings of the row.
+		if zi < 2 and (int(hs.seed) >> zi) % 2 == 0:
+			for xi in cols - 1:
+				var xa := lerpf(-hw + 0.4, hw - 0.4, float(xi) / float(cols - 1))
+				var xb := lerpf(-hw + 0.4, hw - 0.4, float(xi + 1) / float(cols - 1))
+				_brace(g, P.call(xa, sand + 0.4, pz), P.call(xb, top_y - 0.3, pz), sea, pile_key, pile_col)
+				_brace(g, P.call(xa, top_y - 0.3, pz), P.call(xb, sand + 0.4, pz), sea, pile_key, pile_col)
+	g.boxes.append([Transform3D(b, P.call(0.0, fy - SLAB * 0.5, depth * 0.5)), Vector3(hw, SLAB * 0.5, depth * 0.5)])
 
 ## A UV rect in metres (the siding and stucco want metres along and up the wall).
 static func _muv(x0: float, y0: float, x1: float, y1: float) -> Array:
@@ -1182,7 +1196,7 @@ static func _commit(chunk: CityChunk) -> void:
 		mi.name = "Coast_" + key
 		mi.mesh = m
 		mi.material_override = _material(chunk, key)
-		if key in ["paint", "road", "apron", "glass", "rail_glass"]:
+		if key in ["paint", "road", "apron", "glass", "rail_glass", "hh_glass"]:
 			mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		chunk.add_child(mi)
 	if g.boxes.is_empty() or chunk.capturing or chunk.level != CityChunk.Level.FULL:

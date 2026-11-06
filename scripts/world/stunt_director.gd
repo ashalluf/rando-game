@@ -156,11 +156,14 @@ func watch(p: Vector3, v: Vector3, air: bool, delta: float, car: Vehicle = null)
 			if absf(d.x) > hw or d.z < -3.5 or d.z > 2.5 or d.y < -2.0 or d.y > 3.5:
 				continue
 			if v.dot(fwd) >= min_launch_speed:
+				if car != null and _clock - _armed_at > 1.0:
+					StuntJumpFX.launch(car, e.site, v)
 				_armed_at = _clock
 				_armed_dir = fwd
 				last_launch_id = String((e.site as Dictionary).id)
 		if car != null and int((e.site as Dictionary).kind) == StuntRamps.Kind.LOOP:
 			_loop_grip(car, e, local, delta)
+	StuntJumpFX.tick(car, _clock - _armed_at <= arm_seconds, air, delta)
 	if not _active and air and _air >= air_before and _clock - _armed_at <= arm_seconds + _air and v.length() >= min_launch_speed * 0.8:
 		_start()
 	elif _active and _ground > 0.06:

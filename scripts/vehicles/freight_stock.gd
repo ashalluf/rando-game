@@ -89,6 +89,7 @@ static func material() -> ShaderMaterial:
 		_material = ShaderMaterial.new()
 		_material.shader = load("res://shaders/freight_stock.gdshader")
 		_material.set_shader_parameter("rc4", 1.0 if RcFreightYard.enabled else 0.0)
+		_material.set_shader_parameter("rc5", 1.0 if RcFreightTrench.enabled else 0.0)
 		_material.set_shader_parameter("tag_atlas", load("res://assets/textures/street_wear/street_wear_tags.png"))
 	return _material
 
@@ -406,6 +407,8 @@ static func _loco(b: PortKit.Buf, lv: int) -> void:
 		var x0 := sx * 0.08
 		var x1 := sx * 1.32
 		b.quad(Vector3(x0, 3.5, wz0 + 0.03 - 0.012), Vector3(x1, 3.5, wz0 + 0.03 - 0.012), Vector3(x1, 4.3, wz0 + 0.17 - 0.012), Vector3(x0, 4.3, wz0 + 0.17 - 0.012), Vector3(0, 0.18, -1).normalized())
+	if lv == 0:
+		RcFreightTrench.loco_cab(b, wz0, wz1, nz0, deck)
 	# Cab roof, a little arched.
 	_paint(b, LOCO_ROOF, P_FIXED, 1.0)
 	b.quad(Vector3(-1.55, 4.55, wz1), Vector3(0.0, 4.72, wz1), Vector3(0.0, 4.72, cab1), Vector3(-1.55, 4.55, cab1), Vector3(-0.1, 1, 0).normalized())
