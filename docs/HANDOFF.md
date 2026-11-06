@@ -32759,9 +32759,11 @@ change, so main's gate is unaffected). Stills on `shots/rc5-storm-sea` (README t
 deck by the north rail 45 m out, looking WNW, a strike held at 1500 m az -145 (`storm_flash`,
 already handled in refcams_shot.gd). **The eye must move**: from (-985, 8.1, -360) a food stand
 fills the left third and a lamp pole cuts the middle (`01_before_storm_sea.jpg`). Better candidates
-from the framing sheet (`02_framing_noflash.jpg`, still_shot.gd, no flash): (-1130, 8.1, -359.5,
-yaw 60, pitch -4) - the rail, the open sea, the headland; (-1205, 8.1, -340, yaw 90) - the end of
-the pier, lamps, benches, festoons, the sea. A second set aiming along the surf zone from the north
+from the framing sheet (`02_framing_noflash.jpg`, still_shot.gd, no flash; left to right, top to
+bottom): the original eye; (-1130, 8.1, -359.5, yaw 30, pitch -3) - the rail and the open sea, the headland
+right; (-1130, 8.1, -359.5, yaw 60, pitch -4) - the rail running out to the lamps, benches and festoons;
+(-1205, 8.1, -340, yaw 90, pitch -6) - the pier's end over the sea; (-1070, 8.1, -339, yaw 140) the park
+(rejected). A second set aiming along the surf zone from the north
 deck's west corner ((-1095, 8.1, -380, yaw 20-40), (-1060, 8.1, -381, yaw 10)) was being shot when
 the session stopped: the storm break is ~103 m off the waterline, so only an eye looking along the
 coast has the breakers in frame. Pick one, update the row's eye.
