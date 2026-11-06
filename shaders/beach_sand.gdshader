@@ -71,6 +71,11 @@ uniform float sun_glow = 0.6;
 // lit tan as at dusk. Gated on the clock (sun_direction is the moon's at night): full from 19:48
 // to 04:12, nothing before 19:00 or after 05:00, so dusk and dawn are untouched.
 uniform float night_look = 0.0;
+// The damp band by moonlight (RcPowerPlant, the power_plant_dusk refcam; 0 = the old look): the
+// moon's specular on the band's hummocks, prints and grain read as crumpled foil filling the
+// foreground at dusk. After dark the band's relief is calmed and its film roughened, so the moon
+// lays a soft broad path in it instead.
+uniform float moon_band_soft = 0.0;
 uniform float night_desat = 0.45;
 uniform float night_dim = 0.82;
 uniform vec3 night_tint = vec3(0.92, 0.96, 1.0);
@@ -150,6 +155,11 @@ void fragment() {
 		glint = bg_glint(tw, view_dir, normalize(sun_direction), px, dry * (1.0 - wr));
 		rough = mix(rough, 0.04, pool);
 		nm = mix(nm, vec3(0.5, 0.5, 1.0), pool * 0.8);
+		if (moon_band_soft > 0.0) {
+			float ms = moon_band_soft * night_factor * max(band, damp) * (1.0 - pool);
+			nm = mix(nm, vec3(0.5, 0.5, 1.0), ms * 0.75);
+			rough = mix(rough, max(rough, 0.42), ms);
+		}
 	}
 
 	// The sheet: sand seen through a few centimetres of water, darker and a touch cooler, with

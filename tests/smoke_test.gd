@@ -2974,6 +2974,9 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	# The farmers' market refcam (tests/rc5_farmers_market_checks.gd): the camera row in the aisle,
 	# packed produce, printed cartons, the material's relief and drape, the busier market.
 	load("res://tests/rc5_farmers_market_checks.gd").new().run(self, city)
+	# The rail_crossing refcam (tests/rc5_rail_crossing_checks.gd, RcRailCrossing): red flashers and
+	# their glows, the catenary as ribbons, the LRV glass, the crossbuck legend, the camera row.
+	load("res://tests/rc5_rail_crossing_checks.gd").new().run(self)
 	# The police pursuit at night (tests/rc5_police_pursuit_checks.gd, PursuitLook): the LED flash
 	# pattern and bar, the searchlight's pool and shaft, the camera row.
 	load("res://tests/rc5_police_pursuit_checks.gd").new().run(self)
@@ -3008,6 +3011,30 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	# The oil_islands_dusk refcam (tests/rc5_oil_islands_dusk_checks.gd, LongBeachSand, Rc5OilIslands):
 	# Long Beach's sand, the islands' floods in the bay and on their towers, the camera row.
 	load("res://tests/rc5_oil_islands_dusk_checks.gd").new().run(self, city)
+	# The power plant at dusk (tests/rc5_power_plant_dusk_checks.gd, RcPowerPlant): the camera row,
+	# the plant's lamps lighting it, the window bands, the switch.
+	load("res://tests/rc5_power_plant_dusk_checks.gd").new().run(self, city)
+	# The lighthouse_night refcam (tests/rc5_lighthouse_night_checks.gd, RcLighthouse): the scattered beam, the lamp, foam, stones.
+	load("res://tests/rc5_lighthouse_night_checks.gd").new().run(self, city)
+	# The auto_row refcam (tests/rc5_auto_row_checks.gd, RcAutoRow): real lot cars, measured window cards, a clear frontage.
+	load("res://tests/rc5_auto_row_checks.gd").new().run(self, city)
+	# The walk of fame at night (tests/rc5_walk_of_fame_night_checks.gd, WalkOfFameNight): the
+	# Celeste's premiere, the characters and tourists with the cap full, the lit medallions.
+	load("res://tests/rc5_walk_of_fame_night_checks.gd").new().run(self, city)
+	# The driver_rain refcam (tests/rc5_driver_rain_checks.gd, DriverRain): rain on the open cabin
+	# glass, the cabin at night, the near halo fade, the camera row.
+	load("res://tests/rc5_driver_rain_checks.gd").new().run(self, city)
+	# The backyard_pool refcam (tests/rc5_backyard_pool_checks.gd, Rc5Backyard): the traced yard
+	# pool, the weekend lunch barbecues, the loungers' umbrella, the built fence, the camera row.
+	load("res://tests/rc5_backyard_pool_checks.gd").new().run(self, city)
+	# The crash_closeup refcam (tests/rc5_crash_closeup_checks.gd, CrashAftermath): the pole's V, the popped bonnet, fluids, steam.
+	await load("res://tests/rc5_crash_closeup_checks.gd").new().run(self, city)
+	# A high school stadium on a game night (tests/rc5_friday_lights_checks.gd, FridayLights): the
+	# camera row, the lineup, the standards' spotlights and blooms, the car park built whole.
+	load("res://tests/rc5_friday_lights_checks.gd").new().run(self, city)
+	# The Googie motel refcam (tests/rc5_googie_motel_checks.gd, Motels): the motor court behind a
+	# motel pole sign, the camera row, the sign's light.
+	load("res://tests/rc5_googie_motel_checks.gd").new().run(self, city)
 	# The sea_life refcam (tests/rc5_sea_life_checks.gd, SeaLife.spray_look): the camera row, the
 	# flat white water and streaked throws, the surfacing rings, the staged pod in turn.
 	load("res://tests/rc5_sea_life_checks.gd").new().run(self, city)
