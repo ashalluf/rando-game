@@ -133,6 +133,8 @@ func _build_water() -> void:
 			if k == 0 and (w.meshes as Dictionary).ride != null:
 				w.state = "ride"
 				w.s = brk * 0.75
+				if SurfRide.enabled:
+					RcSurfDawn.stage_ride(self, w)
 				w.yaw = atan2(-float(w.dir_z) * 0.7, 0.85)
 				((w.node as Node3D).get_child(0) as MeshInstance3D).mesh = (w.meshes as Dictionary).ride
 			k += 1
@@ -210,6 +212,9 @@ func _place_water(w: Dictionary) -> void:
 			node.transform = Transform3D(Basis(Vector3.UP, yaw), Vector3(x, y - 0.03, z))
 			board.transform = Transform3D(Basis(Vector3.UP, PI * 0.5), Vector3(0.0, -0.08, -0.1))
 		"ride":
+			if SurfRide.enabled and w.has("wave"):
+				RcSurfDawn.place_ride(self, w, x)
+				return
 			# On the wave's face, up with the crest: the board runs along the rider's x.
 			var face := Surf.crest_height(_shape, _extra, float(w.s), 1.0)
 			node.transform = Transform3D(Basis(Vector3.UP, yaw), Vector3(x, 0.15 + maxf(face, 0.0) * 0.75, z))
@@ -236,10 +241,15 @@ func _surf_tick(w: Dictionary, dt: float) -> void:
 				# runs (its x, the rider's x).
 				w.yaw = atan2(-float(w.dir_z) * 0.7, 0.85)
 				body.mesh = meshes.ride
+				if SurfRide.enabled:
+					RcSurfDawn.catch(self, w)
 		"ride":
 			var speed := _shape.y / _shape.z
-			w.s = float(w.s) - speed * 0.85 * dt
-			w.z = float(w.z) + float(w.dir_z) * speed * 0.7 * dt
+			if SurfRide.enabled and w.has("wave"):
+				RcSurfDawn.ride_tick(self, w, dt)
+			else:
+				w.s = float(w.s) - speed * 0.85 * dt
+				w.z = float(w.z) + float(w.dir_z) * speed * 0.7 * dt
 			if float(w.s) < 12.0 or absf(float(w.z) - float(w.z_home)) > 45.0:
 				w.state = "out"
 				w.yaw = PI * 0.5

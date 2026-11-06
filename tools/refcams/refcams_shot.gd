@@ -44,6 +44,7 @@ func _initialize() -> void:
 	_club_line()
 	_market_day()
 	_yard_sale()
+	_beach_stage()
 	# OCCLUSION=0: occlusion culling off (still_shot's switch), to tell what is culled in plain sight.
 	if OS.get_environment("OCCLUSION") == "0":
 		get_root().use_occlusion_culling = false
@@ -505,6 +506,20 @@ func _arena_event() -> void:
 	for cam: Dictionary in _cameras().get("cameras", []):
 		if cam.has("arena_event") and (only.is_empty() or String(cam.name) in only):
 			OS.set_environment("ARENA_EVENT", str(int(cam.arena_event)))
+
+
+## A row's optional "beach_stage" (wave 8's surf_dawn): BeachActivity's BEACH_STAGE z - the beach
+## chunk there gathers its surfers in the water off it, one riding a set wave in (SurfRide). Set
+## before the city loads: the surfers are placed as the chunk builds.
+func _beach_stage() -> void:
+	if OS.get_environment("BEACH_STAGE") != "":
+		return
+	var only := OS.get_environment("ONLY").split(",", false)
+	for cam: Dictionary in _cameras().get("cameras", []):
+		if cam.has("beach_stage") and (only.is_empty() or String(cam.name) in only):
+			OS.set_environment("BEACH_STAGE", str(float(cam.beach_stage)))
+			var ba: GDScript = load("res://scripts/world/beach_activity.gd")
+			ba.set("stage_z", float(cam.beach_stage))
 
 
 func _bonfire_lit_for(cam: Dictionary) -> void:
