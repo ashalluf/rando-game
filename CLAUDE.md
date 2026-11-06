@@ -3418,6 +3418,14 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   the far city get roof-plant-style `lod_box`es (the pylon a lit face). `CAR_DEALERS=0` is the
   A/B; `tools/car_dealers/probe.gd` lists the sites with STREET / ABOVE EYEs. Checks:
   `tests/car_dealers_checks.gd`.
+- The auto row from the kerb (wave 8, refcam `auto_row` in `tools/refcams/cameras_w8.json`,
+  docs/HANDOFF.md "The auto row from the kerb"): `RcAutoRow` (`scripts/world/rc5_auto_row.gd`,
+  hooks in CarDealers and two in CityChunk): a dealer's box lot cars are the real road bodies'
+  far twins within `REAL_NEAR` 48 m of their 20 m cell (CarParkBuild.real_body()), each price card
+  laid on that body's windscreen measured from its own triangles (`screen()` / `_measure()`; the
+  real Vehicles' too, from their BodyModel), painted stall lines, no kerb trees on the frontage
+  (`keeps_tree_off()`, after the rolls). No mesh data headless: no cards there. `RC5_AUTO_ROW=0`
+  is the A/B; checks `tests/rc5_auto_row_checks.gd`.
 - Vacant lots (2026-10-05, the vacant-lots pass, docs/HANDOFF.md "vacant lots"): `VacantLots`
   (`scripts/world/vacant_lots.gd`) + `VacantKit` (`scripts/world/vacant_kit.gd`). A small share of
   EDGE lots in MIDTOWN (`ODDS` 6 %), INDUSTRIAL (5.5 %) and DOWNTOWN where `skyline_boost` <

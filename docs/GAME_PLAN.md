@@ -4760,3 +4760,9 @@ none of either.
   was hidden behind its own lens); at night surge foam is a grey lace, not white sheets. The harbour
   gate light stays out of this frame (behind the eye: no eye on the stones holds both lights).
   RC5_LIGHTHOUSE=0 is the A/B.
+
+- 2026-11-06 (wave 8, rc5-auto-row): a new reference camera, `auto_row` (cameras_w8.json), at a
+  new-car dealer from the kerb at 11:00. Decisions: a dealer lot shows real car bodies wherever a
+  player on foot can see them (the box cars only past 48 m); a price card sits on the glass of the
+  body it is drawn on, measured from that body, never a table of guesses; a dealership keeps its
+  frontage clear of kerb trees (palms stay). RC5_AUTO_ROW=0 is the A/B.

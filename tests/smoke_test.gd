@@ -3016,6 +3016,8 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	load("res://tests/rc5_power_plant_dusk_checks.gd").new().run(self, city)
 	# The lighthouse_night refcam (tests/rc5_lighthouse_night_checks.gd, RcLighthouse): the scattered beam, the lamp, foam, stones.
 	load("res://tests/rc5_lighthouse_night_checks.gd").new().run(self, city)
+	# The auto_row refcam (tests/rc5_auto_row_checks.gd, RcAutoRow): real lot cars, measured window cards, a clear frontage.
+	load("res://tests/rc5_auto_row_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()
