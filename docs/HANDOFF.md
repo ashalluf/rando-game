@@ -33325,6 +33325,12 @@ lit glass above" is not in this frame: decided for the city view, which is what 
 the markers in the road's shader). A bend's strip now costs three more `height_at()` a row and a row
 every 2 m: a few ms more in a hill chunk's road step.
 
+**The original cameras.** Only `hills` (the front range from 260 m) sees a hill road; it was shot
+with `RC5_SWITCHBACK=0` and on from the same commit and compared: not flagged (0.01 % of pixels
+changed, +0.9 % triangles from the bends' finer strip). The other nine see no hill road and the
+switch off is main's code path exactly, so they were not re-shot (a ten-camera run takes ~100 min
+on this box).
+
 **Not done / not verified.** No estates in this frame (above). The car's headlights are two small
 points at 77 m on opengl3 (no beam on the road: the Compatibility path has no car spots, and on
 Forward+ CarLights only lights cars within 60 m). Chevrons are not checked on Forward+ under
