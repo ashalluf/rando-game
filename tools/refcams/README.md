@@ -273,3 +273,13 @@ suburb_morning street (block 21,32 on seed 1337) from the same pavement eye at 2
 day and the night of one street compare 1:1. Its optional `dog_walker` key (`tools/refcams/dog_stage.gd`:
 `dist`, `side`, `at`, `yaw`, `seed`, `away`) stands one person walking a dog in the frame, held on its
 spot and walking; the log prints a `REFCAM dog walker` line.
+
+## Wave 8's cameras (`cameras_w8.json`)
+
+Run with `REFCAMS_JSON=tools/refcams/cameras_w8.json`. `walk_of_fame_night` (rc5-walk-of-fame-night):
+Canyon Blvd's south pavement at THE GRAND CELESTE's corner, the lens over the band of stars, 22:00
+clear, looking west-south-west at the marquee and the premiere in front of it. No staging key: the
+premiere, the characters and the tourists come from the build hour (WalkOfFameNight). On this box
+the run needs `OCCLUSION=0` (the occlusion raycast hang, above). For framing in a minute:
+`tools/glshot/station_night_shot.tscn` with `WOF_HOUR=22` (that scene has no DayNight at its root,
+so the walk would otherwise build at the 13:30 fallback).
