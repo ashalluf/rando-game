@@ -509,7 +509,9 @@ func _market_day() -> void:
 ## A row's optional "busk_plaza" (wave 8's buskers_plaza): the kinds a plaza's three pitches are
 ## forced to ("break,statue,mariachi": Rc5Buskers.stage_plaza, as BUSK_PLAZA), and the row's hour
 ## the hour every act is built for (BUSK_HOUR: a chunk built during the load would otherwise be
-## built at the load's hour). Set before the city loads: the acts are laid as their chunks build.
+## built at the load's hour); "busk_break_t" holds the breakdancers' routine at that second
+## (BUSK_BREAK_T; 13.5 the one-hand freeze). Set before the city loads: the acts are laid as their
+## chunks build.
 func _busk_plaza() -> void:
 	var only := OS.get_environment("ONLY").split(",", false)
 	for cam: Dictionary in _cameras().get("cameras", []):
@@ -518,6 +520,8 @@ func _busk_plaza() -> void:
 				OS.set_environment("BUSK_PLAZA", String(cam.busk_plaza))
 			if cam.has("hour") and OS.get_environment("BUSK_HOUR") == "":
 				OS.set_environment("BUSK_HOUR", str(float(cam.hour)))
+			if cam.has("busk_break_t") and OS.get_environment("BUSK_BREAK_T") == "":
+				OS.set_environment("BUSK_BREAK_T", str(float(cam.busk_break_t)))
 
 
 ## A row's optional "golf_group" ("hole:stage[:tee[:count]]", wave 6's golf_morning) puts a group

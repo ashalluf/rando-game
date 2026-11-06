@@ -275,10 +275,11 @@ static func _spot(chunk: CityChunk, rect: Rect2, v: Dictionary, occupied: Array)
 		var basin := minf(inner.size.x, inner.size.y) * 0.12
 		var long_x := inner.size.x >= inner.size.y
 		var out := Rc5Buskers.slot_dir(chunk.plan.seed, chunk.ix, chunk.iz, int(v.slot), long_x)
+		var side := Rc5Buskers.slot_side(chunk.plan.seed, chunk.ix, chunk.iz, int(v.slot), long_x)
 		# Out along the axis from the fountain's rim until the pitch (and a ring) is clear.
 		for k in 6:
 			var reach := basin + (RING_RADIUS + 4.0 if kind == Kind.BREAK else 6.5) + float(k) * 2.5
-			var at := c + out * reach
+			var at := c + out * reach + side
 			var room := half + (RING_RADIUS if kind == Kind.BREAK else 1.2)
 			if not inner.grow(-3.0).has_point(at + out * room) or not StreetVendors._clear(occupied, at, room):
 				continue
@@ -316,17 +317,18 @@ static func _lay_out(chunk: CityChunk, rect: Rect2, v: Dictionary, spot: Diction
 	var yaw: float = spot.yaw
 	var seed_v := int(v.seed)
 	var basis := Basis(Vector3.UP, yaw)
-	var xf := Transform3D(basis, Vector3(at.x, CityChunk.SIDEWALK_TOP, at.y))
+	var lift := Rc5Buskers.gear_lift(int(v.face))
+	var xf := Transform3D(basis, Vector3(at.x, CityChunk.SIDEWALK_TOP + lift, at.y))
 	var tips_at := at + out * (PERFORM_IN - TIPS_IN)
 	var variant := int(_h01([seed_v, "variant"]) * 1000.0)
 	match kind:
 		Kind.GUITAR, Kind.MARIACHI:
 			# The case open on the ground in front, its lid up on the performer's side.
-			var cxf := Transform3D(basis, Vector3(tips_at.x, CityChunk.SIDEWALK_TOP, tips_at.y))
+			var cxf := Transform3D(basis, Vector3(tips_at.x, CityChunk.SIDEWALK_TOP + lift, tips_at.y))
 			chunk._batch.add(K_CASE, case_mesh(), cxf)
 			if kind == Kind.GUITAR and variant % 2 == 0:
 				var amp := at + along * 0.75 - out * 0.05
-				chunk._batch.add(K_AMP, amp_mesh(), Transform3D(Basis(Vector3.UP, yaw + 0.35), Vector3(amp.x, CityChunk.SIDEWALK_TOP, amp.y)))
+				chunk._batch.add(K_AMP, amp_mesh(), Transform3D(Basis(Vector3.UP, yaw + 0.35), Vector3(amp.x, CityChunk.SIDEWALK_TOP + lift, amp.y)))
 		Kind.DRUMS:
 			chunk._batch.add(K_DRUMS, drums_mesh(), xf)
 		Kind.BREAK:
@@ -341,10 +343,13 @@ static func _lay_out(chunk: CityChunk, rect: Rect2, v: Dictionary, spot: Diction
 			performers.append([at + along * (float(i) - 1.0) * 1.15 - out * absf(float(i) - 1.0) * 0.25, yaw + (float(i) - 1.0) * -0.18, i])
 	else:
 		performers.append([at, yaw, 0])
+	var used: Array = []
 	for p: Array in performers:
 		var role: int = p[2]
+		var sd := seed_for(hash([seed_v, role]), Rc5Buskers.trio_rigs(kind, RIGS[kind], used))
+		used.append(Rc5Buskers.rig_of(sd))
 		people.append({"busker": true, "kind": kind, "role": role, "at": p[0], "yaw": p[1],
-			"seed": seed_for(hash([seed_v, role]), RIGS[kind]), "rect": block_rect, "id": v.id})
+			"seed": sd, "rect": block_rect, "id": v.id})
 	# Watchers of their own: a ring round a breakdancer, a couple in front of the mariachis.
 	var watchers: Array = []
 	if kind == Kind.BREAK:
@@ -360,6 +365,9 @@ static func _lay_out(chunk: CityChunk, rect: Rect2, v: Dictionary, spot: Diction
 		var to := at - w
 		people.append({"busker": false, "kind": kind, "role": i, "at": w, "yaw": atan2(-to.x, -to.y),
 			"seed": hash([seed_v, "watcher", i]), "rect": block_rect, "id": v.id})
+	# A breakdancer's ring has room for passers-by to join it (Rc5Buskers: an outer row).
+	if kind == Kind.BREAK:
+		Rc5Buskers.ring_spots(chunk, v, at, out)
 	# Spots for passers-by to stop and watch (the street vendors' queue mechanism).
 	if kind != Kind.BREAK:
 		var queue: Array = chunk.get_meta("vendor_queue", [])

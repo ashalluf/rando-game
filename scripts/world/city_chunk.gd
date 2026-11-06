@@ -3802,8 +3802,10 @@ func _build_plaza(rect: Rect2, rng: RandomNumberGenerator) -> void:
 		return
 	var basin_r := minf(inner.size.x, inner.size.y) * 0.12
 	var stone := Color(0.6, 0.58, 0.55)
-	_add_cylinder(Vector3(center.x, SIDEWALK_TOP + 0.45, center.y), basin_r, 0.9, stone)
-	_add_cylinder(Vector3(center.x, SIDEWALK_TOP + 0.8, center.y), basin_r - 0.5, 0.3, style.water, false, true)
+	if not Rc5Buskers.basin(self, center, basin_r, stone):
+		_add_cylinder(Vector3(center.x, SIDEWALK_TOP + 0.45, center.y), basin_r, 0.9, stone)
+	if not Rc5Buskers.fountain(self, center, basin_r):
+		_add_cylinder(Vector3(center.x, SIDEWALK_TOP + 0.8, center.y), basin_r - 0.5, 0.3, style.water, false, true)
 	_add_cylinder(Vector3(center.x, SIDEWALK_TOP + 1.9, center.y), 0.6, 2.6, stone)
 	_add_cylinder(Vector3(center.x, SIDEWALK_TOP + 3.3, center.y), 1.3, 0.25, stone, false)
 	var ring := basin_r + 6.0

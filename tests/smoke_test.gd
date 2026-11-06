@@ -3008,6 +3008,9 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	# The oil_islands_dusk refcam (tests/rc5_oil_islands_dusk_checks.gd, LongBeachSand, Rc5OilIslands):
 	# Long Beach's sand, the islands' floods in the bay and on their towers, the camera row.
 	load("res://tests/rc5_oil_islands_dusk_checks.gd").new().run(self, city)
+	# The buskers_plaza refcam (tests/rc5_buskers_plaza_checks.gd, Rc5Buskers): three pitches a plaza,
+	# the gear on the paving, the fountain, the ring's outer row, the open ground, the crowd cap.
+	load("res://tests/rc5_buskers_plaza_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()

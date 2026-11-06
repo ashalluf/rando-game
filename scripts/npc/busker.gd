@@ -247,6 +247,8 @@ const BREAK_CYCLE := 18.0
 
 
 func _break_phase() -> float:
+	if Rc5Buskers.stage_break_t >= 0.0:
+		return Rc5Buskers.stage_break_t
 	return fposmod(_t + float(_hash % 7), BREAK_CYCLE)
 
 
@@ -269,7 +271,7 @@ func _break_routine() -> void:
 	var tilt := 0.0
 	if p >= 12.5 and p < 14.6:
 		tilt = smoothstep(12.5, 12.8, p) * (1.0 - smoothstep(14.3, 14.6, p))
-		if p < 12.6 and _t > 3.0:
+		if (p < 12.6 or Rc5Buskers.stage_break_t >= 0.0) and _t > 3.0:
 			applause_until_ms = _life_now_ms() + 3200
 	_frozen = p >= 12.8 and p < 14.3
 	# The freeze: down onto one hand, the body tipped over to the side.
