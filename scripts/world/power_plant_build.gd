@@ -293,6 +293,11 @@ static func _lamps(ch: CityChunk, lay: Dictionary, area: Rect2) -> void:
 			l.add_to_group("lamp_light")
 			ch.add_child(l)
 			n_omni += 1
+	if _full(ch) and RcPowerPlant.enabled:
+		# RcPowerPlant: a pool on the ground under each of the halls' wall packs.
+		for q: Vector4 in RcPowerPlant.pack_pools(ch.plan):
+			if area.has_point(Vector2(q.x, q.z)):
+				ch._batch.add(POOL_KEY, PropFactory.light_pool(Color(1.0, 0.86, 0.66), 0.8, 2.0), Transform3D(Basis().scaled(Vector3(q.w, 1.0, q.w)), Vector3(q.x, PowerPlant.BASE_Y + 0.03, q.z)))
 	if _full(ch):
 		ch._batch.set_no_shadow(POOL_KEY)
 

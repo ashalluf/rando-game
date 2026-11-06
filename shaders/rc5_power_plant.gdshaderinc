@@ -15,7 +15,7 @@
 // `rc5` 0 (RC5_POWER_PLANT=0) is the A/B: the caller skips both.
 
 uniform float rc5 = 0.0;
-uniform vec4 pp_src[48];
+uniform vec4 pp_src[64];
 uniform int pp_src_count = 0;
 uniform vec3 pp_tint = vec3(1.0, 0.86, 0.66);
 uniform float pp_gain = 0.85;
@@ -87,8 +87,8 @@ vec4 pp_window(vec2 uv, float h, float seed) {
 	// Tall strips (a boiler house): a lit floor every 6 m, the rest the dark boiler behind.
 	if (h > 6.0) {
 		float fl = fract(uv.y / 6.0);
-		float floor_on = step(0.35, pp_hash(vec2(floor(uv.y / 6.0), seed + bay * 3.1)));
-		grad = mix(0.25, 1.0, smoothstep(0.55, 0.9, fl)) * floor_on;
+		float floor_on = step(0.22, pp_hash(vec2(floor(uv.y / 6.0), seed + bay * 3.1)));
+		grad = mix(0.42, 1.05, smoothstep(0.5, 0.9, fl)) * mix(0.18, 1.0, floor_on);
 		on = 1.0;
 	}
 	float pane = 0.82 + 0.18 * pp_hash(floor(uv / vec2(pitch, 1.6)) + seed);

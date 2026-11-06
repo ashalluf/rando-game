@@ -2984,6 +2984,9 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	# The construction site at dusk (tests/rc5_construction_dusk_checks.gd, ConstructionDusk): the
 	# camera row, the late shift, the work lights, the dusk glass and the printed posters.
 	load("res://tests/rc5_construction_dusk_checks.gd").new().run(self, city)
+	# The power plant at dusk (tests/rc5_power_plant_dusk_checks.gd, RcPowerPlant): the camera row,
+	# the plant's lamps lighting it, the window bands, the switch.
+	load("res://tests/rc5_power_plant_dusk_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()

@@ -38,10 +38,13 @@ const STACK_FLOOD_REACH := 85.0
 const LIGHT_SIZE_GAIN_ON := 1.6
 const LIGHT_HDR := 4.0
 static var LIGHT_SIZE_GAIN: float = LIGHT_SIZE_GAIN_ON if enabled else 1.0
+## A wall pack's pool on the ground: how far out from the wall, its size.
+const POOL_OUT := 3.2
+const POOL_SIZE := 11.0
 const TINT := Color(1.0, 0.86, 0.66)
 const GAIN := 0.85
 const CAP := 1.0
-const MAX_SOURCES := 48
+const MAX_SOURCES := 64
 
 static var _applied: Dictionary = {}
 
@@ -87,6 +90,8 @@ static func sources(plan: CityPlan) -> Array[Vector4]:
 		for k in 2:
 			var a := PI * 0.75 + PI * float(k)
 			out.append(Vector4(s.x + cos(a) * STACK_FLOOD_OUT, g + 1.0, s.z + sin(a) * STACK_FLOOD_OUT, STACK_FLOOD_REACH + 1000.0))
+	for p: Vector2 in lay.lamps:
+		out.append(Vector4(p.x, base_y + plan.macro.relief_at(p) + 18.0, p.y + 1.0, MAST_REACH))
 	for p: Dictionary in lay.pieces:
 		var kind := String(p.kind)
 		var c: Vector2 = p.c
@@ -106,10 +111,23 @@ static func sources(plan: CityPlan) -> Array[Vector4]:
 			var n := int((sz.y + 2.0) / 6.0)
 			for i in range(0, n, 2):
 				out.append(Vector4(st.x, st.y + float(i + 1) * 6.0 + 2.2, st.z, -LANDING_REACH))
-	for p: Vector2 in lay.lamps:
-		out.append(Vector4(p.x, base_y + plan.macro.relief_at(p) + 18.0, p.y + 1.0, MAST_REACH))
 	if out.size() > MAX_SOURCES:
 		out.resize(MAX_SOURCES)
+	return out
+
+
+## The ground pools under the halls' wall packs: Vector4(x, 0, z true world, size in metres).
+static func pack_pools(plan: CityPlan) -> Array[Vector4]:
+	var out: Array[Vector4] = []
+	var lay := PowerPlant.layout(plan)
+	if lay.is_empty() or not bool(lay.ok):
+		return out
+	for p: Dictionary in lay.pieces:
+		if String(p.kind) != "turbine_hall" and String(p.kind) != "st_hall":
+			continue
+		var c: Vector2 = p.c
+		for q: Vector3 in hall_packs(p.size):
+			out.append(Vector4(c.x + q.x + signf(q.x) * POOL_OUT, 0.0, c.y + q.z, POOL_SIZE))
 	return out
 
 
