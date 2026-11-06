@@ -295,3 +295,6 @@ world), staged three frames before the shot with the sea clock held and cleared 
 `yard_sale` (rc5-yard-sale): a suburb Saturday 09:30 from the far pavement. Its `yard_sale` key (1)
 builds every yard sale for a Saturday at the row's hour (YARD_SALE_DAY / YARD_SALE_HOUR), its
 `clear_cars` (metres) hides the vehicles that near the lens.
+
+`marina_night` (rc5-marina-night): the marina at 21:00 clear from the north end of the east
+headwalk, west down the lane along the north quay (no staging keys). `MARINA_NIGHT=0` is its A/B.

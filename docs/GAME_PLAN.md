@@ -4900,3 +4900,11 @@ none of either.
   balloon's light is a balloon's (wide, several street lamps), the basecamp has work lights; the
   location crew clears the set's pavement of scooters; retroreflective sheeting is not a lightbox.
   FILM_SHOOT_NIGHT=0 is the A/B.
+- **2026-11-06 The marina at night: water that carries the lights (rc5-marina-night, HANDOFF "The
+  marina at night").** A new reference camera (`marina_night`, wave 8's table) on the east
+  headwalk at 21:00. Still water at night is judged by the lights in it: every light near it
+  is mirrored as a column narrow across and long down the view, broken by the chop, and lit
+  fronts across the water are mirrored past what stands in front of them; a water body's night
+  term is never a uniform glow in its ripples (that reads as paving). The jetty nav lights stay
+  out of this frame (occluded by boats from every headwalk spot that holds the restaurants).
+  MARINA_NIGHT=0 is the A/B.

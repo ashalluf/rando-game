@@ -62,6 +62,12 @@ uniform float anchor_energy = 14.0;
 // UV cover strip in the boat's canvas spirals round each furled jib (0: plain sailcloth).
 uniform float wire_px = 0.0;
 uniform float jib_strip = 0.0;
+// MarinaNight (wave 8): the cover's turns overlap - only a thin, dulled sliver of sail between
+// them (0: the old half-and-half strip, which drew as a barber pole).
+uniform float jib_soft = 0.0;
+// MarinaNight: a lit cabin's windows as panes - mullions, some curtained, some dark, a lamp's
+// glow in the middle of each - not one flat cream bar (0: the old cells).
+uniform float cabin_panes = 0.0;
 
 varying vec3 v_local;
 varying flat float v_region;
@@ -227,6 +233,19 @@ void fragment() {
 			float cell = bt_hash(floor(v_local.xz * vec2(1.4, 0.9)) + v_seed * 13.0);
 			float on = smoothstep(0.15, 0.6, lamp_factor) * step(0.2, cell);
 			emit = cs_srgb_to_linear(cabin_light) * cabin_energy * on * (0.55 + 0.45 * cell);
+			if (cabin_panes > 0.5) {
+				float pz = v_local.z / 0.62;
+				float fz = fract(pz);
+				float ph = bt_hash(vec2(floor(pz), v_seed * 31.0 + sign(v_local.x) * 7.0));
+				float mull = smoothstep(0.0, 0.07, fz) * smoothstep(1.0, 0.93, fz);
+				// Dark, curtained (folds, dimmer, warmer) or open (a lamp's glow mid-pane).
+				float open = step(0.45, ph);
+				float curtain = step(0.18, ph) * (1.0 - open);
+				float folds = 0.75 + 0.25 * sin(v_local.z * 46.0 + ph * 6.0);
+				float glow = 0.6 + 0.4 * sin(fz * 3.14159);
+				float level = open * glow * (0.8 + 0.4 * ph) + curtain * 0.32 * folds + (1.0 - open - curtain) * 0.04;
+				emit = cs_srgb_to_linear(mix(cabin_light, vec3(1.0, 0.55, 0.28), curtain)) * cabin_energy * on * level * (0.2 + 0.8 * mull);
+			}
 		}
 	} else if (region < 5.5) {
 		alb = base;
@@ -264,7 +283,17 @@ void fragment() {
 			// The cover is most of what shows; thin slivers of the white sail between its turns.
 			float wind = fract(UV.x + UV.y * 1.1);
 			float strip = smoothstep(0.0, 0.05, wind) * smoothstep(0.86, 0.8, wind);
-			alb = mix(alb, cs_srgb_to_linear(CANVAS[int(canvas_i)]) * (0.9 + 0.1 * bt_noise(UV * 60.0)), strip);
+			vec3 cover = cs_srgb_to_linear(CANVAS[int(canvas_i)]) * (0.9 + 0.1 * bt_noise(UV * 60.0));
+			if (jib_soft > 0.5) {
+				// Overlapping turns: a sliver a twentieth of the pitch, the sail there in the
+				// cover's shade, and a seam's shadow at each turn's edge.
+				float wind2 = fract(UV.x * 1.0 + UV.y * 0.7);
+				strip = smoothstep(0.0, 0.03, wind2) * smoothstep(0.97, 0.94, wind2);
+				cover *= mix(0.7, 1.0, smoothstep(0.0, 0.25, wind2));
+				alb = mix(alb * 0.45, cover, strip);
+			} else {
+				alb = mix(alb, cover, strip);
+			}
 		}
 	} else if (region > 11.5) {
 		// Rigging: steel or line, faded toward the sky behind it by what it covers of its pixel.

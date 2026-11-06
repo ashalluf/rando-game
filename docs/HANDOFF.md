@@ -32669,3 +32669,83 @@ by the HMIs, the pools reading as light rather than white discs.
 **Not verified**: the Mac (Forward+ at full city scale; only the set alone on lavapipe), the web
 build, the crew in the crowd cap on a busy load (a small scene's chunk budget spends the cap on
 walkers before the shoot's crew steps run; the city's streamer budget spawned them in every run).
+
+## 9oj. The marina at night, refcam5 `marina_night`, 2026-11-06 (fleet session `rc5-marina-night`, branch `wt/rc5-marina-night`)
+
+**The camera.** A new wave-8 reference view, one row in `tools/refcams/cameras_w8.json`: the marina
+(9cb) at 21:00 clear from the NORTH END of the east headwalk - eye (-621.5, 2.3, 64.5) true world,
+`agl` false (1.7 m over the floating headwalk), yaw 96, pitch 1.5, fov 58: west down the lane
+between the north quay's seawall and the first dock's boats, the three restaurants on the quay on
+the right, the dock pedestals, lit cabins and anchor lights on the left, the west promenade's lamps
+at the vanishing point. `REFCAMS_JSON=tools/refcams/cameras_w8.json python3 tools/refcams/refcams.py
+run build/refcams/<label> --only marina_night` (~4 min, 4.7 GB peak once the shader caches are warm).
+The eye was picked from five tried from one load (the middle of the headwalk sees boats and masts
+only; the west headwalk's candidates stood on the promenade). **The jetty nav lights are NOT in
+this frame**: from any headwalk spot that also holds the restaurants they sit 30-40 degrees left,
+340 m off and 1-2 degrees over the water, behind the motor yachts in the first docks' slips
+(checked on a crop of the frame). They are mirrored in the water like every other light when a view
+reaches them.
+
+**What gave it away** (the before, `shots/rc5-marina-night` 01, `MARINA_NIGHT=0`): (1) the water
+mirrored no light at all: a dark sheet whose only night term, an orange glow in the chop's creases,
+drew as brick paving down the lane - where a harbour at night is black water striped with the
+wavering column of every lamp and the lit fronts laid upside down in it; (2) the waterfront
+restaurants were a LIQUOR store, a SMOKE SHOP and a HARDWARE store (Building's own name roll);
+(3) the bulkhead's face was the pavement's clean pale concrete, lit flat by the quay lamps;
+(4) the furled jibs' UV cover strips drew as black-and-white barber poles from masthead to bow;
+(5) a lit cabin was one flat cream bar.
+
+**What changed** (`MarinaNight`, `scripts/world/marina_night.gd`; `MARINA_NIGHT=0` puts every piece
+back; it rides on MarinaGolden's node, so `MARINA_GOLDEN=0` turns it off too):
+- **The lights in the water.** `lights_for()` (pure but for the quay lamps' types, cached per
+  marina) lists every light round the basin where MarinaBuild draws its glow: dock pedestals
+  (`_dock_step()`'s rule), anchor lights, lit cabins (a row the cabin's width), the quay lamps
+  within `LAMP_EDGE` of the water (StreetLamps.place()'s heads), the jetty and breakwater nav
+  lights - and `fronts_for()` the restaurants' south fronts with the bulkhead in front of each.
+  MarinaGolden's refresh (0.2 s, real clock) pushes the `MAX_LIGHTS` 48 nearest (`ml_p` / `ml_c`)
+  and the fronts (`mf_a` / `mf_b`). `shaders/marina_night.gdshaderinc` (`mn_lights()`), per water
+  pixel: a light's column is the reflected ray's miss ACROSS it (tight: the light's size, the
+  pixel's footprint) and in HEIGHT where the ray is level with it (loose, growing `ml_spread` per
+  metre run: the chop's tilt) - an envelope from the steady ray and glints from the ray off a
+  `ml_wobble` x steeper copy of the chop, so the column breaks up and moves. A front is the ray's
+  hit on its plane: the shop band (mullions), the window row over it, cut off where the ray is
+  still under the bulkhead at its line. Emitted at the water's Fresnel (floor 0.1), behind any boat
+  the mirror trace found, faded in with `lamp_factor`; the old chop glow keeps `night_glow_keep`
+  0.2 of itself. Nothing by day (the branch needs `lamp_factor` > 0.01).
+- **Eateries on the quay**: a marina restaurant's `name_pool` is SUSHI, PIZZA, TACOS, COFFEE STOP,
+  DELI, BAKERY, BOBA, JUGOS FRESCOS (all already in Building.SHOP_NAMES; their rooms are cafes and
+  restaurants, so the vinyl and the traced interiors follow).
+- **The seawall** (`shaders/marina_seawall.gdshader` on the bulkheads' wall faces): precast panels
+  and lift lines, streaks down from the coping (rust on some), a ragged wet splash band, the tide
+  zone of weed and barnacle crust, slick; the concrete set's maps, linear on both renderers.
+- **Jib covers** (`jib_soft` on the boat material): the turns overlap, a sliver of shaded sail
+  between them.
+- **Cabin panes** (`cabin_panes`): mullions every 0.62 m, a pane dark, curtained (folds, warmer,
+  dimmer) or open (a lamp's glow mid-pane), per pane and side by hash.
+
+**Forward+** (lavapipe, `tools/glshot/fwd_block_shot.tscn BLOCKS=home EXTRA="-1,0"
+EYE=-621.5,0.4,64.5,96,1.5 FOV=58 --hour=21`, with `override.cfg` `[threading]
+worker_pool/max_threads=1`, never committed; Godot is SIGKILLed at exit after saving, harmless):
+off, the lane is one flat brown sheet; on, the columns and glints read at the same strength as on
+opengl3, nothing clips. Stills 03 / 04 on the shots branch.
+
+**Frame cost** (refcam GEO, opengl3 1280x720, same commit, `MARINA_NIGHT=0` -> on): 1,717,798 ->
+1,717,121 triangles, 1,150 -> 1,160 draws (the seawall's own surface per chunk). The water's trace
+is ALU: a loop of up to 48 lights (most rejected by the across test) and 3 fronts per water pixel,
+at night only.
+
+**The original cameras.** Only `beach` (600 m) and `pier_night` (510 m) are within a kilometre of
+the marina; both were shot with `MARINA_NIGHT=0` and on from the same commit and compared: identical
+(0.00 % pixels changed, triangles and draws equal). The other eight are 1-3.7 km away and never build a FULL marina chunk (the
+MarinaGolden / MarinaNight node is made only by one).
+
+**Checks**: `tests/rc5_marina_night_checks.gd` (the lights where MarinaBuild draws them, every
+pedestal on a dock, the pick nearest first and capped, the push's arrays, the fronts behind the
+bulkhead, the eateries' rooms, the shader's array sizes and the no-lights path, the jib switch,
+the camera row).
+
+**Not done.** The nav lights are not in this frame (above); the tower blocks' lit windows and the
+boats' own white hulls are not in the water's light list (the boats are mirrored dark by
+MarinaGolden's trace at night); the restaurants' terraces have no string lights or diners; the
+lights' columns are not occluded by the docks' floats (only by boats); the moonlit hulls still read
+a little flat grey.
