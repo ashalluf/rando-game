@@ -4,7 +4,7 @@ extends RefCounted
 ## blast with their burning pools, a boat and its wake, a lit bonfire, landing-light beams, the
 ## wingsuit's two meshes), and leaves none of it behind: no burning pool, boat, bonfire or beam, no
 ## car of the row set off by Blast4's chain, the chain's depth put back. Runs a part of the
-## rehearsal (the cars and effects stages, five body types). Loaded at run time by
+## rehearsal (the cars, effects and idle-particle stages, six body types). Loaded at run time by
 ## tests/smoke_test.gd. The frames themselves are measured by tools/shader_warm/first_use_probe
 ## EVENTS=wave8 (opengl3); the dummy renderer here compiles nothing.
 
@@ -48,7 +48,7 @@ func _staged(city: Node3D) -> void:
 	var fires_before := tree.get_nodes_in_group("vehicle").filter(func(v): return (v as Node).has_meta(WarmRehearsal.TAG)).size()
 	var stages_was := WarmRehearsal.only_stages
 	var types_was := WarmRehearsal.only_types
-	WarmRehearsal.only_stages = PackedStringArray(["cars", "effects"])
+	WarmRehearsal.only_stages = PackedStringArray(["cars", "effects", "idle particles"])
 	WarmRehearsal.only_types = [0, 1, 2, 3, 4, 5]
 	var chained := [0]
 	var watch := func() -> void:
@@ -74,6 +74,10 @@ func _staged(city: Node3D) -> void:
 	for v in tree.get_nodes_in_group("vehicle"):
 		if (v as Node).has_meta(WarmRehearsal.TAG) and not (v as Node).is_queued_for_deletion():
 			left += 1
+	print("FIRST_USE_W8 idle systems: %d copied of %d" % [WarmRehearsal.ghosts_made, WarmRehearsal.ghosts_seen])
+	_check(WarmRehearsal.ghosts_seen > 0 and WarmRehearsal.ghosts_made == mini(WarmRehearsal.ghosts_seen, WarmRehearsal.GHOST_CAP)
+			and WarmRehearsal.ghosts_seen <= WarmRehearsal.GHOST_CAP,
+			"the idle-particle stage copies every idle weather and boost system (%d of %d, cap %d)" % [WarmRehearsal.ghosts_made, WarmRehearsal.ghosts_seen, WarmRehearsal.GHOST_CAP])
 	_check(left == 0 and city.get_node_or_null("WarmRehearsal") == null,
 			"the rehearsal's boats, bonfire and cars are freed (%d left, %d tagged before)" % [left, fires_before])
 

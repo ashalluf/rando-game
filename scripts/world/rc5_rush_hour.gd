@@ -8,6 +8,8 @@ extends RefCounted
 ##   in a concrete deck that shines into a low sun drew every patch as a crisp black tile. Aged
 ##   binder is grey and polished by the tyres; the outline is rounded and ragged.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 ## - Heat haze over the jam (HeatHaze, Forward+ desktop at HIGH / MEDIUM only): Weather's heat is
 ##   the afternoon sun's (LaWeather.afternoon_heat()), all but gone by 17:40; a jammed freeway's
 ##   exhaust and asphalt still shimmer the tail lamps down the carriageway. While the camera looks

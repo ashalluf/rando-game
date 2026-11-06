@@ -358,6 +358,12 @@ static func _stage_effects(holder: Node3D, ground: Vector3, fwd: Vector3, right:
 ## Copies of the particle systems and meshes that sit idle until something wakes them - the
 ## weather's rain, splashes and lens drops, the boost's vapour and streaks - turned on in front of
 ## the camera. A plain duplicate: no script, no signals, no groups.
+## The idle systems the ghost stage copies at most, and what it saw / copied last time (checks).
+const GHOST_CAP := 64
+static var ghosts_seen: int = 0
+static var ghosts_made: int = 0
+
+
 static func _stage_ghosts(holder: Node3D, ground: Vector3, fwd: Vector3, right: Vector3, tree: SceneTree) -> void:
 	var sources: Array = []
 	var weather := tree.current_scene.get_node_or_null("Weather") if tree.current_scene else null
@@ -369,11 +375,15 @@ static func _stage_ghosts(holder: Node3D, ground: Vector3, fwd: Vector3, right: 
 		sources.append(trail if trail else player)
 	var at := ground + fwd * 5.0 + Vector3.UP * 1.5
 	var n := 0
+	var seen := 0
 	for src: Node in sources:
 		for g in src.find_children("*", "GeometryInstance3D", true, false):
-			if n >= 64:
-				break
 			if g is CPUParticles3D or g is GPUParticles3D or (g is GeometryInstance3D and not (g as Node3D).is_visible_in_tree()):
+				seen += 1
+				# Counted (first-use-w8): a source past the cap would leave the boost trail, copied after
+				# the weather, with none. The checks fail before the weather grows that far.
+				if n >= GHOST_CAP:
+					continue
 				var copy := (g as Node).duplicate(0) as Node3D
 				if copy == null:
 					continue
@@ -388,6 +398,9 @@ static func _stage_ghosts(holder: Node3D, ground: Vector3, fwd: Vector3, right: 
 				elif copy is GPUParticles3D:
 					(copy as GPUParticles3D).emitting = true
 				n += 1
+	ghosts_seen = seen
+	ghosts_made = n
+	print("LOADING rehearsal idle systems copied: %d of %d" % [n, seen])
 	await tree.process_frame
 
 
