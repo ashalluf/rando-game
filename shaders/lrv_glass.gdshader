@@ -48,18 +48,20 @@ uniform vec3 station_color = vec3(0.16, 0.155, 0.15);
 // strips (the golden sky's colour drew every window a flat tan panel) and people in it: seated
 // passengers both sides and a few standees in the aisle. 0: the old shader exactly.
 uniform float look5 = 0.0;
-uniform float look5_tint = 0.14;
-uniform float look5_f0 = 0.085;
+uniform float look5_tint = 0.12;
+uniform float look5_f0 = 0.1;
 
 varying vec3 mpos;
 varying vec3 mnrm;
 varying vec3 mcam;
+varying vec3 wpos;
 
 
 void vertex() {
 	mpos = VERTEX;
 	mnrm = NORMAL;
 	mcam = (inverse(MODEL_MATRIX) * vec4(CAMERA_POSITION_WORLD, 1.0)).xyz;
+	wpos = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
 }
 
 
@@ -213,6 +215,24 @@ void fragment() {
 	if (look5 > 0.5) {
 		tint = look5_tint;
 		fres = max(fres, look5_f0);
+		// What the side glass mirrors: the street below the horizon, and above it the sky rising
+		// from the horizon's colour (desaturated: sky_tint is the horizon toward the sun too, and a
+		// golden-hour peach on every pane read as tan boards) into the zenith's blue.
+		float lum_d = dot(day, vec3(0.2126, 0.7152, 0.0722));
+		vec3 horizon = mix(day, vec3(lum_d), 0.55);
+		vec3 zenith = vec3(0.30, 0.42, 0.62) * lum_d * 1.1;
+		vec3 sky_r = mix(horizon, zenith, smoothstep(0.02, 0.55, R.y));
+		// The street's far side stands in the glass: a roofline per 9 m of the reflected ray's
+		// landing along the street (its height by a hash), facades darker than the sky with window
+		// rows in them, so pane to pane the reflection changes like a real one.
+		float u = (wpos.x + wpos.z) * 0.5 + R.x * 18.0 + R.z * 18.0;
+		float cell = floor(u / 9.0);
+		float roof = 0.16 + 0.32 * l5_hash(cell * 1.7 + 3.0);
+		float facade = 1.0 - smoothstep(roof - 0.01, roof + 0.01, R.y);
+		float rows = step(0.55, fract(R.y * 34.0)) * step(0.3, fract(u * 0.55));
+		vec3 fac = vec3(lum_d) * mix(vec3(0.11, 0.10, 0.09), vec3(0.16, 0.15, 0.14), rows) * (1.0 - night * 0.8);
+		sky_r = mix(sky_r, fac, facade * smoothstep(0.0, 0.03, R.y));
+		mirror = mix(street_color * (0.5 + 0.5 * (1.0 - night)), sky_r + vec3(0.02) * night, smoothstep(-0.06, 0.1, R.y));
 	}
 	vec3 emit = inside * tint * (1.0 - fres) + mirror * fres * reflect_emit;
 	ALBEDO = cs_out(vec3(0.01));
