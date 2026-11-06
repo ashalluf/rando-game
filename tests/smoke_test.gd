@@ -2971,6 +2971,9 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	# The farmers' market refcam (tests/rc5_farmers_market_checks.gd): the camera row in the aisle,
 	# packed produce, printed cartons, the material's relief and drape, the busier market.
 	load("res://tests/rc5_farmers_market_checks.gd").new().run(self, city)
+	# The rail_crossing refcam (tests/rc5_rail_crossing_checks.gd, RcRailCrossing): red flashers and
+	# their glows, the catenary as ribbons, the LRV glass, the crossbuck legend, the camera row.
+	load("res://tests/rc5_rail_crossing_checks.gd").new().run(self)
 	# The police pursuit at night (tests/rc5_police_pursuit_checks.gd, PursuitLook): the LED flash
 	# pattern and bar, the searchlight's pool and shaft, the camera row.
 	load("res://tests/rc5_police_pursuit_checks.gd").new().run(self)
