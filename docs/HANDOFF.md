@@ -31772,6 +31772,13 @@ bus the load put across the court on the first try). Rows without `clear` are un
 
 **Numbers** (refcam report, opengl3 1280x720, `--quality=0`, same eye and staging, the before is
 `MOTELS=0 MOTEL_SIGN_GLOW=0`): see the table in the shots README (`shots/rc5-googie-motel`).
+`MOTELS=0 MOTEL_SIGN_GLOW=0`): before 4.188 M triangles / 1,610 draws / 1.398 M in the shadow
+passes, luminance p50 34, p95 152; after 4.110 M / 1,588 / 1.355 M, p50 31, p95 156 - flat (the
+motel's one mesh replaces the car park's batch of box cars). Gate: 6,234 checks in three shards,
+peak 3.86 GB a shard. Stills on `shots/rc5-googie-motel`. The ten original refcams, this branch
+with the A/B off then on (one load each): seven unchanged (<= 1.2 mean |d|), street_noon,
+street_night and freeway flagged by live traffic only (a different bus in the lens; downtown has
+no motel lots).
 
 **A/B.** `MOTELS=0` (the car park again), `MOTEL_SIGN_GLOW=0` (no halos or pools on the sign).
 Probe: `tools/motel_probe.gd -- --spawn=x,z,0,0` lists the motels with their lot, road and an EYE
