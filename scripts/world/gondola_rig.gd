@@ -283,6 +283,11 @@ func _rig_ik(w: Dictionary) -> void:
 		root.add_child(elbow)
 		if sh >= 0:
 			elbow.position = inst.transform * (skel.transform * skel.get_bone_global_rest(sh).origin) + Vector3(sgn * 0.45, -0.6, -0.45)
+			if Rc5TowerGondola.enabled:
+				# The shoulder in the root's frame through the whole chain: the line above leaves out
+				# the rig's 0.01 armature, so the pole stood a hundred metres up and every elbow flew
+				# up and out. Down, a little out and behind, as on a rail.
+				elbow.position = root.to_local(skel.global_transform * skel.get_bone_global_rest(sh).origin) + Rc5TowerGondola.ELBOW_POLE * Vector3(sgn, 1.0, 1.0)
 		var knee := Node3D.new()
 		knee.name = side + "KneePole"
 		root.add_child(knee)

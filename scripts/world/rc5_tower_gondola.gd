@@ -16,6 +16,11 @@ static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/H
 
 static var enabled: bool = OS.get_environment("RC5_GONDOLA") != "0"
 
+## The wire ropes' colour (sRGB): weathered galvanised steel.
+const WIRE_COLOR := Color(0.62, 0.63, 0.64)
+## The workers' elbow poles from each shoulder (the rig's frame, x out to its side, -z behind).
+const ELBOW_POLE := Vector3(0.3, -0.75, -0.35)
+
 static var _rope_mats: Dictionary = {}
 
 
@@ -25,9 +30,10 @@ static func rope_material(color: Color) -> ShaderMaterial:
 	if not _rope_mats.has(key):
 		var m := ShaderMaterial.new()
 		m.shader = load("res://shaders/gondola_rope.gdshader")
-		m.set_shader_parameter("rope_color", color)
+		# Galvanised wire in the sun reads lighter than its grey paint against dark glass.
+		m.set_shader_parameter("rope_color", color if color.s >= 0.2 else WIRE_COLOR)
 		# Galvanised wire: metal; the lanyard's polyester: dull.
-		m.set_shader_parameter("metal", 0.6 if color.s < 0.2 else 0.0)
+		m.set_shader_parameter("metal", 0.35 if color.s < 0.2 else 0.0)
 		m.set_shader_parameter("rough", 0.45 if color.s < 0.2 else 0.8)
 		_rope_mats[key] = m
 	return _rope_mats[key]

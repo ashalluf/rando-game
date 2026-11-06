@@ -5811,6 +5811,15 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   facade, `shaders/gondola_streaks.gdshader`. `GONDOLAS=0` is the A/B (`GONDOLA_T=` sets the
   clock). Stills: `tools/gondolas/gondola_shot.gd` (one tower alone, seconds; `VIEW`, `HIT`,
   `LIST=1`); checks `tests/tower_gondolas_checks.gd` (`tools/gondolas/checks_only.gd` alone).
+- The window washers from the roof next door (wave 8, refcam `tower_gondola` in
+  `tools/refcams/cameras_w8.json`, its `gondola_t` holds the cradles' clock; docs/HANDOFF.md "The
+  window washers from the roof next door"): `Rc5TowerGondola` (`scripts/world/rc5_tower_gondola.gd`):
+  the wire ropes and lanyards on `shaders/gondola_rope.gdshader` (never under `min_px` pixels, the
+  real width as coverage: 5 mm cylinders vanished past ~10 m), gondola_streaks `look` (squeegeed
+  glass dry, the worked pane lathered, wet runs mirroring `sky_tint`), the workers' elbow poles
+  through the whole rig chain (the old pole left out the 0.01 armature and stood ~100 m up: every
+  elbow flew out). `RC5_GONDOLA=0` is the A/B; probes `tools/rc5_tower_gondola/` (roof heights,
+  the cradle's pose over the clock); checks `tests/rc5_tower_gondola_checks.gd`.
 - Wilshire deco (VISUAL_ROADMAP #86, 2026-10-05, docs/HANDOFF.md "Wilshire's deco boulevard"):
   `DecoBoulevard` (`scripts/world/deco_boulevard.gd`) gives midtown's boulevard frontage its
   1920s-30s character. A MIDTOWN BUILDINGS block's edge lot whose cell faces a road

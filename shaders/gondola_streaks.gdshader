@@ -108,7 +108,7 @@ void fragment() {
 			float done = (1.0 - soap) * 2.0 * half_width - half_width + 0.12 * sin(y * 5.0);
 			float left = smoothstep(done - 0.06, done + 0.06, x);
 			float clot = smoothstep(0.12, 0.0, abs(x - done)) * 0.35;
-			lather = band * step(0.001, soap) * left * clamp(0.55 + 0.3 * smoothstep(0.25, 0.75, suds) + clot, 0.0, 1.0);
+			lather = band * step(0.001, soap) * left * clamp(0.3 + 0.5 * smoothstep(0.3, 0.8, suds) + clot, 0.0, 1.0);
 		} else {
 			sheen = alpha * 1.6;
 		}
@@ -118,14 +118,14 @@ void fragment() {
 		// light falling on it), brighter at a grazing look; lather is white, matte, lit.
 		float fres = 0.35 + 0.65 * pow(1.0 - clamp(dot(NORMAL, VIEW), 0.0, 1.0), 3.0);
 		vec3 sky = cs_srgb_to_linear(sky_tint.rgb);
-		vec3 white = vec3(0.80, 0.82, 0.83);
+		vec3 white = vec3(0.68, 0.70, 0.71);
 		float lw = clamp(lather * 1.5, 0.0, 1.0);
 		ALBEDO = cs_out(mix(vec3(0.02, 0.025, 0.03), white, lw));
 		EMISSION = cs_out(sky * (0.7 * fres) * (1.0 - lw));
 		ROUGHNESS = mix(0.02, 0.8, lw);
 		METALLIC = 0.0;
 		SPECULAR = 0.9;
-		ALPHA = clamp(max(sheen * 0.42, lather * 0.62), 0.0, 0.9);
+		ALPHA = clamp(max(sheen * 0.42, lather * 0.5), 0.0, 0.9);
 	} else {
 	alpha *= edge * fade;
 	foam *= edge * fade;

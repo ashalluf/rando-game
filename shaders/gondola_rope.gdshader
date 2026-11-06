@@ -12,12 +12,12 @@ render_mode blend_mix, depth_draw_never, cull_back, shadows_disabled, diffuse_bu
 #include "res://shaders/color_space.gdshaderinc"
 
 uniform vec4 rope_color : source_color = vec4(0.32, 0.33, 0.34, 1.0);
-uniform float metal = 0.6;
+uniform float metal = 0.35;
 uniform float rough = 0.45;
 // Narrowest a rope is drawn, in pixels across; coverage under it goes into alpha (raised to the
 // gamma: a hairline stays readable without thickening).
-uniform float min_px = 1.2;
-uniform float coverage_gamma = 0.7;
+uniform float min_px = 1.4;
+uniform float coverage_gamma = 0.55;
 uniform float fade_start = 160.0;
 uniform float fade_end = 320.0;
 

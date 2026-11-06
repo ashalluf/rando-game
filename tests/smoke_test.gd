@@ -2963,6 +2963,8 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	load("res://tests/rc4_terminal_curb_checks.gd").new().run(self, city)
 	# The skate park refcam (tests/rc5_skate_park_checks.gd, RcSkatePark): used concrete, the pool air, lit boardwalk paint.
 	load("res://tests/rc5_skate_park_checks.gd").new().run(self)
+	# The tower_gondola refcam (tests/rc5_tower_gondola_checks.gd, Rc5TowerGondola): ropes, wet glass, the row.
+	load("res://tests/rc5_tower_gondola_checks.gd").new().run(self, city)
 	# The storm_downtown refcam (tests/rc5_storm_downtown_checks.gd, RcStorm): the night flash, the
 	# storm curtain at night, the lamp streaks in a storm, the litter, the camera row.
 	load("res://tests/rc5_storm_downtown_checks.gd").new().run(self, city)
