@@ -5400,6 +5400,13 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   `tools/pueblo_lane/probe.tscn`, stalls alone `tools/pueblo_lane/stall_shot.gd`; checks
   `tests/pueblo_lane_checks.gd`. Trap: a per-piece seed in a vertex attribute must be a `flat`
   varying, or the hashes turn its interpolation noise into per-pixel colour.
+- The marketplace lane at 12:30 (wave 8, refcam `pueblo_lane` in `tools/refcams/cameras_w8.json`,
+  docs/HANDOFF.md "The marketplace lane at 12:30"): `PuebloLaneLook` (`scripts/world/pueblo_lane_look.gd`):
+  the lane's walkers by the hour (`LANE_KEYS`, extra walkers from `PuebloLane.people_steps()` on
+  their own stream), a seller in every second stall, browner worn brick (`albedo_desat`), grained
+  pergola timbers (the market's K_WOOD), weathered stall paint (pueblo_market `weather`, `foot_y`).
+  `PUEBLO_LANE_LOOK=0` is the A/B; `PUEBLO_DEBUG=1` prints the lane's walkers; checks
+  `tests/rc5_pueblo_lane_checks.gd`.
 - Masjid Omar ibn Al-Khattab (owner, 2026-09-24: "way more detailed and 1:1 accurate", six
   photos, "give it an interior", and "make it impossible for the character to shoot anything at
   it"): `LandmarkMasjidOmar` (`scripts/world/landmark_masjid_omar.gd`), a replica of the real

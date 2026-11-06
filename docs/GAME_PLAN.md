@@ -4737,3 +4737,9 @@ none of either.
   lit structures standing in water mirror their light in it (the islands' towers as columns in the
   bay); a flood is light thrown up a face from its foot, not a face painted the gel's colour.
   LONG_BEACH_SAND=0 / RC5_OIL_ISLANDS=0 are the A/B.
+- **2026-11-06 The pueblo_lane refcam: a market is its crowd (rc5-pueblo-lane, HANDOFF "The marketplace
+  lane at 12:30").** A new reference camera (`pueblo_lane`, wave 8's table) in the marketplace lane's
+  east aisle at 12:30. Decisions: a landmark's crowd follows the hour like a plaza's (the lane is too
+  narrow for PlazaCrowd's open ground, so PuebloLaneLook adds walkers to its ring from its own
+  stream); every second stall is staffed; painted things outdoors are weathered (faded, chipped,
+  dirty at the foot), never factory-new; timber is grained. PUEBLO_LANE_LOOK=0 is the A/B.

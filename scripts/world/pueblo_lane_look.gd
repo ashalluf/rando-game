@@ -18,12 +18,12 @@ static var enabled: bool = OS.get_environment("PUEBLO_LANE_LOOK") != "0"
 
 ## How many times the lane's own walkers (PuebloLane.crowds(), 18), hour by hour from midnight
 ## (25 keys). A market lane: the stalls open at ten, lunch is the crowd, it thins after dark.
-const LANE_KEYS := [0.2, 0.15, 0.1, 0.1, 0.1, 0.1, 0.2, 0.35, 0.6, 0.9, 1.4, 2.0,
-	2.8, 3.0, 2.6, 2.2, 2.0, 2.0, 2.1, 1.9, 1.5, 1.0, 0.6, 0.35, 0.2]
+const LANE_KEYS := [0.2, 0.15, 0.1, 0.1, 0.1, 0.1, 0.2, 0.35, 0.7, 1.2, 2.0, 3.0,
+	4.4, 4.6, 4.0, 3.4, 3.0, 3.0, 3.2, 2.8, 2.0, 1.3, 0.7, 0.35, 0.2]
 ## The lane's base count (PuebloLane.crowds()' lane entry).
 const LANE_BASE := 18
-## At most this many walkers on the lane in all (its two aisles are ~3 m x 118 m each).
-const LANE_MOST := 58
+## At most this many walkers on the lane in all (its two aisles are ~3 m x 118 m each: one person to ~8 m2 of aisle).
+const LANE_MOST := 84
 ## A seller in every this-many stalls.
 const VENDOR_EVERY := 2
 ## The lane's brick: tint on the brick_red set and wear (PuebloLane._ground()).
