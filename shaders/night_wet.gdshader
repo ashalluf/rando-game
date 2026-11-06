@@ -61,6 +61,12 @@ uniform float gain2_forward = 0.28;
 // bright streak. 0 the streak exactly as before.
 uniform float storm = 0.0;
 uniform float storm_gain = 0.5;
+// look5 (RainDusk, refcam bus_stop_rain): the rows sampled at their real size. look2's rows were
+// ~25 cm apart along the streak and lifted to the 2.6th power, so at a pavement's grazing angle
+// every lamp's column read as an evenly spaced string of white beads. look5 cuts them to a fine
+// sparkle (a few cm, that TAA and the mips average to a broken sheen), lower in contrast, and
+// takes the burnt-white core down to the lamp's own colour. 0 the look2 streak bit for bit.
+uniform float look5 = 0.0;
 
 varying float v_amp;
 varying float v_peak;
@@ -164,6 +170,11 @@ void fragment() {
 		float rows = nw_noise(vec2(v_sm.y * 1.6 + 3.1, v_sm.x * 4.2 + TIME * 1.3));
 		float rows2 = nw_noise(vec2(v_sm.y * 4.0, v_sm.x * 11.0 - TIME * 2.1));
 		float glint = 0.12 + 2.4 * pow(rows, 2.6) + 0.7 * rows2 * rows2 * core;
+		if (look5 > 0.5) {
+			rows = nw_noise(vec2(v_sm.y * 5.0 + 3.1, v_sm.x * 17.0 + TIME * 1.3));
+			rows2 = nw_noise(vec2(v_sm.y * 9.0, v_sm.x * 31.0 - TIME * 2.1));
+			glint = 0.45 + 0.9 * pow(rows, 1.5) + 0.4 * rows2 * core;
+		}
 		float patch = 0.5 + 1.0 * n2;
 		// Edges ragged by the same rows: the column's width breathes along its length.
 		float rag = 0.75 + 0.5 * rows;
@@ -176,7 +187,10 @@ void fragment() {
 		}
 		// The hot middle washes toward white, the way a bright light burns through its own colour.
 		float m = max(max(v_col.r, v_col.g), max(v_col.b, 1e-3));
-		col = mix(v_col, vec3(m) * vec3(1.0, 0.93, 0.82), 0.35 * core * along2);
+		col = mix(v_col, vec3(m) * vec3(1.0, 0.93, 0.82), (look5 > 0.5 ? 0.1 : 0.35) * core * along2);
+		if (look5 > 0.5) {
+			a *= 0.7;
+		}
 	}
 	ALBEDO = cs_out(col * a * v_amp);
 }
