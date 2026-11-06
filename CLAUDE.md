@@ -2848,6 +2848,16 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   suit. `WINGSUIT=0` is the A/B; stills `WINGSUIT=glide|fall` on `still_shot.gd` (`WS_INPUT`,
   `WS_TIME`, `WS_LOOK`); checks `tests/wingsuit_checks.gd` (room part; alone:
   `tools/wingsuit/checks_only.tscn`, seconds).
+- The wingsuit at golden hour (wave 8, refcam `wingsuit_golden` in `tools/refcams/cameras_w8.json`,
+  its `wingsuit` key stages the glide - `tools/refcams/wingsuit_stage.gd`, shot from his own chase
+  camera; docs/HANDOFF.md "The wingsuit at golden hour"): WingsuitFx `look2` builds each membrane
+  as an INFLATED two-skin wing (16 x 9 grid, `cell_depth`, cells bulging between the seams; UV2.y +4
+  the bottom skin) with a nylon sheen; the vapour starts at 20 m/s, fatter, lit by the sun and the
+  sky (`tree_sun`, `sky_tint`). `Rc5Wingsuit`: THE LATTICE's roof skylight lattice, the concert
+  hall's steel under a low sun (brushed_steel `look`: at 250 m the 18:00 haze IS the sail's colour,
+  only face-to-face contrast reads), lit crowns that wait for dusk (tower_crown `dusk_hold`). Refcam FOV
+  is VERTICAL (60 made a 6 m chase a speck). `WINGSUIT_LOOK=0` / `RC5_WINGSUIT=0` the A/Bs; checks
+  `tests/rc5_wingsuit_golden_checks.gd`.
 - Effects: `WeaponFX` builds everything in code (tracers, muzzle flash, impacts, explosions).
   An explosion is layered: an `OmniLight3D` flash, a white-hot core, alpha-blended fireball
   puffs, slow smoke, additive sparks, a ground shockwave ring, lit debris, a scorch `Decal`

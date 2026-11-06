@@ -534,7 +534,7 @@ static func _concert_hall(s: Rect2, y0: float, parent: Node3D, statics: StaticBo
 			elif nm.contains("stone"):
 				mi.set_surface_override_material(i, stone)
 			else:
-				mi.set_surface_override_material(i, LandmarkMats.steel("concert", {"flood_base_y": top}))
+				mi.set_surface_override_material(i, LandmarkMats.steel("concert", {"flood_base_y": top, "look": Rc5Wingsuit.steel_look()}))
 		parent.add_child(mi)
 		if statics:
 			var col := PropFactory.model_mesh(CONCERT_HALL_MODEL, PackedStringArray(["collision"]), [], Transform3D(Basis().scaled(Vector3(fit, fit, fit)), Vector3.ZERO), {}, false)
@@ -545,7 +545,7 @@ static func _concert_hall(s: Rect2, y0: float, parent: Node3D, statics: StaticBo
 				statics.add_child(cs)
 	else:
 		# Fallback when the model is missing: the massing in steel boxes, so the block is not empty.
-		g.use("steel", LandmarkMats.steel("concert", {"flood_base_y": top}))
+		g.use("steel", LandmarkMats.steel("concert", {"flood_base_y": top, "look": Rc5Wingsuit.steel_look()}))
 		g.box("steel", base + Vector3(4.0, 13.0, -4.0), Vector3(30.0, 26.0, 36.0))
 		g.box("steel", base + Vector3(-14.0, 10.0, 12.0), Vector3(28.0, 20.0, 24.0), Color.WHITE, LandmarkGeo.yaw(0.4))
 		LandmarkGeo.shape_box(statics, base + Vector3(4.0, 13.0, -4.0), Vector3(30.0, 26.0, 36.0))
@@ -621,6 +621,8 @@ static func _museum(s: Rect2, y0: float, parent: Node3D, statics: StaticBody3D, 
 	# The coping over the veil's top edge, and the roof.
 	g.box("veil", Vector3(r.get_center().x, y0 + h + 0.35, r.get_center().y), Vector3(r.size.x + 0.4, 0.7, r.size.y + 0.4), Color.WHITE, Basis(), 0.1 if detailed else 0.0)
 	LandmarkGeo.shape_box(statics, Vector3(r.get_center().x, y0 + h + 0.35, r.get_center().y), Vector3(r.size.x + 0.4, 0.7, r.size.y + 0.4))
+	if Rc5Wingsuit.enabled:
+		Rc5Wingsuit.museum_roof(g, r, y0 + h + 0.7, detailed)
 	batch.add("museum_name", Signage.text_mesh(MUSEUM_NAME, 0.7, Signage.Letters.PRINT),
 		Transform3D(LandmarkArenaDistrict._face(PI, 1.0), Vector3(r.get_center().x, y0 + 3.0, r.end.y + 0.95)), Color(0.15, 0.15, 0.16))
 	batch.set_no_shadow("museum_name")

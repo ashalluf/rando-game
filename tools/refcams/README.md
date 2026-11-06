@@ -96,6 +96,12 @@ screen wall, the theatre's lobby and HOTEL ALTAIR's crown. Its optional `arena_e
 makes the night an event night or a quiet one (ArenaNight, as ARENA_EVENT; set before the city
 loads). `tools/rc5_arena_night/site_probe.gd` prints the district's site rects in world XZ.
 
+`wingsuit_golden` (rc5-wingsuit-golden): the
+hero gliding in his wingsuit ~120 m over Bunker Hill toward the skyline at 18:00 clear, shot from his
+OWN chase camera 6 m behind. Its `wingsuit` key (`tools/refcams/wingsuit_stage.gd`: at, heading,
+speed, lead, input, dist, look, fov) launches him `lead` seconds back along the trim glide so he
+passes `at` at the shot; the log prints where he is, his speed and whether the vapour trails.
+
 ## Wave 7's cameras (`cameras_w7.json`)
 
 Run with `REFCAMS_JSON=tools/refcams/cameras_w7.json`. `freight_yard`: the Arroyo Pacific yard at
