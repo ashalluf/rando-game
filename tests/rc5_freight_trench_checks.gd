@@ -67,6 +67,8 @@ func _stretch(city: Node3D) -> void:
 	for on: bool in [false, true]:
 		RcFreightTrench.enabled = on
 		var kit := FreightKit.new(c)
+		kit.fr = line
+		kit.area = c.owned_rect()
 		kit.full = true
 		kit._trench(s, s + FreightKit.SEG)
 		counts.append(_count(kit.body))
@@ -78,6 +80,8 @@ func _stretch(city: Node3D) -> void:
 	for on: bool in [false, true]:
 		RcFreightTrench.enabled = on
 		var kit := FreightKit.new(c)
+		kit.fr = line
+		kit.area = c.owned_rect()
 		kit.full = true
 		kit._trench(shallow, shallow + FreightKit.SEG)
 		sc.append(_count(kit.body))
