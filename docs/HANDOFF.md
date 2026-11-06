@@ -33336,7 +33336,9 @@ was mostly leaf shade; it is now the sunlit church). GEO 6,649,631 -> 6,868,191 
 3,587 -> 3,713 draws: the ~25 people of the congregation and the church now drawn whole, less the
 trees that stood in front of it. The 32 places of worship of seed 1337 are 124-957 m from the ten
 original cameras; only `sunset` (178 m from a modern church) and `hills` (124 m from a synagogue)
-can build one at FULL.
+can build one at FULL: both shot with the A/B env off and on from the same commit and compared
+(`refcams.py compare`): 0 of 2 flagged, 0.01 % / 0.03 % of pixels (run noise), triangles +0.2 % /
+-0.6 %. The other eight are 380 m+ from any site and never build one at FULL.
 
 **Stills** (`shots/rc5-church-sunday`): `01_before_church_sunday.jpg`, `02_after_church_sunday.jpg`,
 `03_after_first_framing_from_left.jpg` (the plain tower merged with the facade, and the sky line
