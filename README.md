@@ -11,3 +11,6 @@ opengl3 refcam stills (Compatibility renderer), 1280x720.
   laid in the water as a wavering column, the restaurants' lit fronts mirrored past the bulkhead,
   eateries (deli, bakery, coffee, sushi), a weathered seawall (tide zone, weed, joints, streaks),
   jib covers with overlapping turns, cabin windows as panes.
+- `03_before_forward_plus_lavapipe.jpg` / `04_after_forward_plus_lavapipe.jpg` - the same view on
+  Forward+ (the Mac's renderer) under lavapipe, the marina's blocks alone (fwd_block_shot.tscn,
+  960x540): off, the lane is one flat brown sheet; on, the columns read at the same strength.
