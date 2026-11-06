@@ -30231,5 +30231,16 @@ origin and the tail cone's underside is 4.4-5 m up, so the pivot is right and th
 perspective (the eye is 1.1 m up). Not touched (another area): the nightlife searchlight beam in
 the sky, the ridge sign at the left edge.
 
-Numbers (opengl3, 1280x720, the shot's own frame; GEO from the refcam report): see the table at
-the end of this section. Stills on `shots/rc5-jet-takeoff`.
+Numbers (opengl3, 1280x720, the shot's own frame, from the refcam report; same eye and staging):
+
+| run | p5 | p50 | p95 | p99 | crush % | triangles | draws |
+|---|---|---|---|---|---|---|---|
+| JET_TAKEOFF=0 | 5 | 40 | 109 | 191 | 5.4 | 3,481,635 | 1,259 |
+| on | 5 | 41 | 123 | 194 | 6.6 | 3,970,126 | 1,289 |
+
+The +0.49 M triangles are the infield tufts inside their 86 m draw range (at 1.1 a square metre they
+were +0.76 M; `TUFT_DENSITY` is the knob), the +30 draws the tuft cells, the pools and the beams.
+p95 rises with the lit shoulder round the edge light in the foreground. Stills on
+`shots/rc5-jet-takeoff`. Not verified: Forward+ (no lavapipe pass for the beams' and pools'
+additive strength on the Mac's renderer; the beams use a fog-free display-ish add with a low
+strength, the pools light_pool.gdshader's own path).
