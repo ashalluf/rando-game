@@ -1818,6 +1818,12 @@ func stage(what: String) -> void:
 			car.take_hit(-1, over, xf.basis * Vector3(-0.3, 0.0, 1.0).normalized(), xf * Vector3(hw * 0.7, mid, -_len * 0.5 - 0.3), Vehicle.HIT_CRASH)
 		elif part.begins_with("side") and over > 0.0:
 			car.take_hit(-1, over, xf.basis * Vector3.LEFT, xf * Vector3(hw + 0.3, mid, -0.1), Vehicle.HIT_CRASH)
+		elif part.begins_with("pole") and part.length() > 4:
+			# A street lamp's pole met a little right of the nose's middle (CrashDeform's narrow wrap).
+			over = float(part.substr(4)) / 3.6 - car.crash_min_dv
+			if over > 0.0:
+				CrashAftermath.note_pole(CrashAftermath.POLE_WIDTH)
+				car.take_hit(-1, over, xf.basis * Vector3.BACK, xf * Vector3(0.25, mid, -_len * 0.5 - 0.3), Vehicle.HIT_CRASH)
 		elif part.begins_with("rear") and over > 0.0:
 			car.take_hit(-1, over, xf.basis * Vector3.FORWARD, xf * Vector3(0.0, mid, _len * 0.5 + 0.3), Vehicle.HIT_CRASH)
 		elif part == "roll":
