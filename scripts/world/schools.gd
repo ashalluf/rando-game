@@ -914,8 +914,8 @@ static func _ground_step(ch: CityChunk, pl: Dictionary) -> void:
 					_gr(ch, piece, Parks.G_LAWN, ch.style.grass, _h01([ch.plan.seed, pl.cell, "lawn"]))
 			"parking":
 				if _own(ch).encloses(r):
-					LotFill._car_park(ch, r, hash([ch.plan.seed, pl.cell, "school_lot", r.position]))
-				else:
+					LotFill._car_park(ch, r, hash([ch.plan.seed, pl.cell, "school_lot", r.position]), FridayLights.LOT_FILL if FridayLights.enabled() and pl.game_night else -1.0)
+				elif not FridayLights.car_park(ch, pl, r):
 					_gr(ch, r, Parks.G_ASPHALT, ch.style.asphalt)
 			"portables":
 				_gr(ch, r, Parks.G_ASPHALT, ch.style.asphalt)
@@ -1257,11 +1257,13 @@ static func _track_kit(ch: CityChunk, pl: Dictionary, f: Dictionary) -> void:
 			if full:
 				SchoolKit.light_standard(_st(ch), _at(ch, p), aim, 26.0, 10, lit)
 				if lit:
+					FridayLights.standard(ch, _at(ch, p), _at(ch, aim), 26.0)
 					var c := p.lerp(aim, 0.6)
 					var xf := Transform3D(Basis(Vector3.RIGHT, -PI * 0.5).scaled(Vector3(f.R * 1.6, 1.0, f.R * 1.6)), Vector3(c.x, CityChunk.SIDEWALK_TOP + Parks.LIFT + 0.15, c.y))
 					ch._batch.add("park_pool", PropFactory.light_pool(Parks.FLOOD_TINT, 0.55, 1.8), xf)
 			else:
 				Parks._far_box(ch, Rect2(p - Vector2(0.4, 0.4), Vector2(0.8, 0.8)), 26.0, Color(0.6, 0.62, 0.62))
+	FridayLights.stadium(ch, pl, f)
 
 
 ## Chain-link round the campus: the sides and back on the site's edge, the front along the

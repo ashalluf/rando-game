@@ -209,11 +209,21 @@ func _check_scene(city: Node3D, chunk: Node3D) -> void:
 			left = true
 			break
 	_check(left, "the onlookers leave as responders arrive and the scene closes")
+	# Only this scene's watchers: in a busy shard another scene can open nearby meanwhile (batch 63
+	# shard 0: nine walkers watching a scene that was still open), and watching that is right.
 	var stragglers := 0
+	var elsewhere := 0
 	for p in peds:
 		if is_instance_valid(p) and not p.watch.is_empty():
-			stragglers += 1
-	_check(stragglers == 0, "nobody is left watching a closed scene (%d)" % stragglers)
+			if is_same(p.watch.get("scene"), scene):
+				stragglers += 1
+			else:
+				elsewhere += 1
+	var others := ""
+	for s: Dictionary in node.scenes:
+		others += " [kind %d, %.0f m, closing %s, %d watching]" % [int(s.kind),
+			node.scene_point(s).distance_to(centre), str(s.closing), (s.members as Array).size()]
+	_check(stragglers == 0, "nobody is left watching a closed scene (%d; %d watching another:%s)" % [stragglers, elsewhere, others])
 	responder.queue_free()
 	if is_instance_valid(doll) and doll is Ragdoll:
 		(doll as Node).queue_free()

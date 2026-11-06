@@ -22,6 +22,9 @@ var axis := 0
 var _pivot: Node3D
 var _lamps: Array[MeshInstance3D] = []
 var _arm_lamps: Array[MeshInstance3D] = []
+## RcRailCrossing's glows: one a flasher (`_glows`, as `_lamps`) and one an arm lamp.
+var _glows: Array[MeshInstance3D] = []
+var _arm_glows: Array[MeshInstance3D] = []
 ## 0 = up (vertical), 1 = down (across the lanes).
 var lowered := 0.0
 
@@ -58,6 +61,9 @@ static func make(g: Dictionary, full: bool) -> RailGate:
 		l.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		pivot.add_child(l)
 		gate._arm_lamps.append(l)
+		if RcRailCrossing.enabled:
+			for k in 3:
+				gate._arm_glows.append(RcRailCrossing.add_glow(pivot, Vector3(float(g.length) * (0.3 + 0.33 * float(k)), 0.1, -0.12), RcRailCrossing.ARM_GLOW_SIZE))
 		# The flasher pair on the crossarm, facing the traffic (-z of the node).
 		for e: float in [0.48, -0.48]:
 			var lamp := MeshInstance3D.new()
@@ -68,6 +74,8 @@ static func make(g: Dictionary, full: bool) -> RailGate:
 			lamp.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 			gate.add_child(lamp)
 			gate._lamps.append(lamp)
+			if RcRailCrossing.enabled:
+				gate._glows.append(RcRailCrossing.add_glow(gate, Vector3(e, 2.85, -0.26), RcRailCrossing.GLOW_SIZE))
 	gate._pose()
 	return gate
 
@@ -149,6 +157,8 @@ static func lamp_mesh() -> CylinderMesh:
 
 
 static func lamp_material(on: bool) -> StandardMaterial3D:
+	if on and RcRailCrossing.enabled:
+		return RcRailCrossing.lens_material()
 	if _lamp_on == null:
 		_lamp_on = StandardMaterial3D.new()
 		_lamp_on.albedo_color = Color(0.5, 0.02, 0.01)
@@ -173,9 +183,14 @@ func pose_at(phase: float, blink: bool) -> void:
 	_pose()
 	var flashing := phase > 0.0 or lowered > 0.02
 	for i in _lamps.size():
-		_lamps[i].material_override = lamp_material(flashing and ((i == 0) == blink))
+		var lit := flashing and ((i == 0) == blink)
+		_lamps[i].material_override = lamp_material(lit)
+		if i < _glows.size():
+			_glows[i].visible = lit
 	for l in _arm_lamps:
 		l.material_override = lamp_material(flashing)
+	for g in _arm_glows:
+		g.visible = flashing
 
 
 func _pose() -> void:

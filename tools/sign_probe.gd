@@ -41,7 +41,7 @@ func _initialize() -> void:
 				var eye2 := at - inward * 6.5 + along * 6.0
 				var look2 := (at + inward * 1.5) - eye2
 				var yaw2 := rad_to_deg(atan2(-look2.x, -look2.y))
-				print("POLE %s block=%d,%d e=%d a=%d at=%.1f,%.1f EYE=%.1f,1.7,%.1f,%.0f,12 CLOSE=%.1f,1.7,%.1f,%.0f,30" % [
-					kind, ix, iz, int(p.e), int(p.a), at.x, at.y, eye.x, eye.y, yaw, eye2.x, eye2.y, yaw2])
+				print("POLE %s %s block=%d,%d e=%d a=%d at=%.1f,%.1f EYE=%.1f,1.7,%.1f,%.0f,12 CLOSE=%.1f,1.7,%.1f,%.0f,30" % [
+					kind, String(p.get("src", "")), ix, iz, int(p.e), int(p.a), at.x, at.y, eye.x, eye.y, yaw, eye2.x, eye2.y, yaw2])
 	print("FOUND ", found)
 	quit()
