@@ -19,6 +19,8 @@ render_mode cull_disabled;
 
 global uniform float wind_factor;
 global uniform float road_wetness;
+global uniform float road_mist;
+global uniform float rc5_mist_leaf;
 global uniform vec3 sun_direction;
 global uniform vec2 wind_lean;
 /// The sky's horizon colour (DayNight), raw sRGB numbers on both renderers.
@@ -294,7 +296,8 @@ void fragment() {
 	vec3 albedo = COLOR.rgb;
 	float rough = leaf_roughness;
 	float spec = leaf_specular;
-	float wet = clamp(road_wetness, 0.0, 1.0);
+	// A mist's damp (road_mist) beads on leaves, it does not glaze them (Rc5CemeteryDawn).
+	float wet = clamp(road_wetness, 0.0, 1.0) * (1.0 - rc5_mist_leaf * road_mist);
 	bool leaf = kind >= 8.0;
 	// Every face keeps the mesh's normal (Godot flips it for a back face; a tube's outside or a
 	// leaf's crown normal is the same seen from either side).

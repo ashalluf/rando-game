@@ -28,6 +28,12 @@ uniform float soft_distance = 0.4;
 // in its flesh, and the outer flame is thin and see-through round an opaque hot core. 0 is the
 // round-6 tongue bit for bit.
 uniform float look5 = 0.0;
+// Round 20 (the lead: check on Forward+): these colours were tuned as display numbers on the
+// Compatibility renderer; Forward+ takes the same numbers as LINEAR, so on the Mac every tongue
+// drew pale yellow-cream with no red tips. Forward+ decodes them this far toward linear (1 = all
+// the way, measured against opengl3 at 0, 0.6 and 1; 0 = the
+// old numbers). Compatibility is untouched.
+uniform float fwd_decode = 0.0;
 
 varying flat float v_seed;
 varying float v_life;
@@ -94,6 +100,13 @@ void fragment() {
 	// The ramp's life: its brightness against its brightest key (1.3), and its fade.
 	float lum = clamp(dot(COLOR.rgb, vec3(0.30, 0.55, 0.15)) / 0.85, 0.15, 1.2);
 	col *= mix(1.0, lum, 1.0 - spent);
+#if CURRENT_RENDERER != RENDERER_COMPATIBILITY
+	if (fwd_decode > 0.0) {
+		vec3 c = max(col, vec3(0.0));
+		vec3 lin = mix(c / 12.92, pow((c + 0.055) / 1.055, vec3(2.4)), step(vec3(0.04045), c));
+		col = mix(col, lin, fwd_decode);
+	}
+#endif
 	ALBEDO = col;
 	ALPHA = clamp(COLOR.a * 1.15, 0.0, 1.0) * shape * mix(1.0, 0.18, spent) * (1.0 - smoothstep(0.7, 1.0, h));
 	// The outer flame is thin gas: see-through, the hot core opaque.

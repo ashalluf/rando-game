@@ -37,6 +37,8 @@ uniform float bulb_min_px = 1.6;
 /// A grill's fire through the gap and the share of grills cooking at dinner time.
 uniform float ember_energy = 3.5;
 uniform float cook_share = 0.55;
+// Rc5Backyard.day_hook(): 1 on a Saturday or Sunday (a lunch window as well as dinner).
+uniform float weekend = 0.0;
 /// Laundry and valance sway (metres at the free end).
 uniform float sway = 0.05;
 
@@ -70,14 +72,23 @@ float by_noise(vec2 p) {
 
 // 1 while this grill is cooking (an evening window per household), 0 otherwise.
 float cooking(float seed) {
-	if (seed >= cook_share) {
-		return 0.0;
-	}
-	float s = seed / max(cook_share, 0.001);
-	float start = 17.1 + s * 1.2;
-	float len = 1.5 + fract(s * 7.31) * 1.6;
 	float h = city_hour;
-	return smoothstep(start, start + 0.15, h) * (1.0 - smoothstep(start + len - 0.2, start + len, h));
+	float on = 0.0;
+	if (seed < cook_share) {
+		float s = seed / max(cook_share, 0.001);
+		float start = 17.1 + s * 1.2;
+		float len = 1.5 + fract(s * 7.31) * 1.6;
+		on = smoothstep(start, start + 0.15, h) * (1.0 - smoothstep(start + len - 0.2, start + len, h));
+	}
+	// Rc5Backyard: on a weekend most households with a grill fire it up for a late lunch too (the
+	// same numbers as Rc5Backyard.cooking(): WEEKEND_SHARE, LUNCH_START, LUNCH_LEN).
+	if (weekend > 0.5 && seed < 0.6) {
+		float q = seed / 0.6;
+		float ls = mix(11.5, 14.0, fract(q * 3.17));
+		float ll = mix(2.2, 3.6, fract(q * 5.71));
+		on = max(on, smoothstep(ls, ls + 0.15, h) * (1.0 - smoothstep(ls + ll - 0.2, ls + ll, h)));
+	}
+	return on;
 }
 
 

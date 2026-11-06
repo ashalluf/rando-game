@@ -30,6 +30,8 @@ global uniform float wind_factor;
 global uniform vec2 wind_lean;
 /// Weather's wet-surface amount, 0 dry to 1 soaked. Wet fronds go glossy.
 global uniform float road_wetness;
+global uniform float road_mist;
+global uniform float rc5_mist_leaf;
 /// Points TOWARDS the sun (published by DayNight). Drives the frond-glow lobe.
 global uniform vec3 sun_direction;
 /// The sky's horizon colour (DayNight), raw sRGB numbers on both renderers.
@@ -219,7 +221,8 @@ void fragment() {
 		}
 #endif
 	}
-	float wet = clamp(road_wetness, 0.0, 1.0);
+	// A mist's damp (road_mist) beads on leaves, it does not glaze them (Rc5CemeteryDawn).
+	float wet = clamp(road_wetness, 0.0, 1.0) * (1.0 - rc5_mist_leaf * road_mist);
 	// The palm's vertex colours are display numbers (tuned on Compatibility, which lights them as
 	// they are); Forward+ reads a vertex colour as LINEAR, so there the whole tree drew about twice
 	// as bright - hidden while every second leaflet was black (palm-shimmer: decoded there now).

@@ -366,6 +366,7 @@ static func steps(ch: CityChunk, block: Dictionary) -> Array[Callable]:
 	out.append(func() -> void: _buses(ch))
 	for i in MAX_CHARACTERS:
 		out.append(func() -> void: _spawn_character(ch, rect, side, i))
+	out.append_array(WalkOfFameNight.steps(ch, rect, side))
 	return out
 
 
@@ -792,9 +793,10 @@ static func medallion_mesh() -> Mesh:
 	# The arm back to the pole (toward +z from the plate's centre; the batch turns nothing).
 	BroadwayStreet._box(st, Vector3(0.0, 0.0, MEDALLION_ARM * 0.5), Vector3(0.05, 0.05, MEDALLION_ARM), Color(0.12, 0.12, 0.13))
 	# Upright, its faces toward +-x (along the boulevard), a point up.
-	_star_prism(st, Vector3.ZERO, 0.42, 0.04, gold, Basis(Vector3(0, 0, 1), Vector3(1, 0, 0), Vector3(0, 1, 0)))
+	var mr := WalkOfFameNight.MEDALLION_R if WalkOfFameNight.enabled else 0.42
+	_star_prism(st, Vector3.ZERO, mr, 0.04, gold, Basis(Vector3(0, 0, 1), Vector3(1, 0, 0), Vector3(0, 1, 0)))
 	var plate := st.commit()
-	plate.surface_set_material(0, _gold_material())
+	plate.surface_set_material(0, WalkOfFameNight.plate_material() if WalkOfFameNight.enabled else _gold_material())
 	# The neon: a tube round the star's outline on both faces (a thin band of quads).
 	var neon := SurfaceTool.new()
 	neon.begin(Mesh.PRIMITIVE_TRIANGLES)
@@ -803,12 +805,13 @@ static func medallion_mesh() -> Mesh:
 		for k in 10:
 			var a0 := float(k) / 10.0 * TAU
 			var a1 := float(k + 1) / 10.0 * TAU
-			var r0 := 0.36 if k % 2 == 0 else 0.36 * 0.42
-			var r1 := 0.36 if (k + 1) % 2 == 0 else 0.36 * 0.42
+			var nr := mr * 0.86
+			var r0 := nr if k % 2 == 0 else nr * 0.42
+			var r1 := nr if (k + 1) % 2 == 0 else nr * 0.42
 			var p0 := Vector3(x, cos(a0) * r0, sin(a0) * r0)
 			var p1 := Vector3(x, cos(a1) * r1, sin(a1) * r1)
 			var d := (p1 - p0).normalized()
-			var side_v := Vector3(1, 0, 0).cross(d).normalized() * 0.018
+			var side_v := Vector3(1, 0, 0).cross(d).normalized() * (WalkOfFameNight.NEON_HALF if WalkOfFameNight.enabled else 0.018)
 			var nrm := Vector3(face, 0.0, 0.0)
 			for v: Vector3 in [p0 - side_v, p1 - side_v, p1 + side_v, p0 - side_v, p1 + side_v, p0 + side_v]:
 				neon.set_normal(nrm)
@@ -902,9 +905,11 @@ static func _spawn_character(ch: CityChunk, rect: Rect2, side: int, i: int) -> v
 	var parent := ch.get_parent()
 	if (parent == null or not parent.has_method("take_crowd_room")) and ch._crowd_room <= 0 and ch.is_inside_tree():
 		ch._count_crowd_room()
-	if not ch._take_crowd_room():
+	if not WalkOfFameNight.key_character(ch):
 		return
 	var ped := StreetCharacter.new()
+	if WalkOfFameNight.enabled:
+		ped.set_meta("no_trim", true)
 	ped.costume = int(s.costume)
 	ped.setup_vendor(rect, int(s.seed), s.at, float(s.yaw), false, 0.0)
 	var at: Vector2 = s.at
