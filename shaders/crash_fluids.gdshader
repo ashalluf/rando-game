@@ -88,9 +88,9 @@ void fragment() {
 	col = mix(col, oil_color + film * 0.025 * rim, oil);
 	// Coolant is thin: a wet, glossy darkening with a green tint that deepens where it is thick
 	// (away from its edge), never a sheet of paint.
-	float thick = clamp(-cool_d / 0.35, 0.0, 1.0);
+	float thick = clamp(-cool_d / 0.2, 0.0, 1.0);
 	col = mix(col, mix(damp_color, coolant_color, 0.35 + 0.65 * thick), c2 * (1.0 - oil));
-	float a = max(max(oil * 0.94, c2 * (0.42 + 0.3 * thick)), damp * 0.45);
+	float a = max(max(oil * 0.94, c2 * (0.48 + 0.34 * thick)), damp * 0.45);
 	ALBEDO = cs_out(col);
 	ALPHA = a;
 	ROUGHNESS = mix(0.32, 0.04, max(oil, c2));
