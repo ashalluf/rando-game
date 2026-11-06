@@ -266,6 +266,23 @@ func _run() -> void:
 							nsh += 1
 							break
 				print("AUTOPROBE_SHADER %s %d" % [h.substr(7), nsh])
+			elif h.begins_with("chunks:"):
+				# chunks:<from%>:<to%>: layers 0 under /root/City's Chunk_ children in that share of
+				# them (sorted by name); prints which.
+				var ab2 := h.substr(7).split(":")
+				var cks: Array[String] = []
+				for c in get_tree().current_scene.get_children():
+					if str(c.name).begins_with("Chunk_"):
+						cks.append(str(c.name))
+				cks.sort()
+				var i0 := int(cks.size() * int(ab2[0]) / 100.0)
+				var i1 := int(cks.size() * int(ab2[1]) / 100.0)
+				var hid := 0
+				for k3 in range(i0, i1):
+					for n in get_tree().current_scene.get_node(NodePath(cks[k3])).find_children("*", "GeometryInstance3D", true, false):
+						(n as VisualInstance3D).layers = 0
+						hid += 1
+				print("AUTOPROBE_CHUNKS %d..%d of %d (%s..%s) %d geoms" % [i0, i1, cks.size(), cks[i0] if i0 < cks.size() else "", cks[i1 - 1] if i1 > 0 else "", hid])
 			elif h == "mat:sky":
 				_dump_sky()
 			elif h.begins_with("gsky:"):

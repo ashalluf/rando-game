@@ -30632,6 +30632,19 @@ at the start of every colour pass, so on WebGL2's 16 units a material only owns 
 Not shown to be the cause here, but the check's number is wrong. (4) Everything here is
 SwiftShader; a real GPU browser may not show it at all.
 
+**Update, same session, after merging main at batch 56 (`c0c77a59`): the wedges are gone.** Two
+clean browser runs of the rebuilt export at the same bookmark (frames 3-22 and 3-19, one with no
+change at all) draw no lime and no wedge, and the hero stays dark (`07_`). Every one of the 23
+runs on the older main (merged at `d3aafc52`) had them from frame ~5, so something merged in
+batches 51-56 removed them. Not bisected. The likeliest candidate is batch 53's "Mac launch" work on
+the load-time shader prime (`bbc4fa4a` "the prime draws no geometry", `191e45dc` no pipelines queued
+while the city is built, the boot compile): drawn geometry left over from the prime would fit
+"needs geometry from both the chunks and the rest" and "dims with the sun". To prove it, export
+`d3aafc52` with `bbc4fa4a` / `191e45dc` reverted and look for the wedges. **Status: the hero is not
+blue and the wedges no longer show on current main. Nothing was changed in the game for it.**
+A separate open point: `WEB_SAMPLERS` (above) is still 9.
+`chunks:<from%>:<to%>` (sorted chunk children) was added to the probe for this pass.
+
 **Tools** (`tools/web_hero_blue/`, the autoload `hero_blue_probe.gd`, exported by
 `export_probe.sh` into build/web_hero_blue, ~20 s; one run ~15-20 min): steps on top of web-build-5's
 (`ap_hide=` one per report): `lay:<path substr>` (layers 0, scripts do not undo it),
