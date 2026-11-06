@@ -366,6 +366,11 @@ static func build(ch: CityChunk) -> void:
 			var key := String(k) + (str(v) if k == "sg_motel_" else "")
 			b.set_draw_distance(key, POLE_DRAW)
 			b.set_shadow_distance(key, POLE_SHADOW)
+	for v in SignKit.MOTELS:
+		for q: Array in MotelSignGlow.POOLS:
+			var pk := MotelSignGlow.POOL_KEY + str(int(q[2])) + "_" + str(v)
+			b.set_no_shadow(pk)
+			b.set_draw_distance(pk, POLE_DRAW)
 	b.set_draw_distance(K_VINYL, VINYL_DRAW)
 	b.set_no_shadow(K_VINYL)
 	b.set_draw_distance(K_BANNER, BANNER_DRAW)
@@ -389,9 +394,16 @@ static func _poles(ch: CityChunk, counts: Dictionary) -> void:
 	if data.has("tree_grate"):
 		for x: Transform3D in data["tree_grate"].xforms:
 			trees.append(Vector2(x.origin.x, x.origin.z))
+	var motel_lots := {}
 	for p: Dictionary in plan_poles(ch.plan, ch.ix, ch.iz):
 		var at: Vector2 = p.at
 		var along: Vector2 = p.along
+		# A corner car park two motel signs stand at is ONE motel (Motels): its first sign only.
+		if Motels.enabled and int(p.kind) == Pole.MOTEL and String(p.get("src", "")) == "park":
+			var lk: int = int((p.id as Array)[0])
+			if motel_lots.has(lk):
+				continue
+			motel_lots[lk] = true
 		var blocked := false
 		for t: Vector2 in trees:
 			if absf((t - at).dot(along)) < TREE_CLEAR:
@@ -406,9 +418,10 @@ static func _poles(ch: CityChunk, counts: Dictionary) -> void:
 		var yaw := atan2(xf.basis.z.x, xf.basis.z.z)
 		for s: Array in _pole_shapes(kind):
 			shapes.append([s[0], xf * (s[1] as Vector3), yaw])
-		ch._add_prop("pole_sign", xf.origin, Color(0.3, 0.3, 0.32), [
-			[pole_key(kind, int(p.a)), pole_mesh(kind, int(p.a)), xf, Color.WHITE, custom],
-		], shapes)
+		var parts: Array = [[pole_key(kind, int(p.a)), pole_mesh(kind, int(p.a)), xf, Color.WHITE, custom]]
+		if kind == Pole.MOTEL:
+			parts.append_array(MotelSignGlow.parts(xf, int(p.a), int(p.flags)))
+		ch._add_prop("pole_sign", xf.origin, Color(0.3, 0.3, 0.32), parts, shapes)
 		if not ch.prop_records.is_empty() and ch.prop_records.back().kind == "pole_sign":
 			ch.prop_records.back().health = 400.0
 			ch.prop_records.back()["sg"] = true

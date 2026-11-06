@@ -263,6 +263,20 @@ func _stage_street_cars(cam: Dictionary, scene: Node, plan: Variant) -> bool:
 			placed += 1
 			_fw_staged.append(car)
 	print("REFCAM %s: placed %d street cars on road %d (axis %d at %.1f)" % [cam.name, placed, best, axis, float(plan.road_pos(axis, best))])
+	# Optional "clear" (googie_motel): the load's own street traffic within that many metres of the
+	# eye is hidden for the shot (a bus the load put across the view), the placed cars kept.
+	var clear := float(spec.get("clear", 0.0))
+	if clear > 0.0:
+		var ws := get_root().get_node("/root/WorldState")
+		var eye_xz := Vector2(float(cam.eye[0]), float(cam.eye[2]))
+		for v in traffic.get("cars"):
+			var car := v as Node3D
+			if not is_instance_valid(car) or _fw_staged.has(car):
+				continue
+			var w: Vector3 = ws.call("to_world", car.global_position)
+			if Vector2(w.x, w.z).distance_to(eye_xz) < clear:
+				car.visible = false
+				print("REFCAM %s: hid %s (inside the staged clearance)" % [cam.name, car.name])
 	return true
 
 

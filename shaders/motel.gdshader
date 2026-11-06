@@ -20,6 +20,7 @@ const float STOREY = 2.95;
 const float SCONCE_U = 1.75;
 const float SCONCE_H = 2.1;
 uniform float sconce_gain = 0.14;
+uniform float floor_gain = 5.0;
 uniform vec3 sconce_color = vec3(1.0, 0.62, 0.30);
 uniform float window_gain = 0.45;
 uniform float neon_gain = 5.0;
@@ -90,7 +91,9 @@ void fragment() {
 		rough = 0.42;
 	} else if (kind < 2.5) {
 		// Window: glass over a curtain; after dark the room behind is lit or not by its own roll.
-		float room = UV2.y;
+		// The key is rounded: interpolated it wanders by a hair across the pane, and the hash turns
+		// that into per-pixel static.
+		float room = floor(UV2.y + 0.5);
 		float r = h11(room);
 		// Fewer rooms lit after midnight.
 		float late = smoothstep(0.0, 3.0, mod(city_hour + 24.0, 24.0)) * step(mod(city_hour + 24.0, 24.0), 6.0);
@@ -137,11 +140,16 @@ void fragment() {
 		rough = 0.3;
 		emit = v_paint * neon_gain * (0.15 + 0.85 * night);
 	} else if (kind < 8.5) {
-		// The office's glass front: its lit lobby.
+		// The office's glass front: the lobby behind it - the counter's front low down, the back
+		// wall lit warm above it, a row of ceiling lights, the dark glass mirroring a little.
 		base = vec3(0.03, 0.035, 0.04);
 		rough = 0.06;
-		float strips = 0.6 + 0.4 * step(0.5, fract(uv.x / 1.2));
-		emit = vec3(1.0, 0.84, 0.62) * 0.55 * strips * night;
+		float y = uv.y;
+		vec3 lobby = vec3(0.85, 0.7, 0.52) * 0.22 * (0.8 + 0.2 * sin(uv.x * 1.7));
+		lobby = mix(lobby, vec3(0.32, 0.17, 0.09) * 0.55, step(y, 1.15) * step(0.5, fract(uv.x / 6.0 + 0.25)));
+		float ceil_l = smoothstep(0.12, 0.0, abs(y - 3.15)) * (0.5 + 0.5 * step(0.5, fract(uv.x / 1.4)));
+		lobby += vec3(1.0, 0.88, 0.7) * ceil_l * 0.9;
+		emit = lobby * mix(0.15, 1.0, night);
 	} else if (kind < 9.5) {
 		// Stone veneer: rubble courses.
 		vec2 c = uv * vec2(3.2, 5.5);
@@ -154,6 +162,15 @@ void fragment() {
 		// Roof membrane / gravel: only seen from above.
 		base *= 0.85 + vnoise(uv * 3.0) * 0.2;
 		rough = 0.95;
+	} else if (kind > 11.5) {
+		// A vending machine's lit front: rows of cans behind the glass, the selection panel.
+		vec2 q = uv;
+		float rows = step(0.25, fract(q.y * 6.0)) * step(q.x, 0.62);
+		float cans = 0.6 + 0.4 * step(0.5, fract(q.x * 9.0));
+		vec3 front = mix(vec3(0.9, 0.95, 1.0), base * 2.0, 0.35) * mix(0.35, 1.0, rows * cans);
+		base = vec3(0.05);
+		rough = 0.1;
+		emit = front * mix(0.08, 0.9, night);
 	} else {
 		// AC sleeves: weathered beige plastic with a grille.
 		float gr = step(0.5, fract(uv.x * 18.0));
@@ -167,8 +184,8 @@ void fragment() {
 			float f = mode - 1.0;
 			wash = sconce_light(uv.x, uv.y - f * STOREY, 0.25);
 		} else if (mode < 19.5) {
-			// A walk at storey f's floor.
-			wash = sconce_light(uv.x, 0.0, uv.y + 0.15);
+			// A walk at storey f's floor: the fitting's light falls on it more than across the wall.
+			wash = sconce_light(uv.x, 0.0, uv.y + 0.15) * floor_gain;
 		} else {
 			// A soffit over storey f (the next walk's underside, the roof's overhang).
 			wash = sconce_light(uv.x, STOREY - 0.2, uv.y + 0.15) * 0.8;

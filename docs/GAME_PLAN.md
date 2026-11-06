@@ -4668,3 +4668,9 @@ none of either.
   read by at dusk; glass on a half-finished tower shows the fit-out lit behind it, not a black
   mirror; anything pasted on a hoarding is printed (StreetWear's bills), never a flat colour block.
   CONSTRUCTION_DUSK=0 is the A/B.
+- **2026-11-06 A motel sign stands over a motel (rc5-googie-motel, HANDOFF "The Googie motel at
+  21:00").** A Googie pole sign at a surface car park's corner now claims that lot for the motor
+  court it advertises (Motels, after every roll; the far city gets its wings as boxes). A sign is
+  a promise about what is behind it: a VACANCY box over striped asphalt read as set dressing.
+  Lit windows key their rolls on a rounded integer, never on an interpolated varying. MOTELS=0
+  and MOTEL_SIGN_GLOW=0 are the A/Bs.

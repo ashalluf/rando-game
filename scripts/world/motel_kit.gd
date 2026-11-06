@@ -8,7 +8,7 @@ extends RefCounted
 
 static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
 
-enum { K_STUCCO, K_TRIM, K_GLASS, K_CONCRETE, K_STEEL, K_LAMP, K_DOOR, K_NEON, K_OFFICE_GLASS, K_STONE, K_ROOF, K_AC }
+enum { K_STUCCO, K_TRIM, K_GLASS, K_CONCRETE, K_STEEL, K_LAMP, K_DOOR, K_NEON, K_OFFICE_GLASS, K_STONE, K_ROOF, K_AC, K_VEND }
 
 ## The room bay's openings (along the bay, from its start; m): the door, the window.
 const DOOR := Vector2(0.55, 1.45)
@@ -154,6 +154,14 @@ static func build(ch: CityChunk, L: Dictionary) -> void:
 	for w: Dictionary in L.wings:
 		_wing(ch, g, w, base, stucco, trim, accent, neon, sd, fill, cars, pools)
 	_office(ch, g, L, base, stucco, trim, accent, neon)
+	# The court's light poles: one by the street edge, one deep in the court (LotFill's car park
+	# lamps: the street lamps' batch and pool, no OmniLight).
+	var O: Vector2 = L.O
+	var d: Vector2 = L.d
+	var n: Vector2 = L.n
+	for q: Vector2 in [Vector2(float(L.U) * 0.42, 1.0), Vector2(float(L.U) * 0.45, float(L.V) * 0.5)]:
+		var at := O + d * q.x + n * q.y
+		LotFill._lamp(ch, Vector3(at.x, CityChunk.SIDEWALK_TOP + LotFill.ASPHALT_LIFT, at.y))
 	var mi := MeshInstance3D.new()
 	mi.name = "Motel_%d" % (sd % 100000)
 	mi.mesh = g.mesh(material())
@@ -189,7 +197,9 @@ static func _wing(ch: CityChunk, g: Geo, w: Dictionary, base: float, stucco: Col
 	var stair := int(w.stair) == 1 and ns > 1
 	var wk := int(w.key)
 	# The body behind the facade: back, ends, roof (its facade is cut round the openings below).
-	box(g, f, 0.0, Lw, -D, 0.0, -0.6, top, K_STUCCO, stucco, 0.0, 0.0, -1.0, 0.0, 2 | 4 | 8)
+	box(g, f, 0.0, Lw, -D, 0.0, -0.6, top, K_STUCCO, stucco, 0.0, 0.0, -1.0, 0.0, 2)
+	# The wing's ends in stone veneer (the Googie motel's feature wall), not more white stucco.
+	box(g, f, 0.0, Lw, -D, 0.0, -0.6, top, K_STONE, Color(0.66, 0.58, 0.5), 0.0, 0.0, -1.0, 0.0, 4 | 8)
 	box(g, f, 0.0, Lw, -D, 0.0, top - 0.02, top, K_ROOF, ROOF_C, 0.0, 0.0, -1.0, 0.0, 16)
 	ch._add_shape(Vector3(Lw, top + 0.6, D) if absf(f.al.x) > 0.5 else Vector3(D, top + 0.6, Lw),
 		f.p(Lw * 0.5, -D * 0.5, (top - 0.6) * 0.5))
@@ -282,6 +292,12 @@ static func _wing(ch: CityChunk, g: Geo, w: Dictionary, base: float, stucco: Col
 	box(g, f, Lw - 0.18, Lw - 0.06, WALK - 0.16, WALK - 0.04, 0.15, ry + 0.05, K_STEEL, STEEL_C)
 	if stair:
 		_stair(ch, g, f, trim)
+		# A vending machine under the stair's landing, its front lit.
+		var vc := Color(0.62, 0.1, 0.1) if (sd % 2) == 0 else Color(0.1, 0.25, 0.55)
+		box(g, f, 0.2, 1.05, WALK + 0.1, WALK + 0.85, 0.15, 1.95, K_TRIM, vc, 0.0, 0.0, -1.0, 0.0, 2 | 4 | 8 | 16)
+		g.quad([f.p(0.2, WALK + 0.86, 0.15), f.p(1.05, WALK + 0.86, 0.15), f.p(1.05, WALK + 0.86, 1.95), f.p(0.2, WALK + 0.86, 1.95)], f.S(),
+			[Vector2(0, 0), Vector2(1, 0), Vector2(1, 1), Vector2(0, 1)], K_VEND, vc)
+		ch._add_shape(Vector3(0.85, 1.8, 0.75) if absf(f.al.x) > 0.5 else Vector3(0.75, 1.8, 0.85), f.p(0.62, WALK + 0.47, 1.05))
 
 
 ## A railing along the walk's edge: a top rail, a bottom rail and pickets.
@@ -393,12 +409,12 @@ static func _office(ch: CityChunk, g: Geo, L: Dictionary, base: float, stucco: C
 	# The light inside, on the desktop renderers (DayNight drives the lamp_light group).
 	if not OS.has_feature("web"):
 		var light := OmniLight3D.new()
-		light.position = f.p(W * 0.4, 0.8, 2.9)
-		light.omni_range = 16.0
+		light.position = f.p(W * 0.4, -Dp * 0.45, 2.6)
+		light.omni_range = 11.0
 		light.omni_attenuation = 1.4
 		light.light_color = Color(1.0, 0.78, 0.55)
 		light.light_energy = 0.0
-		light.set_meta("lamp_gain", 0.7)
+		light.set_meta("lamp_gain", 0.3)
 		light.shadow_enabled = false
 		light.distance_fade_enabled = true
 		light.distance_fade_begin = 120.0
