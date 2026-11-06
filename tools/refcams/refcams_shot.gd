@@ -662,6 +662,8 @@ func _night_ab(scene: Node, png: String) -> void:
 	if day:
 		day.set_process(true)
 		day.set_physics_process(true)
+
+
 ## A row's optional "rail_at" ("<station>[:<dir>[:<seconds from mid-dwell>]]", wave 7's
 ## metro_station): the light rail's clock set so a train dwells at that station, and held there
 ## until the shot is taken (LightRailSystem's RAIL_AT / RAIL_HOLD, per camera).
