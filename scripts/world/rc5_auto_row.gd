@@ -235,6 +235,8 @@ static func screen(t: int) -> Dictionary:
 		var tm := (body.mesh as Mesh).generate_triangle_mesh()
 		if tm != null:
 			out = _measure([[tm, Transform3D(Basis(), body.offset)]])
+			if out.is_empty() and not tm.get_faces().is_empty() and OS.get_environment("RC5_AUTO_ROW_DEBUG") == "1":
+				print("RC5_AUTO_ROW no windscreen found on body type %d" % t)
 	_screens[t] = out
 	return out
 
@@ -355,6 +357,8 @@ static func _card_on_vehicle(car: Vehicle, used: bool, custom: Color) -> void:
 			if tm != null:
 				meshes.append([tm, inv * m.global_transform])
 		sc = _measure(meshes) if not meshes.is_empty() else {}
+		if OS.get_environment("RC5_AUTO_ROW_DEBUG") == "1":
+			print("RC5_AUTO_ROW vehicle %d windscreen %s" % [int(car.body_type), str(sc)])
 		_screens[key] = sc
 	if sc.is_empty():
 		return

@@ -30731,3 +30731,52 @@ proved; the lens is house_lamp's own cs_out()). Checks: `tests/rc5_suburb_night_
 downtown_street_closeup_checks' StreetCloseup off / on block A/B (`Batch_sg_plate` differs, the props
 134 / 134), which passed rerun alone (`SMOKE_PARTS=downtown_street_closeup_checks`: 32 of 32) - a
 shard-order flake in a file this branch does not touch.
+
+## 9d?. The auto row from the kerb (fleet wave 8, refcam5 `auto_row`, branch `wt/rc5-auto-row`)
+
+**The camera.** `auto_row` in `tools/refcams/cameras_w8.json`: the VELMARA new-car dealer on the
+midtown auto row (block 10,3 on seed 1337, the site x 928-966, z 447-505 fronting the avenue at
+x ~915), 11:00 clear, eye 1.7 m over the kerb at (922.5, 452) looking north-east (yaw -138, pitch 3,
+FOV 55): the front row of cars nose-out over the bollards, the rows behind, the service canopy and
+the showroom under the red portal, the pennant strings, a tube man and the brand pylon at the far
+end. No staging keys: the frame is what the load builds (people walk through it).
+`tools/rc5_auto_row/probe.gd -- --block=x,z` prints a dealer's layout in TRUE world coordinates
+(showroom, service, pylon, tube men, every lot car) for framing.
+
+**What gave it away, in the order the eye found it, and what was done (`RcAutoRow`,
+`scripts/world/rc5_auto_row.gd`; `RC5_AUTO_ROW=0` the A/B):**
+1. *The lot cars were boxes.* Every static lot car was ArenaGrounds' ~400-triangle code car right
+   up to the kerb (HANDOFF 9da left it as a known gap). Now CarDealers._static_car() hands each one
+   (its prop record: the box and the sticker instances) to `note_car()`, and `commit()` (one line
+   after StreetCloseup.commit_cars in the chunk's finish) hides both in the chunk-wide batches and
+   draws them per 20 m cell: the real road body's far twin (CarParkBuild.real_body(), ~8k
+   triangles, in the box's own paint) within `REAL_NEAR` 48 m of the cell, the box past it. The
+   body type is a hash of the stall from the box kind's list (`TYPES`: saloon -> sedan / lux sedan
+   / hatchback, pickup -> pickup, SUV -> crossover / SUV / compact SUV, coupe -> coupe / lux
+   sedan). The props, their unbreakable collision boxes and every roll are untouched.
+2. *The window cards would float.* The card's place (CarDealers.sticker_xform) is the box's
+   windscreen. Each real body's windscreen is now measured once from its own triangles
+   (`screen()` -> `_measure()`: the highest surface down a line 0.42 m right of the centre line
+   every 4 cm; the glass is where that profile climbs from the bonnet to the roof, 12 % to 88 % of
+   the rise) and `card_xform()` lays the card on it 1.5 cm proud (a new car's card low on the
+   passenger side, a used car's price big across the middle). The front row's and the showroom's
+   real Vehicles had no card at all: `real_vehicle()` (one line in CarDealers._real_car(), deferred
+   a frame for the BodyModel) measures the same way from the car's BodyModel meshes and hangs a
+   one-instance sticker MultiMesh on the car (it leaves with it if driven off). Headless there is
+   no mesh data: no cards are measured (the checks prove the measure on a profile built from faces).
+3. *Street trees stood in front of the frontage* and hid the lot, the pylon and the tube man from
+   the street. `keeps_tree_off()` (one line in CityChunk._add_tree() after BroadwayNight's, after
+   every roll) drops a kerb tree on the pavement in front of the chunk's own dealer site (+-3 m
+   along). Palms are kept (a palm-lined boulevard is LA's auto row).
+4. *The lot was one flat black sheet.* `stripes()` (one line in CarDealers._build_detail()) paints
+   a stall line either side of every lot car with LotFill's car-park stripe (the road paint batch).
+
+**Frame cost** (the refcam's own GEO, opengl3 1280x720, `RC5_AUTO_ROW=0` against on, same load):
+before 5.85 M triangles / 3,156 draws (shadows 1.78 M); first after 6.54 M / 3,353 (shadows
+2.29 M: the real bodies cast); with the box cars as SHADOWS_ONLY proxies within REAL_NEAR (the real
+bodies cast nothing) see the final numbers below.
+
+**Not verified.** Forward+ (the Mac): the far twins' paint (car_park_car.gdshader, GLOSS) and the
+cards under AgX were seen only on opengl3. A body type whose profile has no clear bonnet-to-roof
+climb at x 0.42 gets no card (measured: none of the TYPES failed in the refcam load). The dealer's
+LOD / far city is unchanged (boxes).

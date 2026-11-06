@@ -4688,3 +4688,9 @@ none of either.
   must win over it; anything that says whether a window is lit says it from HouseNights' key and the
   pane's own 8-bit roll, on the GPU, so the light on the yard always matches the glass; a lantern's
   wall light is a point source's falloff with the cap's cut, never a soft disc. SUBURB_NIGHT=0 is the A/B.
+
+- 2026-11-06 (wave 8, rc5-auto-row): a new reference camera, `auto_row` (cameras_w8.json), at a
+  new-car dealer from the kerb at 11:00. Decisions: a dealer lot shows real car bodies wherever a
+  player on foot can see them (the box cars only past 48 m); a price card sits on the glass of the
+  body it is drawn on, measured from that body, never a table of guesses; a dealership keeps its
+  frontage clear of kerb trees (palms stay). RC5_AUTO_ROW=0 is the A/B.
