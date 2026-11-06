@@ -2962,6 +2962,8 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	# STARLIGHT PLAZA on an event night (tests/rc5_arena_night_checks.gd, ArenaNight): the screens'
 	# spill, the facades' LED, the hotel's crown, the searchlights, the camera row.
 	load("res://tests/rc5_arena_night_checks.gd").new().run(self, city)
+	# The taco truck at 23:00 (tests/rc5_taco_truck_checks.gd, TacoTruckNight): regulars, no bike lanes, lamps, steam.
+	load("res://tests/rc5_taco_truck_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()

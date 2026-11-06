@@ -246,6 +246,9 @@ static func plan_block(plan: CityPlan, ix: int, iz: int, hour: float) -> Array:
 				# Parked in this chunk's own parking lane: the +x and +z faces, an open road, room.
 				if truck_done or (e != 1 and e != 3) or length < 30.0 or not _truck_road_open(plan, ix, iz, e, rect):
 					continue
+				# Not in a bike lane (TacoTruckNight, the rc5 refcam): the lane takes the parking lane.
+				if TacoTruckNight.truck_blocked(plan, ix, iz, e):
+					continue
 				truck_done = true
 			else:
 				if cart_done:
@@ -360,11 +363,12 @@ static func _place_truck(chunk: CityChunk, rect: Rect2, edge: Array, e: int, v: 
 	# The cook in the window, on the truck's floor, facing out; the customers on the pavement in
 	# front of it, facing the truck.
 	var record: Dictionary = chunk.prop_records.back()
-	var cook := xf * Vector3(0.3, 0.0, 0.6)
+	var cook := xf * Vector3(TacoTruckNight.COOK_X if TacoTruckNight.enabled else 0.3, 0.0, 0.6)
 	people.append({"at": Vector2(cook.x, cook.z), "yaw": atan2(-inward.x, -inward.y), "truck": true,
 		"floor": TRUCK_FLOOR + CityChunk.ROAD_TOP - CityChunk.SIDEWALK_TOP,
 		"seed": hash([plan.seed, chunk.ix, chunk.iz, v.id]), "record": record, "rect": rect})
 	var queue: Array = chunk.get_meta("vendor_queue", [])
+	var queue_from := queue.size()
 	var window_mid := xf * Vector3(0.0, 0.0, 0.6)
 	var to := -inward
 	for k in 4:
@@ -373,6 +377,12 @@ static func _place_truck(chunk: CityChunk, rect: Rect2, edge: Array, e: int, v: 
 		var p := Vector2(window_mid.x, window_mid.z) + dir * along + inward * (1.3 + depth)
 		queue.append({"p": p, "yaw": atan2(-to.x, -to.y), "taken": null, "record": record})
 	chunk.set_meta("vendor_queue", queue)
+	# The people waiting at the window at night and the steam off the stack (TacoTruckNight).
+	var regs := TacoTruckNight.regulars(plan.seed, v, hour_now(chunk), queue_from, queue, rect, record)
+	for r: Dictionary in regs:
+		r["window"] = xf * Vector3(TW + 0.3, WY0 + 0.6, 0.6)
+	people.append_array(regs)
+	TacoTruckNight.add_steam(chunk, xf, float(v.paint))
 
 
 ## A cart on the pavement of face `edge`, the vendor on its kerb side and the customers on its
@@ -460,17 +470,29 @@ static func _place_cart(chunk: CityChunk, edge: Array, v: Dictionary, occupied: 
 ## room for one more person.
 static func spawn_vendor(chunk: CityChunk, index: int) -> void:
 	var people: Array = chunk.get_meta("vendor_people", [])
-	if index >= people.size():
-		return
-	var s: Dictionary = people[index]
+	# The last spawn step takes everyone left (a truck's regulars make the list longer than the
+	# steps CityChunk queues, MAX_PER_BLOCK).
+	var last := people.size() if index == MAX_PER_BLOCK - 1 else index + 1
+	for i in range(index, mini(last, people.size())):
+		_spawn_one(chunk, people[i])
+
+
+static func _spawn_one(chunk: CityChunk, s: Dictionary) -> void:
 	if not is_instance_valid(s.record) and not (s.record is Dictionary):
 		return
 	if not chunk._take_crowd_room():
 		return
-	var ped := StreetVendor.new()
+	var customer := bool(s.get("customer", false))
+	var ped: StreetVendor = TacoCustomer.new() if customer else StreetVendor.new()
 	ped.setup_vendor(s.rect, int(s.seed), s.at, float(s.yaw), bool(s.truck), float(s.floor))
 	var at: Vector2 = s.at
 	ped.position = Vector3(at.x, chunk.ground_y(at.x, at.y) + float(s.floor) + 0.05, at.y)
+	if customer:
+		(ped as TacoCustomer).window_at = s.get("window", Vector3.INF)
+		var queue: Array = chunk.get_meta("vendor_queue", [])
+		var qi := int(s.get("queue", -1))
+		if qi >= 0 and qi < queue.size():
+			queue[qi].taken = ped
 	chunk.add_child(ped)
 
 
@@ -766,6 +788,7 @@ static func truck(variant: int) -> Mesh:
 	_box(st, Vector3(-TW - 0.004, 1.12, zm), Vector3(0.006, 0.05, length - 0.1), 0.0, lv.ink, rm_paint)
 	_text(st, String(lv.name), 0.42, Transform3D(face_l, Vector3(-TW - 0.008, 2.25, zm)), lv.ink, length - 0.6)
 	_text(st, "CATERING · EVENTOS", 0.14, Transform3D(face_l, Vector3(-TW - 0.008, 1.75, zm)), lv.band, length - 1.0)
+	TacoTruckNight.marker_lamps(st)
 	return _finish(st, key)
 
 
@@ -1122,6 +1145,11 @@ static func material() -> ShaderMaterial:
 	if _material == null:
 		_material = ShaderMaterial.new()
 		_material.shader = load("res://shaders/street_vendor.gdshader")
+		if TacoTruckNight.enabled:
+			_material.set_shader_parameter("glow_night", TacoTruckNight.MENU_GLOW)
+			_material.set_shader_parameter("marker_night", TacoTruckNight.MARKER_NIGHT)
+			_material.set_shader_parameter("marker_day", TacoTruckNight.MARKER_DAY)
+			_material.set_shader_parameter("interior_night", TacoTruckNight.INTERIOR_GLOW)
 	return _material
 
 

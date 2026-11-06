@@ -29,6 +29,9 @@ uniform float interior_day = 0.55;
 uniform float bulb_night = 9.0;
 uniform float bulb_day = 0.35;
 uniform float led_night = 5.0;
+// Running lamps (code 19: a truck's clearance and tail lamps; TacoTruckNight).
+uniform float marker_night = 3.2;
+uniform float marker_day = 0.25;
 // Brushed stainless: how strong the grain is in the roughness.
 uniform float steel_grain = 0.35;
 // Road grime creeping up from the pavement (metres) and how dark it gets.
@@ -167,9 +170,12 @@ void fragment() {
 		base *= 0.85 + 0.3 * sv_noise(UV * 37.0 + v_local.xz * 11.0);
 	} else if (code == 17) {
 		emit = base * mix(0.2, led_night, lamp);
+	} else if (code == 19) {
+		emit = base * mix(marker_day, marker_night, lamp);
+		rough = 0.15;
 	}
 	// Grime from the pavement, on everything but the lights and the canvas up in the air.
-	if (code != 11 && code != 17 && code != 4) {
+	if (code != 11 && code != 17 && code != 19 && code != 4) {
 		float gh = clamp(1.0 - v_local.y / grime_height, 0.0, 1.0);
 		float n = sv_noise(v_local.xz * 4.0 + v_local.y * 3.0 + v_seed * 13.0);
 		base *= 1.0 - grime * gh * (0.5 + 0.5 * n);
