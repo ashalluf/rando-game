@@ -3042,6 +3042,9 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	# The sea_life refcam (tests/rc5_sea_life_checks.gd, SeaLife.spray_look): the camera row, the
 	# flat white water and streaked throws, the surfacing rings, the staged pod in turn.
 	load("res://tests/rc5_sea_life_checks.gd").new().run(self, city)
+	# The bus_stop_rain refcam (tests/rc5_bus_stop_rain_checks.gd, RainDusk): the camera row, the
+	# rainy dusk's slate sky and grade, the road's mirror handed over, the lamp streak's look5.
+	load("res://tests/rc5_bus_stop_rain_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()
