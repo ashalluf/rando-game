@@ -31981,3 +31981,72 @@ ways (the spray is one draw, the rings are instances of it); luminance p5/p50/p9
 rings that lie on the sea and age out, the staged pod in turn). Kit stills in seconds:
 `tools/sea_life/kit_shot.tscn` (VIEW=dolphin, AGE=; it now shows a ring by the rolling dolphin).
 Not verified on Forward+ (the spray is unshaded and works in linear through color_space).
+
+## 9d?. The fire station at night: an engine out of its bay on a call (wave 8, refcam5 `rc5-fire-station-night`, branch `wt/rc5-fire-station-night`)
+
+**The camera.** `fire_station_night` in `tools/refcams/cameras_w8.json`: STATION 79 on 7th St
+downtown (seed 1337: the station's street front (2903, 404), its face at z 425.5), 21:00 clear, eye
+1.8 m up on the far (north) pavement at (2909, 391) looking SSW (yaw 164, pitch 2.5, FOV 55) at the
+bays. `"stage": "fire_station"` runs `tools/refcams/fire_station_stage.gd`: the station nearest the
+eye, a fire call opened 260 m east down 7th St (`call_ahead`), four street cars placed on 7th (two
+each way, `cars`), the engine sent through the ordinary `Emergency.send()`, then the engine and the
+street traffic STEPPED `t` = 8.1 s at 60 Hz by hand (`car._physics_process`,
+`TrafficAI.advance_shot`), the bay doors' tween killed and the doors held up, the watch put at its
+spot, the engine frozen (process off, its lights and wash set up first). `FS_T=0.6` on main is the
+before. `tools/rc5_fire_station/probe.gd` lists the stations round downtown with their bays and an
+eye across the street.
+
+**What read fake, worst first, and what was done:**
+1. *The engine did not come out of the station.* `Emergency.send()` put the unit standing on the
+   street's centre line in front of the bays while the doors began to roll up over an empty bay; in
+   the before it is already on the street with the doors shut. `StationExit`
+   (`scripts/npc/station_exit.gd`): the unit starts INSIDE the bay on the side it will turn toward
+   (`bays()` works the doors out of FireStation's frame and lot, the numbers build_lot() lays the
+   building with), lights going, waits `DOOR_WAIT` 3 s for its door, creeps out at `BAY_SPEED`,
+   down the ramp across the pavement and swings into its lane on a cubic (`TURN_REACH` 13 m down the
+   road), then EmergencyCar._drive_lane() takes over where the lane start was (hooks: one line in
+   `Emergency.send()`, two in `EmergencyCar._physics_process`, the release in `strip_for_pool`).
+   `STATION_EXIT=0` is the A/B.
+2. *Nothing on the street reacted.* Traffic only yielded to a siren BEHIND it on its carriageway, so
+   cars drove through the unit pulling out. While a unit comes out (and until it is `CLEAR_AFTER`
+   22 m down the road) street cars on that road stop `STOP_SHORT` 20 m short of the bays both ways
+   and ease to the kerb (`StationExit.stop_gap()`, one hook beside the siren rule in
+   `TrafficManager._drive_street`). A `StationWatch` firefighter (an EmergencyCrew in turnout and
+   helmet, its own `_think`) walks out by the door to the kerb at the apron's corner, faces the
+   oncoming lane and walks back in once the unit is away (a knocked watch is not the engine's crew:
+   its `car` is null, `unit` the engine).
+3. *The warning lights lit nothing.* The lenses flashed but the only light thrown was one 14 m
+   OmniLight on desktop off the wall clock. `EmergencyWash` (`scripts/npc/emergency_wash.gd`, one
+   hook in `EmergencyCar._process`): a 30 m pool on the road and a wash on the facade either side
+   (two rays every 0.5 s), additive quads on `shaders/engine_wash.gdshader` that work the flash out
+   exactly as emergency_lights.gdshader does (TIME, rate, phase, banks half a cycle apart, ends a
+   quarter) so the light on the street is the lens that is lit; each bank a point source at the
+   body's corner, red held at a tenth green (AgX), fog-free, zero at the quad's edge, through
+   cs_out(). Every renderer, the web too. `EMERGENCY_WASH=0` is the A/B.
+4. *The firehouse stood 40 m back behind a concrete field.* build_lot() put the face the lot's whole
+   apron off the street, and a downtown lot is 40+ m deep: from across 7th St the station was a small
+   box far behind a ramp the size of a car park. `FireStation.setback()` caps it at `MAX_SETBACK`
+   7.5 m (the rest of the lot behind it is the block's ground); StationExit and the probe use the same
+   function. `FIRE_STATION_FRONT=0` is the A/B.
+5. *An open bay was a bare grey box and the front unlit.* `FireStationNight`
+   (`scripts/world/fire_station_night.gd`, one hook at the end of FireStation._build_detail()): gear
+   lockers on the back wall with turnout coats, trousers in boots and helmets, a red wainscot, hose
+   racks, yellow guide lines, the exhaust drop; a bay light and a lamp over each door (OmniLights in
+   `lamp_light` with a `lamp_gain`, desktop only) and a spill of the bay's light on the apron while
+   the door is up (light_pool through FwdReviewH.display_pool; shown and hidden by open_door()).
+   `FIRE_STATION_NIGHT=0` is the A/B.
+
+**Looked at and left alone.** The flag is a flat box and the DEPT lettering is small; the big blank
+brick wall to the east is the neighbouring lot's building; the searchlights in the sky are
+NightLife's premiere. The engine's own roof OmniLight still runs off the wall clock (so on Forward+
+its flash drifts from the lenses; the wash, which is what is seen, is in step); the wash's banks
+assume the lens shader's +across side is the car's +x (not measured per body).
+
+**Numbers** (opengl3 refcams, before = main with FS_T=0.6, after = this branch, same eye): see the
+table on `shots/rc5-fire-station-night`. Checks: `tests/rc5_fire_station_night_checks.gd` (the row
+looks at a station across its street; the setback and its switch; the path out starts inside the
+bay and lands on the lane heading down it, stepping evenly down the ramp; stop_gap both ways, not
+past, not another road, a gone unit stops nobody; the wash's red and its clock; a unit really sent
+out of the station starts in its bay, sends a watch to the kerb, is on its lane when the exit ends
+and the street goes again). Not verified on Forward+ (lavapipe); the wash and spill are additive
+unshaded quads through cs_out() / display_pool, the conventions that hold there.
