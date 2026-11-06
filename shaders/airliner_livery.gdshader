@@ -33,6 +33,15 @@ uniform float cabin_glow = 0.5;
 // a registration aft, panel seams with a tone per panel, bare-metal leading edges, dark fan faces
 // and exhausts, belly and tail-cone grime. 0 is the old flat livery (AIRPORT_APRON=0).
 uniform float detail = 1.0;
+// A jet in the air at night seen from under its approach (JetFinal, refcam5 "airport_final"; 0 is
+// the old look everywhere, the parked jets and every jet with JET_FINAL=0): the gear painted as
+// gear (light grey legs and doors, black tyres, bare hubs) instead of one black blob, the city's
+// warm glow on whatever faces down (`under_glow`, linear, set per jet from its height and the
+// lamps), and the gear and the nacelles' undersides lit by the jet's own landing and taxi lights
+// (`gear_light`, while they are on).
+uniform float final_look = 0.0;
+uniform vec3 under_glow = vec3(0.0);
+uniform float gear_light = 0.0;
 
 varying vec3 mpos;
 varying vec3 mnrm;
@@ -179,6 +188,12 @@ void fragment() {
 	bool tail_fin = p.y > -0.005 && u > 0.70 && az < 0.06;
 	bool engine = u > 0.30 && u < 0.52 && az > 0.18 && az < 0.39 && p.y < -0.115 && p.y > -0.27;
 	bool gear = p.y < -0.25;
+	if (final_look > 0.5 && gear && u > 0.30 && u < 0.52 && az > 0.18 && az < 0.39 && p.x < -0.076) {
+		// The nacelles' undersides reach down to y -0.30: they are engine, not the gear (the old
+		// split painted every nacelle's belly gear-black: two black blobs under the wings).
+		engine = true;
+		gear = false;
+	}
 	if (tail_fin) {
 		col = fin;
 		// The mark, in the fin's own (u, y) frame.
@@ -206,6 +221,24 @@ void fragment() {
 	} else if (gear) {
 		col = vec3(0.05);
 		rough = 0.6;
+		if (final_look > 0.5) {
+			// Legs, doors and hubs light grey; the tyres black rubber: a wheel is the ring more
+			// than `hub` from its axle in the side view (main gear axle x -0.028, y -0.298, radius
+			// 0.044; nose gear x -0.712, y -0.313, 0.025 - measured off the model's vertices).
+			col = vec3(0.50, 0.51, 0.52);
+			rough = 0.45;
+			metal = 0.3;
+			bool nose = u < 0.25;
+			vec2 axle = nose ? vec2(-0.712, -0.313) : vec2(-0.028, -0.298);
+			float radius = nose ? 0.025 : 0.044;
+			float rr = length(p.xy - axle);
+			float tyre = smoothstep(radius * 0.40, radius * 0.50, rr) * step(p.y, axle.y + radius * 0.98);
+			// The hub a darker bare metal than the painted legs, with its bolt ring's shadow.
+			col = mix(col, vec3(0.30, 0.31, 0.32) * (1.0 - 0.5 * smoothstep(radius * 0.22, radius * 0.3, rr)), step(abs(mnrm.z), 2.0) * smoothstep(radius * 0.9, radius * 0.6, length(p.xy - axle)) * step(0.80, abs(mnrm.z)));
+			col = mix(col, vec3(0.03, 0.03, 0.032), tyre);
+			rough = mix(rough, 0.85, tyre);
+			metal = mix(metal, 0.0, tyre);
+		}
 	} else if (fuselage) {
 		col = white;
 		// Belly below the waterline, and the cheatline above it.
@@ -323,6 +356,17 @@ void fragment() {
 		if (af_count > 0) {
 			vec3 wn = normalize((INV_VIEW_MATRIX * vec4(NORMAL, 0.0)).xyz);
 			emit += col * af_flood(v_world + origin_shift, wn);
+		}
+	}
+	if (final_look > 0.5 && lamp_factor > 0.001) {
+		vec3 wn = normalize((INV_VIEW_MATRIX * vec4(NORMAL, 0.0)).xyz);
+		// The city's glow from below: full on what faces straight down, a little wrapped round
+		// the sides, none on what faces up. Windows and glazing take none (they are dark glass).
+		float down = clamp(-wn.y * 0.8 + 0.2, 0.0, 1.0);
+		emit += col * under_glow * down * down * (1.0 - glaze) * lamp_factor;
+		// The landing and taxi lights spill onto the gear legs and the nacelles' undersides.
+		if (gear || engine) {
+			emit += col * vec3(1.0, 0.95, 0.85) * gear_light * (gear ? 1.0 : 0.12 * smoothstep(-0.18, -0.26, p.y)) * lamp_factor;
 		}
 	}
 	ALBEDO = cs_out(col);

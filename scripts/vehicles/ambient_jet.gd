@@ -171,6 +171,8 @@ func setup_numbers(k: Aircraft.Kind) -> void:
 
 ## The landing lights' beams through the night air (JetTakeoff.build_beams()).
 var _beams: Array[MeshInstance3D] = []
+## The jet's own livery material when JetFinal's pass is on (null: the shared one).
+var _final_mat: ShaderMaterial = null
 
 
 func _ready() -> void:
@@ -233,6 +235,9 @@ func _build_model() -> void:
 			if livery < 0:
 				livery = _rng.randi() % Airport.LIVERIES
 			var livery_mat := AirportTerminal.livery_material(livery)
+			# Its own copy with the night-approach pass (JetFinal: gear, the city's glow below).
+			livery_mat = JetFinal.material(livery_mat)
+			_final_mat = livery_mat if livery_mat != AirportTerminal.livery_material(livery) else null
 			for mi in inst.find_children("*", "MeshInstance3D", true, false):
 				(mi as MeshInstance3D).material_override = livery_mat
 	_adopt_meshes(_visual)
@@ -319,6 +324,9 @@ func _fly(dt: float) -> void:
 	_update_shimmer()
 	if AirportNight.enabled:
 		AirportNight.landing_pool(self, world_pos.y - runway_y, AmbientCraft.yaw_dir(yaw))
+	if _final_mat:
+		var lo = _light_mat.get_shader_parameter("landing_on") if _light_mat else null
+		JetFinal.tick(_final_mat, world_pos.y - runway_y, lo == null or float(lo) > 0.5)
 	if fading_out and _step_fade(dt):
 		_finish()
 	elif not fading_out and fade > 0.0:
