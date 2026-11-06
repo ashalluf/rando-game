@@ -15,4 +15,4 @@ After the lead's review (the concert hall, the crowns):
 - 08_hall_and_crowns_before_after.jpg - the camera before (left) and after (right), with the hall cropped below.
 - 09_crowns_before_after.jpg - the lit crowns at 18:00: left the bloomed white disc, right waiting for dusk.
 - 10_steel_alone_golden_before_after.jpg - the hall alone under a low western sun, opengl3: left as before, right the final steel (no fog or sky radiance in that tool).
-- 11_steel_alone_forwardplus_before_after.jpg - the same on Forward+ (lavapipe), an earlier iteration of the steel (the face-lit lobe, since replaced by the reflected streak).
+- 11_steel_alone_forwardplus_before_after.jpg - the same on Forward+ (lavapipe), the final steel.
