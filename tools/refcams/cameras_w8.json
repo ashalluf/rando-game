@@ -2,6 +2,8 @@
 	"_doc": "Wave 8 reference cameras (tools/refcams/README.md), the same format as cameras.json and cameras_w7.json. One row a camera, each on its own line. Run with REFCAMS_JSON=tools/refcams/cameras_w8.json.",
 	"resolution": [1280, 720],
 	"cameras": [
+		{"name": "hill_home_dusk", "label": "A cantilever hill home's pool deck on the front range (estate 392, 159 m up) at 19:15 clear, looking south over the basin: the infinity pool, the glass wall lit inside, downtown's lights below", "eye": [599.2, 160.6, -1893.5, 170.0, -9.0], "hour": 19.25, "weather": "clear", "fov": 55},
+		{"name": "skate_park", "label": "THE PIT at 16:30 clear, eye level on the high deck by the pool, a skater mid-air over the far coping, the boardwalk and its palms behind", "eye": [-980.3, 6.0, -488.6, -137.0, -3.0], "agl": true, "hour": 16.5, "weather": "clear", "fov": 55, "skate_t": 2.4},
 		{"name": "wingsuit_golden", "label": "The hero in his wingsuit at 18:00 clear, from his chase camera 6 m behind, gliding ~120 m over Bunker Hill toward the downtown skyline", "eye": [2440.0, 120.0, -880.0, 204.0, -12.0], "agl": true, "hour": 18.0, "weather": "clear", "fov": 44, "wingsuit": {"at": [2440.0, 120.0, -880.0], "heading": 192.0, "speed": 46.0, "lead": 2.5, "dist": 6.0, "look": [12.0, -12.0], "fov": 44.0}}
 	]
 }

@@ -38,6 +38,7 @@ func _initialize() -> void:
 	DirAccess.make_dir_recursive_absolute(_out_dir)
 	_golf_group()
 	_bonfire_lit()
+	_lowrider_meet()
 	# OCCLUSION=0: occlusion culling off (still_shot's switch), to tell what is culled in plain sight.
 	if OS.get_environment("OCCLUSION") == "0":
 		get_root().use_occlusion_culling = false
@@ -131,6 +132,7 @@ func _run() -> void:
 		for i in frames:
 			if i == stage_at:
 				_stage_air(scene, cam)
+				_stage_rail(cam, scene)
 				traffic_staged = _stage_street_cars(cam, scene, plan)
 				# A "park_car" row (cameras_w6.json, car_closeup): a parked car and the eye round it.
 				if cam.has("park_car"):
@@ -139,6 +141,8 @@ func _run() -> void:
 						park = null
 			if i == frames - 3:
 				_stage_freeway_cars(cam, scene)
+			if cam.has("skate_t") and (i == stage_at or i >= frames - 3):
+				_skate_clock(cam)
 			await process_frame
 			_place(player, fov)
 			if day:
@@ -160,6 +164,10 @@ func _run() -> void:
 			# cameras_w6.json's person_closeup: one pedestrian at arm's length (person_stage.gd).
 			_stager = load("res://tools/refcams/person_stage.gd")
 			await _stager.stage(self, scene, _eye_cam, player, func() -> void: _place(player, fov), cam)
+		elif stage == "hospital":
+			# cameras_w7.json's hospital_er: an ambulance backing into the ER bay (hospital_stage.gd).
+			_stager = load("res://tools/refcams/hospital_stage.gd")
+			await _stager.stage(self, scene, _eye_cam, player, func() -> void: _place(player, fov), cam)
 		Engine.time_scale = 0.0005
 		for i in _env_int("SETTLE", 6):
 			await process_frame
@@ -180,6 +188,7 @@ func _run() -> void:
 			_hero_report(player, cam.name)
 		if traffic_staged:
 			scene.get_node("Traffic").set("staged", false)
+		_unstage_rail(scene)
 		var png := _out_dir.path_join("%s.png" % cam.name)
 		get_root().get_texture().get_image().save_png(png)
 		var c: Array = await _geo_report("GEO_%s" % cam.name)
@@ -392,6 +401,21 @@ func _bonfire_lit_for(cam: Dictionary) -> void:
 	bf.set("force_lit", int(cam.get("bonfire_lit", -1)))
 
 
+## A row's optional "lowrider_meet" (wave 7's lowrider_meet): {"on": 1, "pose": "i:routine:s[:side],..."}
+## holds every meet on (LOWRIDER_MEET=1) and freezes row cars mid-routine (LOWRIDER_POSE). Set before
+## the city loads: the meet's row is parked as its chunk builds.
+func _lowrider_meet() -> void:
+	var only := OS.get_environment("ONLY").split(",", false)
+	for cam: Dictionary in _cameras().get("cameras", []):
+		if cam.get("lowrider_meet", null) is Dictionary and (only.is_empty() or String(cam.name) in only):
+			var lm: Dictionary = cam.lowrider_meet
+			if OS.get_environment("LOWRIDER_MEET") == "" and int(lm.get("on", 1)) == 1:
+				OS.set_environment("LOWRIDER_MEET", "1")
+				(load("res://scripts/world/lowrider_meet.gd") as GDScript).set("force", true)
+			if OS.get_environment("LOWRIDER_POSE") == "" and lm.has("pose"):
+				OS.set_environment("LOWRIDER_POSE", String(lm.pose))
+
+
 ## A row's optional "golf_group" ("hole:stage[:tee[:count]]", wave 6's golf_morning) puts a group
 ## of golfers there whatever the hole's roll (GolfLife.force_group). Set before the city loads:
 ## golfers are spawned as the course's chunks build.
@@ -422,6 +446,10 @@ func _place(player: Node3D, fov: float) -> void:
 	if _eye_cam:
 		player.global_position = _eye_cam.global_position
 	player.set("velocity", Vector3.ZERO)
+	# An eye in the underground station (rail_at rows): the parked player is let through the city's
+	# ground box at once, or each step throws him out to the street and the tunnel train is hidden.
+	if _rail_held and player is PhysicsBody3D:
+		(load("res://scripts/world/metro_station.gd") as GDScript).call("admit", player)
 	# A staged camera puts the hero in the shot, at the stage's spot, facing down the street.
 	if _stager != null and _stager.get("hero_at") != Vector3.INF:
 		player.visible = true
@@ -530,6 +558,18 @@ func _hero_report(player: Node3D, shot: String) -> void:
 ## A camera row's optional `port_t` (wave 7, port_night): the container terminal's clock
 ## (PortLife.clock, seconds) held there for the shot, so the cranes, tractors and straddle carriers
 ## stand where the row was framed for. Rows without it let the clock run as before.
+## A row's optional "skate_t" (wave 8's skate_park): THE PIT's skaters held at that clock (seconds;
+## SkateParkLife.set_clock + hold, as SKATE_T= / SKATE_HOLD=1), so a rider is where the row was framed
+## (mid-air). Set while the shot waits (the park's life exists once its chunk is built); rows without
+## the key leave the clock alone.
+func _skate_clock(cam: Dictionary) -> void:
+	var sl: GDScript = load("res://scripts/world/skate_park_life.gd")
+	sl.set("hold", true)
+	for n in get_root().find_children("*", "", true, false):
+		if n.get_script() == sl:
+			n.call("set_clock", float(cam.skate_t))
+
+
 func _port_clock(cam: Dictionary) -> void:
 	var pl: GDScript = load("res://scripts/world/port_life.gd")
 	if cam.has("port_t"):
@@ -537,3 +577,37 @@ func _port_clock(cam: Dictionary) -> void:
 		pl.set("hold", true)
 	else:
 		pl.set("hold", OS.get_environment("PORT_HOLD") == "1")
+
+
+## A row's optional "rail_at" ("<station>[:<dir>[:<seconds from mid-dwell>]]", wave 7's
+## metro_station): the light rail's clock set so a train dwells at that station, and held there
+## until the shot is taken (LightRailSystem's RAIL_AT / RAIL_HOLD, per camera).
+var _rail_held := false
+
+
+func _stage_rail(cam: Dictionary, scene: Node) -> void:
+	if not cam.has("rail_at"):
+		return
+	var sys := scene.get_node_or_null("LightRail")
+	var line: Variant = sys.get("line") if sys else null
+	if line == null:
+		print("REFCAM %s: no light rail to stage" % cam.name)
+		return
+	# LightRail is reached through its script: naming it compiles it before the autoloads exist.
+	var lr: Variant = (line as Object).get_script()
+	var at := String(cam.rail_at).split(":", false)
+	lr.clock = float(line.call("clock_at_station", at[0].to_int(), at[1].to_int() if at.size() > 1 else 0,
+		at[2].to_float() if at.size() > 2 else 0.0))
+	sys.set("hold", true)
+	sys.call("step")
+	_rail_held = true
+	print("REFCAM %s: light rail clock %.1f (%s)" % [cam.name, float(lr.clock), cam.rail_at])
+
+
+func _unstage_rail(scene: Node) -> void:
+	if not _rail_held:
+		return
+	var sys := scene.get_node_or_null("LightRail")
+	if sys:
+		sys.set("hold", OS.get_environment("RAIL_HOLD") == "1")
+	_rail_held = false

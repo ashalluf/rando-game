@@ -272,6 +272,7 @@ static func material() -> ShaderMaterial:
 		_material.set_shader_parameter("concrete_tex", PropFactory.texture("concrete", "Color"))
 		_material.set_shader_parameter("concrete_nrm", PropFactory.texture("concrete", "NormalGL"))
 		_material.set_shader_parameter("tag_atlas", load("res://assets/textures/street_wear/street_wear_tags.png"))
+		RcSkatePark.apply(_material)
 	return _material
 
 
