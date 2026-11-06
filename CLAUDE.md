@@ -17,6 +17,7 @@ street errands, reference cameras), batch 7 (the marketplace lane, shop-window v
 businesses) and batch 8 (street signs as real models, five street lamp types), plus the fixes
 for CI runs 355-357 (a turning car's room in its new lane, errands never parking a placed car,
 the car lights check's pick race), then apartments and tower gondolas (2026-10-29, build 361).
+**Wave 8 end (2026-11-06, moving to a new account): start at `LEAD_HANDOFF.md` on `fleet/brief`** - main is batch 67 (gated green, 6,620 checks); batch 68 candidates, the wave-8f sessions to restart and the open items are listed there.
 **Wave 8 (2026-11-05): start at docs/HANDOFF.md section 00000000000** - main is batch 51; 25 cloud sessions (roster `sessions_w8.tsv` on `fleet/brief`, lead notes in its LEAD_HANDOFF.md).
 **Wave 4 (2026-10-31): start at docs/HANDOFF.md section 0000000000** - main is batch 25 (the golden-hour review) plus the CI 394 flake fixes; 45 cloud sessions run on `wt/<slug>` branches (roster on `fleet/brief`), the lead merges them in batches.
 **Wave 3 (2026-10-29)**: 23 cloud sessions finishing wave 2's paused tasks plus `rock-outcrops` and
@@ -1523,6 +1524,14 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   `rc4` uniforms of freight_track / freight_stock), the valleys between storage beds filled level
   (`throat_fill()`: open, each stood up as a wedge), switch stands at the turnouts. `RC4_FREIGHT_YARD=0` is the A/B; checks
   `tests/rc4_freight_yard_checks.gd`.
+- The Alameda trench at noon (wave 8, refcam `freight_trench` in `tools/refcams/cameras_w8.json`, its
+  `freight_s` / `freight_kind` stage a train as FREIGHT_S / FREIGHT_KIND; docs/HANDOFF.md "The
+  Alameda trench at noon"): `RcFreightTrench` (`scripts/world/rc5_freight_trench.gd`): the trench's
+  own structure material copy (`trench_look`: cast panels, tie holes, diesel soot, weep holes,
+  graffiti on wall-height faces), cast DOUBLE-SIDED (its one-sided buried walls cast nothing from the
+  sun's side), the mainline ballast's `rc5` (crevice shadow in the mean, fouled), the crib up near
+  the tie tops, a conduit to the wall lights; freight_stock `rc5` (loco roofs grimed and sooted, fan
+  guards, a deeper livery) and `loco_cab()` (windscreen frames, wipers, grab irons). `RC5_FREIGHT_TRENCH=0` is the A/B; checks `tests/rc5_freight_trench_checks.gd`.
 - Cars fly (owner, 2026-09-20: "easily fly cars around the way I fly the main character"). A
   car that leaves the ground goes into stabilised flight (`Vehicle._fly()`): it holds itself
   level instead of tumbling, the stick aims it (W/S nose down/up, A/D turn with a bank), and
@@ -2293,6 +2302,14 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   (`flash_color`); in a storm the lamps' wet streaks break up (night_wet `storm`), the curtain's night
   veil / sheets thin (`night_veil`, `night_sheets`, `thin`), the litter stays low. `RC5_STORM=0` is
   the A/B; checks `tests/rc5_storm_downtown_checks.gd`.
+- The bus stop in the rain (2026-11-06, refcam `bus_stop_rain` in `tools/refcams/cameras_w8.json`,
+  staged by `"stage": "bus"` -> `tools/refcams/bus_stage.gd`; docs/HANDOFF.md "The bus stop in the
+  rain"): `RainDusk` (`scripts/world/rain_dusk.gd`, hooks in DayNight) - under rain at dusk the sky,
+  clouds, sky_tint, fog and grade go slate (no twilight band or rays) and the road's mirror hands over
+  to the lit city's (`RainDay.publish()`'s dusk lamps); night_wet `look5` (lamp streaks a broken
+  sheen, not beads); `StopShelter` puts riders with no umbrella under the shelter roof.
+  `RC5_BUS_STOP=0` is the A/B; probe `tools/rc5_bus_stop/dusk_probe.gd`; checks
+  `tests/rc5_bus_stop_rain_checks.gd`.
 - The rainy night street (2026-10-31, docs/HANDOFF.md "The rainy night street, refcam review"):
   `RainStreetNight` (`scripts/world/rain_street_night.gd`): NightAtmos' lamp streak is a soft
   rippled column peaked at the mirror point (night_wet `look2`), `WetCarGlints` lays the same streak
@@ -2528,6 +2545,15 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   after `max_seconds`, or as soon as anything else writes the time scale; it also presses a car onto
   the loop's track. `STUNT_RAMPS=0` / `STUNT_SLOWMO=0` the A/B; probe `tools/stunt_ramps/probe.tscn`;
   stills `STUNT=<kind|id>[:t]` on `still_shot.gd`; checks `tests/stunt_ramps_checks.gd`.
+- The stunt jump (wave 8, refcam `stunt_jump` in `tools/refcams/cameras_w8.json`, staged by its
+  `stunt` key -> `tools/refcams/stunt_stage.gd`; docs/HANDOFF.md "The stunt jump off the freeway
+  pair"): `StuntJumpFX` (`scripts/world/stunt_jump_fx.gd`): a freeway pair's launch carries a pure
+  `flight` box and its FULL chunks collapse the tree crowns in it (`_run_last`, after every roll);
+  StuntDirector's arm calls `launch()` (lip plume, wheel trail, clods), `tick()` lands it (dust,
+  sparks); an airborne physical car's wheels ease to the stop (`hang()` in Vehicle._update_wheels;
+  `hang_pose()` for placed cars); the landing's front is hazard-banded; stunt_ramp `look5` the
+  plate. The landing sits 5 m under the deck's barriers: from the launch side it shows only UNDER
+  the deck. `RC5_STUNT_JUMP=0` is the A/B; checks `tests/rc5_stunt_jump_checks.gd`.
 - Motorcycles (2026-10-06, docs/HANDOFF.md "Motorcycles"): `Motorcycle`
   (`scripts/vehicles/motorcycle.gd`, extends Vehicle; BodyType MOTO_SPORT / MOTO_CRUISER /
   MOTO_SCOOTER appended, BODY_ODDS 0) - bodies from `tools/make_motorcycles.py` (Blender or the
@@ -4151,6 +4177,13 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   it both ways (queues at the closure; `staged` for checks). `COAST_HIGHWAY=0` /
   `COAST_TRAFFIC=0` are the A/B; probe `tools/coast_highway/probe.gd`; checks
   `tests/coast_highway_checks.gd`.
+- The coast highway's beach houses (2026-11-06, docs/HANDOFF.md "The coast highway's beach houses"):
+  `CoastHouses` (`scripts/world/coast_houses.gd`, one hook at the top of CoastHighwayBuild._house(),
+  FULL only) builds each house on the plan's lot, slab and pilings (`CoastHighwayBuild._base()`):
+  a form by hash (MODERN setback / SHED / GABLE / HIP, `form()`, `massing()` pure), sea faces as
+  glass walls on "hh_glass" (hill_glass.gdshader), glass or cable rails, terraces, furniture.
+  `COAST_HOUSES=0` is the A/B; stills `tools/coast_houses/cameras.json` through refcams; checks
+  `tests/coast_houses_checks.gd`.
 - The coast highway at 17:00 (wave 8, refcam `coast_highway` in `tools/refcams/cameras_w8.json`,
   docs/HANDOFF.md "The coast highway at 17:00 from the seawall"): `CoastFlutes`
   (`scripts/world/coast_flutes.gd`, one line after the carve in `MacroMap.height_at()`; names
@@ -7067,6 +7100,13 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   near the camera gets a shadow twin and LODs. `OSPLIT_CATS=` on still_shot / refcams splits any
   category. The first refcams run on a fresh box (empty shader caches) peaks far higher (13.9 GB,
   OOM) than later ones (8.5 GB).
+- Perf audit 6 (2026-11-06, docs/HANDOFF.md "Perf audit 6"): **the counter undercounts every
+  LOD'd MultiMesh** (trap 3), so judge one with `TRUE=1` on refcams (`tools/perf_audit_6/true_groups.gd`,
+  per instance; `true_table.py` tabulates). `PerfSix` (`scripts/util/perf_six.gd`) holds the cuts:
+  the far canopy blob's sub-pixel 12-triangle level (`CANOPY_LOD=0`), the rooftop AC units cast from
+  a light twin (`ROOF_UNIT_SHADOW=0`), every non-foliage shadow twin at the shadow LOD scale
+  (`PROP_SHADOW_LOD=0`), the facade kit's casters through twins (`KIT_SHADOW_TWIN=0`);
+  `FOLIAGE_CELLS=1` (off: draws +8-50 %) splits foliage batches into LOD cells.
 - Memory (2026-10-05, docs/HANDOFF.md "Memory audit"): the smoke test fails past a peak-RSS
   budget (`tests/memory_audit_checks.gd`, 4,000 MB, `MEMORY_BUDGET_MB`; it peaked at 2.94 GB; the
   shards' own target is 3,600 MB).

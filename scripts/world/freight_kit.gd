@@ -148,6 +148,7 @@ static func track_material() -> ShaderMaterial:
 		_track_mat = ShaderMaterial.new()
 		_track_mat.shader = load("res://shaders/freight_track.gdshader")
 		_track_mat.set_shader_parameter("rc4", 1.0 if RcFreightYard.enabled else 0.0)
+		_track_mat.set_shader_parameter("rc5", 1.0 if RcFreightTrench.enabled else 0.0)
 	return _track_mat
 
 
@@ -235,9 +236,9 @@ func ties(xa: float, za: float, xb: float, zb: float, ya: float, yb: float, timb
 ## A ballast bed under tracks at centre xs (ascending), from za to zb, its top under the rail tops
 ## ya..yb, its shoulders down to base heights ga..gb. UV.y is metres across from the nearest track
 ## (the shader's dust and oil follow the rails); UV2.y how dirty (1 on the main).
-func ballast(xs: Array, za: float, zb: float, ya: float, yb: float, ga: float, gb: float, dirt := 1.0, shoulders := true) -> void:
-	var ta := ya - BALLAST_DROP
-	var tb := yb - BALLAST_DROP
+func ballast(xs: Array, za: float, zb: float, ya: float, yb: float, ga: float, gb: float, dirt := 1.0, shoulders := true, drop := BALLAST_DROP) -> void:
+	var ta := ya - drop
+	var tb := yb - drop
 	var col := tcol(BALLAST_COL, T_BALLAST)
 	var x_lo: float = float(xs[0]) - BALLAST_HALF
 	var x_hi: float = float(xs[xs.size() - 1]) + BALLAST_HALF
@@ -446,8 +447,11 @@ func _trench(sa: float, sb: float) -> void:
 				kind_color(WALL_COL, S_BARRIER), Vector2(za, PARAPET), Vector2(zb, PARAPET), Vector2(zb, 0.0), Vector2(za, 0.0), Vector2(1.0, 0.0))
 			if full:
 				_fence_panel(Vector3(x + side * (TH + W * 0.5), top_a, za), Vector3(x + side * (TH + W * 0.5), top_b, zb), sa)
-		if full and is_zero_approx(fmod(sa, SEG)) and fmod(sa + (8.0 if side > 0.0 else 24.0), WALL_LIGHT_EVERY) < SEG and fa < sta - 4.0:
+		var lit := full and is_zero_approx(fmod(sa, SEG)) and fmod(sa + (8.0 if side > 0.0 else 24.0), WALL_LIGHT_EVERY) < SEG and fa < sta - 4.0
+		if lit:
 			_wall_light(Vector3(xi, fa + 5.6, (za + zb) * 0.5), side)
+		if full and fa < sta - 6.4 and fb < stb - 6.4:
+			RcFreightTrench.conduit(self, xi, side, za, zb, fa, fb, (za + zb) * 0.5 if lit else NAN)
 	# Collision: each wall and the floor, one box a stretch.
 	var zm := (za + zb) * 0.5
 	var hgt := maxf(sta, stb) + PARAPET + FENCE - minf(fa, fb)
@@ -459,7 +463,7 @@ func _trench(sa: float, sb: float) -> void:
 	_shapes.append([Vector3(TH * 2.0, 0.4, zb - za + 0.05), Transform3D(Basis(), Vector3(x, (fa + fb) * 0.5 - 0.2, zm))])
 	# Track on its bed.
 	var mains: Array = [x - H, x + H]
-	ballast(mains, za, zb, ya, yb, fa, fb, 1.0)
+	ballast(mains, za, zb, ya, yb, fa, fb, 1.0, true, RcFreightTrench.ballast_drop(BALLAST_DROP))
 	for tx: float in mains:
 		rails(tx, za, tx, zb, ya, yb)
 		ties(tx, za, tx, zb, ya, yb)
@@ -863,7 +867,8 @@ func _portal() -> void:
 
 func _commit_step() -> void:
 	var tag := "freight_static"
-	var mi := _add("FreightStructure", body.commit(), structure_material())
+	var mi := _add("FreightStructure", body.commit(), RcFreightTrench.structure_material())
+	RcFreightTrench.cast_both(mi)
 	mi.add_to_group(tag)
 	if _track_any:
 		var tm := _add("FreightTrack", track.commit(), track_material())
