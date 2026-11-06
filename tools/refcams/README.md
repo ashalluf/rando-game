@@ -298,3 +298,8 @@ builds every yard sale for a Saturday at the row's hour (YARD_SALE_DAY / YARD_SA
 
 `marina_night` (rc5-marina-night): the marina at 21:00 clear from the north end of the east
 headwalk, west down the lane along the north quay (no staging keys). `MARINA_NIGHT=0` is its A/B.
+`switchback_night` (rc5-switchback-night): Stadium Way's upper hairpin over downtown at 22:00 clear.
+Its `hill_car` key (`tools/refcams/hill_car_stage.gd`: at, toward, seed) stands a car with its lamps
+lit on a hill road (no traffic drives them); `SB_DEBUG=x,y,z` prints every geometry whose box holds
+that TRUE world point, the terrain tile's vertices there and the road strip's, `SB_AB=<dir>` saves
+the frame again with each of those geometries hidden.

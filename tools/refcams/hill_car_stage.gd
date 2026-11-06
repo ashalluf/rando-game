@@ -52,7 +52,7 @@ static func stage(tree: SceneTree, scene: Node, row: Dictionary) -> void:
 	car.set("traffic_speed", 0.0)
 	_car = car
 	if OS.get_environment("SB_DEBUG") != "":
-		_debug(tree, ws)
+		await _debug(tree, ws)
 	print("REFCAM hill_car: %s at %.1f,%.1f,%.1f yaw %.0f pitch %.1f lights %s" % [car.name, at.x, y + lift, at.y, rad_to_deg(yaw), rad_to_deg(pitch), str(car.call("lights_running"))])
 
 
@@ -67,6 +67,7 @@ static func _debug(tree: SceneTree, ws: Node) -> void:
 	var c := OS.get_environment("SB_DEBUG").split(",")
 	var at: Vector3 = ws.call("to_local", Vector3(float(c[0]), float(c[1]), float(c[2])))
 	var stack: Array[Node] = [tree.root]
+	var hits: Array = []
 	while not stack.is_empty():
 		var n: Node = stack.pop_back()
 		for k in n.get_children():
@@ -76,3 +77,54 @@ static func _debug(tree: SceneTree, ws: Node) -> void:
 			var box := g.global_transform * g.get_aabb()
 			if box.grow(0.5).has_point(at) and box.size.length() < 400.0:
 				print("SB_DEBUG %s %s size %s" % [g.get_path(), g.get_class(), str(box.size)])
+				hits.append(g)
+	# The terrain tile and the road strip round the point (TRUE world).
+	var wp := Vector2(float(c[0]), float(c[2]))
+	for ch in tree.root.find_children("Chunk_*", "", true, false):
+		if not ch.has_method("owned_rect"):
+			continue
+		var r: Rect2 = ch.call("owned_rect")
+		if not r.has_point(wp):
+			continue
+		var n: int = int(ch.get("_tile_n"))
+		var hs: PackedFloat32Array = ch.get("_tile_heights")
+		var plan: Variant = ch.get("plan")
+		var i := int(floor((wp.x - r.position.x) / r.size.x * n))
+		var j := int(floor((wp.y - r.position.y) / r.size.y * n))
+		print("SB_TILE %s rect %s n %d ij %d,%d" % [ch.name, str(r), n, i, j])
+		for dj in range(-1, 3):
+			var line := ""
+			for di in range(-1, 3):
+				var k := (j + dj) * (n + 1) + (i + di)
+				var vx := r.position.x + r.size.x * (i + di) / n
+				var vz := r.position.y + r.size.y * (j + dj) / n
+				line += " %.2f/%.2f" % [hs[k], float(plan.call("height_at", Vector2(vx, vz)))]
+			print("SB_TILE row %d %s" % [dj, line])
+	for ch in tree.root.find_children("Chunk_*", "", true, false):
+		var road := ch.get_node_or_null("HillRoad") as MeshInstance3D
+		var plan: Variant = ch.get("plan")
+		if road and plan:
+			var arr := road.mesh.surface_get_arrays(0)
+			var vs: PackedVector3Array = arr[Mesh.ARRAY_VERTEX]
+			var seen := {}
+			for v in vs:
+				var tw: Vector3 = ws.call("to_world", road.global_transform * v)
+				var key := "%.1f,%.1f" % [tw.x, tw.z]
+				if Vector2(tw.x, tw.z).distance_to(wp) < 10.0 and not seen.has(key):
+					seen[key] = true
+					print("SB_ROAD %s local %.2f,%.2f,%.2f world %.2f,%.2f,%.2f ground %.2f" % [ch.name, v.x, v.y, v.z, tw.x, tw.y, tw.z, float(plan.call("height_at", Vector2(tw.x, tw.z)))])
+		var ter := ch.get_node_or_null("Terrain") as MeshInstance3D
+		if ter and ch.has_method("owned_rect") and (ch.call("owned_rect") as Rect2).grow(5.0).has_point(wp):
+			print("SB_TER %s xform %s" % [ch.name, str(ter.global_transform.origin)])
+	# SB_AB=<dir>: the frame again with each of them hidden in turn (<dir>/sb_ab_<i>.png).
+	var out := OS.get_environment("SB_AB")
+	if out == "":
+		return
+	for i in hits.size():
+		var g: GeometryInstance3D = hits[i]
+		g.visible = false
+		for f in 3:
+			await tree.process_frame
+		tree.root.get_texture().get_image().save_png(out.path_join("sb_ab_%d.png" % i))
+		print("SB_AB %d hid %s" % [i, g.get_path()])
+		g.visible = true

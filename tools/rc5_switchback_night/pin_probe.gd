@@ -17,6 +17,32 @@ func _ready() -> void:
 	plan.macro = macro
 	city.free()
 	macro.setup()
+	# GRID=x,z: height_at() on a 1 m grid 24 m round the point, with the nearest drawn road's
+	# bed (its centre line's height) and the distance to that centre line.
+	var gs := OS.get_environment("GRID")
+	if gs != "":
+		var gp := Vector2(float(gs.split(",")[0]), float(gs.split(",")[1]))
+		var segs: Array = macro.hill_roads.segments_in(Rect2(gp - Vector2(40, 40), Vector2(80, 80)))
+		for j in range(-12, 13, 2):
+			var line := ""
+			for i in range(-12, 13, 2):
+				var q := gp + Vector2(i, j)
+				var bd := INF
+				var bed := 0.0
+				for sg: Dictionary in segs:
+					if not sg.get("draw", true) or sg.get("drive", false):
+						continue
+					var c := Geometry2D.get_closest_point_to_segment(q, sg.a, sg.b)
+					var d := q.distance_to(c)
+					if d < bd:
+						bd = d
+						var t := (c - (sg.a as Vector2)).length() / maxf((sg.b - sg.a).length(), 0.001)
+						bed = lerpf(float(sg.ha), float(sg.hb), t)
+				var h := plan.height_at(q)
+				line += " %+5.1f" % (h - bed) if bd < 7.0 else "   .  "
+			print("GRID %+3d %s" % [j, line])
+		get_tree().quit()
+		return
 	# CHEV=x,z: RcSwitchback's chevrons within 200 m of the point.
 	var chev := OS.get_environment("CHEV")
 	if chev != "":

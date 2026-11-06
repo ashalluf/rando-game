@@ -3823,6 +3823,14 @@ already mapped so milestone 2 is script-only.
   (fronts meet where their neighbours are fronts), not banks standing apart with slots between.
   RC5_HISTORIC=0 is the A/B.
 
+- **2026-11-06, Stadium Way's switchbacks at night (rc5-switchback-night).** A night road is read
+  by its retroreflectors: every sharp bend of a drawn hill road carries curve chevrons, the
+  guardrail carries reflectors on its road face and the centre line raised markers, all glowing
+  toward the camera after dark. A road strip follows its carved bed in a bend (short pieces,
+  sampled across its width), so the terrain never shows through the asphalt. The refcam is Stadium
+  Way over downtown, not an estate switchback: those face a spur, the ocean or the valley's city
+  from level (probes in tools/rc5_switchback_night/). RC5_SWITCHBACK=0 is the A/B.
+
 ## Correction: what build 135 (0ce833f) actually contained
 
 That commit's subject says "denser grass, real palm fronds, finer ground". It also shipped a

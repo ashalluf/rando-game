@@ -32749,3 +32749,58 @@ boats' own white hulls are not in the water's light list (the boats are mirrored
 MarinaGolden's trace at night); the restaurants' terraces have no string lights or diners; the
 lights' columns are not occluded by the docks' floats (only by boats); the moonlit hulls still read
 a little flat grey.
+
+## 9d?. Stadium Way's switchbacks at night (refcam5 `switchback_night`, fleet wave 8, rc5-switchback-night)
+
+**The camera.** `switchback_night` in `tools/refcams/cameras_w8.json`: the outside edge of Stadium
+Way's upper hairpin (2805, 136, -2533; yaw 155, pitch -7), 22:00 clear, looking south over
+downtown: the hairpin's asphalt and double yellow, the guardrail on its fill side, the city's
+lights spread 130 m below with the skyline and city hall, and a car (staged by the row's new
+`hill_car` key, `tools/refcams/hill_car_stage.gd`) climbing the next leg into the hairpin with its
+lamps on.
+
+**Why Stadium Way, not a switchback with estates.** The task named the HillRoads switchbacks and
+their HillHomeKit estates. `tools/rc5_switchback_night/pin_probe.tscn` lists every hairpin (7 on
+seed 1337) with the estates round it and the terrain horizon per azimuth; `view_probe.tscn` scores
+every drawn hill-road point by the CITY ground it sees below it. The estate switchbacks are all on
+the front range's inland face: their hairpins look into a spur (Switchback 30), over the ocean
+(Switchback 34) or across the valley's city from ~10 m over it (Switchback 33). The only switchback
+that looks DOWN on a city is Stadium Way (the ballpark's road, switchbacking down to Hill St: three
+legs and two hairpins at 95-139 m), straight over downtown. No estates stand on it, so "the estates'
+lit glass above" is not in this frame: decided for the city view, which is what the frame is for.
+
+**What read fake (opengl3, before) and what changed** (RcSwitchback, `scripts/world/rc5_switchback.gd`;
+`RC5_SWITCHBACK=0` is the A/B for all of it):
+1. **Terrain through the asphalt.** On a hairpin's inside the bed twists (the inside falls faster
+   than the outside), and CanyonRoad's strip - 6 m pieces, sampled only at its edges, its centre the
+   edges' average - dipped up to 0.25 m under the carved ground between rows: a lump of grass terrain
+   stood on the road 5 m from the lens. Now a segment in a bend (`piece_length()`: its two mitred
+   normals more than 0.12 rad apart) is cut into 2 m pieces and every row samples the lanes' middles
+   and the centre line too (`_row()`'s indices 4-6, `_strip()` 6 columns). Found with the stager's
+   `SB_DEBUG=x,y,z` (every geometry whose box holds the point, the tile's vertices against
+   `height_at()`, the strip's vertices) and `SB_AB=<dir>` (the frame again with each hidden).
+2. **Nothing on the road caught light.** A hairpin at night is its retroreflectors. Curve chevrons
+   (W1-8, black on fluorescent yellow, 18 x 24 in on a galvanised post 2.1 m past the edge) every
+   11 m round every bend of a drawn hill road whose radius is under 42 m over an 18 m window either
+   side (`chevrons()`, pure, clear of other roads and drives), double faced, their tip toward the
+   bend's centre for both directions; the guardrail's reflectors (crystal) on the beam's road face
+   every fourth post (they were 8 cm amber tabs on its top every eighth); two-way yellow raised
+   markers between the double yellow every 14.6 m (canyon_road.gdshader `rc5`), each axis with its
+   own footprint so a far one stays a point (one shared footprint drew them as glowing dashes), its
+   lens glint keeping sqrt of its cover. All retroreflect toward the camera after dark
+   (`lamp_factor`), the game's rule for retroreflectors.
+3. **A puzzle of tar lines over the lane.** The crack sealant's fine net covered the whole road in
+   matte black seams that read as a printed pattern. Now the net is only in rare old stretches and
+   broken into runs, the joints too, and the sealant is glossier than the chip seal (it catches the
+   sky's sheen), less dark.
+
+**Frame cost** (refcam GEO, opengl3 1280x720, the same commit, `RC5_SWITCHBACK=0` -> on): 4,815,417 ->
+4,825,921 triangles (+0.2 %), 1,707 draws both (the chevrons and reflectors are in the guardrail's mesh,
+the markers in the road's shader). A bend's strip now costs three more `height_at()` a row and a row
+every 2 m: a few ms more in a hill chunk's road step.
+
+**Not done / not verified.** No estates in this frame (above). The car's headlights are two small
+points at 77 m on opengl3 (no beam on the road: the Compatibility path has no car spots, and on
+Forward+ CarLights only lights cars within 60 m). Chevrons are not checked on Forward+ under
+lavapipe; their glow is emitted sheeting like the guardrail's reflectors (linear via cs_out). The
+mid-distance roofs below read pale under the moon; not touched.

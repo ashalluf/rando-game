@@ -4624,6 +4624,14 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   `canyon_road` in `tools/refcams/cameras_w5.json`; checks `tests/rc2_canyon_road_checks.gd`.
   opengl3 city stills can hang in Godot's occlusion raycast (a lost wakeup): shoot with a temporary
   `override.cfg` `[rendering] occlusion_culling/use_occlusion_culling=false`, never committed.
+- Switchbacks at night (wave 8, refcam `switchback_night` in `tools/refcams/cameras_w8.json`, its
+  `hill_car` key stands a lit car on a hill road; docs/HANDOFF.md "Stadium Way's switchbacks at
+  night"): `RcSwitchback` (`scripts/world/rc5_switchback.gd`, hooks in CanyonRoad): curve chevrons
+  round every sharp bend (`chevrons()`, pure), reflectors on the rail's road face, raised markers and
+  rarer glossy sealant (canyon_road `rc5`), and a bend's strip in 2 m pieces sampled across its width
+  (`piece_length()`, `_row()` indices 4-6: the terrain showed through a hairpin's inside).
+  `RC5_SWITCHBACK=0` is the A/B; probes `tools/rc5_switchback_night/`; checks
+  `tests/rc5_switchback_night_checks.gd`.
 - The hills' planted volume (2026-10-30, docs/HANDOFF.md "The hills' planted volume"): `HillScatter`
   (`scripts/world/hill_scatter.gd`, one step after `_plant_hills` in both levels' HILLS list) puts
   a code-built clump (three lumpy domes, 63 / 15 / 6 triangles on one buffer, measured edges) on

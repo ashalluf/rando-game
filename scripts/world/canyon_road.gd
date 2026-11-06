@@ -135,7 +135,10 @@ static func build(ch: CityChunk, segs: Array[Dictionary]) -> bool:
 		var seg_len := a.distance_to(b)
 		if seg_len < 0.5:
 			continue
-		var pieces := maxi(1, ceili(seg_len / PIECE))
+		# In a sharp bend the bed twists (its inside falls faster than its outside): short pieces
+		# (RcSwitchback), or the strip's chords dip under the carved ground and the terrain shows
+		# through the asphalt on the hairpin's inside.
+		var pieces := maxi(1, ceili(seg_len / RcSwitchback.piece_length(seg, PIECE)))
 		var dir := (b - a) / seg_len
 		var half: float = seg.width * 0.5
 		var na: Vector2 = seg.get("na", Vector2(-dir.y, dir.x))
@@ -254,6 +257,12 @@ static func _row(plan: CityPlan, c: Vector2, n: Vector2, half: float, outer: flo
 	row.append(Vector3(c.x + n.x * half, el, c.y + n.y * half))
 	row.append(Vector3(c.x - n.x * half, er, c.y - n.y * half))
 	row.append(Vector3(c.x - n.x * outer, plan.height_at(c - n * outer) + LIFT - SHOULDER_DROP, c.y - n.y * outer))
+	# RcSwitchback: the lanes' middles and the centre line sampled too (indices 4, 5, 6), so the
+	# strip follows a twisted bed across its width as well.
+	if RcSwitchback.on():
+		for f: float in [0.5, -0.5, 0.0]:
+			var q := c + n * (half * f)
+			row.append(Vector3(q.x, plan.height_at(q) + LIFT, q.y))
 	return row
 
 
@@ -276,8 +285,12 @@ static func _strip(st: SurfaceTool, r0: Array, r1: Array, half: float, outer: fl
 	var cols0 := [r0[0], r0[1], m0, r0[2], r0[3]]
 	var cols1 := [r1[0], r1[1], m1, r1[2], r1[3]]
 	var xs := [outer, half, 0.0, -half, -outer]
+	if r0.size() > 6 and r1.size() > 6:
+		cols0 = [r0[0], r0[1], r0[4], r0[6], r0[5], r0[2], r0[3]]
+		cols1 = [r1[0], r1[1], r1[4], r1[6], r1[5], r1[2], r1[3]]
+		xs = [outer, half, half * 0.5, 0.0, -half * 0.5, -half, -outer]
 	var uv2 := Vector2(half, outer)
-	for j in 4:
+	for j in xs.size() - 1:
 		var q := [[cols0[j], xs[j], s0], [cols1[j], xs[j], s1], [cols1[j + 1], xs[j + 1], s1], [cols0[j + 1], xs[j + 1], s0]]
 		# Two triangles, wound to face up: the old strip's v0, v2, v1 / v0, v3, v2 (v0 its right
 		# edge at the piece's start, v1 the left, v2 the left at its end, v3 the right) are q3, q1,

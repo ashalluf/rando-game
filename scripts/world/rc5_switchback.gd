@@ -40,6 +40,10 @@ const BOARD_H := 0.61
 const BOARD_LIFT := 1.25
 ## No chevron within this of another road's edge (a junction) or an estate's drive.
 const CLEAR := 4.0
+## The strip's piece length in a sharp bend (the turn between a segment's two mitred normals over
+## BEND_TURN radians), metres.
+const BEND_PIECE := 2.0
+const BEND_TURN := 0.12
 ## The guardrail's reflectors: every this many posts, on the beam's road face.
 const REFLECTOR_EVERY := 4
 
@@ -159,6 +163,21 @@ static func build_chevrons(st: SurfaceTool, plan: CityPlan, area: Rect2) -> int:
 				CanyonRoad._quad(st, a0, a1, b1, b0, K_SIGN_BLACK, 0.0, 1.0, 0.0, 1.0)
 		n += 1
 	return n
+
+
+## The length CanyonRoad cuts segment `seg` into: `piece` (its own), or BEND_PIECE in a bend.
+static func piece_length(seg: Dictionary, piece: float) -> float:
+	if not on():
+		return piece
+	var a: Vector2 = seg.a
+	var b: Vector2 = seg.b
+	var d := (b - a).normalized()
+	var n := Vector2(-d.y, d.x)
+	var na: Vector2 = seg.get("na", n)
+	var nb: Vector2 = seg.get("nb", n)
+	if absf(na.angle_to(nb)) > BEND_TURN:
+		return BEND_PIECE
+	return piece
 
 
 ## A reflector on the beam's face toward the road at post `s` (CanyonRoad._rail_piece's posts):
