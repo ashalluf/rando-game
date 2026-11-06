@@ -3810,6 +3810,13 @@ already mapped so milestone 2 is script-only.
   lamps on (fading) until the sun is about a dozen degrees up. A mist's damp beads on leaves and
   dulls a lawn; only rain glazes them. Morning ground mist is a volume cut by the scene's depth over
   the park, not more global fog (which would grey every other view). RC5_CEMETERY_DAWN=0 the A/B.
+- **2026-11-06 The driver's seat in the rain (rc5-driver-rain, HANDOFF "The driver's seat in the
+  rain").** The view from inside the player's car is judged with the real cabin (a body CarInteriors
+  builds), so its glass is the see-through one: anything the outside glass draws (rain, wipers) must
+  be drawn on it too. Beads seen from the seat are drawn larger than outside (bead_scale): true size
+  is under the pixel there. Car lamp halos are the air between lamp and eye, so they fade out within
+  12 m rather than 5. DRIVER_RAIN=0 is the A/B.
+
 
 ## Correction: what build 135 (0ce833f) actually contained
 

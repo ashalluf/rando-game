@@ -3021,6 +3021,9 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	# The walk of fame at night (tests/rc5_walk_of_fame_night_checks.gd, WalkOfFameNight): the
 	# Celeste's premiere, the characters and tourists with the cap full, the lit medallions.
 	load("res://tests/rc5_walk_of_fame_night_checks.gd").new().run(self, city)
+	# The driver_rain refcam (tests/rc5_driver_rain_checks.gd, DriverRain): rain on the open cabin
+	# glass, the cabin at night, the near halo fade, the camera row.
+	load("res://tests/rc5_driver_rain_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()

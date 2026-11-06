@@ -1316,6 +1316,7 @@ static func vehicle_light_material(brake: bool = false, signal_side: int = 0, ph
 	mat.set_shader_parameter("signal_side", float(signal_side))
 	mat.set_shader_parameter("blink_phase", float(phase) * 0.25)
 	mat.set_shader_parameter("reverse", 1.0 if reverse else 0.0)
+	mat.set_shader_parameter("halo_near", DriverRain.halo_near())
 	_cache[key] = mat
 	return mat
 

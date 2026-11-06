@@ -31493,3 +31493,60 @@ volumetric spots only exist there. The carpet is low in this frame (seen edge-on
 fans); a premiere has no arriving cars or photographers. The tourists walk off round the block
 after they are put down. The medallion's plate glow is display-number emission (cs_out), judged on
 opengl3 only.
+
+## 9nq. The driver's seat in the rain (rc5-driver-rain, wave 8)
+
+**The view.** A new reference camera, `driver_rain` in `tools/refcams/cameras_w8.json`: the player in
+his own car (a SEDAN, so CarInteriors builds the real cabin - LUX_SEDAN is not one of its bodies and
+gets the traced cabin only), stopped second in the queue at a red on Grand Ave northbound at 5th, 22:00
+in rain, the eye just ahead of and right of where the hidden driver's eyes are, looking down the road
+over the wheel. Its `cabin` key runs `tools/refcams/cabin_stage.gd`: finds the next crossing past
+`near`, forces the light red every frame (`TrafficSignals.force`), places the queue (`queue`,
+`queue_body`), a car beside (`beside`) and cross traffic on green (`cross`) through `place_car()`,
+hides the load's own street cars within `clear` m (a box truck stood in the queue's place), puts the
+player in, waits for the cabin rig, and holds a free eye in the car's frame measured from CarCabin's
+driver head (`eye` / `look`, metres from the head: x right, y up, z back). `CABIN_EYES=` shoots more
+framings from the same load; `CABIN_AB=1` saves the same frame with DriverRain off
+(`driver_rain_off.png`) - one 7-8 minute load gives the before and the after.
+
+**What gave it away, worst first, and the fixes (`DriverRain`, `scripts/vehicles/driver_rain.gd`,
+`DRIVER_RAIN=0` the A/B):**
+
+1. **A dry windscreen in a downpour.** The car the player sits in wears CarInterior's see-through glass
+   (`car_glass_open.gdshader`), which never had the wet world: from inside, rain drew a spotless pane
+   (and the wipers swept nothing). It now includes `car_glass_wet.gdshaderinc` behind `rain_inside`:
+   the same beads, runs and wiper arcs as the outside glass (CarWipers.sync() already hands this
+   material the screen's frame and phase), each bead a small lens on the screen texture
+   (`hint_screen_texture`: the street behind refracted and flipped, `bead_refract`, a dark rim), the
+   film softening what it covers (`film_blur`) and the bright lights blooming in it (a mip-4 tap over
+   0.5). Beads are drawn `bead_scale` 1.8x their outside size: at an arm's length and 720 lines a real
+   3 mm bead is two pixels and the rain read as nothing. Transparent things are not in the screen copy
+   (Godot copies it before the transparent pass), so the lamp glow quads are not refracted - only
+   their lenses, which are opaque.
+2. **Car lamp halos as salmon disks wider than the car ahead.** NightAtmos's halos (car_lights parts
+   6 / 7) faded only between 2 and 5 m: the brake-lit crossover 7 m ahead wore two pink-orange disks
+   over its whole tail (a red-heavy additive turning salmon). A halo is the air scattering between the
+   lamp and the eye, so it now fades in from `halo_near` x 0.35 to `halo_near` (12 m), set on every
+   lamp material by `PropFactory.vehicle_light_material()` (0 = the old fade). Every refcam with a car
+   within 12 m changes only there.
+3. **The screens were daylight panels turned up after dark.** The nav map a pale grid, the cluster's
+   middle a flat pale-blue slab, both BRIGHTER at night. `night_screens` (car_interior.gdshader) puts
+   them in night mode by `night_factor`: a near-black map, faint streets, the route brighter; dim
+   rings, the needle the brightest thing, a dark middle display with a lit frame and readout; the
+   whole screen 45 % dimmer.
+4. **A pitch-black cabin.** At 22:00 nothing in the cabin caught any light. `night_fill` lifts what
+   faces the windows by the street's light (`fill_col`, warm, LINEAR; x lamp_factor; diffuse only:
+   x (1 - metal) - the first pass lit the headrest posts and knobs like lamps, and at 1.0 the whole
+   cabin went brown, so it is 0.12).
+
+**Numbers** (opengl3, 1280 x 720, the camera alone): luminance p1/p5/p50/p95/p99 before 0/1/8/114/189,
+after 0/1/9/95/184 (the halos' share of the highlights gone); frame 6.93 M triangles, 3,351 draws (the
+glass adds two texture taps on one car's panes; nothing else). Forward+ (lavapipe, car_shot.gd
+`CABIN=1 WET=1,1 OCCUPANT=player --night`): compiles and draws, night screens dark there too.
+
+**Not verified / open.** The beads on Forward+ only against car_shot's empty night (no street to
+refract); a Mac look at the real street is owed. The hero is hidden in a car, so the "behind his
+head" view has no head: posing him in the seat (HeroRide-style) is the next step for this camera.
+The wheel spokes of the tan scheme read as flat blocks. Signals are small: from a driver's seat the
+roof cuts the mast-arm heads, as in a real car.
+
