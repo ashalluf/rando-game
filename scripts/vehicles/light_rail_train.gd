@@ -247,6 +247,7 @@ static func glass_material() -> ShaderMaterial:
 	if _glass_mat == null:
 		_glass_mat = ShaderMaterial.new()
 		_glass_mat.shader = load("res://shaders/lrv_glass.gdshader")
+		_glass_mat.set_shader_parameter("look5", 1.0 if RcRailCrossing.enabled else 0.0)
 	return _glass_mat
 
 

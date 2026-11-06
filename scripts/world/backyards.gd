@@ -420,6 +420,7 @@ static func block(ch: CityChunk, bp: Dictionary) -> void:
 	if not enabled or ch.capturing:
 		return
 	var district := int(ch.plan.block(ch.ix, ch.iz).district)
+	Rc5Backyard.day_hook(ch)
 	if ch.level == CityChunk.Level.FULL:
 		# A job a lot (time-sliced with YardFill's own dressing), then the chunk's lights mesh.
 		var st := {"lights": BackyardKit.G.new(), "counts": {}}
@@ -435,7 +436,9 @@ static func block(ch: CityChunk, bp: Dictionary) -> void:
 
 static func _yard_top(ch: CityChunk, lp: Dictionary, district: int, at: Vector2, on_water: bool = false) -> float:
 	# The suburbs lay their paving a little over the block's lawn (YardFill.PATH_LIFT); the pool's
-	# water is its ground piece's top.
+	# water is its ground piece's top (Rc5Backyard: the traced pool's quad at the coping's top).
+	if on_water and Rc5Backyard.enabled:
+		return CityChunk.SIDEWALK_TOP + Rc5Backyard.FLOAT_LIFT
 	if district != CityPlan.District.SUBURBS:
 		return CityChunk.SIDEWALK_TOP + YardFill.LIFT
 	if on_water:
@@ -489,7 +492,7 @@ static func _build_lot(ch: CityChunk, lp: Dictionary, district: int, st: Diction
 					_prop(ch, "grill", xf, paint, [[bk, mesh, xf, Color.WHITE, cust], ["by_smoke", BackyardKit.get_mesh("smoke"), xf, Color.WHITE, cust]],
 						Vector3(1.2 if kind == "grill_gas" else 0.6, 1.1, 0.6))
 				"loungers":
-					_prop(ch, "patio", xf, paint, [[bk, mesh, xf, Color.WHITE, Color(paint.r, paint.g, paint.b, float(it.fabric) / 8.0 + 0.01)]], Vector3(2.1, 0.5, 2.0))
+					_prop(ch, "patio", xf, paint, [[bk, mesh, xf, Color.WHITE, Color(paint.r, paint.g, paint.b, float(it.fabric) / 8.0 + 0.01)]] + Rc5Backyard.lounger_umbrella(ch.plan.seed, it, xf), Vector3(2.1, 0.5, 2.0))
 					_sun(ch, lp, xf, it.get("sun", []), st)
 				"trampoline":
 					_prop(ch, "trampoline", xf, paint, [[bk, mesh, xf, Color.WHITE, Color(paint.r, paint.g, paint.b, 0.0)]], Vector3(3.6, 0.92, 3.6))

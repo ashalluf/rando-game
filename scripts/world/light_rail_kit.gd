@@ -67,6 +67,8 @@ var _shapes: Array = []
 ## from the air their shadow edges on the ballast are what makes the track read.)
 var fine := SurfaceTool.new()
 var _fine_any := false
+## RcRailCrossing: the wires as UtilityPoles' camera-facing ribbons ([points, radius, kind]).
+var _ribbons: Array = []
 
 
 func _init(c: CityChunk) -> void:
@@ -402,7 +404,7 @@ func _wires(i: int) -> void:
 	for track: float in [-1.0, 1.0]:
 		var a := _wire_points(sa, track)
 		var b := _wire_points(sb, track)
-		_wire(a[0], b[0], 0.0065)
+		_wire(a[0], b[0], 0.0065, RcRailCrossing.KIND_CONTACT)
 		_wire(a[1], b[1], 0.0055)
 		# A dropper wherever one falls in this segment (every ~9 m of the span).
 		var span := _span(sa)
@@ -440,7 +442,10 @@ func _wire_points(s: float, track: float) -> Array:
 	return [Vector3(p.x, cy, p.y), Vector3(pm.x, my, pm.y)]
 
 
-func _wire(a: Vector3, b: Vector3, r: float) -> void:
+func _wire(a: Vector3, b: Vector3, r: float, kind: int = RcRailCrossing.KIND_STEEL) -> void:
+	if RcRailCrossing.enabled:
+		_ribbons.append([PackedVector3Array([a, b]), r, kind])
+		return
 	prism(fine, a, b, r, r, 3, _col(WIRE, S_STEEL), false)
 	_fine_any = true
 
@@ -888,6 +893,11 @@ func _crossing(c: Dictionary) -> void:
 				var axis_v := (r3 * cos(PI * 0.25) + Vector3.UP * sin(PI * 0.25) * sgn).normalized()
 				var up_v := (Vector3.UP * cos(PI * 0.25) - r3 * sin(PI * 0.25) * sgn).normalized()
 				box(body, face, axis_v * 0.61, up_v * 0.11, h3 * 0.01, _col(Color(0.94, 0.94, 0.92), S_PAINTED))
+				if RcRailCrossing.enabled:
+					# The legend in black on each board (sgn +1 rises to the right as seen).
+					var lift := 0.004 if sgn > 0.0 else 0.0
+					var lxf := Transform3D(Basis(axis_v, up_v, -h3), face - h3 * (0.016 + lift))
+					letters(RcRailCrossing.crossbuck_words(sgn), 0.13, Vector2.ZERO, lxf, kind_color(Color(0.04, 0.04, 0.04), P_SIGN), Rect2(-0.61, -0.11, 1.22, 0.22), Vector2(-h3.x, -h3.z), 1.05)
 			# Flasher heads: a crossarm with two hooded lamps facing the traffic (the lamps are the
 			# gate node's).
 			box(body, base - h3 * 0.05 + Vector3.UP * 2.85, r3 * 0.62, Vector3.UP * 0.04, h3 * 0.04, _col(DARK, S_PAINTED))
@@ -930,6 +940,13 @@ func _commit() -> void:
 		var fm := _add("RailDetail", fine.commit(), structure_material())
 		fm.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		fm.add_to_group("light_rail_static")
+	if not _ribbons.is_empty():
+		var rm := UtilityPoles.ribbon_mesh(_ribbons)
+		if rm:
+			var wm := _add("RailWires", rm, UtilityPoles.wire_material())
+			wm.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+			wm.gi_mode = GeometryInstance3D.GI_MODE_DISABLED
+			wm.add_to_group("light_rail_static")
 	if _paint_any:
 		var pm := _add("RailSigns", paint.commit(), paint_material())
 		pm.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
