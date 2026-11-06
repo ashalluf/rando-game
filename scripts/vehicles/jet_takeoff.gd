@@ -18,6 +18,14 @@ extends RefCounted
 ##   a shaft of lit haze reaching down the runway ahead. One additive cone a lamp
 ##   (shaders/jet_beam.gdshader), shown only while the landing lights are on and only after dark
 ##   (lamp_factor), fog-free, gone past `BEAM_RANGE`. Desktop and web alike (no screen read).
+## - The wingtip nav lights and strobes were hung at a fixed 36 m span; the airliner model's is
+##   32 m, so from beside the runway they floated two metres off each tip (and 1.7 m under it, 2.5 m
+##   aft of it: the tip rises with the dihedral). fitted_span() takes the model's own span
+##   (AmbientJet._build_model(), before the lights are built) and `AIRLINER_TIP` its tip's height
+##   and station, measured off jet_airliner.glb's vertices.
+## - A jet that started out rolling (a staged take-off) never had its landing lights or strobes
+##   switched on (only LINEUP did), and AirportNight.landing_pool() threw on the unset parameter
+##   every tick: the roll turns them on.
 ## - Stills: refcams' "air_flash" holds the staged jet's strobes and beacons at their flash
 ##   (aircraft_lights.gdshader `flash_hold`); in play they flash as before.
 ## Nothing rolls; every number is a constant here.
@@ -26,19 +34,22 @@ static var enabled: bool = OS.get_environment("JET_TAKEOFF") != "0"
 
 ## The infield's tufts a square metre (the lawns' 1.9 thinned: mown, dry airfield grass) and the
 ## largest patch one _add_grass() call takes (its own cap per patch would thin a long strip).
-const TUFT_DENSITY := 0.55
+const TUFT_DENSITY := 1.1
 const TUFT_PATCH := 60.0
 ## An edge light's glow on the ground: radius (m) and strength, white and blue.
-const EDGE_POOL_RADIUS := 7.0
-const EDGE_POOL_STRENGTH := 0.30
-const TAXI_POOL_STRENGTH := 0.22
+const EDGE_POOL_RADIUS := 8.0
+const EDGE_POOL_STRENGTH := 0.55
+const TAXI_POOL_STRENGTH := 0.35
+## The infield tufts' lawn: the straw's tint (sRGB, LawnsCloseup's look) and full dryness, so the
+## blades are the dry airfield grass under them rather than a watered lawn's green.
+const TUFT_TINT := Color(0.86, 0.80, 0.58)
 ## The exhaust shimmer's length and bend at take-off thrust against idle (1 = the old cone).
 const PLUME_GAIN := 2.1
 const BEND_GAIN := 1.8
 ## The landing lights' beams: length (m), how wide they open (radians, half angle) and how bright.
-const BEAM_LENGTH := 70.0
-const BEAM_HALF_ANGLE := 0.13
-const BEAM_STRENGTH := 0.16
+const BEAM_LENGTH := 55.0
+const BEAM_HALF_ANGLE := 0.09
+const BEAM_STRENGTH := 0.07
 const BEAM_RANGE := 900.0
 
 
@@ -47,7 +58,7 @@ const BEAM_RANGE := 900.0
 static func infield(ch: CityChunk, area: Rect2, macro: MacroMap) -> void:
 	if not enabled or ch.level != CityChunk.Level.FULL:
 		return
-	var lawn := Airport.grass_material()
+	var lawn := _tuft_look()
 	for g: Rect2 in Airport.grass_rects(macro):
 		var r := g.intersection(area)
 		if r.size.x < 2.0 or r.size.y < 2.0:
@@ -71,6 +82,19 @@ static func infield(ch: CityChunk, area: Rect2, macro: MacroMap) -> void:
 	ch._batch.set_no_shadow("jt_edge_pool")
 
 
+## The wingspan the lights are hung at: the model's own (`measured`, metres) when it is a sane
+## share of the old figure, else the old one.
+static func fitted_span(old: float, measured: float) -> float:
+	if not enabled or measured < old * 0.6 or measured > old * 1.3:
+		return old
+	return measured
+
+
+## The airliner model's wingtip: height over the wheels as a share of the model's height, and how
+## far aft of the body's origin as a share of its length (5.2 m up, 2.4 m aft on the 38 m jet).
+const AIRLINER_TIP := Vector2(0.38, 0.063)
+
+
 ## The shimmer cone's length factor at engine level `level` (0 idle .. 1 take-off).
 static func plume_scale(level: float) -> float:
 	if not enabled:
@@ -83,6 +107,20 @@ static func bend(base: float, level: float) -> float:
 	if not enabled:
 		return base
 	return base * lerpf(1.0, BEND_GAIN, smoothstep(0.55, 1.0, level))
+
+
+static var _tuft_mat: Material = null
+
+
+## A stand-in lawn material carrying only the look LawnsCloseup reads off a lawn (lawn_look()).
+static func _tuft_look() -> Material:
+	if _tuft_mat == null:
+		_tuft_mat = StandardMaterial3D.new()
+		_tuft_mat.set_meta("lawn_seed_index", 517)
+		_tuft_mat.set_meta("lawn_tint", TUFT_TINT)
+		_tuft_mat.set_meta("lawn_dryness", 1.0)
+		_tuft_mat.set_meta("lawn_striped", false)
+	return _tuft_mat
 
 
 static var _beam_mesh: CylinderMesh = null

@@ -136,7 +136,10 @@ static func pool_mesh() -> QuadMesh:
 static func landing_pool(jet: Node3D, above: float, fwd: Vector3) -> void:
 	var pool := jet.get_node_or_null("LandingPool") as MeshInstance3D
 	var mat: ShaderMaterial = jet.get("_light_mat")
-	var on := mat != null and float(mat.get_shader_parameter("landing_on")) > 0.5 and above < LANDING_POOL_UNDER and above > -5.0
+	# A parameter never set reads null (the shader's default, lights on): float(null) threw on
+	# every tick of a jet that started out rolling.
+	var lo = mat.get_shader_parameter("landing_on") if mat else null
+	var on := mat != null and (lo == null or float(lo) > 0.5) and above < LANDING_POOL_UNDER and above > -5.0
 	if not on:
 		if pool:
 			pool.visible = false

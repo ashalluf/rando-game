@@ -1980,6 +1980,14 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   light keeps `landing_side` of its glare off axis; a patrol helicopter's shaft is `PATROL_BEAM` of a
   pursuit's. A refcam row's staged aircraft prints `REFCAM <name> air at x,y,z`. `AIRPORT_NIGHT=0`
   is the A/B; `jet_shot.gd NIGHT=1 [AN=0]` both renderers; checks `tests/rc3_airport_night_checks.gd`.
+- The take-off at night (wave 8, refcam `jet_takeoff` in `tools/refcams/cameras_w8.json`, staged by
+  its `air` / `air_frames` / `air_flash` keys; docs/HANDOFF.md "The take-off from the infield"):
+  `JetTakeoff` (`scripts/vehicles/jet_takeoff.gd`): the infield grass gets tufts and each edge light's
+  glow (`infield()`, one hook in `Airport.build_chunk()`; `_add_grass()` takes a `base_y`), the
+  landing lights throw beams (`shaders/jet_beam.gdshader`), the take-off shimmer is longer and
+  coarse (jet_exhaust `look`), wingtip lights hang at the model's span (`fitted_span()`), a rolling
+  jet has its landing lights and strobes on. `JET_TAKEOFF=0` is the A/B; checks
+  `tests/rc5_jet_takeoff_checks.gd`.
 - The terminal's departures kerb (wave 7, refcam `terminal_curb` in `tools/refcams/cameras_w7.json`,
   docs/HANDOFF.md "The terminal's departures kerb"): `TerminalCurb` (`scripts/world/terminal_curb.gd`,
   one hook at the end of `Landmarks._build_dropoff()`, near copy only) lays a kerb stone with a white

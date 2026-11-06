@@ -227,6 +227,15 @@ func _run() -> void:
 			print("REFCAM %s air at %.1f,%.1f,%.1f" % [cam.name, at.x, at.y, at.z])
 			if _air_staged.get("pitch") != null:
 				print("REFCAM %s air pitch %.1f deg, speed %.1f" % [cam.name, rad_to_deg(float(_air_staged.get("pitch"))), float(_air_staged.get("speed"))])
+			var lights := _air_staged.get_node_or_null("Lights") as MeshInstance3D
+			if lights and _eye_cam:
+				var arr := lights.mesh.surface_get_arrays(0)
+				var vs: PackedVector3Array = arr[Mesh.ARRAY_VERTEX]
+				var pts := []
+				for k in range(0, vs.size(), 6):
+					var wp := lights.global_transform * vs[k]
+					pts.append("%s%s" % [str(_eye_cam.unproject_position(wp).round()), "" if not _eye_cam.is_position_behind(wp) else "B"])
+				print("REFCAM %s air lights visible %s at %s" % [cam.name, lights.is_visible_in_tree(), " ".join(pts)])
 		_air_staged = null
 	print("REFCAMS done, %d shots in %d ms" % [shots.size(), Time.get_ticks_msec() - started])
 	quit()

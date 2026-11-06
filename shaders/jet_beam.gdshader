@@ -19,7 +19,10 @@ void fragment() {
 	float fade = pow(1.0 - along, 2.2) * smoothstep(0.0, 0.04, along);
 	// Edge-on the cone wall is a thin line: weight by how face-on the wall is.
 	float face = pow(abs(dot(normalize(NORMAL), normalize(VIEW))), 1.6);
-	float a = fade * face * strength * smoothstep(0.3, 0.8, lamp_factor);
+	// Seen from close in front (the beam reaching the lens) it would fill the frame: the haze is
+	// only drawn some way off, where it reads as a shaft.
+	float depth = length(VERTEX);
+	float a = fade * face * strength * smoothstep(0.3, 0.8, lamp_factor) * smoothstep(25.0, 60.0, depth);
 	if (a < 0.002) {
 		discard;
 	}

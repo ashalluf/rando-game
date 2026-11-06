@@ -221,6 +221,10 @@ func _build_model() -> void:
 		inst.position = -(inst.transform.basis * Vector3(centre.x, aabb.position.y, centre.z))
 		_visual.add_child(inst)
 		_model_height = aabb.size.y * s
+		if JetTakeoff.enabled:
+			# The span the model really has (the airliner's is 32 m, not the 36 the nav lights and
+			# strobes were hung at: they floated two metres off each wingtip).
+			wingspan = JetTakeoff.fitted_span(wingspan, (aabb.size.z if along_x else aabb.size.x) * s)
 		if kind == Aircraft.Kind.AIRLINER:
 			# An invented airline's livery, painted from the model's own shape (the model's
 			# texture reads as camouflage): AirportTerminal.livery_material().
@@ -247,12 +251,17 @@ func _build_jet_lights() -> void:
 	var white := Color(1.0, 0.98, 0.92, 1.0)
 	var land := Color(1.0, 0.95, 0.82, 1.0)
 	var fwd := Vector3(0.0, -0.06, -1.0).normalized()
+	var tip_y := h * 0.26
+	if kind == Aircraft.Kind.AIRLINER and JetTakeoff.enabled:
+		# On the airliner model's real wingtips (JetTakeoff.AIRLINER_TIP): higher and further forward.
+		tip_y = h * JetTakeoff.AIRLINER_TIP.x
+		tip_z = length * JetTakeoff.AIRLINER_TIP.y
 	_build_lights([
-		[Vector3(-tip, h * 0.26, tip_z), red, 0.9 * sc, LightKind.STEADY, Vector3.ZERO],
-		[Vector3(tip, h * 0.26, tip_z), green, 0.9 * sc, LightKind.STEADY, Vector3.ZERO],
+		[Vector3(-tip, tip_y, tip_z), red, 0.9 * sc, LightKind.STEADY, Vector3.ZERO],
+		[Vector3(tip, tip_y, tip_z), green, 0.9 * sc, LightKind.STEADY, Vector3.ZERO],
 		[Vector3(0.0, h * 0.36, length * 0.5), white, 0.8 * sc, LightKind.STEADY, Vector3.ZERO],
-		[Vector3(-tip, h * 0.26, tip_z + 0.4), white, 1.6 * sc, LightKind.STROBE, Vector3.ZERO],
-		[Vector3(tip, h * 0.26, tip_z + 0.4), white, 1.6 * sc, LightKind.STROBE, Vector3.ZERO],
+		[Vector3(-tip, tip_y, tip_z + 0.4), white, 1.6 * sc, LightKind.STROBE, Vector3.ZERO],
+		[Vector3(tip, tip_y, tip_z + 0.4), white, 1.6 * sc, LightKind.STROBE, Vector3.ZERO],
 		[Vector3(0.0, h * 0.40, length * 0.5), white, 1.3 * sc, LightKind.STROBE, Vector3.ZERO],
 		[Vector3(0.0, h * 0.47, -length * 0.05), red, 1.1 * sc, LightKind.BEACON, Vector3.ZERO],
 		[Vector3(0.0, h * 0.06, length * 0.02), red, 1.1 * sc, LightKind.BEACON, Vector3.ZERO],
@@ -414,6 +423,11 @@ func _fly_departure(dt: float) -> void:
 				if _hold_left <= 0.0:
 					phase = Phase.ROLL
 		Phase.ROLL:
+			if JetTakeoff.enabled:
+				# Landing lights and strobes on for the whole roll (LINEUP turns them on, but a jet
+				# that starts out rolling - a staged one - had neither, and no landing pool).
+				set_landing_lights(true)
+				set_ground_lights(true, true)
 			speed += roll_accel * dt
 			var spool := clampf(speed / liftoff_speed, 0.0, 1.0)
 			set_engine(lerpf(-2.0, 4.0, spool), lerpf(0.85, 1.1, spool))
@@ -627,7 +641,8 @@ func _build_shimmer() -> void:
 
 func _update_shimmer() -> void:
 	if not _beams.is_empty():
-		var lit := _light_mat != null and float(_light_mat.get_shader_parameter("landing_on")) > 0.5
+		var lo = _light_mat.get_shader_parameter("landing_on") if _light_mat else null
+		var lit := _light_mat != null and (lo == null or float(lo) > 0.5)
 		JetTakeoff.show_beams(_beams, lit and life == Life.FLYING and fade < 0.5 and DayNight.lamp_now > 0.3)
 	if _shimmer_mat == null:
 		return
@@ -639,6 +654,7 @@ func _update_shimmer() -> void:
 		if JetTakeoff.enabled:
 			# The take-off blast shimmers far back over the runway (JetTakeoff).
 			_shimmer_mat.set_shader_parameter("bend", JetTakeoff.bend(0.0055, engine_level))
+			_shimmer_mat.set_shader_parameter("look", 1.0)
 			var grow := JetTakeoff.plume_scale(engine_level)
 			var spots := engine_spots()
 			var length_m := 26.0 * (length / 38.0) * grow
