@@ -32450,6 +32450,14 @@ shard; the one failure, `pedestrian_flow_checks`' "two walkers on one line step 
 (CrowdFlow's camera 48 m off the staged pair in that shard), passes alone (`SMOKE_PARTS=
 pedestrian_flow_checks`: 32 of 32) - a shard-order flake in an area this branch does not touch.
 
+**Wrap-up state (2026-11-06, the account move).** Pushed head `337a047a` (the name board centred on
+the cradle's board, after the gated `a46cfc7e`): that last commit is NOT full-gated - only the two
+gondola check files ran on it (`tower_gondolas_checks` + `rc5_tower_gondola_checks`, 41 of 41).
+DONE: the camera row, the four fixes, the checks, docs, stills 01-13 on `shots/rc5-tower-gondola`.
+OPEN: a full `SHARDS=3` gate on the head after merging main; the items under "Not done" below.
+To continue: check out `wt/rc5-tower-gondola`, merge origin/main, run the gate, then
+`REFCAMS_JSON=tools/refcams/cameras_w8.json python3 tools/refcams/refcams.py run <dir> --only tower_gondola`.
+
 **Tools.** `tools/rc5_tower_gondola/roof_probe.gd -- --at=x,z --radius=m` (headless: every far-box
 building part round a point, roof height first), `pose_probe.gd` (`TOWER=`, `SITE=`, `T0/T1/DT`,
 `Y0/Y1`: the cradle over the clock), `tools/gondolas/gondola_shot.gd TOWER=dt_park_c T=3480
