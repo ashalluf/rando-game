@@ -37,6 +37,10 @@ const TERRACOTTA := [Color(0.84, 0.80, 0.70), Color(0.80, 0.74, 0.62), Color(0.8
 	Color(0.70, 0.69, 0.66), Color(0.82, 0.70, 0.60), Color(0.78, 0.76, 0.70)]
 const PRESSED_BRICK := [Color(0.62, 0.36, 0.26), Color(0.70, 0.52, 0.38), Color(0.56, 0.32, 0.24),
 	Color(0.74, 0.60, 0.46)]
+## rc5-historic-core: the same four bricks as an old fired face reads in the 16:00 sun - darker,
+## browner, less saturated (PRESSED_BRICK at full sun read as orange plastic).
+const PRESSED_BRICK_2 := [Color(0.50, 0.31, 0.25), Color(0.58, 0.45, 0.35), Color(0.45, 0.28, 0.23),
+	Color(0.62, 0.51, 0.41)]
 ## Share of the brick fronts (their ornament is in TERRACOTTA, as the real ones are).
 const BRICK_SHARE := 0.3
 ## Invented names for the lettering over the entrance and on the frieze. Never a real building,
@@ -48,6 +52,16 @@ const NAMES := ["HALCOMBE BUILDING", "THE VARDEN", "ORCHARD NATIONAL BANK", "BEL
 	"DRAYTON BUILDING", "ARROYO NATIONAL BANK", "THE MARLOWE", "PIONEER MUTUAL TRUST"]
 
 static var enabled: bool = OS.get_environment("HISTORIC_CORE") != "0"
+## rc5-historic-core (the `historic_core` refcam, docs/HANDOFF.md "Spring St at 16:00"): the
+## walls in the ornament's own stone (the plaster set, light weathering) instead of a rolled
+## stucco that read tan and blotchy under ivory cornices, the brick darker and browner, the street
+## wall closed (a front fills its lot's grid CELL along the avenue where its neighbours are fronts
+## too, so no 3 m slots between banks), and fewer window units. RC5_HISTORIC=0 is the A/B.
+static var look2: bool = OS.get_environment("RC5_HISTORIC") != "0"
+## The share of punched windows that keep a kit air conditioner (Building.kit_ac_chance, 0.07).
+const AC_CHANCE_2 := 0.02
+## A cap on the rolled weathering of the fronts' walls (Building.weathering_range 0.2-0.9).
+const WEATHERING_2 := 0.35
 ## How many historic Buildings have been dressed (probes and checks).
 static var dressed_count: int = 0
 ## The longest ornament build step so far (microseconds; probes and checks) and which it was.
@@ -162,6 +176,27 @@ static func name_for(plan: CityPlan, av: String, lot: Dictionary) -> String:
 	return NAMES[(start + k) % NAMES.size()]
 
 
+## Whether a front may fill its grid cell along the avenue (z): every lot whose cell touches its
+## cell's north or south edge in the same column is itself a front of this avenue (not a car
+## park, a yard or another kind of lot), so the two side walls meet; a cell edge on the block's
+## pavement ring has no neighbour and is free.
+static func closes_wall(plan: CityPlan, bx: int, bz: int, lot: Dictionary) -> bool:
+	var av := lot_avenue(plan, bx, bz, lot)
+	if av == "":
+		return false
+	var cell: Rect2 = lot.get("cell", Rect2())
+	for o: Dictionary in plan.lots(bx, bz):
+		if o == lot:
+			continue
+		var oc: Rect2 = o.get("cell", Rect2())
+		if absf(oc.get_center().x - cell.get_center().x) > 0.5:
+			continue
+		var touches := absf(oc.end.y - cell.position.y) < 0.5 or absf(oc.position.y - cell.end.y) < 0.5
+		if touches and lot_avenue(plan, bx, bz, o) != av:
+			return false
+	return true
+
+
 ## CityChunk._build_lot(): a lot fronting Spring St or Main St in the stretch becomes a beaux-arts
 ## block. Set before the building generates (both levels, so the far copy agrees). A lot that
 ## runs through to Broadway keeps Broadway's shop names (its name_pool) and height limit.
@@ -175,7 +210,14 @@ static func dress(ch: CityChunk, lot: Dictionary, building: Building) -> void:
 	building.force_shape = Building.Shape.SLAB
 	building.fill_lot = true
 	building.finish_options.assign([Building.Finish.BRICK] if spec.brick else [Building.Finish.FLAT])
-	building.palette_override = PRESSED_BRICK if spec.brick else [spec.tint]
+	building.palette_override = (PRESSED_BRICK_2 if look2 else PRESSED_BRICK) if spec.brick else [spec.tint]
+	if look2:
+		building.wall_set_force = ["brick_red", 2.6] if spec.brick else ["plaster_white", 2.5]
+		building.weathering_cap = WEATHERING_2
+		building.kit_ac_chance = AC_CHANCE_2
+		var cell: Rect2 = lot.get("cell", Rect2())
+		if cell.size.y > (lot.size as Vector2).y and closes_wall(ch.plan, ch.ix, ch.iz, lot):
+			building.lot_size = Vector2((lot.size as Vector2).x, cell.size.y)
 	building.max_height = lerpf(hr.x, hr.y, h01([int(lot.seed), "hc height"]))
 	building.min_height = building.max_height
 	building.chamfer_chance = 0.0

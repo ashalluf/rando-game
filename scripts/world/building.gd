@@ -644,9 +644,14 @@ func _pick_style() -> Dictionary:
 		# late addition in this file - a new _rng call shifts every block downstream of it.
 		"pitch": pitch_by_style[window_style] * (0.86 + 0.34 * float(absi(hash([seed, "pitch"])) % 1000) * 0.001),
 		"floor": _rng.randf_range(3.1, 4.0),
-		"wall_set": _pick_wall_set(),
-		"weathering": _rng.randf_range(weathering_range.x, weathering_range.y),
+		"wall_set": _wall_set_after(_pick_wall_set()),
+		"weathering": minf(_rng.randf_range(weathering_range.x, weathering_range.y), weathering_cap),
 	}
+
+
+## The wall texture set rolled (the roll is always made), or wall_set_force where one is set.
+func _wall_set_after(rolled: Array) -> Array:
+	return rolled if wall_set_force.is_empty() else wall_set_force
 
 
 ## A part's window grid and bands, as the near walls draw them (`_build_part`) and the far boxes
@@ -1009,6 +1014,11 @@ var window_style_force: int = -1
 var allow_base_course: bool = true
 var roof_bands: bool = true
 var shop_frame_force: int = -1
+## The wall texture set forced ([set_key, metres per tile]; the roll is still made) and a cap on
+## the rolled weathering (rc5-historic-core: the beaux-arts fronts' walls in the ornament's stone).
+## Inert at their defaults.
+var wall_set_force: Array = []
+var weathering_cap: float = 1e9
 ## Cap height of a shop sign, in metres.
 const SIGN_HEIGHT := 0.40
 ## How far out from the wall the sign sits, and how far a sign still draws.
