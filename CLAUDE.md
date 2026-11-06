@@ -6615,6 +6615,15 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   omnis at night (desktop). People: `FilmCrew` (in black, StreetVendor), actors, `FilmExtra`
   (MarketShopper in holding), in the crowd cap. `FILM_SHOOT=0` is the A/B; probe
   `tools/film_shoot/probe.gd`; checks `tests/film_shoot_checks.gd`.
+- The film shoot at 22:00 (wave 8, refcam `film_shoot_night` in `tools/refcams/cameras_w8.json`,
+  docs/HANDOFF.md "The film shoot at 22:00"): `FilmShootNight` (`scripts/world/film_shoot_night.gd`,
+  one hook at the end of `FilmShootBuild.build()`): a SpotLight3D per HMI aimed at the action
+  (`FilmNightLights` sets their energy from `DayNight.lamp_now`: `lamp_light` casts to OmniLight3D),
+  the balloon's omni widened (`lamp_gain`), ONE additive mesh (`shaders/film_night.gdshader`: blooms,
+  haze shafts, pools in display numbers via fh_display), basecamp work lights, the set's pavement
+  cleared of scooters (`keep_clear_points()` in Micromobility), barricade sheeting `stripe_glow`, the
+  catering canvas `canvas_look`. `FILM_SHOOT_NIGHT=0` is the A/B; checks
+  `tests/rc5_film_shoot_night_checks.gd`.
 - Micromobility (2026-10-05, docs/HANDOFF.md "Micromobility": "the 2026 LA street"):
   `Micromobility` (`scripts/world/micromobility.gd`, static) lays out, from hashes only (seed +
   block / face / road / crossing, never a chunk or block rng; a FULL chunk's step after the

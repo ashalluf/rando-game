@@ -3068,6 +3068,9 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	# The reservoir_dam refcam (tests/rc5_reservoir_dam_checks.gd, Rc5Reservoir): the water's mirror,
 	# the chain-link weave, the overlook, the trail, the camera row.
 	load("res://tests/rc5_reservoir_dam_checks.gd").new().run(self, city)
+	# The film_shoot_night refcam (tests/rc5_film_shoot_night_checks.gd, FilmShootNight): the HMIs'
+	# lights, glow and pools, the balloon, the barricades, the set's pavement, the camera row.
+	load("res://tests/rc5_film_shoot_night_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()
