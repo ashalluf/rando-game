@@ -68,6 +68,8 @@ static func _kind(plan: CityPlan, k: Vector2i) -> Array:
 		var zone := plan.zone_at((block.rect as Rect2).get_center())
 		if zone == MacroMap.Zone.OCEAN:
 			kind = 1
+		elif zone == MacroMap.Zone.BEACH and LongBeachSand.claims_block(plan, block.rect as Rect2):
+			kind = 1 # Long Beach: the sand covers the chunk's road strips (LongBeachSand)
 		elif zone == MacroMap.Zone.BEACH:
 			var own := plan.owned_rect(k.x, k.y)
 			var z := own.get_center().y

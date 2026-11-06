@@ -27,6 +27,12 @@ uniform float lamp_energy = 6.0;
 uniform float falls_glow = 0.9;
 uniform float pad_y = 4.5;
 uniform float boulder_cell = 1.7;
+// rc5-oil-islands-dusk (Rc5OilIslands.dress(); 0 = the look before, bit for bit): the floods as
+// light thrown UP the faces from lamps at the foot - each lamp's cone a scallop that narrows and
+// fades with height, the tower's upper half falling into the dusk, the gel's colour held (at the
+// old energy a near-white screen tonemapped to pastel from foot to crown) - and the falls a
+// lamp-lit sheet rather than a white block.
+uniform float dusk_look = 0.0;
 
 const vec3 WASHES[8] = vec3[8](
 	vec3(1.0, 0.25, 0.62), vec3(0.55, 0.28, 1.0), vec3(0.15, 0.55, 1.0), vec3(0.1, 0.9, 0.62),
@@ -198,7 +204,7 @@ void fragment() {
 		rough = mix(0.08, 0.5, foam);
 		vec3 sky = cs_srgb_to_linear(sky_tint.rgb);
 		emit = sky * 0.12 * (1.0 - foam);
-		emit += vec3(0.55, 0.85, 1.0) * falls_glow * lit * foam;
+		emit += vec3(0.55, 0.85, 1.0) * falls_glow * lit * foam * mix(1.0, 0.4 + 0.25 * fine, dusk_look);
 		nmap = vec3(0.5 + (run - 0.5) * 0.6, 0.5, 1.0);
 	} else if (v_kind == 7) {
 		// Still water in the falls' pools: dark, glassy, the sky by Fresnel; lit from below at night.
@@ -247,7 +253,20 @@ void fragment() {
 			rise = exp(-h / 6.0);
 			pools = pow(max(cos(uv.x * TAU / 24.0), 0.0), 3.0);
 		}
-		emit += alb * gel * wash_energy * lit * rise * pools;
+		if (dusk_look > 0.5 && v_kind != 9) {
+			// Lamps every 7.5 m along the foot: a cone up from each, wide and bright low, a thin
+			// streak by mid-height; the face between two cones in the gel's afterglow only.
+			float cone_w = mix(0.45, 0.12, smoothstep(0.0, 34.0, h));
+			float across = abs(fract(uv.x / 7.5) - 0.5) * 2.0;
+			float cone = 1.0 - smoothstep(cone_w * 0.4, cone_w + max(px / 7.5, 0.02), across);
+			float fall = exp(-h / 13.0);
+			float top_glow = 0.07 * (1.0 - smoothstep(30.0, 60.0, h));
+			// Gel on a near-white face: keep the hue (the face's own tint barely matters to a gel).
+			vec3 face = mix(alb, vec3(dot(alb, vec3(0.333))), 0.6);
+			emit += face * gel * wash_energy * lit * (cone * fall * 0.95 + fall * 0.22 + top_glow);
+		} else {
+			emit += alb * gel * wash_energy * lit * rise * pools;
+		}
 	}
 
 	ALBEDO = cs_out(alb);
