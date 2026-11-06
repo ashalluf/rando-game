@@ -20,6 +20,8 @@ extends Node3D
 ##   * STEAM from the radiator, rising out of the crushed nose for STEAM_SECONDS, thinning out.
 ## `CRASH_AFTERMATH=0` in the environment turns all four off (the A/B).
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 static var enabled: bool = OS.get_environment("CRASH_AFTERMATH") != "0"
 
 ## A pole's width for the wrap (m: a street lamp's shaft and what it crushes round it).

@@ -51,7 +51,8 @@ static var wave4: bool = OS.get_environment("WARM_WAVE4") != "0"
 ## a car's fuel fireball (explosions-4: the burning pool and fuel trail, the flames up the wreck,
 ## the tongues), a boat under way (BoatWake, BoatSea's chine sheets),
 ## the wingsuit's fabric and vapour (look2), a jet's landing-light beams (jet-takeoff), a lit beach
-## bonfire (rc4-bonfire's glow). Measured with tools/shader_warm/first_use_probe EVENTS=wave8.
+## bonfire (rc4-bonfire's glow), a crash's oil and coolant pool (rc5-crash-closeup). Measured
+## with tools/shader_warm/first_use_probe EVENTS=wave8.
 ## `WARM_WAVE8=0` leaves them out (the A/B).
 static var wave8: bool = OS.get_environment("WARM_WAVE8") != "0"
 ## For the first-use probe (tools/shader_warm/), which cannot fit the whole rehearsal's pipelines in
@@ -558,6 +559,23 @@ static func _stage_wave8_effects(holder: Node3D, ground: Vector3, fwd: Vector3, 
 		(n as Node3D).visible = true
 	var beam_at := ground + fwd * 20.0 + Vector3.UP * 6.0
 	JetTakeoff.show_beams(JetTakeoff.build_beams(holder, [[beam_at, fwd], [beam_at + right * 3.0, fwd]]), true)
+	# A crash's fluids (CrashAftermath: rc5-crash-closeup, a PlaneMesh on crash_fluids.gdshader).
+	# CrashAftermath itself skips the rehearsal's cars (its pools are kept for the session), so a
+	# plain stand-in with its mesh and shader; its steam is the smoke material, rehearsed already.
+	if CrashAftermath.enabled:
+		var fluid := ShaderMaterial.new()
+		fluid.shader = CrashAftermath.SHADER
+		fluid.render_priority = -2
+		fluid.set_shader_parameter("size", CrashAftermath.POOL_SIZE)
+		fluid.set_shader_parameter("spread", 0.6)
+		var plane := PlaneMesh.new()
+		plane.size = Vector2(CrashAftermath.POOL_SIZE, CrashAftermath.POOL_SIZE)
+		var pool := MeshInstance3D.new()
+		pool.mesh = plane
+		pool.material_override = fluid
+		pool.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		holder.add_child(pool)
+		pool.global_position = ground + fwd * 7.0 + right * 3.0 + Vector3.UP * 0.012
 	# The wingsuit's fabric: VERTEX, NORMAL, TANGENT, UV, UV2 and an index, as WingsuitFx._rebuild().
 	var arrays := []
 	arrays.resize(Mesh.ARRAY_MAX)
