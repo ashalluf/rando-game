@@ -301,6 +301,7 @@ static func build_chunk(ch: CityChunk) -> void:
 	AirportApron.stains(ch, area, macro.tarmac_top)
 	_commit_texts(ch)
 	_fixtures(ch, area, macro)
+	JetTakeoff.infield(ch, area, macro)
 	_gate_service(ch, area, seed_value)
 	HeliPads.airport_chunk(ch, area, macro)
 
@@ -904,6 +905,17 @@ static func _crew(ch: CityChunk, area: Rect2, seed_value: int) -> void:
 
 
 # --- The field's lights -------------------------------------------------------------------------
+
+## The elevated edge lights' feet: [position (world), true for a runway's white or yellow edge,
+## false for a taxiway's blue] (JetTakeoff lays their glow on the ground).
+static func edge_light_spots(macro: MacroMap) -> Array:
+	var out: Array = []
+	for spec: Array in _field_light_specs(macro):
+		var fixture := int(spec[5])
+		if (fixture == 1 and (spec[4] as Vector3) == Vector3.ZERO) or fixture == 2:
+			out.append([spec[0], fixture == 1])
+	return out
+
 
 ## Every field light: [position (world), colour, size m, kind, facing (Vector3.ZERO all round),
 ## fixture (0 none, 1 elevated runway edge, 2 elevated taxiway edge, 3 inset), phase 0..1].

@@ -167,6 +167,10 @@ func setup_numbers(k: Aircraft.Kind) -> void:
 		sound_range = 2600.0
 
 
+## The landing lights' beams through the night air (JetTakeoff.build_beams()).
+var _beams: Array[MeshInstance3D] = []
+
+
 func _ready() -> void:
 	super()
 	_build_model()
@@ -255,6 +259,12 @@ func _build_jet_lights() -> void:
 		[Vector3(-length * 0.075, h * 0.20, -length * 0.03), land, 2.6 * sc, LightKind.LANDING, fwd],
 		[Vector3(length * 0.075, h * 0.20, -length * 0.03), land, 2.6 * sc, LightKind.LANDING, fwd],
 		[Vector3(0.0, h * 0.08, -length * 0.40), land, 1.6 * sc, LightKind.LANDING, fwd],
+	])
+	# Their beams through the night air (JetTakeoff): the two wing-root lamps and the nose's.
+	_beams = JetTakeoff.build_beams(self, [
+		[Vector3(-length * 0.075, h * 0.20, -length * 0.03), fwd],
+		[Vector3(length * 0.075, h * 0.20, -length * 0.03), fwd],
+		[Vector3(0.0, h * 0.08, -length * 0.40), fwd],
 	])
 
 
@@ -616,6 +626,9 @@ func _build_shimmer() -> void:
 
 
 func _update_shimmer() -> void:
+	if not _beams.is_empty():
+		var lit := _light_mat != null and float(_light_mat.get_shader_parameter("landing_on")) > 0.5
+		JetTakeoff.show_beams(_beams, lit and life == Life.FLYING and fade < 0.5 and DayNight.lamp_now > 0.3)
 	if _shimmer_mat == null:
 		return
 	var on := engine_level > 0.02 and life == Life.FLYING
@@ -623,6 +636,15 @@ func _update_shimmer() -> void:
 		m.visible = on
 	if on:
 		_shimmer_mat.set_shader_parameter("strength", clampf(engine_level, 0.0, 1.0))
+		if JetTakeoff.enabled:
+			# The take-off blast shimmers far back over the runway (JetTakeoff).
+			_shimmer_mat.set_shader_parameter("bend", JetTakeoff.bend(0.0055, engine_level))
+			var grow := JetTakeoff.plume_scale(engine_level)
+			var spots := engine_spots()
+			var length_m := 26.0 * (length / 38.0) * grow
+			var radius := 2.2 * (length / 38.0) * lerpf(1.0, 1.35, grow - 1.0)
+			for i in mini(_shimmers.size(), spots.size()):
+				_shimmers[i].transform = Transform3D(Basis(Vector3.RIGHT, -PI * 0.5).scaled_local(Vector3(radius, length_m, radius)), spots[i] + Vector3(0.0, 0.0, length_m * 0.5))
 
 
 ## Gone for good (off the end of its route or far past the far plane): no fade needed.
