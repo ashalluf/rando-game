@@ -36,7 +36,7 @@ const PALM_STEP := 17.0
 const PALM_ODDS := 0.62
 ## The palms stand on the dry sand between these shares of the way from the waterline to the lip
 ## (Long Beach's stand in twos and threes out on the sand, along the beach path).
-const PALM_ACROSS := Vector2(0.3, 0.68)
+const PALM_ACROSS := Vector2(0.55, 0.85)
 ## A lifeguard tower in TOWER_ODDS of every TOWER_CELL m of shore.
 const TOWER_CELL := 240.0
 const TOWER_ODDS := 0.7
