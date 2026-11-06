@@ -4737,3 +4737,12 @@ none of either.
   lit structures standing in water mirror their light in it (the islands' towers as columns in the
   bay); a flood is light thrown up a face from its foot, not a face painted the gel's colour.
   LONG_BEACH_SAND=0 / RC5_OIL_ISLANDS=0 are the A/B.
+- **2026-11-06 The film_shoot_night refcam: a set's lamps light the night (rc5-film-shoot-night,
+  HANDOFF "The film shoot at 22:00").** A new reference camera (`film_shoot_night`, wave 8's table)
+  behind the north barricades of the Crest Ave shoot, a 26 degree lens down the closed street. A lamp
+  that is part of a scene must LIGHT it, not only glow: the HMIs were bright lenses lighting nothing,
+  so each now carries a SpotLight3D aimed at the action (driven off DayNight.lamp_now by its own
+  node: `lamp_light` is OmniLight3D-only), a bloom, a faint haze shaft and the pool it throws, the
+  balloon's light is a balloon's (wide, several street lamps), the basecamp has work lights; the
+  location crew clears the set's pavement of scooters; retroreflective sheeting is not a lightbox.
+  FILM_SHOOT_NIGHT=0 is the A/B.
