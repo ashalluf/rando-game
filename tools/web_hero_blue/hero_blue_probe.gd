@@ -154,12 +154,26 @@ func _run() -> void:
 						if e2: e2.fog_enabled = false
 					"env:glow":
 						if e2: e2.glow_enabled = false
+					"env:aerial":
+						if e2: e2.fog_aerial_perspective = 0.0
+					"env:skyrt":
+						if e2 and e2.sky: e2.sky.process_mode = Sky.PROCESS_MODE_REALTIME
 					"env:skyq":
 						if e2 and e2.sky: e2.sky.process_mode = Sky.PROCESS_MODE_QUALITY
 					_:
 						if h.begins_with("glob:") and h.contains("="):
 							var kv := h.substr(5).split("=")
 							RenderingServer.global_shader_parameter_set(kv[0], kv[1].to_float())
+			elif h.begins_with("gtex:"):
+				# gtex:<sampler>=<red|blue> puts a solid 4x4 texture on the horizon material's sampler:
+				# which texture a lime far range is really reading.
+				var gm2: ShaderMaterial = get_tree().current_scene.get("_ground_material")
+				var kv3 := h.substr(5).split("=")
+				var img := Image.create(4, 4, false, Image.FORMAT_RGBA8)
+				img.fill(Color(1, 0, 0, 1) if kv3[1] == "red" else Color(0, 0, 1, 1))
+				if gm2:
+					gm2.set_shader_parameter(kv3[0], ImageTexture.create_from_image(img))
+					print("AUTOPROBE_GTEX %s %s" % [kv3[0], kv3[1]])
 			elif h.begins_with("gmat:"):
 				# gmat:<uniform>=<float> on the horizon plane's material (and so the far ring).
 				var gm: ShaderMaterial = get_tree().current_scene.get("_ground_material")
