@@ -8,7 +8,7 @@ rc4-river-night	session_01Q7NKyzu5Zv3Yd6xzj3jpYb	merged b52
 rc4-hospital-er	session_01Q7NKyxvEDfMjnvJeHov7Af	merged b53 (main 10568972)
 rc4-freight-yard	session_01Q7NKyx2xWp98FXaaYF7BT3	merged b56 (main 8ea55b92)
 gate-flakes-2	session_01Q7NKyyvsSfmPGjH8PZUS8x	merged b57 (main 9edd6b1e)
-web-hero-blue	session_01Q7NKz1HQkk7j1gPt7ygTKR	done: fixed by batch 53-56 (tools+docs branch to merge)
+web-hero-blue	session_01Q7NKz1HQkk7j1gPt7ygTKR	merged b61 (main 10b0163e)
 rc5-storm-downtown	session_01Q7NKyzcg6HcVYxgewAQGs1	merged b57 (main 9edd6b1e)
 rc5-brush-fire	session_01Q7NKz214Wzhg5oyMr3bbTJ	merged b56 (main 8ea55b92)
 rc5-gas-station-night	session_01Q7NKywJFypfELjVCZuqy4N	merged b57 (main 9edd6b1e)
@@ -26,7 +26,7 @@ perf-audit-6	session_01Q7NKyyXCQqtHZiAHAQTnSh	running
 mac-launch	session_01Q7NKyxZ7EPKy99JtXU4HBF	merged b53a (main 50f463a4)
 rc5-taco-truck-night	session_01Q7NKyyAN33y6S1rG2uPcoW	merged b60 (main b612a9f7)
 rc5-fireworks-ballpark	session_01Q7NKywJ9nHxFPLCcdA9ktq	merged b60 (main b612a9f7)
-rc5-jet-takeoff	session_01Q7NKz1gaXQZWsfrFq2NABH	running
+rc5-jet-takeoff	session_01Q7NKz1gaXQZWsfrFq2NABH	merged b61 (main 10b0163e)
 rc5-cemetery-dawn	session_01Q7NKyznk5kH4DZ63mf7iix	merged b59 (main 17f578ef)
 rc5-friday-lights	session_01Q7NKywidgdjCuS1spMq3KC	running
 rc5-rush-hour	session_01Q7NKyzQ1bLnQfRcQBEeh85	running
@@ -40,6 +40,6 @@ rc5-auto-row	session_01Q7NKyzaUswHip78zAkNP3b	running
 rc5-lighthouse-night	session_01Q7NKywQFQELH7BtrajhXx7	running
 rc5-googie-motel	session_01Q7NKyzpA9ynBfzLSTXW6xk	running
 rc5-rail-crossing	session_01Q7NKyzS8Lh5LnsqPvCjosD	running
-rc5-port-gate	session_01Q7NKyxvmy4Dcs528jQPRh1	running
+rc5-port-gate	session_01Q7NKyxvmy4Dcs528jQPRh1	merged b61 (main 10b0163e)
 rc5-power-plant-dusk	session_01Q7NKyz7RxAnzS6bKZ7aSiW	running
 web-review-5	session_01Q7NKyzUJKPKBTmt67DuXJo	running
