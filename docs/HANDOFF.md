@@ -32444,6 +32444,21 @@ the bus stops round a point (line, destination, district).
 
 `RC5_BUS_STOP=0` puts all four back (RainDusk.enabled). Checks: `tests/rc5_bus_stop_rain_checks.gd`.
 
+**For whoever tunes the shared grade next (cinematic-review-w8).** RainDusk lives entirely on
+top of DayNight's own numbers, in one file: the weight (`OVERCAST_RAMP` 2.0 x max(dusk, golden) x
+(1 - moonlight)), the targets (`SLATE` the hue the sky / fog keep their luma under, `CLOUD` the deck),
+how far (`SKY_PULL`, `FOG_PULL` 1.0), the GOLDEN grade kept (`GOLDEN_KEEP` 0.15) and the mirror
+hand-over (`MIRROR_GAIN` 0.9). It never touches HourGrade's LOOKS, Weather, or anything outside a
+rainy (or overcast: darken 0.25 is half a deck) dusk. The reason is one fact: the clear dusk's
+colours were not gated by the weather, and the ambient is the sky. If the shared grade moves, tune
+these against `tools/rc5_bus_stop/dusk_probe.gd`, not against a hand-graded still.
+
+**People in the frame.** Of the staged queue of four (seed 730411...), RainCrowd's own rolls give two
+umbrellas and two nothing; those two now stand under the roof. The other walkers in shot are the
+load's crowd, settled by RainCrowd as they come within life range (Weather sets RainCrowd.level every
+frame from the load on, so the level is up before they spawn); one man at the left edge has no gear
+(his roll), standing in the open. Not forced: the umbrella share (56 %) is RainCrowd's.
+
 **Numbers** (opengl3, the refcam, same load): before (RC5_BUS_STOP=0) p5/p50/p95 26/73/145, sat
 0.47, CCT 3,289 K, 5.18 M tris, 3,727 draws; after 24/72/144, sat 0.25, CCT 4,554 K, 5.21 M tris,
 3,743 draws (the queue's two umbrellas and the streak's own noise; nothing new drawn).
