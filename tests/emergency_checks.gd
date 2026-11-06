@@ -344,8 +344,15 @@ func _down_call(player: Player) -> void:
 		# And a kerb a pushed cot can climb: the stretcher medic stood 0.6 m under the body's
 		# pavement for 45 s, pushing (shuffled gate 803 on wt/gate-flakes-3; where the street runs
 		# across a slope the pavement stands higher than the road).
-		var lane := _road_point(40.0 + 5.0 * k, _plan.road_width(CityPlan.AXIS_X, 0) * 0.5 - 2.0)
-		var step := absf(_ground_y(space, cand) - _ground_y(space, lane))
+		# The cot comes out of the ambulance's back, a few metres on along the kerb lane, and
+		# crosses to the body: all of that must be level with the body's pavement too (the merged
+		# gate's medic stood 0.6 m down at the ambulance's back, the body's kerb fine).
+		var ref := _ground_y(space, cand)
+		var step := 0.0
+		for dz in [0.0, 2.0, 4.0, 6.0]:
+			for lat in [-2.0, -4.0, -0.5]:
+				var lane := _road_point(40.0 + 5.0 * k + dz, _plan.road_width(CityPlan.AXIS_X, 0) * 0.5 + lat)
+				step = maxf(step, absf(_ground_y(space, lane) - ref))
 		if space.intersect_shape(q, 1).is_empty() and step < 0.3:
 			at = cand
 			break
@@ -398,7 +405,9 @@ func _down_call(player: Player) -> void:
 	if not left:
 		for c in _em.crews:
 			if is_instance_valid(c):
-				print("medic job %d task %d at %s dest %s pose %s stretcher %s work %.1f" % [c.job, c.task, c.global_position, c._dest, c._pose, c._stretcher != null, c._work_t])
+				var under := _tree.root.get_world_3d().direct_space_state.intersect_ray(PhysicsRayQueryParameters3D.create(c.global_position + Vector3.UP * 0.5, c.global_position + Vector3.DOWN * 3.0, 1, [c.get_rid()]))
+				print("medic job %d task %d at %s dest %s pose %s stretcher %s work %.1f on %s" % [c.job, c.task, c.global_position, c._dest, c._pose, c._stretcher != null, c._work_t,
+					"%s %s" % [(under.collider as Node).get_path() if not under.is_empty() and under.collider is Node else "nothing", under.get("position", Vector3.ZERO)]])
 		print("doll at ", doll.bodies[0].global_position if is_instance_valid(doll) else Vector3.ZERO, " unit ", unit.global_position)
 	_check(knelt, "a paramedic kneels at the body with the bag")
 	_check(cot and inc.loaded and not is_instance_valid(doll), "the other brings the stretcher and they take the body")

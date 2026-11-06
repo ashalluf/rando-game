@@ -1209,11 +1209,17 @@ func _city_landmarks(city: Node3D, plan: CityPlan, player: CharacterBody3D, macr
 			var lps: Array = []
 			for c in lcs:
 				lps.append(c.global_position)
-			await _ticks(180)
+			# Watched until they have (up to ten seconds): three seconds caught a whole queue standing
+			# behind two drop-offs of 9-26 s (the merged gate on wt/gate-flakes-3: 2 of 20).
 			var moved := 0
-			for k in lcs.size():
-				if is_instance_valid(lcs[k]) and lcs[k].global_position.distance_to(lps[k]) > 1.0:
-					moved += 1
+			for w in 20:
+				await _ticks(30)
+				moved = 0
+				for k in lcs.size():
+					if is_instance_valid(lcs[k]) and lcs[k].global_position.distance_to(lps[k]) > 1.0:
+						moved += 1
+				if w >= 5 and moved >= maxi(2, lcs.size() / 6):
+					break
 			_check(moved >= maxi(2, lcs.size() / 6), "loop cars crawl forward (%d of %d)" % [moved, lcs.size()])
 		var port := macro.port_rect.get_center()
 		player.global_position = _world_state().to_local(Vector3(port.x, 2.0, port.y))
