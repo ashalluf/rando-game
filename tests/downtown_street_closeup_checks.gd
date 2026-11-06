@@ -28,6 +28,12 @@ func run(t: Node, city: Node3D) -> void:
 	if k == Vector2i(-99999, -99999):
 		return
 	_goods(plan)
+	# Headroom in PhysicsBudget for both builds: a block's trash cans and parked cars are rolled only
+	# while it can spawn, the first build's own bodies count, and a busy shard's city sits near its cap,
+	# so the second build placed fewer and every prop after them moved (CI 424, batch 54 shard 2).
+	var budget: Node = city.get_tree().root.get_node("PhysicsBudget")
+	var cap_was: int = budget.get("max_active_bodies")
+	budget.set("max_active_bodies", 1000000)
 	var on: CityChunk = city._new_chunk(k, CityChunk.Level.FULL)
 	on.build()
 	_block(on)
@@ -36,8 +42,9 @@ func run(t: Node, city: Node3D) -> void:
 	var off: CityChunk = city._new_chunk(k, CityChunk.Level.FULL)
 	off.build()
 	StreetCloseup.enabled = true
-	# (CI run 424: these two builds differed in a full shard, the city at PhysicsBudget's cap - a
-	# refused car or can skipped its rolls; CityChunk.BUDGET_ROLLS, gate_flakes_2_checks.)
+	# (The source is fixed too: a refused car or can still draws its rolls, CityChunk.BUDGET_ROLLS,
+	# so the two builds agree at the cap as well - gate_flakes_2_checks proves that part.)
+	budget.set("max_active_bodies", cap_was)
 	_ab(on, off)
 	_drop(on)
 	_drop(off)

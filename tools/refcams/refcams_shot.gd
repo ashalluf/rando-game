@@ -134,6 +134,8 @@ func _run() -> void:
 						park = null
 			if i == frames - 3:
 				_stage_freeway_cars(cam, scene)
+			if cam.has("skate_t") and (i == stage_at or i >= frames - 3):
+				_skate_clock(cam)
 			await process_frame
 			_place(player, fov)
 			if day:
@@ -549,6 +551,18 @@ func _hero_report(player: Node3D, shot: String) -> void:
 ## A camera row's optional `port_t` (wave 7, port_night): the container terminal's clock
 ## (PortLife.clock, seconds) held there for the shot, so the cranes, tractors and straddle carriers
 ## stand where the row was framed for. Rows without it let the clock run as before.
+## A row's optional "skate_t" (wave 8's skate_park): THE PIT's skaters held at that clock (seconds;
+## SkateParkLife.set_clock + hold, as SKATE_T= / SKATE_HOLD=1), so a rider is where the row was framed
+## (mid-air). Set while the shot waits (the park's life exists once its chunk is built); rows without
+## the key leave the clock alone.
+func _skate_clock(cam: Dictionary) -> void:
+	var sl: GDScript = load("res://scripts/world/skate_park_life.gd")
+	sl.set("hold", true)
+	for n in get_root().find_children("*", "", true, false):
+		if n.get_script() == sl:
+			n.call("set_clock", float(cam.skate_t))
+
+
 func _port_clock(cam: Dictionary) -> void:
 	var pl: GDScript = load("res://scripts/world/port_life.gd")
 	if cam.has("port_t"):

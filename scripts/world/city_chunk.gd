@@ -736,7 +736,7 @@ func _build_airport() -> void:
 		# The drop-off curb in front of the terminal is packed (owner: "jampacked").
 		var curb_rng := RandomNumberGenerator.new()
 		curb_rng.seed = plan.seed ^ 0x7e5
-		_spawn_crowd(macro.terminal_curb, 4.0, style.airport_crowd, curb_rng)
+		_spawn_crowd(macro.terminal_curb, 4.0, TerminalCurb.walkers(style.airport_crowd), curb_rng)
 	if level == Level.FULL:
 		# Flyable jets on the taxiway and the remote stands, owned like parked cars (city root,
 		# freed with the chunk unless someone flew them away).
