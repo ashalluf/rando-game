@@ -29933,3 +29933,90 @@ only gets shorter on a slow frame; nothing found).
 
 **Runs** (`SHARDS=3`, shuffled, ~32 min each, shards 3.2-3.7 GB RSS): 21101 (cut short by a tool
 limit at ~4,800 checks: the valet), 21202 PASSED 5,797, 21303 PASSED 5,797 (both on 7f68e37f). Final unshuffled gate on the branch merged with main (batch 53a): FINAL_HERE.
+
+## 9d?. The boot compile: the picture moves while the game's scripts compile (fleet wave 8, infra `boot-compile`, 2026-11-06)
+
+**For the owner, in plain words.** In the first seconds after Play, the loading screen says
+COMPILING SCRIPTS and counts to about 650, with the clock and the light on the bar moving the whole
+time. Before, that picture stood still for 15-20 seconds (longer on the Mac's editor run) while the
+game's code compiled in one go. The total time is the same; the window is never frozen any more.
+
+**What the boot was doing** (the mac-launch section above): the boot scene loads every class
+script on its own, dependencies first, a frame between loads. But one of those loads compiled 485
+scripts at once: 15.1 s (quiet 4-core box, headless probe) / 15.6 s (opengl3 launch) with no
+frame. Why, measured in a scratch project with a print in each script's static initialiser:
+**GDScript 4.7 compiles a script's dependencies IN FULL when the script compiles, and ANY mention
+of a global class name is a dependency** - a type in a signature, a local's type, `X.f()` inside a
+function body, `X.CONST`, `is X`, a bare `X` - plus every `preload()` (a scene's scripts too). Only
+`load("res://...")` (a string) is not. So every set of scripts that name each other, however
+indirectly, is one load() call.
+
+**The map** (`tools/boot_compile/deps.py`, python, seconds): every script's compile-time
+dependencies (the rules above, comments and strings stripped), Tarjan's SCCs, `--closure <class>`
+(what a load compiles), `--why A B` (the chain), `--cut` (a greedy: which class, made lazy for all
+its users, shrinks the cycle most). On dec7e128: 1,449 scripts (652 global classes), one SCC of
+**485 scripts / 12.3 MB of source**, every other SCC two scripts or one. The boot's own closure is
+5 scripts; the autoloads' are 1, 1 and 5 (Sfx) - none touch the cycle, so the picture still comes
+up at 1.3 s.
+
+**Why the cycle was NOT broken with lazy loads** (the task's suggestion; decided and measured):
+the cycle is held together by hubs named everywhere - CityChunk by 177 of its scripts, PropFactory
+157, Vehicle 90, Pedestrian 67, Landmarks 55, WeaponFX 54, Building 51. `--cut 12`: making the twelve
+worst hubs lazy for ALL their users (~800 mentions in ~400 files, every shared file of the fleet)
+still leaves a 248-script cycle; splitting it into pieces small enough to matter means rewriting
+most of the codebase's typed calls as untyped ones (`load()` + dynamic calls: slower in the
+per-tick loops - traffic, crowd -, no static checking) and conflicts in every branch the lead merges.
+
+**What changed instead.** Godot runs a script's static initialiser as soon as THAT script has
+compiled - inside the same load(), in dependency post-order (measured: four scripts in a ring,
+initialisers in the order 3, 2, 1, 0, all inside load(0)). So every script of the cycle now has,
+right after its header and class doc, one line:
+
+    static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
+`LoadPulse.compiled()` (`scripts/util/load_pulse.gd`) counts, and while the boot's picture is up
+updates "n / N scripts" (never counting down: `compile_progress()`) and calls `tick()`, which
+presents a frame when 80 ms have gone by. Outside the picture (the city, the gate, every tool) it is
+an increment, a clock read and a bool test, once per script per process. Nothing a script does
+changes. The boot step is now "Compiling scripts" (was "Starting"). `deps.py --hook` added the line
+to all 485 (idempotent; it skips a script that has its own `_static_init`, none do);
+`deps.py --unhooked` lists cycle scripts without it - **run `--hook` after merging branches that add
+scripts** (an unhooked newcomer only makes one step longer). A subclass declaring its own
+`_static_init` alongside its parent's is fine (both run; checked in a scratch project).
+
+**Numbers** (4-core cloud box, quiet):
+
+| | main dec7e128 | this branch |
+|---|---|---|
+| the cycle's load(), headless probe | 15,130 ms, one still frame | 15,264 ms, 485 hooks |
+| longest stretch with no hook, headless | 15,130 ms | **1,093 ms** (4 of 485 steps over 250 ms) |
+| all 652 scripts, headless | 17,576 ms | 17,487 ms |
+| opengl3 launch (`load_time.sh`), the cycle's load | 15,644 ms | 17,160 ms (126 frames presented in it, ~10 ms each on llvmpipe) |
+| opengl3 launch, longest gap between frames | **15,688 ms** ("LOADING frame gap") | **1,082 ms** (no gap line) |
+| picture first presented | 1.37 s | 1.34 s |
+
+The remaining 0.5-1.1 s steps (ending at broadway_night, replica_areas, coast_highway_build,
+smoke_column) are GDScript ANALYSIS bursts - interfaces of many not-yet-seen classes parsed in one
+go, where no script code runs - plus a few scripts' own heavy static data. Which script enters the
+cycle hardly matters (city_chunk first: 0.88 s; macro_map or prop_factory first: worse).
+
+**Tools.** `tools/load_time/load_time.sh boot` launches the game (opengl3, Xvfb) and quits once the
+boot has compiled (BOOT_QUIT=1), printing the cycle's load ("LOADING compile: ... 485 scripts, a
+frame between each; longest step N ms") and "LOADING boot frames: ... longest gap". 
+`tools/boot_compile/compile_probe.tscn` (headless, ~20 s) loads the scripts in the boot's order and
+lists the cycle's eight longest steps and the script that ended each (`ENTRY=` the first script,
+`TRACE_HEAD=1` the first hooks); on a tree without the hook it prints the plain load times.
+
+**What the owner's Mac should see now:** the RANDO picture within a second or two of Play, then
+COMPILING SCRIPTS counting to ~650 with the clock running (the M2 Max's single core is faster
+than this box: steps should be well under a second), then COMPILING SHADERS ... as before.
+
+**Checks:** `tests/boot_compile_checks.gd` (the hubs carry the hook, 450+ files do, compiled() ran
+from every hooked script's initialiser in the gate's own compile, an inactive call presents
+nothing, the count never runs backwards, the boot measures its steps). Not changed: the A/B is
+LOAD_PULSE=0 / BOOT_COMPILE=0 (no picture, so no frames either way); the hook itself has no switch,
+since it changes nothing but the boot's frames.
+
+**Not verified:** the owner's Mac (no Mac here), the editor's Play from a debug build on macOS
+(same GDScript compile path), the exported .app's binary-token scripts (static initialisers run
+the same way; not launched here). Sfx's 0.85 s autoload still runs before the first picture.

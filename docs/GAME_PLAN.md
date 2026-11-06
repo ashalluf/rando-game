@@ -4598,3 +4598,14 @@ none of either.
   frame); shop doors and far-walker borrowing take only the plain crowd by script (a valet was sent
   through a door for good); the crowd-flow passing check meets nearest the camera. RAGDOLL_PHYSICS_TICK=0
   is the A/B.
+- **2026-11-06 The boot compile keeps the picture moving (boot-compile, HANDOFF "The boot
+  compile").** 485 of the 652 class scripts are one GDScript dependency cycle (any mention of a
+  class name compiles it in full, in a body as much as in a signature), so the boot's first load()
+  of it compiled them all with a still picture (15.1 s on the 4-core box). Decision: do NOT split
+  the cycle with lazy loads - its hubs are named at ~800 sites in ~400 files (CityChunk by 177
+  scripts, PropFactory by 157), cutting the twelve worst still left a 248-script cycle, and untyped
+  calls would slow the hot loops and land conflicts in every shared file. Instead every script of
+  the cycle has a one-line `_static_init()` calling `LoadPulse.compiled()`: Godot runs it as each
+  script finishes compiling, inside the same load(), so the boot presents a frame between scripts
+  (longest still stretch 1.1 s). New scripts that join the cycle get it from
+  `tools/boot_compile/deps.py --hook`.
