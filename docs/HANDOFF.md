@@ -32443,6 +32443,9 @@ flag positions; `bus_census.gd` lists the parked school buses round a spawn, hea
 **Numbers** (opengl3 refcams, this eye; before = `RC5_SCHOOL_MORNING=0`, which is exactly main):
 luminance p5/p50/p95 31/125/180 -> 33/124/180, crush 0.3 % -> 0.1 %; triangles 5.00 M -> 5.19 M,
 draws 3271 -> 3361 (three buses, the parents' cars and people). Stills on `shots/rc5-school-morning`.
+The ten original cameras off vs on (`refcams.py compare`, both at this branch's head): nine ok, the
+freeway flagged for its moving traffic only (a different set of cars on the deck; every building
+and road pixel the same); tris within -2.3..+1.2 %.
 
 **Not done / not verified.** Forward+ not judged (no colour or lighting change: geometry, cars and
 people only). The parents' cars and the people stand still (no drop-off loop: cars arriving, a
