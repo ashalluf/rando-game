@@ -55,6 +55,15 @@ func _initialize() -> void:
 	var variant := int(OS.get_environment("TRUCK")) if OS.get_environment("TRUCK") != "" else 0
 	var truck: Mesh = sv.call("truck", variant)
 	_place(stage, truck, Transform3D(Basis(Vector3(0, 0, -1), Vector3.UP, Vector3(0, 0, -1).cross(Vector3.UP)), Vector3(2.0, 0.1, 1.3)), Color(0.93, 0.93, 0.9, 0.3))
+	# The steam off the stack (TacoTruckNight; RC5_TACO=0 leaves it out).
+	var tn: GDScript = load("res://scripts/world/taco_truck_night.gd")
+	if tn.get("enabled"):
+		var txf := Transform3D(Basis(Vector3(0, 0, -1), Vector3.UP, Vector3(0, 0, -1).cross(Vector3.UP)), Vector3(2.0, 0.1, 1.3))
+		var steam := MeshInstance3D.new()
+		steam.mesh = tn.call("steam_mesh")
+		steam.material_override = tn.call("steam_material")
+		steam.position = txf * Vector3(-0.35, float(sv.get("TYT")) + 0.5, 1.6)
+		stage.add_child(steam)
 	var kinds := [1, 2, 3, 4, 5]
 	for i in kinds.size():
 		var m: Mesh = sv.call("cart", kinds[i])
