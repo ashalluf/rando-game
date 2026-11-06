@@ -33339,7 +33339,12 @@ The jet is ~1 % of the frame, so the frame's numbers do not move; the +33 k tria
 traffic (nothing here adds geometry). The ten original cameras (cameras.json) shot with
 JET_FINAL=0 and on, on this branch merged with main 8c0de652: nine within tolerance, `freeway`
 flagged for its live traffic only (a box truck in the lane in one run, not the other). Gate on
-the same merge: SHARDS=3, 6,578 checks passed, 0 failed, peak RSS 3.96 GB a shard. Stills on
+the same merge: SHARDS=3, 6,578 checks passed, 0 failed, peak RSS 3.96 GB a shard. Re-gated after merging main a870978b
+(74 more files): two SHARDS=3 runs each failed in one shard on a check in a system this branch
+does not touch, a different one each time - run 1 `a rocket brings a helicopter down` (+2 that
+follow from it, air_traffic_checks) and `loop cars crawl forward` (city_landmarks), run 2 `blood
+gore 2: a ray finds the parked car's top` - and each passes alone (`SMOKE_PARTS=city_landmarks,
+air_traffic_checks`: 74 passed; `SMOKE_PARTS=blood_gore_2_checks`: 40 passed) and in the other run. Stills on
 `shots/rc5-airport-final`. Not verified: Forward+ (no lavapipe pass for the glow's strength on the
 Mac's renderer; `under_glow` and `gear_light` are linear and go through cs_out like the rest of
 the livery's emission, so both renderers read them the same way by construction).
