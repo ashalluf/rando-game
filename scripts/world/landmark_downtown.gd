@@ -27,6 +27,8 @@ extends RefCounted
 ## Meshes are cached per id and shared by the far copy CityStreamer keeps and the detailed one a
 ## chunk builds, so the skyline seen from the freeway IS the tower you land on.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 ## Every tower stands on the pavement top: landmarks keep the relief flat under them.
 const BASE_Y := 0.25
 
@@ -349,6 +351,7 @@ static func _glow_material(key: String, day: Color, pattern: int, rib: float, en
 	mat.set_shader_parameter("glow_energy", energy)
 	mat.set_shader_parameter("day_mirror", mirror)
 	mat.set_shader_parameter("part_height", height)
+	mat.set_shader_parameter("dusk_hold", Rc5Wingsuit.crown_dusk_hold())
 	_materials[k] = mat
 	return mat
 
@@ -769,7 +772,8 @@ static func _park_d(tm: TowerMesh, _detail: TowerMesh) -> void:
 ## night but for the crane's beacon.
 static func _unfinished(tm: TowerMesh, _detail: TowerMesh) -> void:
 	tm.add_facade("glass", _facade("unfinished_glass", Building.Finish.GLASS, Building.WindowStyle.CURTAIN,
-		Color(0.22, 0.30, 0.36), Color(0.28, 0.40, 0.48), Color(0.45, 0.47, 0.48), 0.0, 3.3, 1.5))
+		Color(0.22, 0.30, 0.36), Color(0.28, 0.40, 0.48), Color(0.45, 0.47, 0.48), RcHeliNight.unfinished_lit(), 3.3, 1.5,
+		0.0, 0.0, RcHeliNight.UNFINISHED_LIT_COLOR if RcHeliNight.enabled else Color(1.0, 0.90, 0.72)))
 	tm.add_facade("podium", _facade("unfinished_podium", Building.Finish.PANELS, Building.WindowStyle.RIBBON,
 		Color(0.56, 0.55, 0.52), Color(0.16, 0.18, 0.20), Color(0.36, 0.36, 0.35), 0.0, 5.0, 2.4))
 	# Real size (1:1): the podium fills the block from Figueroa to Flower, the three towers 28 m
@@ -794,6 +798,10 @@ static func _unfinished(tm: TowerMesh, _detail: TowerMesh) -> void:
 				var p := c + Vector2(-13.3 + float(i) * 6.65, -13.3 + float(j) * 6.65)
 				tm.box("metal", Vector3(p.x, (glass_top + frame_top) * 0.5, p.y), Vector3(0.8, frame_top - glass_top, 0.8), CONCRETE)
 		tm.box("metal", Vector3(c.x, (glass_top + frame_top) * 0.5 + 2.0, c.y), Vector3(8.4, frame_top - glass_top + 4.0, 8.4), CONCRETE, 0.0, 0.0, true)
+		if RcHeliNight.enabled:
+			# The bare frame's top slab: red obstruction lights at its corners (an unlit 150 m
+			# frame by an airport approach would carry them).
+			_roof_lights(tm, TowerMesh.moved(TowerMesh.rect(27.0, 27.0), c), frame_top + 0.6)
 	# The crane on the tallest: mast, jib, counter-jib, cab.
 	var cc := Vector2(0.0, 26.6)
 	tm.box("metal", Vector3(cc.x + 7.5, 177.0, cc.y), Vector3(2.0, 24.0, 2.0), CRANE)

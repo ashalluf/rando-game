@@ -16,6 +16,8 @@ extends Node3D
 ## after dark; the doors on the platform side (the train's left: right-hand running past island
 ## platforms) slide open while it dwells.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 const MODEL := "res://assets/models/light_rail_car.glb"
 const SECTION_HALF := 6.75
 const CAB_BOGIE := 4.3
@@ -165,6 +167,8 @@ func _dress(inst: Node3D, k: int) -> void:
 		if merged:
 			_set_slots(merged, role)
 	_doors.append(leaves)
+	if MetroLook.enabled:
+		_bullet_letters(inst)
 	# Shut, a side's doors are its one merged mesh; the platform side swaps to its four leaves
 	# while they open (_show_doors()).
 	_merged_doors.append(inst.get_node_or_null("Doors" + side))
@@ -192,6 +196,28 @@ func _dress(inst: Node3D, k: int) -> void:
 			_sign = label
 		else:
 			_rear_sign = label
+
+
+## The line bullet's white "C" on each side behind the cab (the model's coral disc carried none:
+## a flat red dot; MetroLook, wave 7). One shared mesh a side and one material for every train.
+static var _letter_meshes: Array = []
+static var _letter_mat: StandardMaterial3D
+
+
+func _bullet_letters(inst: Node3D) -> void:
+	if _letter_meshes.is_empty():
+		for side: float in [1.0, -1.0]:
+			_letter_meshes.append(MetroLook.bullet_letter(Vector3(side * 1.338, 2.0, -5.05), Vector3(side, 0.0, 0.0), Vector3.UP, 0.135, 0.088, Color(1, 1, 1)))
+		_letter_mat = StandardMaterial3D.new()
+		_letter_mat.albedo_color = Color(0.95, 0.95, 0.93)
+		_letter_mat.roughness = 0.35
+	for m: ArrayMesh in _letter_meshes:
+		var mi := MeshInstance3D.new()
+		mi.name = "BulletLetter"
+		mi.mesh = m
+		mi.material_override = _letter_mat
+		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		inst.add_child(mi)
 
 
 ## Shared materials by the model's slot names: glass traced, the interior lit, the lamps by role.

@@ -16,6 +16,8 @@ extends RefCounted
 ##     canopy on posts, a tinted windscreen, real tyres.
 ## RC4_FILM_LOT=0 in the environment is the A/B (the old kit and ground, nothing added).
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 static var enabled: bool = OS.get_environment("RC4_FILM_LOT") != "0"
 
 const K_STEEL := FilmStudioKit.K_STEEL

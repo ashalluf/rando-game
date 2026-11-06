@@ -20,6 +20,8 @@ extends RefCounted
 ## the alley pass placed moves (AlleyKit's own rngs are untouched).
 ## Off (the A/B): ALLEY_NIGHT=0 in the environment.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 static var enabled: bool = OS.get_environment("ALLEY_NIGHT") != "0"
 
 ## The lamps' halos against a street lamp's (size and strength).

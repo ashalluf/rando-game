@@ -7,6 +7,8 @@ extends Node3D
 ## and no CPU work a frame but a handful of uniform sets a second. It grows over `rise` seconds
 ## while the fire feeds it and clears over `clear` seconds once nothing does.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 ## Puffs in a column (fewer on the web).
 const PUFFS := 72
 ## Column height (metres) for a fire of weight 2, and per unit of weight more, and its cap.

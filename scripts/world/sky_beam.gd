@@ -11,6 +11,8 @@ extends Node3D
 ## The node sits on the cart's turntable (the cart is the chunk's batch instance); identity in
 ## its parent's space, which is the chunk's. `with_head` false: the beam alone (an LOD chunk).
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 ## How far the drawn beam reaches (m), its half-angle (degrees), how bright it is.
 @export var reach: float = 1700.0
 @export var half_angle: float = 1.0

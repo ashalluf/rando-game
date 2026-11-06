@@ -15,6 +15,8 @@ extends RefCounted
 ##     awning (shaders/ice_cream_menu.gdshader) and its chime (IceCreamGear, ServiceSounds).
 ## ServiceFleet decides where they work; TrafficManager drives them (its `work` hook).
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 const GARBAGE := Vehicle.BodyType.GARBAGE_TRUCK
 const SWEEPER := Vehicle.BodyType.STREET_SWEEPER
 const TOW := Vehicle.BodyType.TOW_TRUCK

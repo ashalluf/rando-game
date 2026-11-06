@@ -5,6 +5,8 @@ extends RefCounted
 ## and led_screen). One material per look, shared by every landmark that wears it, keyed by a
 ## name the builder chooses, so the near and far copies of a building also share them.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 static var _cache: Dictionary = {}
 
 

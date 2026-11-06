@@ -20,6 +20,8 @@ extends RefCounted
 ## the doll from any part they hit (`collider.get_parent()`). RAGDOLLS=0 in the environment keeps
 ## every doll the old single body (the A/B).
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 ## Off with RAGDOLLS=0 (the old single tumbling body everywhere).
 static var enabled: bool = OS.get_environment("RAGDOLLS") != "0"
 ## Most dolls jointed at once (the web build: fewer).

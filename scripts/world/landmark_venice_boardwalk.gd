@@ -56,6 +56,8 @@ extends RefCounted
 ## area's arch reads RANDO, which is this project's own in-world name. No real trade dress, no
 ## copy of any real building.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 # --- Site ----------------------------------------------------------------------------------
 
 ## Seed salt, so the same anchor always produces the same boardwalk.
@@ -465,7 +467,7 @@ static func _shop(parent: Node3D, statics: StaticBody3D, batch: MultiMeshBatch, 
 	# Sign board above the shopfront: a painted board with abstract colour blocks for lettering.
 	var board: Color = PAINT[rng.randi() % PAINT.size()]
 	var sign_y := foot + SHUTTER_H + 1.35
-	Landmarks._box(pv, null, Vector3(0.22, 1.1, w * 0.7), Vector3(front - 0.14, sign_y, 0.0), board, false).material_override = PropFactory.material(board, 0.85, true)
+	Landmarks._box(pv, null, Vector3(0.22, 1.1, w * 0.7), Vector3(front - 0.14, sign_y, 0.0), board, false).material_override = RcSkatePark.paint(board)
 	var blocks := rng.randi_range(4, 7)
 	var ink: Color = Color(0.08, 0.08, 0.1) if board.get_luminance() > 0.4 else Color(0.97, 0.95, 0.9)
 	for i in blocks:
@@ -483,15 +485,15 @@ static func _shop(parent: Node3D, statics: StaticBody3D, batch: MultiMeshBatch, 
 			var c: Color = PAINT[rng.randi() % PAINT.size()]
 			var fw := mural_w / float(fields)
 			var mz := -mural_w * 0.5 + (float(i) + 0.5) * fw
-			Landmarks._box(pv, null, Vector3(0.1, STOREY_H * 0.72, fw - 0.15), Vector3(front - 0.07, foot + STOREY_H + STOREY_H * 0.5, mz), c, false).material_override = PropFactory.material(c, 0.85, true)
+			Landmarks._box(pv, null, Vector3(0.1, STOREY_H * 0.72, fw - 0.15), Vector3(front - 0.07, foot + STOREY_H + STOREY_H * 0.5, mz), c, false).material_override = RcSkatePark.paint(c)
 		var stripe: Color = PAINT[rng.randi() % PAINT.size()]
-		Landmarks._box(pv, null, Vector3(0.12, 0.5, mural_w), Vector3(front - 0.09, foot + STOREY_H + STOREY_H * 0.72, 0.0), stripe, false).material_override = PropFactory.material(stripe, 0.85, true)
+		Landmarks._box(pv, null, Vector3(0.12, 0.5, mural_w), Vector3(front - 0.09, foot + STOREY_H + STOREY_H * 0.72, 0.0), stripe, false).material_override = RcSkatePark.paint(stripe)
 	# A rooftop hoarding on a few units, and a vent box on the rest. Both hang off `top`, not
 	# off a bare storey height: the sand is not always at y 0, and these used to float when the
 	# ground under the shop was not exactly zero.
 	if rng.randf() < 0.3:
 		var hoard: Color = PAINT[rng.randi() % PAINT.size()]
-		Landmarks._box(pv, null, Vector3(0.2, 2.2, w * 0.6), Vector3(front + 1.2, top + 1.3, 0.0), hoard, false).material_override = PropFactory.material(hoard, 0.85, true)
+		Landmarks._box(pv, null, Vector3(0.2, 2.2, w * 0.6), Vector3(front + 1.2, top + 1.3, 0.0), hoard, false).material_override = RcSkatePark.paint(hoard)
 		for side: float in [-1.0, 1.0]:
 			Landmarks._box(pv, null, Vector3(0.14, 1.4, 0.14), Vector3(front + 1.2, top + 0.4, side * w * 0.27), STEEL, false)
 	elif not far:
@@ -570,9 +572,9 @@ static func _art_wall(anchor: Vector2, parent: Node3D, statics: StaticBody3D, pl
 			var c: Color = PAINT[rng.randi() % PAINT.size()]
 			var fw := (wide - 0.4) / float(fields)
 			var fz := z - (WALL_PANEL - 0.4) * 0.5 + (float(f) + 0.5) * fw * cos(yaw)
-			_obox(parent, null, Vector3(0.09, h * rng.randf_range(0.5, 0.86), fw - 0.12), _at(anchor, plan, face + 0.04, fz, h * 0.48), rot, PropFactory.material(c, 0.85, true), false)
+			_obox(parent, null, Vector3(0.09, h * rng.randf_range(0.5, 0.86), fw - 0.12), _at(anchor, plan, face + 0.04, fz, h * 0.48), rot, RcSkatePark.paint(c), false)
 		var stripe: Color = PAINT[rng.randi() % PAINT.size()]
-		_obox(parent, null, Vector3(0.11, 0.35, wide - 0.3), _at(anchor, plan, face + 0.05, z, h * 0.22), rot, PropFactory.material(stripe, 0.85, true), false)
+		_obox(parent, null, Vector3(0.11, 0.35, wide - 0.3), _at(anchor, plan, face + 0.05, z, h * 0.22), rot, RcSkatePark.paint(stripe), false)
 	# The word, facing +X (the walk). A yawed pivot turns Landmarks._text(), which draws along
 	# its parent's +X and faces its parent's +Z, to look down the beach.
 	var mid := (WALL_Z_FROM + WALL_Z_TO) * 0.5

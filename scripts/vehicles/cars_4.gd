@@ -9,6 +9,8 @@ extends RefCounted
 ## switch off every roll lands where it landed before this wave, bit for bit. Original designs,
 ## invented badges, no real names.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 ## `CARS_4=0` in the environment: no new body is rolled (the rows fall back to their old owners).
 static var enabled: bool = OS.get_environment("CARS_4") != "0"
 

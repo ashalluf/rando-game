@@ -12,6 +12,8 @@ extends Node3D
 ## or a blast (take_hit() on its AnimatableBody3D, props layer) kicks it, and the workers drop to
 ## a crouch with both hands on the front rail until it settles.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 ## The site (TowerGondolas._site()).
 var site: Dictionary = {}
 ## Built (cradle live), and the workers' state.

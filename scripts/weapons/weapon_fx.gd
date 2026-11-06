@@ -13,6 +13,8 @@ extends RefCounted
 ##  * a particle system's automatic bounds start empty, so `custom_aabb` has to cover how far
 ##    the particles actually travel or the whole burst vanishes.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 
 # ---------------------------------------------------------------------------------------------
 # Tunables. This is a static utility class, never a node, so these are static vars rather than

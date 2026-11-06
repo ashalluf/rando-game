@@ -7,6 +7,8 @@ extends AmbientCraft
 ## takes a lot of them. Shot down, the envelope loses its gas: it sags, noses down, burns and
 ## sinks onto whatever is under it, and blows up there.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 ## Airspeed along the route (m/s; real advertising airships cruise at 50-60 km/h).
 @export var speed: float = 14.0
 ## How far it rocks with the air (m) and how fast (rad/s).

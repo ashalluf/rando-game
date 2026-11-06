@@ -6,6 +6,8 @@ extends Node3D
 ## buildings and full terrain collision so nothing drives into a far building or through a hill.
 ## Children are placed at true world coordinates; the chunk node sits at -WorldState.world_offset.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 enum Level { FULL, LOD }
 
 const BUILDING_SCENE := preload("res://scenes/props/building.tscn")
@@ -73,6 +75,10 @@ const SIDEWALK_TOP := 0.25
 ## (_add_ground_grid). False casts the whole grid again, the A/B (`GROUND_SHADOW=0` on
 ## still_shot.gd).
 static var ground_skirt_shadows: bool = true
+## A spawn PhysicsBudget refuses (parked cars, trash cans, barrels, tyres) still draws its rolls,
+## so a block is the same whatever the city's body count (BUDGET_ROLLS=0: the old refusal before
+## the rolls, which built another block at the cap - the A/B).
+static var BUDGET_ROLLS: bool = OS.get_environment("BUDGET_ROLLS") != "0"
 ## Ground slabs whose top is at most this far over the pavement are "on the ground" for that rule.
 const GROUND_RIM_TOP := 0.5
 ## Grass tufts per square metre of lawn, and the cap for one patch. A tuft is 160 triangles
@@ -285,7 +291,7 @@ func build() -> void:
 		get_parent().set("_crowd_frame", -1)
 	begin_build()
 	while not build_step():
-		pass
+		LoadPulse.tick()
 
 
 ## Runs the next step of the build; true once the chunk is finished. CityStreamer calls this a
@@ -732,7 +738,7 @@ func _build_airport() -> void:
 		# The drop-off curb in front of the terminal is packed (owner: "jampacked").
 		var curb_rng := RandomNumberGenerator.new()
 		curb_rng.seed = plan.seed ^ 0x7e5
-		_spawn_crowd(macro.terminal_curb, 4.0, style.airport_crowd, curb_rng)
+		_spawn_crowd(macro.terminal_curb, 4.0, TerminalCurb.walkers(style.airport_crowd), curb_rng)
 	if level == Level.FULL:
 		# Flyable jets on the taxiway and the remote stands, owned like parked cars (city root,
 		# freed with the chunk unless someone flew them away).
@@ -2491,7 +2497,7 @@ func _build_roads(block: Dictionary) -> void:
 		LaHillsBuild.stretch(self, CityPlan.AXIS_Z, Rect2(rect.position.x, rz - wz * 0.5, rect.size.x, wz))
 	# The intersection square at the +X +Z corner.
 	if plan.road_open(CityPlan.AXIS_X, ix + 1, rz) or plan.road_open(CityPlan.AXIS_Z, iz + 1, rx):
-		_road_slab(Rect2(rx - wx * 0.5, rz - wz * 0.5, wx, wz), asphalt, look_x.material)
+		_road_slab(Rect2(rx - wx * 0.5, rz - wz * 0.5, wx, wz), asphalt, RcRefineryRoad.junction_material(look_x.material, plan, ix + 1, iz + 1))
 	elif LaHills.is_stairs(plan, CityPlan.AXIS_X, ix + 1, iz) or LaHills.is_stairs(plan, CityPlan.AXIS_Z, iz + 1, ix):
 		LaHillsBuild.junction(self, Rect2(rx - wx * 0.5, rz - wz * 0.5, wx, wz))
 	if level == Level.FULL:
@@ -2576,6 +2582,8 @@ func _road_look(axis: int, index: int, params: Dictionary) -> Dictionary:
 	# Which way its street lamps run, for the glow the road wears seen from afar at night
 	# (road.gdshader): an AXIS_X road stands at an x and runs along Z.
 	material.set_shader_parameter("lamp_axis", 1 if axis == CityPlan.AXIS_X else 2)
+	# The refinery's perimeter streets take its flares' and masts' light (RcRefineryRoad).
+	material = RcRefineryRoad.road_material(material, plan, axis, index)
 	return {
 		"material": material,
 		"line": Color(0.95, 0.95, 0.9) if white else Color(0.95, 0.8, 0.2),
@@ -2872,6 +2880,7 @@ func _block_surface(block: Dictionary, params: Dictionary, rng: RandomNumberGene
 	# Pavement: the same wear shader as the road, but with expansion joints and far less
 	# patching and staining, so a sidewalk reads as poured slabs rather than a grey plane.
 	var paving_mat := PropFactory.road(paving[0], paving[1], paving_tint, hash([plan.seed, ix, iz, "paving"]), rng.randf_range(1.2, 1.9), 0.45)
+	paving_mat = RcRefineryRoad.paving_material(paving_mat, plan, rect)
 	# A FULL block's outer ring of pavement is Kerbs' (cut for ramps, aprons and tree wells).
 	var pave := rect
 	if Kerbs.takes(self, rect):
@@ -3099,11 +3108,19 @@ func _park_car(spot: Array, rng: RandomNumberGenerator, max_cars: int, count: Ar
 	# frozen wheels divide by zero and poison the body with NaN - but an undisturbed one
 	# sleeps (Vehicle.settle()), so a parked car nobody touches costs close to nothing.
 	# PhysicsBudget still caps the total, and Quality halves that cap below its top level.
-	if count[0] >= max_cars or rng.randf() > 0.55 or not PhysicsBudget.can_spawn():
+	if count[0] >= max_cars or rng.randf() > 0.55 or (not BUDGET_ROLLS and not PhysicsBudget.can_spawn()):
 		return
 	spot.append(true) # decided by this pass (parked or kept clear): BusyStreets' extras leave it
 	var car := Vehicle.random_car(rng)
 	var flip := rng.randf() < 0.5
+	# PhysicsBudget full: the car is not placed, but only after its rolls, and it counts, so the
+	# block's stream runs the same either way. Refused before the rolls, a block built while the
+	# city sat at the body cap rolled every later car, can, hydrant and shelter differently: the
+	# same seed built another block (the gate's street_closeup rebuild, CI run 424).
+	if not PhysicsBudget.can_spawn():
+		car.free()
+		count[0] += 1
+		return
 	if _kerb_reserved(spot):
 		# After the rolls, so the chunk rng runs the same whether or not the spot is used, and it
 		# counts as a car, as the vendors' and the market's spots below do: a kerb kept clear that
@@ -3918,15 +3935,19 @@ func _build_sidewalk_props(rect: Rect2, params: Dictionary, rng: RandomNumberGen
 			var spin := rng.randf_range(0.0, TAU)
 			_add_prop("hydrant", Vector3(p.x, SIDEWALK_TOP, p.y), Color(0.85, 0.15, 0.12), StreetFurniture.hydrant_instances(plan.seed, aged, spin, Vector3(p.x, SIDEWALK_TOP, p.y), inward),
 				[[Vector3(0.3, 0.8, 0.3), Vector3(p.x, SIDEWALK_TOP + 0.4, p.y), 0.0]])
-		if cans_left > 0 and rng.randf() < 0.6 and PhysicsBudget.can_spawn():
+		if cans_left > 0 and rng.randf() < 0.6 and (BUDGET_ROLLS or PhysicsBudget.can_spawn()):
 			cans_left -= 1
 			var p := a + dir * rng.randf_range(4.0, length - 4.0) + inward * 1.3
-			var can := TrashCan.new()
-			can.rusty = rng.randf() < 0.35
-			can.style = StreetFurniture.bin_style(block_district)
-			can.position = Vector3(p.x, SIDEWALK_TOP + 0.02 + _gy(p.x, p.y), p.y)
-			can.rotation.y = rng.randf_range(0.0, TAU)
-			add_child(can)
+			var rusty := rng.randf() < 0.35
+			var turn := rng.randf_range(0.0, TAU)
+			# The rolls first, the can only with room in PhysicsBudget (as _park_car).
+			if PhysicsBudget.can_spawn():
+				var can := TrashCan.new()
+				can.rusty = rusty
+				can.style = StreetFurniture.bin_style(block_district)
+				can.position = Vector3(p.x, SIDEWALK_TOP + 0.02 + _gy(p.x, p.y), p.y)
+				can.rotation.y = turn
+				add_child(can)
 	_build_clutter(rect, edges, params, rng)
 	StreetDetail.build_block(self, rect, edges, params, block_district, rng)
 	# The shelters of the bus lines' stops on this block (hash-seeded, no rng).
@@ -4308,13 +4329,18 @@ func _add_street_lamp(at: Vector3, facing: Vector2) -> void:
 	# The pool as the head throws it (NightLamps; NIGHT_LAMPS=0 the old dot).
 	var pool := NightLamps.pool_instance(lp, head, at)
 	var box: Vector3 = lp.box
+	# Along the refinery's perimeter streets a share are out and the rest dim (RcRefineryRoad).
+	var rr := RcRefineryRoad.lamp_state(plan, Vector2(at.x, at.z))
+	if not rr.is_empty():
+		pool[1] = Color(pool[1].r, pool[1].g, pool[1].b, pool[1].a * float(rr.pool))
+		lp.custom = Color(lp.custom.r, lp.custom.g, 1.0 if rr.out else 0.0, lp.custom.a)
 	_add_prop("lamp", at, Color(0.28, 0.29, 0.32), [
 		[lp.key, lp.mesh, lp.xform, lp.paint, lp.custom],
 		["lamp_pool", PropFactory.light_pool(), pool[0], pool[1], pool[2]],
-	] + _night_atmos(lp.lights, head, at, size), [[box, at + Vector3(0.0, box.y * 0.5, 0.0), 0.0]])
+	] + ([] if rr.get("out", false) else _night_atmos(lp.lights, head, at, size)), [[box, at + Vector3(0.0, box.y * 0.5, 0.0), 0.0]])
 	_batch.set_no_shadow("lamp_pool")
 	NightAtmos.finish_batch(_batch)
-	if level != Level.FULL:
+	if level != Level.FULL or rr.get("out", false):
 		return
 	var light := OmniLight3D.new()
 	light.position = head + Vector3(0.0, _gy(at.x, at.z) - 0.25, 0.0)
@@ -4324,6 +4350,8 @@ func _add_street_lamp(at: Vector3, facing: Vector2) -> void:
 	# full strength and blew the road out.
 	light.omni_attenuation = maxf(1.4 * log(LAMP_LIGHT_HEIGHT) / log(maxf(head.y - at.y - 0.25, LAMP_LIGHT_HEIGHT)), 1.1)
 	NightLamps.tune_light(light, head.y - at.y - 0.25)
+	if not rr.is_empty():
+		light.set_meta("lamp_gain", float(light.get_meta("lamp_gain", 1.0)) * float(rr.light))
 	light.light_color = NightCity.lamp_light(Vector2(at.x, at.z))
 	light.light_energy = 0.0
 	light.shadow_enabled = false
@@ -4389,6 +4417,8 @@ func _build_clutter(_rect: Rect2, edges: Array, params: Dictionary, rng: RandomN
 				], [[Vector3(1.57, 1.11, 0.44), at + Vector3(0.0, 0.56, 0.0), yaw]])
 		elif roll < 0.7:
 			if not PhysicsBudget.can_spawn():
+				if BUDGET_ROLLS:
+					rng.randf_range(0.0, TAU) # the barrel's turn, so the stream runs the same
 				continue
 			var barrel := PhysicsProp.new()
 			var cyl := CylinderShape3D.new()
@@ -4402,7 +4432,13 @@ func _build_clutter(_rect: Rect2, edges: Array, params: Dictionary, rng: RandomN
 			var stack := rng.randi_range(1, 3)
 			for k in stack:
 				if not PhysicsBudget.can_spawn():
-					break
+					if not BUDGET_ROLLS:
+						break
+					# The tyre's three rolls, so the stream runs the same.
+					rng.randf_range(-0.05, 0.05)
+					rng.randf_range(-0.05, 0.05)
+					rng.randf_range(0.0, TAU)
+					continue
 				var tyre := PhysicsProp.new()
 				var disc := CylinderShape3D.new()
 				disc.radius = 0.3

@@ -8,6 +8,8 @@ extends Node
 ## the right stick jumps the lock to the next target that way. When the target goes down the
 ## lock picks up the next one after `reacquire_delay`. Let go of aim to free the camera.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 @export_group("Lock on")
 ## Widest angle off the crosshair a target can be picked up at (degrees).
 @export var acquire_cone_deg: float = 24.0

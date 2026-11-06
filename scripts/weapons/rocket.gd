@@ -2,6 +2,8 @@ class_name Rocket
 extends Node3D
 ## Dumb-fire rocket. Flies straight, explodes on contact or after `lifetime` seconds.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 var speed: float = 70.0
 var lifetime: float = 6.0
 var explosion_radius: float = 9.0

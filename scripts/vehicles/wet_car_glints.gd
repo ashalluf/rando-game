@@ -13,6 +13,8 @@ extends Node3D
 ## `pick_seconds`, placed every frame from the cars' transforms. Hidden (no draw) by day, on a dry
 ## road, or with RAIN_STREET_NIGHT=0 (never made).
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 ## Cars carrying a reflection, the nearest first, and how far they may be from the camera.
 @export var max_cars: int = 18
 @export var reach: float = 75.0

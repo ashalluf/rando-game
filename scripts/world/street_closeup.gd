@@ -19,6 +19,8 @@ extends RefCounted
 ## `STREET_CLOSEUP=0` in the environment is the A/B (every surface exactly as before).
 ## Checks: tests/downtown_street_closeup_checks.gd.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 static var enabled: bool = OS.get_environment("STREET_CLOSEUP") != "0"
 
 ## The concrete pan's width out from the kerb face (m; LA's standard 24 in gutter).

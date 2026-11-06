@@ -28,6 +28,8 @@ extends RefCounted
 ## checks all see the same building), a midtown lot by one hook in _build_lot() before its
 ## Building. Every roll is a hash of the seed and the lot.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 ## Off: the lots get houses and Building boxes as before (the A/B: APARTMENTS=0 in the environment).
 static var enabled: bool = OS.get_environment("APARTMENTS") != "0"
 

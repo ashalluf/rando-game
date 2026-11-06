@@ -9,6 +9,8 @@ extends Node3D
 ## lights the blast's smoke from below (Blast3's fire list), and its crackle. It shrinks as the
 ## fuel burns away and leaves the soot. `max_pools` alive at once (the oldest burns out early).
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 static var life_range: Vector2 = Vector2(15.0, 24.0)
 static var max_pools: int = 4
 ## Pool radius in metres for a blast radius of 7 (a car's); scaled with the blast.
@@ -24,6 +26,8 @@ var radius: float = 3.0
 var age: float = 0.0
 var gas: bool = false
 var stretch: float = 1.0
+## Round 19: how tall this pool's flames stand (a deep puddle burns higher than a thin smear).
+var flame_gain: float = 1.0
 var _mat: ShaderMaterial
 var _flames: CPUParticles3D
 var _tall: CPUParticles3D
@@ -34,7 +38,7 @@ var _sound: AudioStreamPlayer3D
 
 ## A pool under `at` (global; the ground is found by a ray). Null when there is no ground in reach.
 ## `yaw` / `stretch` lay a tongue of fuel (stretched along x, turned by yaw): Blast4.fuel_trail().
-static func spawn(node: Node, parent: Node, at: Vector3, blast_radius: float, is_gas: bool = false, yaw: float = 0.0, stretch: float = 1.0) -> BlastPool:
+static func spawn(node: Node, parent: Node, at: Vector3, blast_radius: float, is_gas: bool = false, yaw: float = 0.0, stretch: float = 1.0, radius_m: float = -1.0, gain: float = 1.0) -> BlastPool:
 	var space := WeaponFX._space(node)
 	if space == null:
 		return null
@@ -45,7 +49,7 @@ static func spawn(node: Node, parent: Node, at: Vector3, blast_radius: float, is
 	# A trail (Blast4.fuel_trail) is the main pool's: capped on its own list, no light of its own.
 	var list: Array = _trails if trail else _pools
 	list = list.filter(func(p): return is_instance_valid(p) and not (p as Node).is_queued_for_deletion())
-	while list.size() >= (max_pools * 2 if trail else max_pools):
+	while list.size() >= ((max_pools * (4 if Blast4.fuel_puddles else 2)) if trail else max_pools):
 		var old: BlastPool = list.pop_front()
 		old.life = minf(old.life, old.age + 1.5)
 	if trail:
@@ -57,6 +61,9 @@ static func spawn(node: Node, parent: Node, at: Vector3, blast_radius: float, is
 	p.gas = is_gas
 	p.stretch = stretch
 	p.radius = pool_radius * clampf(blast_radius / 7.0, 0.6, 1.8)
+	if radius_m > 0.0:
+		p.radius = radius_m
+	p.flame_gain = gain
 	p.life = randf_range(life_range.x, life_range.y) * (0.75 if is_gas else 1.0)
 	parent.add_child(p)
 	p.global_position = (hit.position as Vector3) + (hit.normal as Vector3) * 0.03
@@ -94,7 +101,9 @@ func _ready() -> void:
 	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	add_child(mi)
 	# The body of the fire: low rolling flame over the whole pool.
-	_flames = _flame_system("PoolFire", flame_count, Vector2.ONE)
+	# A small puddle (Blast4.fuel_trail, round 19) burns with fewer flames than a pool.
+	var cnt := flame_count if flame_gain == 1.0 else maxi(8, int(flame_count * clampf(radius / pool_radius, 0.3, 1.0)))
+	_flames = _flame_system("PoolFire", cnt, Vector2.ONE)
 	_flames.emission_shape = CPUParticles3D.EMISSION_SHAPE_RING
 	_flames.emission_ring_axis = Vector3.UP
 	_flames.emission_ring_height = 0.05
@@ -103,7 +112,7 @@ func _ready() -> void:
 	_flames.lifetime = 0.8
 	_flames.spread = 18.0
 	# Tall tongues standing up out of it here and there.
-	_tall = _flame_system("PoolTongues", int(flame_count * 0.4), Vector2(0.6, 1.5))
+	_tall = _flame_system("PoolTongues", int(cnt * 0.4), Vector2(0.6, 1.5))
 	_tall.emission_shape = CPUParticles3D.EMISSION_SHAPE_RING
 	_tall.emission_ring_axis = Vector3.UP
 	_tall.emission_ring_height = 0.05
@@ -143,7 +152,7 @@ func _ready() -> void:
 		_light.distance_fade_enabled = true
 		_light.distance_fade_begin = 110.0
 		_light.distance_fade_length = 30.0
-		_light.position = Vector3.UP * 1.1
+		_light.position = Vector3.UP * (2.3 if Blast4.pool_light5 else 1.1)
 		add_child(_light)
 		Blast3.add_fire(_light)
 	_sound = Sfx.loop_player("fire_loop", 0.0)
@@ -205,7 +214,7 @@ func _apply(_delta: float) -> void:
 	_mat.set_shader_parameter("burn", b)
 	_mat.set_shader_parameter("age", age)
 	var r := radius * (0.35 + 0.65 * spread) * (0.55 + 0.45 * b)
-	var size := b * (1.25 if gas else 1.0)
+	var size := b * (1.25 if gas else 1.0) * flame_gain
 	var on := b > 0.03
 	for s: CPUParticles3D in [_flames, _tall]:
 		s.emitting = on
@@ -218,20 +227,22 @@ func _apply(_delta: float) -> void:
 	_flames.initial_velocity_min = 0.3
 	_flames.initial_velocity_max = 0.8 + 0.6 * size
 	_flames.gravity = Vector3(0.2, 1.4 + 1.0 * size, 0.0)
-	_flames.scale_amount_min = 0.5 + 0.35 * size
-	_flames.scale_amount_max = 0.8 + 0.6 * size
+	# Round 19: a puddle's flames stand as tall as it is deep (flame_gain 1 is the pool as before).
+	var hg := pow(flame_gain, 0.85) if flame_gain != 1.0 else 1.0
+	_flames.scale_amount_min = (0.5 + 0.35 * size) * hg
+	_flames.scale_amount_max = (0.8 + 0.6 * size) * hg
 	_flames.color = Color(1, 1, 1, clampf(0.3 + 0.7 * size, 0.0, 1.0))
 	_tall.initial_velocity_min = 0.5 + 0.4 * size
 	_tall.initial_velocity_max = 1.2 + 1.2 * size
 	_tall.gravity = Vector3(0.1, 1.8 + 1.0 * size, 0.0)
-	_tall.scale_amount_min = 0.45 + 0.4 * size
-	_tall.scale_amount_max = 0.75 + 0.6 * size
+	_tall.scale_amount_min = (0.45 + 0.4 * size) * hg
+	_tall.scale_amount_max = (0.75 + 0.6 * size) * hg
 	_tall.color = Color(1, 1, 1, clampf(0.25 + 0.75 * size, 0.0, 1.0))
 	_embers.emitting = on
 	if _light != null:
 		var t := age
 		var f := 0.78 + 0.22 * sin(t * 37.0) * sin(t * 13.0 + 0.7) + 0.06 * sin(t * 91.0)
-		_light.light_energy = 6.5 * b * f * Blast4.fire_night_gain()
+		_light.light_energy = (4.2 if Blast4.pool_light5 else 6.5) * b * f * Blast4.fire_night_gain()
 		_light.visible = b > 0.01
 	if _sound != null:
 		_sound.volume_db = linear_to_db(maxf(b, 0.001)) - 1.0

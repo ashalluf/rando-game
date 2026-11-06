@@ -8,6 +8,8 @@ extends Node3D
 ## full. Made by the first crash (ensure()) as a child of the level root, whose Node3D children
 ## ride the origin shifts. CrashDeform and CarDamage call scatter(); `CRASH_DEFORM=0` makes none.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 enum Kind { GLASS, LENS_CLEAR, LENS_RED, LENS_AMBER, PLASTIC, PAINT }
 
 ## Shards kept at once (the web keeps fewer).

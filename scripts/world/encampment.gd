@@ -36,6 +36,8 @@ extends RefCounted
 ## MAX_SLEEPERS people a chunk, and the people come out of the same crowd cap as the walkers.
 ## Static builder, so the knobs are consts here (like StreetDetail).
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 # --- Tunables --------------------------------------------------------------------------------
 
 ## Share of downtown streets that carry the big camps (hashed per road), and the odds that a block

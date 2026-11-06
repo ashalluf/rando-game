@@ -24,6 +24,8 @@ extends Vehicle
 ## zero it blows up (Explosion.blast), throws the driver out, burns and sinks stern first, and
 ## goes once it is under. `BOATS=0` in the environment: no boats (the A/B, BoatMoorings).
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 @export_group("Boat")
 ## Thrust at full throttle as an acceleration (m/s^2); boost multiplies it (nitro_multiplier).
 @export var thrust_accel: float = 7.0
@@ -186,6 +188,7 @@ func _ready() -> void:
 	_fx = BoatWake.new()
 	_fx.boat = self
 	add_child(_fx)
+	BoatSea.add(self)
 	# A body near the camera is simulated; moored boats far off freeze (set_script_active()).
 	contact_monitor = true
 	max_contacts_reported = 4
@@ -573,6 +576,11 @@ func _ground_rule(plane: Array) -> void:
 
 
 ## Keel drag, hull drag, the turn's lean and the righting moment, while wet.
+## Over the open sea (the ocean shader's water, where BoatSea draws the wake), last tick.
+func on_sea() -> bool:
+	return _kind == SwimWater.Kind.SEA
+
+
 func _near_marina() -> bool:
 	var m := _macro()
 	if m == null or m.marina == null:
@@ -757,5 +765,6 @@ func _leave_rider() -> void:
 
 
 func _exit_tree() -> void:
+	BoatSea.remove(self)
 	_leave_rider()
 	_set_ground_exception(false)

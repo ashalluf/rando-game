@@ -23,6 +23,8 @@ extends RefCounted
 ## OCCLUDERS=0 in the environment builds none of it (the A/B). Godot's occlusion culling is a
 ## no-op on the web, so this costs nothing there.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 static var enabled := OS.get_environment("OCCLUDERS") != "0"
 
 ## Target size of a terrain occluder cell (metres). A tile is ~100-150 m, so 4-6 cells a side.

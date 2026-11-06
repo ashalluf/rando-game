@@ -25,6 +25,8 @@ extends RefCounted
 ## Every roll is a hash of the car's look (never an rng): nothing a seed builds moves.
 ## CAR_DETAIL=0 in the environment turns all of it off (the A/B).
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 static var enabled: bool = OS.get_environment("CAR_DETAIL") != "0"
 
 const DETAIL_SHADER := preload("res://shaders/car_detail.gdshader")

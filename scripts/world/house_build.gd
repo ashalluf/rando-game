@@ -11,6 +11,8 @@ extends RefCounted
 ## the front edge of the yard) at a height `y` over the ground floor; the front of a wing is its
 ## low-v face and faces -v.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 var ch: CityChunk
 var h: Dictionary
 var acc: HouseKit.Acc

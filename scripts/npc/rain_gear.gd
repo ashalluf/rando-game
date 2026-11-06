@@ -24,6 +24,8 @@ extends RefCounted
 ## Vertex colour: rgb unused (white), alpha the PART (P_*); UV the fabric coordinates (x round the
 ## canopy in gores / round the hood in metres, y out along a rib / down the hood in metres).
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 const P_FABRIC := 0.0
 const P_RIB := 1.0
 const P_HANDLE := 2.0

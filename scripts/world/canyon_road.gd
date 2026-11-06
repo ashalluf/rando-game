@@ -9,6 +9,8 @@ class_name CanyonRoad
 ## Everything is a pure function of the segments and the plan's ground: no roll, nothing else moves.
 ## `CANYON_ROAD=0` in the environment is the A/B (the plain asphalt strip, no rail).
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 static var _on: int = -1
 
 

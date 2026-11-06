@@ -28,6 +28,8 @@ extends RefCounted
 ## The life (skaters on their lines, spectators) is SkateParkLife (scripts/world/skate_park_life.gd),
 ## detailed copy only.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 ## Off (SKATE_PARK=0): LandmarkVeniceBoardwalk builds its old box park.
 static var enabled: bool = OS.get_environment("SKATE_PARK") != "0"
 
@@ -272,6 +274,7 @@ static func material() -> ShaderMaterial:
 		_material.set_shader_parameter("concrete_tex", PropFactory.texture("concrete", "Color"))
 		_material.set_shader_parameter("concrete_nrm", PropFactory.texture("concrete", "NormalGL"))
 		_material.set_shader_parameter("tag_atlas", load("res://assets/textures/street_wear/street_wear_tags.png"))
+		RcSkatePark.apply(_material)
 	return _material
 
 

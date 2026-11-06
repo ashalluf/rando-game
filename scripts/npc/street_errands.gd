@@ -26,6 +26,8 @@ extends RefCounted
 ## ride, car_door, enter_car, hide, inside, show, truck, bag, ring. Every roll is this walker's own
 ## stream (hash of its seed and "errand"), never the life stream or a chunk's rng.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 ## The whole layer on or off (STREET_ERRANDS=0 in the environment: the A/B for stills).
 static var enabled: bool = OS.get_environment("STREET_ERRANDS") != "0"
 ## A shopper inside a door whose chunk was rebuilt comes out of the same door on the new chunk.
@@ -655,7 +657,9 @@ static func _do_wait_bus(p: Pedestrian, step: Dictionary, delta: float) -> void:
 static func _do_board(p: Pedestrian, step: Dictionary, delta: float) -> void:
 	var bus_v: Variant = step.bus
 	var bus := bus_v as Vehicle if is_instance_valid(bus_v) else null
-	if bus == null or not bus.is_traffic():
+	# A bus the traffic pooled while the queue boarded is still valid but out of the tree (its global
+	# transform errors): call it off.
+	if bus == null or not bus.is_inside_tree() or not bus.is_traffic():
 		_abort(p)
 		return
 	var fit := bus.get_node_or_null("BusFittings") as BigVehicles.BusFittings
@@ -1250,7 +1254,7 @@ static func _bus_at(stop: Dictionary) -> Array:
 		if not is_instance_valid(b):
 			continue
 		var bus := b as Vehicle
-		if bus == null or not bus.is_traffic():
+		if bus == null or not bus.is_inside_tree() or not bus.is_traffic():
 			continue
 		var t: Dictionary = bus.traffic
 		if int(t.axis) != int(stop.axis) or int(t.index) != int(stop.index) or int(t.dir) != int(stop.dir):
@@ -1496,11 +1500,20 @@ static func _honk(car: Node3D) -> void:
 
 
 ## Somebody hidden inside somewhere near `at` (true world XZ), taken out of the hidden pool.
+## The plain crowd: Pedestrian's own script (or the replica's walker), whatever `_lives()` says.
+## A valet, a vendor, a busker, a diner ... override _lives() to get the life clips, so `_lives()`
+## let a valet be borrowed for a shop door; it stayed hidden there, back at no podium (shuffled
+## gate 21101). Anybody borrowed or sent in through a door is plain.
+static func plain(p: Pedestrian) -> bool:
+	var s: Script = p.get_script() if p != null else null
+	return s != null and (s.resource_path.ends_with("/pedestrian.gd") or s.resource_path.ends_with("/replica_walker.gd"))
+
+
 static func _from_pool(at: Vector2, reach: float) -> Pedestrian:
 	for id: int in _hidden.keys():
 		var p: Pedestrian = _hidden[id]
 		# The plain crowd only: anyone else's tick does not run an errand, so they would never come out.
-		if not is_instance_valid(p) or p.errand.is_empty() or p._down or not p._lives():
+		if not is_instance_valid(p) or p.errand.is_empty() or p._down or not plain(p):
 			continue
 		var s: Dictionary = (p.errand.steps as Array)[int(p.errand.i)]
 		if s.do != "inside" or Vector2(p.position.x, p.position.z).distance_to(at) > reach:
@@ -1522,7 +1535,7 @@ static func _from_far(near: Node, at: Vector2) -> Pedestrian:
 	var best_d := 320.0
 	for n in near.get_tree().get_nodes_in_group("pedestrian"):
 		var p := n as Pedestrian
-		if p == null or p._down or not p.errand.is_empty() or not p._lives() or p._cross == Pedestrian.Cross.CROSSING:
+		if p == null or p._down or not p.errand.is_empty() or not plain(p) or p._cross == Pedestrian.Cross.CROSSING:
 			continue
 		# A walker kept in place (a test's, a venue's line: "no_trim") is never borrowed.
 		if p.has_meta("no_trim"):
