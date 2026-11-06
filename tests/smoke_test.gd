@@ -70,59 +70,126 @@ const INLINE_FILES := ["downtown_checks", "hero_moves_checks", "street_life_chec
 	"crowd_anim_checks", "crowd_life_checks", "crowd_hat_checks", "photo_mode_checks",
 	"wingsuit_checks", "traffic_ai_checks", "street_errands_checks", "dog_checks", "hero_closeup_checks",
 	"hero_face_2_checks", "hero_locomotion_2_checks", "hero_closeup_2_checks"]
-## Wall seconds each part took in a whole run on the 4-core fleet box (SMOKE_PROFILE=1 prints
-## them as PART lines; refreshed 2026-10-30 from main a3db077f, tools/gate/part_costs.py); a file missing here counts DEFAULT_COST. Only the deal depends on them.
+## Wall seconds each part took in a SHARDS=3 run on the 4-core fleet box, its reset and staging
+## included (SMOKE_PROFILE=1 prints PART and RESET lines; refreshed 2026-11-06 from main 12042fe2
+## with `tools/gate/part_costs.py shard_0.log shard_1.log shard_2.log`); a file missing here counts
+## DEFAULT_COST. Only the deal depends on them.
 const PART_COST := {
-	"city_crowd": 322.9, "freeway_incidents_checks": 152.9, "emergency_checks": 144.6,
-	"news_crews_checks": 116.9, "hospital_checks": 108.1, "garage_drive_in_checks": 101.9,
-	"police_station_checks": 100.3, "car_panic_checks": 96.8, "city_cars": 87.1,
-	"city_streaming": 82.8, "engine_audio_checks": 80.3, "city_menu": 68.7,
-	"service_vehicle_checks": 64.1, "onlookers_checks": 63.3, "heli_flyable_checks": 62.6,
-	"city_landmarks": 53.3, "swimming_checks": 49.0, "big_vehicle_checks": 47.6,
-	"distance_checks": 41.0, "city_polish": 34.9, "motorcycles_checks": 31.4,
-	"prop_destruction_checks": 30.9, "westlake_checks": 30.9, "murals_checks": 30.8, "room": 30.0,
-	"port_life_checks": 27.7, "city_terrain": 22.4, "pier_park_checks": 21.9, "masjid_checks": 18.1,
-	"la_river_checks": 17.0, "police_night_checks": 15.8, "car_lights_checks": 14.4,
-	"car_damage_checks": 14.2, "street_wear_checks": 13.4, "airport_checks": 13.1,
-	"rain_crowd_checks": 12.8, "driving_fx_checks": 12.2, "crowd_look_checks": 12.0,
-	"micromobility_checks": 11.6, "city_people": 11.1, "explosion_aftermath_checks": 11.0,
-	"stack_interchange_checks": 9.5, "coast_highway_checks": 7.5, "shader_warm_checks": 7.3,
-	"walk_in_store_checks": 7.0, "fashion_district_checks": 6.6, "worship_checks": 5.8,
-	"more_cars_checks": 5.6, "billboard_checks": 5.5, "lot_fill_checks": 5.4,
-	"road_detail_checks": 5.4, "air_traffic_checks": 5.2, "ridges_checks": 5.2,
-	"road_wear_checks": 5.0, "broadway_checks": 4.7, "roadside_checks": 4.6, "backyards_checks": 4.4, "lawns_closeup_checks": 4.0,
-	"chinatown_checks": 3.3, "oil_field_checks": 3.3, "alley_checks": 3.1, "apartments_checks": 3.1,
-	"construction_checks": 2.9, "hill_homes_checks": 2.9, "la_trees_checks": 2.9,
-	"street_furniture_checks": 2.9, "utility_poles_checks": 2.9, "airport_life_checks": 2.8,
-	"kerbs_checks": 2.6, "signage_checks": 2.6, "historic_core_checks": 2.4, "night_city_checks": 2.4,
-	"footbridges_checks": 2.2, "house_checks": 2.2, "car_cabin_checks": 2.1, "civic_checks": 2.1,
-	"climbing_plants_checks": 2.1, "street_lamps_checks": 2.1, "vacant_lots_checks": 2.1,
-	"parklets_checks": 2.0, "star_boulevard_checks": 1.9, "freight_checks": 1.7,
-	"occluders_checks": 1.7, "industrial_checks": 1.6, "street_vendors_checks": 1.6,
-	"light_rail_checks": 1.5, "car_dealers_checks": 1.4, "farmers_market_checks": 1.4,
-	"lowriders_checks": 1.4, "schools_checks": 1.4, "street_signs_checks": 1.3,
-	"beach_life_checks": 1.1, "civic_buildings_checks": 1.1, "minimap_checks": 1.1,
-	"pueblo_lane_checks": 1.1, "audio_checks": 1.0, "ballpark_checks": 1.0, "freeway_kit_checks": 0.9,
-	"golf_checks": 0.9, "power_plant_checks": 0.8, "cemetery_checks": 0.7, "film_studio_checks": 0.7,
-	"park_checks": 0.7, "wilshire_deco_checks": 0.7, "canals_checks": 0.6,
-	"far_landmarks_checks": 0.6, "load_time_checks": 0.6, "reflection_probes_checks": 0.6,
-	"texture_budget_checks": 0.6, "bird_checks": 0.5, "estate_night_checks": 0.5,
-	"far_city_checks": 0.5, "surf_checks": 0.5, "ambience_checks": 0.4, "replica_checks": 0.4,
-	"reservoir_checks": 0.4, "facades_gta_checks": 0.3, "ocean_traffic_checks": 0.3,
-	"refinery_checks": 0.3, "tower_gondolas_checks": 0.3, "building_damage_checks": 0.2,
-	"fwd_review_c_checks": 0.2, "hill_air_checks": 0.2, "lighthouses_checks": 0.2,
-	"marina_checks": 0.2, "ref_cameras_checks": 0.2, "rooftops_checks": 0.2, "web_build_checks": 0.2, "web_review_3_checks": 0.1,
-	"far_corners_checks": 0.1, "weather_la_checks": 0.1, "color_grade_checks": 0.0,
-	"fwd_review_a_checks": 0.0, "fwd_review_b_checks": 0.0, "garments_2_checks": 0.0,
-	"memory_audit_checks": 0.0, "offshore_island_checks": 0.0, "perf_audit_checks": 0.0,
-	"shop_vinyl_checks": 0.0, "sky_checks": 0.0, "bonfires_checks": 3.0,
-	"cinematic_review_checks": 0.1, "sunset_clouds_checks": 0.0, "night_street_review_checks": 0.1,
-	"downtown_street_closeup_checks": 1.5, "golden_hour_review_checks": 0.1,
-	"night_flight_checks": 0.0, "mac_verify_pack_checks": 1.0, "fwd_review_f_checks": 0.0, "web_hero_rain_checks": 0.1, "skyline_glass_day_checks": 0.1, "sky_day_checks": 0.0, "rc_golden_aerial_checks": 0.1, "rc_sunset_checks": 0.1, "rc_street_noon_checks": 0.1, "dawn_review_checks": 0.1, "sky_clouds_3_checks": 0.0, "fwd_review_g_checks": 0.0, "rc_alley_night_checks": 2.0, "fwd_review_h_checks": 0.0
+	"city_crowd": 303.3, "freeway_incidents_checks": 135.9, "police_station_checks": 106.9,
+	"traffic_behaviour_2_checks": 106.2, "garage_drive_in_checks": 95.7, "hospital_checks": 94.2,
+	"city_streaming": 94.0, "pedestrian_flow_checks": 91.4, "driving_camera_checks": 86.7,
+	"city_cars": 81.4, "emergency_checks": 80.0, "valets_checks": 74.4, "speedboats_checks": 72.2,
+	"engine_audio_checks": 70.1, "traffic_motion_checks": 64.7, "service_vehicle_checks": 56.9,
+	"city_landmarks": 56.3, "heli_flyable_checks": 55.8, "car_panic_checks": 55.5,
+	"onlookers_checks": 51.8, "city_menu": 45.8, "room": 44.6, "swimming_checks": 42.8,
+	"news_crews_checks": 40.9, "distance_checks": 40.4, "big_vehicle_checks": 40.0,
+	"murals_checks": 38.5, "nightlife_checks": 37.9, "city_polish": 36.0, "motorcycles_checks": 32.3,
+	"mac_verify_pack_checks": 31.0, "metro_underground_checks": 30.9, "masjid_checks": 30.5,
+	"port_life_checks": 29.9, "westlake_checks": 29.8, "explosions_3_checks": 29.2,
+	"blood_gore_2_checks": 29.0, "prop_destruction_checks": 28.3, "shader_warm_checks": 26.5,
+	"police_chase_checks": 23.4, "la_river_checks": 22.7, "city_terrain": 21.5,
+	"ragdoll_feel_checks": 19.3, "ragdolls_checks": 18.6, "crowd_anim_2_checks": 18.5,
+	"pier_park_checks": 18.4, "car_crash_3_checks": 17.6, "police_night_look_checks": 17.6,
+	"police_night_checks": 17.5, "car_damage_checks": 17.2, "rc3_airport_night_checks": 15.6,
+	"airport_checks": 15.2, "rc2_airport_checks": 15.1, "street_wear_checks": 14.4,
+	"car_cabins_checks": 13.3, "rain_crowd_checks": 13.0, "driving_fx_checks": 12.4,
+	"car_lights_checks": 12.2, "city_people": 12.2, "stack_interchange_checks": 12.2,
+	"crowd_look_checks": 12.1, "foot_ik_checks": 11.6, "micromobility_checks": 11.2,
+	"explosions_4_checks": 10.8, "skate_park_checks": 10.8, "car_radio_checks": 10.7,
+	"street_clutter_2_checks": 10.7, "crash_deform_checks": 10.4, "web_hero_rain_checks": 10.0,
+	"explosion_aftermath_checks": 9.4, "explosions_2_checks": 8.7, "rock_outcrops_checks": 8.4,
+	"more_cars_checks": 8.2, "rc3_fashion_district_checks": 7.9, "air_traffic_checks": 7.5,
+	"worship_checks": 7.1, "coast_highway_checks": 6.8, "first_use_w8_checks": 6.8,
+	"car_variety_4_checks": 6.6, "fashion_district_checks": 6.5, "busy_streets_checks": 6.2,
+	"cars_3_checks": 6.1, "road_detail_checks": 6.0, "rc5_crash_closeup_checks": 5.9,
+	"road_wear_checks": 5.9, "wildlife_checks": 5.6, "billboard_checks": 5.6, "ridges_checks": 5.6,
+	"arroyos_checks": 5.4, "rc4_stack_aerial_checks": 4.9, "stunt_ramps_checks": 4.9,
+	"occluders_checks": 4.8, "walk_in_store_checks": 4.8, "lot_fill_checks": 4.7,
+	"yard_sales_checks": 4.7, "alley_checks": 4.5, "broadway_checks": 4.3, "car_cabin_checks": 4.2,
+	"schools_checks": 4.0, "chinatown_checks": 3.9, "rc2_rain_day_checks": 3.8,
+	"roadside_checks": 3.6, "perf_audit_3_checks": 3.5, "backyards_checks": 3.4,
+	"oil_field_checks": 3.4, "audio_checks": 3.2, "construction_checks": 3.2, "la_trees_checks": 3.2,
+	"street_furniture_checks": 3.1, "airport_life_checks": 3.0, "gate_flakes_2_checks": 2.9,
+	"far_ranges_checks": 2.8, "hill_homes_checks": 2.8, "lod_pops_checks": 2.8,
+	"lowriders_checks": 2.8, "night_city_checks": 2.8, "car_detail_checks": 2.7,
+	"minimap_checks": 2.7, "signage_checks": 2.7, "kerbs_checks": 2.6, "freight_checks": 2.6,
+	"light_rail_checks": 2.6, "wanted_escalation_checks": 2.6, "fireworks_checks": 2.5,
+	"rc5_suburb_night_checks": 2.5, "utility_poles_checks": 2.5, "civic_checks": 2.4,
+	"climbing_plants_checks": 2.4, "historic_core_checks": 2.4, "house_nights_checks": 2.4,
+	"rc2_suburb_checks": 2.4, "apartments_checks": 2.3, "parklets_checks": 2.3,
+	"camera_lens_checks": 2.2, "car_exterior_closeup_checks": 2.2, "civic_buildings_checks": 2.2,
+	"downtown_street_closeup_checks": 2.2, "farmers_market_checks": 2.2, "house_checks": 2.2,
+	"night_lamps_checks": 2.2, "vacant_lots_checks": 2.1, "rc4_lowrider_meet_checks": 2.0,
+	"ambient_sound_2_checks": 1.9, "freeway_kit_checks": 1.9, "hud_polish_checks": 1.9,
+	"pueblo_lane_checks": 1.9, "rain_street_night_checks": 1.9, "sea_life_checks": 1.9,
+	"street_lamps_checks": 1.9, "street_vendors_checks": 1.9, "beach_life_checks": 1.8,
+	"film_shoot_checks": 1.8, "la_street_hills_checks": 1.8, "bird_checks": 1.8,
+	"settings_menu_checks": 1.8, "buskers_checks": 1.7, "car_dealers_checks": 1.7,
+	"cemetery_checks": 1.7, "gi_review_checks": 1.7, "golf_checks": 1.7,
+	"rc5_friday_lights_checks": 1.7, "storm_drama_checks": 1.7, "surf_checks": 1.7,
+	"footbridges_checks": 1.6, "freeway_closeup_checks": 1.6, "wet_world_checks": 1.6,
+	"building_damage_checks": 1.5, "crowd_closeup_3_checks": 1.5, "fwd_review_c_checks": 1.5,
+	"ocean_traffic_checks": 1.5, "rc5_fireworks_ballpark_checks": 1.5, "rc5_speedboat_checks": 1.5,
+	"reflection_probes_checks": 1.5, "star_boulevard_checks": 1.5, "ambience_checks": 1.4,
+	"rc5_gas_station_night_checks": 1.4, "replica_checks": 1.4, "street_signs_checks": 1.4,
+	"ballpark_checks": 1.3, "industrial_checks": 1.3, "lighthouses_checks": 1.3,
+	"rc3_person_closeup_checks": 1.3, "rc_freeway_checks": 1.3, "shadows_review_checks": 1.3,
+	"sky_ads_checks": 1.3, "lawns_closeup_checks": 1.2, "perf_audit_checks": 1.2,
+	"rc3_car_closeup_checks": 1.2, "rc3_freeway_night_checks": 1.2, "rc_macarthur_checks": 1.2,
+	"sky_checks": 1.2, "gunplay_feel_checks": 1.1, "loading_first_frame_checks": 1.0,
+	"rc_alley_night_checks": 1.0, "hill_planting_2_checks": 0.9, "night_atmos_checks": 0.9,
+	"web_build_checks": 0.9, "beach_amenities_checks": 0.8, "bonfires_checks": 0.8,
+	"perf_audit_4_checks": 0.8, "rc3_oil_field_checks": 0.8, "rc4_terminal_curb_checks": 0.8,
+	"rc5_construction_dusk_checks": 0.8, "rc5_rail_aerial_checks": 0.8, "far_landmarks_checks": 0.7,
+	"film_studio_checks": 0.7, "hill_ground_3_checks": 0.7, "mac_launch_checks": 0.7,
+	"park_checks": 0.7, "rc5_walk_of_fame_night_checks": 0.7, "canals_checks": 0.6,
+	"facades_mid3_checks": 0.6, "power_plant_checks": 0.6, "rc5_auto_row_checks": 0.6,
+	"rc5_hill_home_dusk_checks": 0.6, "rc5_taco_truck_checks": 0.6, "texture_budget_checks": 0.6,
+	"wilshire_deco_checks": 0.6, "estate_night_checks": 0.5, "load_time_checks": 0.5,
+	"mid_city_checks": 0.5, "rc4_hospital_er_checks": 0.5, "reservoir_checks": 0.5,
+	"building_mid_detail_checks": 0.4, "facades_gta_checks": 0.4, "far_city_checks": 0.4,
+	"palm_shimmer_checks": 0.4, "rc2_canyon_road_checks": 0.4, "rc4_bonfire_night_checks": 0.4,
+	"storefront_closeup_2_checks": 0.4, "facades_street_checks": 0.3, "marina_checks": 0.3,
+	"rc2_river_checks": 0.3, "rc4_film_lot_checks": 0.3, "rc4_freight_yard_checks": 0.3,
+	"rc4_river_night_checks": 0.3, "rc5_cemetery_dawn_checks": 0.3, "rooftops_checks": 0.3,
+	"tower_gondolas_checks": 0.3, "hill_air_checks": 0.2, "perf_audit_5_checks": 0.2,
+	"rc3_golf_morning_checks": 0.2, "rc4_metro_station_checks": 0.2, "rc_pier_night_checks": 0.2,
+	"ref_cameras_checks": 0.2, "refinery_checks": 0.2, "boot_compile_checks": 0.1,
+	"car_paint_2_checks": 0.1, "dawn_review_checks": 0.1, "far_corners_checks": 0.1,
+	"fwd_review_d_checks": 0.1, "fwd_review_e_checks": 0.1, "oil_islands_checks": 0.1,
+	"perf_audit_2_checks": 0.1, "rc3_chinatown_checks": 0.1, "rc3_ridge_sign_checks": 0.1,
+	"rc3_stadium_night_checks": 0.1, "rc4_refinery_road_checks": 0.1, "rc5_brush_fire_checks": 0.1,
+	"rc5_farmers_market_checks": 0.1, "rc5_googie_motel_checks": 0.1, "rc5_sea_life_checks": 0.1,
+	"rc_hills_checks": 0.1, "weather_la_checks": 0.1, "web_review_3_checks": 0.1,
+	"aerial_review_checks": 0.0, "beach_golden_checks": 0.0, "chase_box_bug_checks": 0.0,
+	"cinematic_review_checks": 0.0, "color_grade_checks": 0.0, "crowd_faces_checks": 0.0,
+	"crowd_variety_checks": 0.0, "fwd_review_a_checks": 0.0, "fwd_review_b_checks": 0.0,
+	"fwd_review_f_checks": 0.0, "fwd_review_g_checks": 0.0, "fwd_review_h_checks": 0.0,
+	"garments_2_checks": 0.0, "gate_speed_2_checks": 0.0, "golden_hour_review_checks": 0.0,
+	"ground_contact_checks": 0.0, "interiors_glass_checks": 0.0, "load_time_3_checks": 0.0,
+	"memory_audit_checks": 0.0, "night_flight_checks": 0.0, "night_skyline_checks": 0.0,
+	"night_street_review_checks": 0.0, "ocean_closeup_checks": 0.0, "offshore_island_checks": 0.0,
+	"paving_aliasing_checks": 0.0, "rc2_chase_cam_checks": 0.0, "rc2_crowd_plaza_checks": 0.0,
+	"rc2_hero_foot_checks": 0.0, "rc2_marine_checks": 0.0, "rc2_mayhem_checks": 0.0,
+	"rc2_night_aerial_checks": 0.0, "rc2_port_checks": 0.0, "rc3_broadway_night_checks": 0.0,
+	"rc3_marina_golden_checks": 0.0, "rc3_pier_day_checks": 0.0, "rc3_refinery_night_checks": 0.0,
+	"rc3_rooftop_golden_checks": 0.0, "rc3_vernon_industrial_checks": 0.0,
+	"rc4_canals_day_checks": 0.0, "rc4_heli_night_checks": 0.0, "rc4_pier_night_2_checks": 0.0,
+	"rc4_port_night_checks": 0.0, "rc5_arena_night_checks": 0.0, "rc5_backyard_pool_checks": 0.0,
+	"rc5_driver_rain_checks": 0.0, "rc5_jet_takeoff_checks": 0.0, "rc5_lighthouse_night_checks": 0.0,
+	"rc5_oil_islands_dusk_checks": 0.0, "rc5_police_pursuit_checks": 0.0, "rc5_port_gate_checks": 0.0,
+	"rc5_power_plant_dusk_checks": 0.0, "rc5_rail_crossing_checks": 0.0, "rc5_rush_hour_checks": 0.0,
+	"rc5_skate_park_checks": 0.0, "rc5_storm_downtown_checks": 0.0, "rc5_wingsuit_golden_checks": 0.0,
+	"rc_beach_checks": 0.0, "rc_downtown_aerial_checks": 0.0, "rc_golden_aerial_checks": 0.0,
+	"rc_street_noon_checks": 0.0, "rc_sunset_checks": 0.0, "shop_vinyl_checks": 0.0,
+	"sky_clouds_3_checks": 0.0, "sky_day_checks": 0.0, "skyline_glass_day_checks": 0.0,
+	"specular_aliasing_checks": 0.0, "sunset_clouds_checks": 0.0, "tree_light_checks": 0.0,
+	"trees_closeup_checks": 0.0, "water_review_checks": 0.0, "wet_road_mirror_checks": 0.0,
+	"window_interiors_checks": 0.0
 }
 const DEFAULT_COST := 6.0
 ## Every share pays for its own city load on top of its parts.
-const CITY_LOAD_COST := 120.0
+const CITY_LOAD_COST := 90.0
 var _parts := {} # part or check file name -> true; empty = everything
 var _buildings_done := false
 var _ran := {} # the city parts this run has started, for _stage()
@@ -217,6 +284,7 @@ func _wants_city() -> bool:
 
 
 func _part_begin(part: String) -> int:
+	var staged_at := Time.get_ticks_msec()
 	# Every city part after the first starts from the clean city and the spawn too, in a whole
 	# run as in a share (the photo mode check failed only after city_crowd's state in one process).
 	if not _ran.is_empty() and part != "city_files":
@@ -228,6 +296,8 @@ func _part_begin(part: String) -> int:
 		_ran[part] = true
 	if part == "city_files":
 		_wrap_files()
+	if _profile:
+		printerr("RESET %s %.2f s" % [part, (Time.get_ticks_msec() - staged_at) / 1000.0])
 	return Time.get_ticks_msec()
 
 
@@ -318,6 +388,7 @@ func _wrap_files() -> void:
 			proxy.source_code = """extends RefCounted
 func run(a = null, b = null, c = null, d = null) -> void:
 	var spec: Array = a._proxies["%s"]
+	var r := Time.get_ticks_msec()
 	if spec[3]:
 		await a.between_files()
 	else:
@@ -328,6 +399,7 @@ func run(a = null, b = null, c = null, d = null) -> void:
 		a._reset.report(spec[1])
 	if a._profile:
 		printerr("PART %%s %%.1f s" %% [spec[1], (Time.get_ticks_msec() - t) / 1000.0])
+		printerr("RESET %%s %%.2f s" %% [spec[1], (t - r) / 1000.0])
 """ % path
 		proxy.reload()
 		proxy.take_over_path(path)
@@ -339,6 +411,7 @@ func _run() -> void:
 			await _test_city()
 		_finish()
 		return
+	var room_began := Time.get_ticks_msec()
 	var packed: PackedScene = load(LEVEL_PATH)
 	_check(packed != null, "level scene loads")
 	if packed == null:
@@ -420,6 +493,7 @@ func _run() -> void:
 	_test_buildings()
 	level.free() # Free now, so the city scene cannot pick up this level's player.
 	await get_tree().process_frame
+	_part_end("room", room_began)
 	if _wants_city():
 		await _test_city()
 	# (In a whole run the building checks finish during the city's load; alone, wait for them.)

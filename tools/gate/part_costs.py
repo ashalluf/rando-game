@@ -3,16 +3,27 @@
 line per part and check file). Paste the output over the table in tests/smoke_test.gd: only the
 shards' deal depends on it, and a stale table deals a 150 s file as a 6 s one.
 
-Usage: python3 tools/gate/part_costs.py <log>
+Usage: python3 tools/gate/part_costs.py <log>[ <log2> ...]
+A sharded run's logs together give the whole table (each part ran in exactly one shard). A RESET
+line (the reset and stage_home before a file, SMOKE_PROFILE=1) is added to its file's cost: it is
+what the job costs the shard that takes it.
 """
 import re
 import sys
 
 costs = {}
-for line in open(sys.argv[1], errors="replace"):
-    m = re.match(r"PART (\w+) ([\d.]+) s", line)
-    if m and m.group(1) != "city_files":
-        costs[m.group(1)] = float(m.group(2))
+resets = {}
+for path in sys.argv[1:]:
+    for line in open(path, errors="replace"):
+        m = re.match(r"PART (\w+) ([\d.]+) s", line)
+        if m and m.group(1) != "city_files":
+            costs[m.group(1)] = float(m.group(2))
+        m = re.match(r"RESET (\w+) ([\d.]+) s", line)
+        if m:
+            resets[m.group(1)] = float(m.group(2))
+for k, v in resets.items():
+    if k in costs:
+        costs[k] += v
 src = open("tests/smoke_test.gd").read()
 inline = re.search(r"const INLINE_FILES := \[(.*?)\]", src, re.S).group(1)
 for name in re.findall(r'"(\w+)"', inline):
