@@ -129,6 +129,10 @@ uniform float wall_texture_scale = 4.0;
 // middle of the fourteen wall sets, whose linear means run 0.067 (MetalPlates006) to 0.517
 // (ConcreteWall003), median 0.26.
 uniform vec3 wall_texture_mean = vec3(0.30);
+// >= 0: a FLAT or BRICK wall's texture is detail round facade_color (divided by wall_texture_mean, this
+// much of its contrast kept; landmark_facade's rule), not multiplied in (rc5-historic-core: the
+// historic core's walls in the same stone as their ornament). -1 the old wall.
+uniform float wall_detail = -1.0;
 uniform bool use_wall_texture = false;
 
 uniform float wall_normal_depth = 0.7;
@@ -1926,7 +1930,12 @@ void fragment() {
 				wall_nm = texture(wall_normal, wuv).rgb;
 				wall_nm_weight = 1.0;
 			}
-			if (facade_finish == 1 && use_wall_texture) {
+			if (facade_finish == 1 && use_wall_texture && wall_detail >= 0.0) {
+				// The brick photo as detail round the facade colour (its own red no longer squared
+				// into the palette's: rc5-historic-core).
+				albedo = facade_color * mix(vec3(1.0), clamp(tex / max(wall_texture_mean, vec3(0.02)), vec3(0.0), vec3(2.2)), wall_detail);
+				rough = 0.95 * tex_rough;
+			} else if (facade_finish == 1 && use_wall_texture) {
 				// Real brick texture, tinted by the facade color.
 				albedo = tex * facade_color * 1.35;
 				rough = 0.95 * tex_rough;
@@ -1950,6 +1959,9 @@ void fragment() {
 				rough = 0.35;
 				metal = 0.35;
 				wall_nm_weight *= 0.3;
+			} else if (wall_detail >= 0.0 && use_wall_texture) {
+				albedo = facade_color * mix(vec3(1.0), clamp(tex / max(wall_texture_mean, vec3(0.02)), vec3(0.0), vec3(2.2)), wall_detail);
+				rough = 0.85 * tex_rough;
 			} else {
 				albedo = facade_color * tex * (use_wall_texture ? 1.3 : 1.0);
 				rough = 0.85 * tex_rough;
@@ -2210,7 +2222,7 @@ void fragment() {
 					// The pier is the wall's own face; where its parallax lands over an opening, the
 					// wall's mean (the texture's mean times the facade, as the finish draws it).
 					bool on_wall = !glass && !reveal && !frame && !reveal_face && !fs_door_bay;
-					vec3 wall_mean = facade_color * (use_wall_texture ? wall_texture_mean * (facade_finish == 1 ? 1.35 : 1.3) : vec3(1.0));
+					vec3 wall_mean = facade_color * (use_wall_texture && !(wall_detail >= 0.0 && facade_finish <= 1) ? wall_texture_mean * (facade_finish == 1 ? 1.35 : 1.3) : vec3(1.0));
 					vec3 pier_col = on_wall ? albedo : wall_mean;
 					float dxs = sign(-vw_m.x / vw_m.z);
 					vec3 side_col = wall_mean * fm3_side_light(dxs, sw_m, day_m, lit_front_m) * 0.86;

@@ -21,6 +21,18 @@ uniform float halo_px = 3.4;
 // the wall with the cap's cut above the lamp; 0 the old soft disc.
 uniform float suburb_night = 0.0;
 
+// Rc5CoyoteNight (refcam5 coyote_night): 1 reads the landscape timers - an instance whose alpha
+// carries Rc5CoyoteNight.TIMER_FLAG (2) is a path light or an uplight, off from 00:30 until morning
+// (Rc5CoyoteNight.timer_level(), the same numbers); 0 the old look.
+uniform float timer_look = 0.0;
+global uniform float city_hour;
+
+float rc5_timer_level(float hour) {
+	float h = mod(hour, 24.0);
+	h += h < 12.0 ? 24.0 : 0.0;
+	return 1.0 - clamp((h - 23.5) / (24.5 - 23.5), 0.0, 1.0);
+}
+
 varying vec2 quad_m;
 
 varying float halo_scale;
@@ -87,7 +99,11 @@ void fragment() {
 		float core = 1.0 - smoothstep(0.0, 0.18 * halo_scale + 0.05, r);
 		a = max(core, pow(clamp(1.0 - r, 0.0, 1.0), 3.0) * 0.45);
 	}
-	a *= lamp_factor * COLOR.a;
+	float strength = COLOR.a;
+	if (timer_look > 0.5 && strength > 1.5) {
+		strength = (strength - 2.0) * rc5_timer_level(city_hour);
+	}
+	a *= lamp_factor * strength;
 	ALBEDO = COLOR.rgb;
 	ALPHA = a;
 #if CURRENT_RENDERER != RENDERER_COMPATIBILITY

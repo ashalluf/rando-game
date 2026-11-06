@@ -10,6 +10,18 @@ shader_type spatial;
 global uniform float lamp_factor;
 #include "res://shaders/color_space.gdshaderinc"
 
+// Rc5CoyoteNight (refcam5 coyote_night): 1 reads the landscape timers - an instance whose alpha
+// carries Rc5CoyoteNight.TIMER_FLAG (2) is a path light or an uplight, off from 00:30 until morning
+// (Rc5CoyoteNight.timer_level(), the same numbers); 0 the old look.
+uniform float timer_look = 0.0;
+global uniform float city_hour;
+
+float rc5_timer_level(float hour) {
+	float h = mod(hour, 24.0);
+	h += h < 12.0 ? 24.0 : 0.0;
+	return 1.0 - clamp((h - 23.5) / (24.5 - 23.5), 0.0, 1.0);
+}
+
 uniform float lens_energy = 4.5;
 uniform float plaque_energy = 1.6;
 // SuburbNight (refcam5 suburb_night): 1 draws a lens as glass panes in a dark frame round a bulb
@@ -44,6 +56,9 @@ void fragment() {
 	float a4 = COLOR.a * 4.0 + 0.01;
 	int kind = int(floor(a4));
 	float on = step(0.4, fract(a4)) * clamp(lamp_factor, 0.0, 1.0);
+	if (timer_look > 0.5 && kind == 2) {
+		on *= rc5_timer_level(city_hour);
+	}
 	vec3 tint = COLOR.rgb;
 	vec3 albedo;
 	vec3 em = vec3(0.0);
