@@ -3442,6 +3442,14 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   each lamp, the sky, the lamps' images); small halos and wider pools on the bulkhead lamps; steam
   from kitchen exhausts and drains (`alley_steam`); tags on the plain back walls. `ALLEY_NIGHT=0`
   the A/B; checks `tests/rc_alley_night_checks.gd`.
+- The alley at noon (wave 8, refcam `alley_noon` in `tools/refcams/cameras_w8.json`, block 28,-4;
+  docs/HANDOFF.md "The service alley at noon"): `AlleyNoon` (`scripts/world/alley_noon.gd`, hooks in
+  AlleyKit's cart / mattress / back_door and `Alleys.ground_material()`): alley_ground's `day_dry`
+  dries AlleyNight's water by day (faded out as lamp_factor reaches 1: the night as it was) and the
+  rest mirrors the alley by an emitted `day_mirror()`, the engine's sky reflection turned down;
+  moulded carts, quilted mattresses, worn stoops (hashes of where they stand). `ALLEY_NOON=0` is the
+  A/B; small scene `tools/rc5_alley_noon/noon_shot.tscn` (either renderer); checks
+  `tests/rc5_alley_noon_checks.gd`.
 - Car dealerships (2026-10-05, "the auto rows of LA's boulevards"; HANDOFF 9da): `CarDealers`
   (`scripts/world/car_dealers.gd`, static). **Where is worked out, never placed**: an avenue-wide
   road is an auto row by a hash (`ROW_ODDS`), a stretch of `RUN` blocks of it has dealers by a

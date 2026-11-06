@@ -4908,3 +4908,10 @@ none of either.
   term is never a uniform glow in its ripples (that reads as paving). The jetty nav lights stay
   out of this frame (occluded by boats from every headwalk spot that holds the restaurants).
   MARINA_NIGHT=0 is the A/B.
+- **2026-11-06 The service alley at noon (rc5-alley-noon, HANDOFF "The service alley at noon").**
+  A new reference camera (`alley_noon`, wave 8's table): a downtown alley (block 28,-4) at 12:00,
+  eye level halfway down, looking east past the cook at a dumpster to the bright street. Decisions:
+  the alley's standing water is a night feature - by day it dries (the gutter keeps short shallow
+  runs, the dips a damp ring) and what water is left mirrors the canyon it lies in, never the open
+  sky; the props in front of the lens are moulded, not boxes (carts, a quilted mattress, worn
+  stoops), and change no roll. The alley at night is unchanged in its water. ALLEY_NOON=0 is the A/B.
