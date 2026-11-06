@@ -47,6 +47,14 @@ const int SI_COLUMN = 23;   // a stone column
 const int SI_CUBBY = 24;    // wall cubbies of folded clothes
 const int SI_FIGURE = 25;   // a mannequin in the window
 const int SI_PERSON = 26;   // somebody in the shop (interior_people.gdshaderinc)
+const int SI_CASE = 27;     // a donut shop's lit display case on the counter (rc5_laundromat)
+
+// The laundromat's waiting chairs (rc5_laundromat): a row against the side wall away from nothing
+// in particular (the wall at x 0, or at W when the room is flipped), CHAIR_Z0 in from the glass,
+// CHAIR_PITCH apart, LAUND_CHAIRS of them.
+const float LAUND_CHAIR_Z0 = 0.55;
+const float LAUND_CHAIR_PITCH = 0.62;
+const float LAUND_CHAIRS = 3.0;
 
 // 0..1 from a shop's byte.
 float shop_unit(uint key, uint salt) {
@@ -89,6 +97,16 @@ vec3 product_color(float h) {
 // along x from lo.x (centred in each period), up to hi.x. One slab test, then the analytic step to
 // the next item's near side, so a whole row of tables is one call, not one per table. Updates the
 // nearest hit (best, its normal, id and the item's index along the row).
+// A donut's icing by a 0..1 roll: glazed, pink, chocolate, white, maple, plain.
+vec3 donut_icing(float k) {
+	if (k < 0.24) return vec3(0.86, 0.62, 0.30);
+	if (k < 0.44) return vec3(0.95, 0.48, 0.66);
+	if (k < 0.66) return vec3(0.25, 0.13, 0.07);
+	if (k < 0.78) return vec3(0.93, 0.90, 0.84);
+	if (k < 0.90) return vec3(0.68, 0.40, 0.16);
+	return vec3(0.72, 0.50, 0.28);
+}
+
 void shop_row(vec3 ro, vec3 rd, vec3 inv, vec3 lo, vec3 hi, float period, float width, int id,
 		inout float best, inout vec3 bn, inout int bid, inout float bcell) {
 	vec3 t0 = (lo - ro) * inv;
@@ -392,6 +410,22 @@ bool shop_person(uint key, uint kind, int i, float W, float D, float tm, bool tr
 			if (r > 0.45 || D < 5.2) return false;
 			at = vec2(mix(0.8, W - 0.8, r2), D - 1.25);
 			yaw = 0.0;
+		} else if (rc5_laundromat > 0.5) {
+			// Waiting on the chairs by the side wall for the wash, side-on to the street: one
+			// most nights, two on many (the same chair never twice).
+			if (r > (i == 2 ? 0.92 : 0.55)) return false;
+			float k = min(floor(r2 * LAUND_CHAIRS), LAUND_CHAIRS - 1.0);
+			if (i == 3) {
+				uint p2 = shop_hash(key, 122u);
+				float q2 = float((p2 / 7u) % 1009u) / 1008.0;
+				float k2 = min(floor(q2 * LAUND_CHAIRS), LAUND_CHAIRS - 1.0);
+				k = mod(k + 1.0 + floor(r * 1.99), LAUND_CHAIRS);
+				if (k == k2) k = mod(k + 1.0, LAUND_CHAIRS);
+			}
+			at = vec2(flip ? W - 0.47 : 0.47, LAUND_CHAIR_Z0 + (k + 0.5) * LAUND_CHAIR_PITCH);
+			yaw = flip ? -1.5708 : 1.5708;
+			pose = IP_SIT;
+			sit_y = 0.46;
 		} else {
 			return false;
 		}
@@ -477,7 +511,7 @@ bool shop_person(uint key, uint kind, int i, float W, float D, float tm, bool tr
 // little by day: a shop is lit inside all day), in `glow` light the fittings give off themselves -
 // pendants, a fridge, a till, a lift's indicator - and in `depth_t` how far in the hit is (0..2).
 vec3 shop_interior(vec3 ro, vec3 rd, float wide, float high, float deep, uint key, uint kind,
-		float px, float dist, float tm, bool trading, out float depth_t, out float lamp, out vec3 glow) {
+		float px, float dist, float tm, bool trading, out float depth_t, out float lamp, out vec3 glow, bool donut) {
 	glow = vec3(0.0);
 	vec3 inv = 1.0 / mix(rd, sign(rd) * 1e-5 + vec3(1e-6), lessThan(abs(rd), vec3(1e-5)));
 	float W = wide;
@@ -567,6 +601,10 @@ vec3 shop_interior(vec3 ro, vec3 rd, float wide, float high, float deep, uint ke
 			// The counter across the back with the machine and the cakes, a back bar behind it.
 			float ce = flip ? 0.4 : 1.6;
 			shop_box(ro, rd, inv, vec3(ce, 0.0, D - 2.0), vec3(W - 2.0 + ce, 1.05, D - 1.35), SI_COUNTER, best, bn, bid, bcell);
+			if (donut) {
+				// A donut shop's lit case standing on the front of the counter.
+				shop_box(ro, rd, inv, vec3(ce + 0.1, 1.05, D - 2.02), vec3(W - 2.1 + ce, 1.52, D - 1.6), SI_CASE, best, bn, bid, bcell);
+			}
 			shop_box(ro, rd, inv, vec3(0.25, 0.0, D - 0.4), vec3(W - 0.25, 2.2, D), SI_SHELF, best, bn, bid, bcell);
 			shop_row(ro, rd, inv, vec3(ce, H - 0.95, D - 1.8), vec3(W - 2.0 + ce, H - 0.7, D - 1.55), 1.15, 0.30, SI_PENDANT, best, bn, bid, bcell);
 			shop_row(ro, rd, inv, vec3(ce, H - 0.7, D - 1.685), vec3(W - 2.0 + ce, H, D - 1.665), 1.15, 0.02, SI_LEG, best, bn, bid, bcell);
@@ -582,6 +620,16 @@ vec3 shop_interior(vec3 ro, vec3 rd, float wide, float high, float deep, uint ke
 		shop_row(ro, rd, inv, vec3(1.17, 0.0, 2.9), vec3(W - 1.17, 0.95, 4.3), 0.78, 0.72, SI_WASHER, best, bn, bid, bcell);
 		shop_box(ro, rd, inv, vec3(1.2, 0.86, 1.25), vec3(W - 1.2, 0.92, 1.95), SI_TABLE, best, bn, bid, bcell);
 		shop_row(ro, rd, inv, vec3(1.2, 0.0, 1.55), vec3(W - 1.2, 0.86, 1.65), max(W - 2.4, 0.5) / 2.0, 0.08, SI_LEG, best, bn, bid, bcell);
+		if (rc5_laundromat > 0.5) {
+			// Moulded chairs on a rail along the side wall: seats, backs to the wall, the rail.
+			float cz0 = LAUND_CHAIR_Z0;
+			float cz1 = LAUND_CHAIR_Z0 + LAUND_CHAIRS * LAUND_CHAIR_PITCH;
+			float sx0 = flip ? W - 0.72 : 0.28;
+			float bx0 = flip ? W - 0.30 : 0.25;
+			shop_row_z(ro, rd, inv, vec3(sx0, 0.42, cz0), vec3(sx0 + 0.44, 0.47, cz1), LAUND_CHAIR_PITCH, 0.46, SI_SEAT, best, bn, bid, bcell);
+			shop_row_z(ro, rd, inv, vec3(bx0, 0.47, cz0), vec3(bx0 + 0.05, 0.86, cz1), LAUND_CHAIR_PITCH, 0.44, SI_SEAT, best, bn, bid, bcell);
+			shop_box(ro, rd, inv, vec3(sx0 + 0.16, 0.0, cz0 + 0.1), vec3(sx0 + 0.24, 0.42, cz1 - 0.1), SI_LEG, best, bn, bid, bcell);
+		}
 	} else if (kind == ROOM_BARBER) {
 		shop_box(ro, rd, inv, vec3(0.25, 0.0, D - 0.45), vec3(W - 0.25, 0.9, D), SI_COUNTER, best, bn, bid, bcell);
 		float bp = 1.65;
@@ -779,11 +827,55 @@ vec3 shop_interior(vec3 ro, vec3 rd, float wide, float high, float deep, uint ke
 		}
 		if (kind == ROOM_CAFE && bn.z < -0.5) {
 			// The back bar: bottles and cups on shelves, a menu board over them.
-			if (p.y > 1.55) {
+			if (p.y > 1.55 && donut) {
+				// A donut shop's backlit menu: pictures of the donuts over lines of prices.
+				vec2 mq = vec2(p.x / 0.62, (p.y - 1.55) / 0.55);
+				vec2 mf = fract(mq);
+				float pic = step(0.55, mf.y) * step(0.12, mf.x) * step(mf.x, 0.88);
+				float ring = length((mf - vec2(0.5, 0.78)) * vec2(1.0, 1.7));
+				float dn = step(0.07, ring) * step(ring, 0.19);
+				vec3 icing = donut_icing(hash21(floor(mq) + sk));
+				vec3 board = vec3(0.95, 0.93, 0.88);
+				board = mix(board, icing, dn * pic * mix(0.6, 1.0, fine));
+				float line = step(mf.y, 0.45) * step(0.5, fract(p.y / 0.06)) * step(0.35, hash21(vec2(floor(p.x / 0.2), floor(p.y / 0.06))));
+				board = mix(board, vec3(0.25, 0.10, 0.14), line * 0.7 * fine + 0.06 * (1.0 - fine));
+				col = board;
+				glow += board * 0.55;
+			} else if (p.y > 1.55) {
 				col = vec3(0.06, 0.07, 0.065);
 				float line = step(0.5, fract(p.y / 0.07)) * step(0.3, hash21(vec2(floor(p.x / 0.25), floor(p.y / 0.07))));
 				col = mix(col, vec3(0.85), line * 0.6 * fine + 0.04 * (1.0 - fine));
 			}
+		}
+	} else if (bid == SI_CASE) {
+		// Three trays of donuts behind the glass, lit from the case's own strip: rings in the
+		// icing colours, a darker dough edge, sprinkles on some; the top a glass lid.
+		if (abs(bn.z) > 0.5) {
+			float ty = (p.y - 1.05) / 0.47;
+			float tray = floor(ty * 3.0);
+			float fy = fract(ty * 3.0);
+			vec2 cell = vec2(p.x / 0.13, tray);
+			float fx = fract(cell.x);
+			vec2 d = vec2(fx - 0.5, (fy - 0.42) * 1.25);
+			float r = length(d);
+			float dough = step(r, 0.42);
+			float hole = step(r, 0.12) * step(0.5, hash21(floor(cell) + sk + 3.0));
+			float hk = hash21(floor(cell) + sk);
+			vec3 icing = donut_icing(hk);
+			vec3 c = vec3(0.86, 0.84, 0.80) * 0.6;
+			c = mix(c, vec3(0.62, 0.38, 0.18), dough);
+			c = mix(c, icing, dough * step(r, 0.36) * step(d.y, 0.08));
+			float spr = step(0.6, hash21(floor(vec2(p.x, p.y) * 90.0))) * step(0.7, hk) * dough * step(r, 0.33);
+			c = mix(c, vec3(0.9, 0.3, 0.5), spr * 0.7);
+			c = mix(c, vec3(0.86, 0.84, 0.80) * 0.6, hole);
+			float shelf = step(fy, 0.07);
+			c = mix(c, vec3(0.75), shelf);
+			c = mix(vec3(0.62, 0.48, 0.40), c, fine);
+			col = c;
+			glow += c * 0.35 + vec3(1.0, 0.92, 0.80) * 0.25 * step(0.93, fy);
+		} else {
+			col = vec3(0.70, 0.72, 0.72);
+			glow += vec3(1.0, 0.92, 0.80) * 0.15;
 		}
 	} else if (bid == SI_GONDOLA) {
 		float e;
@@ -851,7 +943,9 @@ vec3 shop_interior(vec3 ro, vec3 rd, float wide, float high, float deep, uint ke
 		col = vec3(0.07, 0.07, 0.075);
 	} else if (bid == SI_SEAT) {
 		vec3 seat = kind == ROOM_LOBBY ? vec3(0.10, 0.09, 0.085) : kind == ROOM_BARBER ? mix(vec3(0.05), vec3(0.42, 0.06, 0.05), step(0.5, var_k))
-			: (kind == ROOM_RESTAURANT ? vec3(0.32, 0.08, 0.07) : mix(vec3(0.35, 0.24, 0.15), vec3(0.12, 0.13, 0.14), step(0.5, wall_k)));
+			: (kind == ROOM_RESTAURANT ? vec3(0.32, 0.08, 0.07)
+			: (kind == ROOM_LAUNDROMAT ? mix(vec3(0.85, 0.40, 0.10), vec3(0.08, 0.38, 0.52), step(0.5, var_k))
+			: mix(vec3(0.35, 0.24, 0.15), vec3(0.12, 0.13, 0.14), step(0.5, wall_k))));
 		col = seat * (bn.y > 0.5 ? 1.15 : 0.9);
 		if (kind == ROOM_RESTAURANT && bn.z < -0.5 && p.z > D - 1.0) {
 			// The banquette's buttoned back.

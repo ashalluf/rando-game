@@ -113,6 +113,10 @@ global uniform vec4 sky_tint;
 // Forward+ review g (FwdReviewG; FWD_REVIEW_G=0 sets it 0): the traced room behind a pane is
 // written in display numbers; 1 hands it to the albedo decoded on Forward+ (fx_srgb_in()).
 global uniform float fwd_review_g;
+// The laundromat strip at night (RcLaundromat, rc5-laundromat-night; RC5_LAUNDROMAT=0 sets it 0):
+// a scissor gate stays drawn past a pixel, a laundromat has chairs and people waiting, a donut
+// shop a lit case of donuts (shop_interior.gdshaderinc).
+global uniform float rc5_laundromat;
 // Wall texture set (albedo, normal, roughness), sampled in wall space: meters per tile.
 uniform sampler2D wall_albedo : source_color, filter_linear_mipmap, repeat_enable;
 uniform sampler2D wall_normal : hint_normal, filter_linear_mipmap, repeat_enable;
@@ -1011,6 +1015,8 @@ void fragment() {
 		bool shop_open = true;
 		bool neon_bay = false;
 		bool shutter = false;
+		// A scissor gate too fine to draw bar by bar: how much of the glass its bars cover.
+		float gate_cover = 0.0;
 		float shop_u = 0.5;
 		float shop_w = 1.0;
 		// The door bay is a deep recessed entry in some shops (ShopfrontKit.recessed()); the framing
@@ -1117,8 +1123,16 @@ void fragment() {
 					float rails = step(gt, 0.06) + step(0.745 * sf_h - 0.07, gt);
 					float bar = clamp(post + d1 + d2 + rails, 0.0, 1.0);
 					// Finer than a pixel: keep a see-through average instead of aliasing.
-					bar = mix(bar, 0.42, smoothstep(0.012, 0.03, px_m));
-					shutter = bar > 0.5;
+					float gate_fade = smoothstep(0.012, 0.03, px_m);
+					if (rc5_laundromat > 0.5) {
+						// Kept as its coverage over the glass: averaged to 0.42 and cut at 0.5, the
+						// gate vanished past a few metres and the closed shop read as empty glass.
+						shutter = bar > 0.5 && gate_fade < 0.5;
+						gate_cover = shutter ? 0.0 : 0.42 * gate_fade + bar * (1.0 - gate_fade) * 0.5;
+					} else {
+						bar = mix(bar, 0.42, gate_fade);
+						shutter = bar > 0.5;
+					}
 				}
 				glass = glass && !shutter;
 				bulkhead = bulkhead && !shutter;
@@ -1404,7 +1418,8 @@ void fragment() {
 					float ceil_h = lobby ? sf_h + 0.85 * pt_floor : 0.86 * sf_h;
 					float deep = lobby ? 13.0 : mix(6.0, 9.5, shop_unit(shop_key, 45u));
 					room = shop_interior(vec3(x0, y0, 0.02), normalize(ray), shop_w, ceil_h, deep, shop_key, room_kind,
-						px_m, length(VERTEX), TIME, shop_open || (mod(city_hour, 24.0) > 9.0 && mod(city_hour, 24.0) < 19.0), depth_t, room_lamp, room_glow);
+						px_m, length(VERTEX), TIME, shop_open || (mod(city_hour, 24.0) > 9.0 && mod(city_hour, 24.0) < 19.0), depth_t, room_lamp, room_glow,
+						rc5_laundromat > 0.5 && shop_name == 11);
 				} else {
 					// Offices are full of blinds.
 					// A pane blown out took the blind with it.
@@ -1742,6 +1757,13 @@ void fragment() {
 				}
 			}
 			emission += reflected;
+			if (gate_cover > 0.0) {
+				// A scissor gate's bars over the glass, as their share of each pixel.
+				albedo = mix(albedo, vec3(0.16, 0.16, 0.17), gate_cover);
+				emission *= 1.0 - gate_cover;
+				rough = mix(rough, 0.5, gate_cover);
+				metal = mix(metal, 0.55, gate_cover);
+			}
 		} else if (shutter && shop_byte(shop_key, 26u) < 90u) {
 			// A scissor gate's bars (the gaps between them fell through to the glass above).
 			albedo = vec3(0.16, 0.16, 0.17);

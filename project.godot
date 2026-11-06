@@ -451,3 +451,7 @@ fwd_review_i={
 "type": "float",
 "value": 1.0
 }
+rc5_laundromat={
+"type": "float",
+"value": 1.0
+}

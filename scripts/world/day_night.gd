@@ -273,6 +273,7 @@ func _ready() -> void:
 	RcHeliNight.install()
 	WindowInteriors.install()
 	InteriorsGlass.install()
+	RcLaundromat.install()
 	_sun = get_node_or_null(sun_path) as DirectionalLight3D
 	var we := get_node_or_null(environment_path) as WorldEnvironment
 	if we:
