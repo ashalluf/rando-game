@@ -1,0 +1,2 @@
+COMPILE aircraft.gd: 15130 ms in one load() (no hook: the picture holds still for all of it)
+COMPILE all 652 scripts: 17576 ms, slowest load 15130 ms

@@ -1,0 +1,11 @@
+COMPILE lock_on.gd: 15264 ms, 485 hooked scripts, longest step 1093 ms
+  STEP   1093 ms ending at res://scripts/world/broadway_night.gd
+  STEP    785 ms ending at res://scripts/world/replica_areas.gd
+  STEP    539 ms ending at res://scripts/world/coast_highway_build.gd
+  STEP    340 ms ending at res://scripts/world/smoke_column.gd
+  STEP    226 ms ending at res://scripts/world/rc4_canals.gd
+  STEP    213 ms ending at res://scripts/weapons/blood_gore.gd
+  STEP    204 ms ending at res://scripts/player/footsteps.gd
+  STEP    179 ms ending at res://scripts/world/kerb_bins.gd
+  steps over 250 ms: 4 of 485
+COMPILE all 652 scripts: 17487 ms, slowest load 15264 ms

@@ -1,0 +1,6 @@
+LOADING sfx: 852 ms (at 1340 ms)
+LOADING boot (at 1340 ms)
+LOADING compile: lock_on.gd took 17160 ms (the game's big dependency cycle: 485 scripts, a frame between each; longest step 1052 ms)
+LOADING compile the game: 20208 ms (at 21726 ms)
+LOADING boot frames: 126 presented inside loops, longest gap between frames 1082 ms in 'Compiling scripts'
+PEAK RSS 1237 MB

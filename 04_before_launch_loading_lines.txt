@@ -1,0 +1,6 @@
+LOADING sfx: 889 ms (at 1365 ms)
+LOADING boot (at 1365 ms)
+LOADING compile: aircraft.gd took 15644 ms (the game's big dependency cycle)
+LOADING frame gap: 15688 ms in 'Starting' (at 17572 ms)
+LOADING compile the game: 18517 ms (at 19999 ms)
+LOADING queue the shaders: 168 ms (at 20175 ms)
