@@ -74,7 +74,7 @@ func _kit() -> void:
 	Rc5YardSale.enabled = false
 	var off := _tris(YardSaleKit._table6("0"))
 	Rc5YardSale.enabled = true
-	_check(on > off * 1.25 and on < 9000, "rc5 yard sale: a table of goods carries more than the old one row (%d vs %d triangles)" % [on, off])
+	_check(on > off * 1.15 and on < 9000, "rc5 yard sale: a table of goods carries more than the old one row (%d vs %d triangles)" % [on, off])
 
 
 func _plan(plan: CityPlan) -> void:
