@@ -4622,6 +4622,15 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   classes by path (naming them compiles the crowd into every tool that loads YardFill).
   `BACKYARDS=0` is the A/B; probe `tools/backyards/probe.gd`, fit `tools/backyards/lounger_shot.tscn`;
   checks `tests/backyards_checks.gd`.
+- The back yard pool on a Saturday (wave 8, refcam `backyard_pool` in `tools/refcams/cameras_w8.json`,
+  docs/HANDOFF.md "The back yard pool on a Saturday"): `Rc5Backyard` (`scripts/world/rc5_backyard.gd`):
+  a yard pool is a quad at the coping's top on `shaders/rc5_yard_pool.gdshader`, which TRACES the tank
+  (water a hand down behind a mosaic band, refraction, sloping floor, caustics, the wall's shadow,
+  absorption, the yard mirrored; one `YardPools` mesh a chunk from YardFill.commit()); floats sit in
+  it (`FLOAT_LIFT`); on a weekend `WEEKEND_SHARE` of grills cook a late lunch (the `weekend` uniform,
+  `day_hook()`; cooking() in backyard*.gdshader = `Rc5Backyard.cooking()`, checked); lounger pairs get
+  an umbrella; lot_walls' timber fence is built (`rc5`). `RC5_BACKYARD=0` is the A/B; checks
+  `tests/rc5_backyard_pool_checks.gd`.
 - Houses at night (2026-10-30, docs/HANDOFF.md "Houses at night"): `HouseNights`
   (`scripts/world/house_nights.gd`) works each house's night from ONE integer, its key (seed mod
   997: the near glass carries it in UV2.x - 1 from `HouseBuild._tri()`, the far box in

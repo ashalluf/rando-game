@@ -4781,3 +4781,10 @@ none of either.
   match it; the walk's costumed characters, the premiere's first fans and a few tourists a face are
   the scene and spawn even with the crowd cap full (still counted, never trimmed), as NightLife's
   door people already do; a tourist strip is busiest after dark. RC5_WALK_OF_FAME=0 is the A/B.
+- **2026-11-06 The back yard pool refcam: pools have depth, Saturdays have barbecues (rc5-backyard-pool,
+  HANDOFF "The back yard pool on a Saturday").** A new reference camera (`backyard_pool`, wave 8's
+  table) stands on a valley patio at 15:00 on a Saturday. Decisions: a yard pool is traced in its
+  shader under one quad at the coping (never real tank geometry: the yard's lawn slab is above where
+  the water would be, and a trace costs no triangles); the week has a weekend - on a Saturday or
+  Sunday most grill owners cook a late lunch, so a weekend afternoon smells of barbecue; lounger pairs
+  get their own umbrella by hash, inside their prop. RC5_BACKYARD=0 is the A/B.
