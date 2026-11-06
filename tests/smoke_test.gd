@@ -2968,6 +2968,9 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	# The police pursuit at night (tests/rc5_police_pursuit_checks.gd, PursuitLook): the LED flash
 	# pattern and bar, the searchlight's pool and shaft, the camera row.
 	load("res://tests/rc5_police_pursuit_checks.gd").new().run(self)
+	# The brush_fire refcam (tests/rc5_brush_fire_checks.gd, BrushFireLook): the camera row, the
+	# smoky dusk sky and fog, the pall, the ash, the fire line under the site.
+	load("res://tests/rc5_brush_fire_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()

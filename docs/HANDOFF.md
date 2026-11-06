@@ -30054,3 +30054,53 @@ checks in downtown_street_closeup_checks, "Batch_sg_plate differs", which pass a
 HIGH); the bar and the wash were checked on a small Forward+ scene (below). The facades on Wilshire
 stand past the wash's 16 m wall reach, so no wall wash in this view. The cruisers are staged, not
 driving PoliceChase's tactics.
+
+## 9mv. The brush fire on a Santa Ana evening (refcam5 `brush_fire`), 2026-11-05 (agent branch `wt/rc5-brush-fire`; VISUAL_ROADMAP ?)
+
+**The camera.** `brush_fire` in `tools/refcams/cameras_w8.json`: Elm Blvd at 7th St in midtown,
+eye (7, 1.7 agl, 420), yaw 3 (straight at the fire: LaWeather.fire_site() is (-100, 470, -1400) on
+the default seed, 1.8 km off), pitch 12, 18:30 in a Santa Ana, fov 55. No staging keys. Framing:
+the boulevard's signal mast and the hill sign's summit under the fire, two buildings either side.
+`tools/rc5_brush_fire_probe.gd` prints the fire site, the districts round midtown and the roads
+near the fire's x.
+
+**What gave it away (the before, main):** (1) the fire was a ruler-straight row of flame tongues
+520 m wide hovering ABOVE the summit in the sky - the site is the real crest, the horizon plane
+draws the ridge lower out there; (2) the column was a thin string of separate orange blobs,
+lit the same orange top to bottom, rising straight up; (3) the sky was a clean lavender dusk,
+nothing of the smoke in it (DayNight's Santa Ana hooks all fade out with `dusk`); (4) the
+litter was a few specks.
+
+**Fixes** (`BrushFireLook`, `scripts/world/brush_fire_look.gd`, the numbers; `BRUSH_FIRE_LOOK=0`
+is the A/B and gives every old number back):
+- The fire line (fire_glow.gdshader `look`): tongues on a curve that falls down both flanks
+  (`FLANK_FALL` card heights at its ends), its crest `LINE_SINK` 40 m under the site, the card's
+  foot `FOOT_DROP` 70 m under it, so the hill in front hides the line's foot and the fire reads as
+  burning just over the ridge, flaring through where it is tall; broken into runs with flare-ups,
+  a smouldering ember band under the line, the glow hugging the line.
+- The column (brush_smoke.gdshader `look`): 150 puffs to 520 m, rising slower and laid over hard
+  (`PLUME_LEAN` 1.25 against 0.55), denser puffs with self-shaded cores (`CORE_SHADE`), the low
+  sun's colour half greyed by the smoke, the fire's light on the undersides only near the foot
+  (`GLOW_FALL` 170 m); a wider foot.
+- The pall: a second CPUParticles3D (`SmokePall`, local, 46 flat puffs 0.7-1.5 km across, 650-1050
+  m up, strung out downwind and drifting at 9-14 m/s) - the brown sheet over the basin downwind.
+- The sky (one hook each in DayNight's Santa Ana sky block and fog block): from dusk on, the
+  horizon toward amber-brown (`SMOKE_RIM`, a dark rust at night), the zenith muddied, the depth
+  fog brown (`sky_weight()`: 0 by day - the wind still clears the basin - and in other weather).
+- Litter 160 at 0.11-0.26 m (was 90 at 0.08-0.22) and 120 ash flakes round the player.
+
+**Checks** `tests/rc5_brush_fire_checks.gd`: the row (midtown, toward the fire, 18:30 Santa Ana),
+the sky weight (none by day / without the wind, amber at dusk), forcing the Santa Ana at 18:30
+browns the fog, builds the pall and ash, the column and card take the look and the card stands
+under the site; all gone in clear weather.
+
+**Cost.** The pall is 46 transparent puffs in one draw, ash one draw; the refcam's draws went
+2,370 -> ~2,540 between the before (pitch 9) and the after (pitch 12, more of the city in frame):
+not comparable; the new nodes are 2 draws.
+
+**Not done / not verified.** Forward+ not seen (opengl3 stills only): the smoke's cs_out colour
+and the additive card are unchanged in kind, but the brown fog through AgX on the Mac is
+unproved. The fire still has no shadow of its own (the sun is down at 18:30; by day the column
+casts none - Godot's particles cast no shadow here). The line's sink is a fixed 40 m: a seed
+whose fire crest the horizon plane draws close to true would show less flame. No smoke smell in
+the audio, no fire sound.

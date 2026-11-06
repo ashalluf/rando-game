@@ -602,6 +602,12 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   shown only at HIGH / MEDIUM. `RoofRain`: one MultiMesh of crown splashes animated in GDScript on
   the roofs (`Vehicle._model_top_y` over the cabin) of the nearest cars while it rains. Checks:
   `tests/weather_la_checks.gd`; stills in docs/HANDOFF.md 9ck.
+- The brush fire at dusk (wave 8, refcam `brush_fire` in `tools/refcams/cameras_w8.json`,
+  docs/HANDOFF.md "The brush fire on a Santa Ana evening"): `BrushFireLook`
+  (`scripts/world/brush_fire_look.gd`): SantaAnaFx's line sunk behind the crest on a flank curve
+  (fire_glow `look`), a dense laid-over column (brush_smoke `look`), a `SmokePall` downwind, ash;
+  DayNight's Santa Ana sky / fog go smoky amber from dusk (`sky()` / `fog()`, 0 by day).
+  `BRUSH_FIRE_LOOK=0` is the A/B; checks `tests/rc5_brush_fire_checks.gd`.
 - June gloom at street level (wave 5, refcam `marine_morning` in `tools/refcams/cameras_w5.json`,
   docs/HANDOFF.md "June gloom at street level"): `MarineMorning` (`scripts/world/marine_morning.gd`,
   pure) - under the marine layer overnight and in the morning the streets are damp (`damp()`, a

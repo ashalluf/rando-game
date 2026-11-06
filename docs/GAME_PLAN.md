@@ -4612,3 +4612,10 @@ none of either.
   way a grower piles it (a hex layer and a second in its hollows), never a spaced grid over a fill;
   skin relief, cloth folds and grain are normal-only shader passes with no tangents; a string-light
   bulb is glass by day; the market's peak crowd is 46. RC5_MARKET=0 is the A/B.
+- **2026-11-05 The brush fire refcam: a ridge fire is smoke over the basin, not a lit cloud
+  (rc5-brush-fire, HANDOFF "The brush fire on a Santa Ana evening").** A new reference camera
+  (`brush_fire`, wave 8's cameras_w8.json): midtown at 18:30 in a Santa Ana toward the front-range
+  fire. The fire line sinks behind the crest and follows its flanks (the far ridge is drawn lower
+  than the real one, so a line at the true height floated in the sky); the column is dense and laid
+  over with a pall drifting downwind; from dusk the sky and fog go smoky amber. BRUSH_FIRE_LOOK=0
+  is the A/B.
