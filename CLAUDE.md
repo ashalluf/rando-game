@@ -2149,6 +2149,15 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   (`plan_poles()`) is pure, so LOD chunks and the far city keep the tall signs' heads as lit
   PANEL boxes and a MAST (`block_step()`). `BOULEVARD_SIGNS=0` is the A/B; kit stills
   `tools/glshot/sign_shot.gd`, framing `tools/sign_probe.gd`; checks `tests/signage_checks.gd`.
+- Googie motels (wave 8, refcam `googie_motel` in `tools/refcams/cameras_w8.json`, docs/HANDOFF.md
+  "The Googie motel at 21:00"): the surface car park a motel pole sign stands at the corner of
+  (`plan_poles()` src "park") is a motor court motel - `Motels` (`scripts/world/motels.gd`, pure
+  plan, claimed in `_build_lot()` just before the car park) and `MotelKit` (one mesh on
+  `shaders/motel.gdshader`: kind in COLOR.a / 16, room key in UV2.y - ROUNDED before hashing);
+  `MotelSignGlow` puts NightAtmos halos and coloured light pools in the sign's prop record. A
+  corner lot with two motel signs keeps the first. Row key `street_cars.clear` hides the load's
+  traffic round the eye. `MOTELS=0` / `MOTEL_SIGN_GLOW=0` the A/Bs; probe `tools/motel_probe.gd`;
+  checks `tests/rc5_googie_motel_checks.gd`.
 - Street lamps (2026-10-05, HANDOFF "Street lamps"): `StreetLamps` (`scripts/world/street_lamps.gd`)
   over `assets/models/street_lamps.glb` from `tools/make_street_lamps.py` (Blender headless; the
   `bpy` 4.2 wheel works where download.blender.org is blocked): COBRA, downtown TWIN globe,

@@ -31723,3 +31723,66 @@ main). The valley block round this school OOMs lavapipe at BLOCKS=1 (13 GB): use
 Not done: the baked people do not react to gunfire (they have no bodies: a CampFigure body each
 would be ~460 nodes); the players stand still (no play runs); no visitors' stands (a school has one
 grandstand); no cars parked along the streets round the school on a game night.
+
+## 9nu. The Googie motel at 21:00 (fleet wave 8, refcam5 `googie_motel`, branch `wt/rc5-googie-motel`)
+
+**The view.** New row `googie_motel` in `tools/refcams/cameras_w8.json`: Highland Blvd in midtown
+(seed 1337), from the parking lane across the 24 m boulevard (eye 1303.0, 1.7 agl, 648.0, yaw -119,
+pitch 8, FOV 40) at 21:00 clear, onto the corner of block (14, 4) where BoulevardSigns stands the
+"Blue Jay Inn" Googie pole sign (variant 4) at a surface car park's front corner. The row stages
+six street cars (`street_cars`) and, through a new optional `clear` key on that staging
+(`tools/refcams/refcams_shot.gd`), hides the load's own street traffic within 140 m of the eye (a
+bus the load put across the court on the first try). Rows without `clear` are untouched.
+
+**What read fake, worst first (judged against a 2026 open-world night street):**
+1. **The motel sign advertised no motel.** 9cx left it: "a motel sign stands in a gap or a car park,
+   not over a motor court" - the sign's arrow pointed at a bare lot of striped asphalt and a few
+   box cars. Fixed: `Motels` (`scripts/world/motels.gd`) claims the surface car park whose front
+   corner the sign stands at (`plan_poles()` now carries `src` and `id`; src "park"), in
+   `CityChunk._build_lot()` just before the car park branch (the pad roll and every earlier claim
+   are made; the lot stays a "parking" lot in the plan). `layout()` is pure: in the lot's street
+   frame (u along the boulevard from the sign's end, v in from it) a back wing of rooms faces the
+   street with its stalls and an aisle in front; on a lot 30 m+ wide a side wing faces the sign's
+   end, and the office stands in the front corner (or the far front corner on a narrow lot). Two
+   storeys when the lot is deep enough (22 m+). `MotelKit` (`scripts/world/motel_kit.gd`) builds it
+   as ONE mesh a motel on ONE material (`shaders/motel.gdshader`): stucco cut round a door, a
+   curtained window with frame, sill and reveals, an AC sleeve, a brass number plate and a sconce
+   per 4 m room bay and storey; cantilevered walkways with soffits, square-tube posts every other
+   bay, a picket railing, a steel stair with a landing and a lit vending machine under it, a roof
+   overhang with a fascia in the motel's accent colour and a neon line under it; the office has a
+   stone wall, a glazed lobby (traced: counter, lit back wall, ceiling lights), a swept roof tipped
+   up to the street and OFFICE in neon. Stalls (stripes, wheel stops) nose-in to the ground-floor
+   doors, the guests' cars LotFill's static cars (StreetCloseup makes the near ones real bodies),
+   fuller (92 %) when the sign's NO VACANCY is lit; two court light poles (LotFill's car-park lamps)
+   and pools under the walks. Five colourways (`Motels.LOOKS`), invented, from a hash of the lot.
+   LOD chunks and the far city get a lod_box per wing and the office over the lot's asphalt. A
+   corner car park two motel signs stand at is one motel with its first sign
+   (`BoulevardSigns._poles()`, only while Motels is on).
+2. **Lit windows were static.** The room key rode a UV2 varying into a sine hash: interpolated it
+   wanders by a hair across the pane and the hash turned that into per-pixel noise (the CLAUDE.md
+   trap about integers in varyings, again). Rounded before hashing.
+3. **The facade was a flat white lightbox** (first pass): the sconces' wash summed three 1/r^2
+   fittings at full gain. Now a gentle wash on the wall (`sconce_gain` 0.14) and a stronger one on
+   the walk under each fitting (`floor_gain`), the window glow 0.45 of the first pass.
+4. **The sign lit nothing and had no air round it.** `MotelSignGlow`
+   (`scripts/world/motel_sign_glow.gd`) adds to the sign's own prop record (it goes out when the
+   sign is shot down) NightAtmos' broad halos (SHOP_KEY, night_halo.gdshader) round the starburst,
+   down the arrow and its head and round the VACANCY box, each in its own paint, and two coloured
+   light_pool pools on the ground under the arrow's head and the board. All of it collapses by day.
+
+**Numbers** (refcam report, opengl3 1280x720, `--quality=0`, same eye and staging, the before is
+`MOTELS=0 MOTEL_SIGN_GLOW=0`): see the table in the shots README (`shots/rc5-googie-motel`).
+
+**A/B.** `MOTELS=0` (the car park again), `MOTEL_SIGN_GLOW=0` (no halos or pools on the sign).
+Probe: `tools/motel_probe.gd -- --spawn=x,z,0,0` lists the motels with their lot, road and an EYE
+across the street. Checks: `tests/rc5_googie_motel_checks.gd` (the camera row, motels round the
+eye, the plan pure and inside its lot with its stalls, some car parks but not all claimed, the
+shader's room grid, the sign's halos and pools).
+
+**Not done / not verified.** No Forward+ look (the motel shader is linear on both renderers via
+color_space; the sconce wash and window glow are emission, so the Mac's AgX and auto exposure may
+want them a touch lower - NEEDS A MAC CHECK). Rooms have no traced interior (curtains with a lit
+gap, a TV flicker in some); no pool in the court, no ice machine, no guests at the doors. The sign
+itself still faces up and down the street (seen edge-on from the opposite pavement); the far city
+keeps both heads of a double-motel corner. A motel on a sloping lot stands at its centre's height
+(the body runs 0.6 m below the floor to hide it).
