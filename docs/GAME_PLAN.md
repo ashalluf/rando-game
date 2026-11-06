@@ -4737,3 +4737,11 @@ none of either.
   lit structures standing in water mirror their light in it (the islands' towers as columns in the
   bay); a flood is light thrown up a face from its foot, not a face painted the gel's colour.
   LONG_BEACH_SAND=0 / RC5_OIL_ISLANDS=0 are the A/B.
+- **2026-11-06, coyotes and raccoons at 02:00 (rc5-coyote-night).** At night an animal is seen
+  first by its eyes: the tapetum throws light back toward the viewer, so wild animals carry an
+  eyeshine sprite pair, lit only after dark and only while the eye faces the lens, sized never under
+  a couple of pixels (the eye itself is under one at street distance). A residential street at
+  2 a.m. is empty: suburban house blocks keep an eighth of their walkers in the small hours, decided
+  by a hash after each walker's roll so no other roll moves. Landscape lighting is on timers that
+  end by 00:30; porch lights stay. A lamp's light cone is not drawn in clear air (it read as a
+  coloured column against the sky); only haze, mist and rain show one. RC5_COYOTE_NIGHT=0 the A/B.

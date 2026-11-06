@@ -16,7 +16,7 @@ static var _made: Array = []
 static var _survey_was := true
 
 
-static func stage(tree: SceneTree, scene: Node, _cam: Camera3D, place: Callable, row: Dictionary) -> void:
+static func stage(tree: SceneTree, scene: Node, cam: Camera3D, place: Callable, row: Dictionary) -> void:
 	var spec: Dictionary = row.get("wildlife", {}) if row.get("wildlife", null) is Dictionary else {}
 	var wl: Node = scene.get_node_or_null("Wildlife")
 	if wl == null:
@@ -56,6 +56,11 @@ static func stage(tree: SceneTree, scene: Node, _cam: Camera3D, place: Callable,
 				# Up and watching the lens (a raccoon sits up), held there.
 				an.set("mode", 3)
 				an.set("_alert_left", 1.0e6)
+	# A row's "look" (indices into animals): those keep their heads turned to the lens.
+	for iv: Variant in spec.get("look", []):
+		var i := int(iv)
+		if i < _made.size() and is_instance_valid(_made[i]) and cam:
+			(_made[i] as Node3D).set("look_hold", cam.global_position)
 	for i in 20:
 		for m: Array in moving:
 			var an: Node3D = m[0]
@@ -75,12 +80,6 @@ static func stage(tree: SceneTree, scene: Node, _cam: Camera3D, place: Callable,
 			var rig: Variant = (m[0] as Node3D).get("rig")
 			if rig:
 				rig.set("speed", float(rig.get("trot_at")) * 1.15)
-	# A row's "look" (indices into animals): those turn their heads to the lens for the shot.
-	for iv: Variant in spec.get("look", []):
-		var i := int(iv)
-		var an: Node3D = _made[i] if i < _made.size() else null
-		if an and is_instance_valid(an) and _cam:
-			an.get("rig").set("look_at", an.get("rig").to_local(_cam.global_position))
 	for an: Node3D in _made:
 		if is_instance_valid(an):
 			print("REFCAM wild %s at %s yaw %.1f level %d" % [an.name, str(WorldState.to_world(an.global_position)),
