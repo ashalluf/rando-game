@@ -59,6 +59,9 @@ func _ready() -> void:
 		_one("dolphin", Transform3D(Basis.from_euler(Vector3([0.35, -0.5, 0.1][j], 1.4, 0.0), EULER_ORDER_YXZ), pos), Vector4(0.3 * float(j), 0.2, 0, 0), Color(1, 1, 1))
 		if j == 0:
 			_spray(Vector3(pos.x + 1.5, 0.0, pos.z), age, 0.0, 1.0)
+		if j == 2:
+			# The ring the rolling back leaves (SeaLife.SPRAY_RING; none under SEA_SPRAY=0).
+			_spray(Vector3(pos.x - 1.0, 0.0, pos.z), age + 0.8, SeaLife.SPRAY_RING, 0.9)
 	# Pelicans: one gliding, one flapping, one folded in a plunge, one sitting.
 	var flap := float(OS.get_environment("FLAP")) if OS.get_environment("FLAP") != "" else 0.0
 	_one("pelican", Transform3D(Basis.from_euler(Vector3(0.05, 2.3, 0.05), EULER_ORDER_YXZ), Vector3(8, 3.2, -6)), Vector4(0.0, flap, 0.0, 0), Color(1, 1, 1))

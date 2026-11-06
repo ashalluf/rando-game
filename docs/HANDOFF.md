@@ -31787,6 +31787,200 @@ itself still faces up and down the street (seen edge-on from the opposite paveme
 keeps both heads of a double-motel corner. A motel on a sloping lot stands at its centre's height
 (the body runs 0.6 m below the floor to hide it).
 
+## 9nv. First uses after waves 5-8: the rehearsal's two new stages (fleet wave 8, infra `first-use-w8`, branch `wt/first-use-w8`, 2026-11-06)
+
+**For the owner, in plain words.** The first time you take a boat out, a beach bonfire is lit near
+you, you open the wingsuit, a car goes up in a fuel fireball or a crashed car leaks onto the road,
+the Mac no longer stops for a moment to build that thing's graphics: the loading screen now builds
+them while it is up. The loading screen is about 2-4 seconds longer for it (less on your Mac).
+
+**The ask.** Everything waves 5-8 added that first appears mid-play compiles on first sight on
+Forward+; find them with `first_use_probe` (opengl3, `WARM=0 REHEARSE=1`, `EVENTS=` sets) and the
+lavapipe probe, give each a WarmRehearsal stage, keep the load time and the boot frame no worse.
+
+**What appears mid-play** (read off waves 5-8's CLAUDE.md bullets and code: most of the waves were
+refcams, i.e. scenery that a chunk or landmark builds, whose shaders the boot compiles one a frame
+and whose surfaces are queued for the pipeline compilers while the chunk is built hidden - the
+mac-launch section). The dynamic ones, made and drawn in the same frame: explosions-4's fuel
+fireball (BlastPool's burning pool and fuel trail, Blast4.side_flames, the flame tongues), a boat
+(BoatKit's hull on boat.gdshader, BoatWake's emitters, BoatSea's chine sheets: the marina streams
+its moored boats in mid-play), a lit bonfire (BonfireFire builds its stack, pool, glow quad and
+flames the first time its ring is lit near the player), the wingsuit's fabric (an ArrayMesh with
+tangents and UV2, rebuilt per frame) and vapour (an ImmediateMesh strip), JetTakeoff's beams, the
+pursuit cruiser's LED bar (PursuitLook, part of the cruiser: rehearsed with it already), and from
+batch 63 CrashAftermath's oil-and-coolant pool (crash_fluids.gdshader), which skips the rehearsal's
+own cars on purpose (its pools are kept for the session). Newer car bodies (Cars3 / Cars4, motos,
+lowriders) were already in the cars stage (it walks every BodyType).
+
+**Measured.** `first_use_probe` gained `EVENTS=wave8` (new_cars, wingsuit, boat, jet_beams,
+bonfire, pursuit_night, fuel_blast, gas_blast) and its cleanup now frees what an event's effects
+parented to the scene (a BlastPool burns 15-24 s: before that, every event after a blast was timed
+under a burning pool). An event run TWICE in one process tells a first-use cost from what the
+thing costs to draw; that is the method that settled each row below.
+
+Lavapipe (Forward+ on the CPU, `ENV_LITE=1`, 480 x 270, caches emptied; base frame 1.3-2.6 s):
+
+| first time ... | no rehearsal: first / second time | with the new stage: first time |
+|---|---|---|
+| a boat (hull, wake, spray) | 27,154 ms / 7,919 (the second is GDScript building the hull) | 2,897 ms |
+| a lit bonfire | 11,770 / 1,332 | 1,242 (a base frame) |
+| the wingsuit opened | 4,448 / 1,340 | 2,026 |
+| landing-light beams | 1,550 / 1,283 | 1,609 (no first-use cost) |
+| a fuel fireball, a gas blast | OOM-killed at 13.6 GB (alone too, after the rehearsal's effects stage) | not measured |
+
+opengl3 (Compatibility, `WARM=0 REHEARSE=1`, base frame ~0.37-0.47 s): the GL driver compiles per
+shader, and the old rehearsal's explosion already compiles the blasts' (first and second fuel blast
+alike ~1.7-1.9 s a frame, which is llvmpipe drawing the volumes, not compiling); boat 2,793 ->
+931 ms, bonfire 1,509 -> 726 ms; wingsuit, beams, the LED cruiser: no first-use cost there.
+
+**What changed.**
+- `WarmRehearsal.wave8` (`WARM_WAVE8=0` the A/B): two stages after the idle particles, each with
+  its LOADING line. `wave 5-8 blasts`: a sedan goes up as a fuel fireball through
+  `WeaponFX.explosion()` with `BlastFX.fuel_next` (the look alone: no `Explosion.blast()`, so nothing
+  is pushed, knocked, damaged or a crime), with `Blast4.chain_depth` 0 (the chain would have set a
+  real fuse on any car within 8 m) and `secondary_count` 0 (the pops go off on timers after the
+  sweep), both put back. A pump's gas blast is the same pool and volume with other uniforms: not
+  staged (it cost ~1 s more). `wave 5-8 effects`: a speedboat and a jet ski, held still, with plain
+  copies of their wake's emitters spraying beside them (the wake itself switches them off on dry
+  land); a BonfireFire built and lit; two JetTakeoff beams; a crash-fluid pool (a PlaneMesh on
+  crash_fluids.gdshader); and two stand-ins with the wingsuit's materials and the very vertex
+  formats WingsuitFx builds (its fabric only exists while he glides).
+- The sweep also frees `BlastPool`s (scripted, so the old plain-node sweep left them burning).
+- The idle-particle stage prints and keeps what it saw and copied (`ghosts_seen`, `ghosts_made`;
+  28 of 28 in the city, cap 64): a weather that grew past the cap would leave the boost trail,
+  copied after it, with nothing, and the checks now fail first.
+- The boot compile: `deps.py --hook` on the 13 cycle scripts merged since its pass without the
+  frame line (11 from waves 7-8, 2 from batch 63).
+- `REHEARSE_STAGES` takes the new stage names (`"wave 5-8 effects"`), which is how lavapipe can run
+  them at all.
+
+**Load time** (`tools/load_time/load_time.sh headless`, `LOAD_SCREEN_HEADLESS=1`, this 4-core box;
+the A/B is WARM_WAVE8=0 on the same code, the final head after merging batch 63):
+
+| | WARM_WAVE8=0 | this branch |
+|---|---|---|
+| screen: rehearsal | 21.1 s (21.2-21.5 in earlier pairs) | 26.2 s (26.3-27.2) |
+| rehearsal wave 5-8 blasts / effects | - | 1.96 s / 1.55 s |
+| LOADING total, cold | 183.9 s | 151.1 s (noise: earlier pair 195.3 / 193.8, warm 116.3 / 120.4) |
+| peak RSS | 2,678 MB | 2,690 MB |
+
+So the cost is ~5 s of the headless rehearsal (the two stages' GDScript - the boats' hulls, the
+fireball's layers, the sedan - plus the sweep's extra frames); the totals swing more than that run
+to run. On the Mac the GPU work behind the shade adds to it (not measured). The boot
+(`load_time.sh boot`, opengl3): the cycle's compile 19.2 s with the 13 new hooks vs 18.9 s without,
+longest gap between frames 992 ms vs 1,002 ms - no worse.
+
+**Checks.** `tests/first_use_w8_checks.gd`: the stages are behind WARM_WAVE8, the probe has the
+events, a rehearsal of the two stages plus the idle particles in the loaded city leaves no
+BlastPool, boat, bonfire or tagged car, catches no chain fuse, puts the chain depth and the pops
+back, and copies every idle system under the cap. `tests/shader_warm_checks.gd` (the whole
+rehearsal leaves nothing) runs the new stages too.
+
+**Not done / not verified.**
+- Nothing on the Mac or a real GPU. Lavapipe cannot hold a fuel blast's pipelines (13.6 GB, killed),
+  so the blast stage's benefit on Forward+ is inferred (BlastPool, the fuel trail and the side
+  flames are new surfaces of the same kind the boat and bonfire proved), not measured.
+- Chunk- and landmark-built scenery from waves 5-8 (taco steam, the cemetery mist, the suburb
+  spills, the airport floods, ...) is not staged: its surfaces are created while the chunk builds
+  hidden over several frames and its shaders are compiled at boot; whether a FULL chunk swapping in
+  still waits on a pipeline on Metal is not measured here.
+- A Weather state reached mid-play for the first time (Santa Ana's smoke pall, the storm's bolt) is
+  covered only by the idle-particle copies of what sits hidden under Weather.
+
+## 9nw. The Coral Line's aerial structure at night (wave 8, refcam5 `rc5-rail-aerial`)
+
+Task: a new reference view, `rail_aerial` (tools/refcams/cameras_w8.json): the Coral Line's box
+girder where it swings west off Flower onto River Blvd and crosses the 110 (flyover s 2538, rail
+22.9 m, the 110's deck ~15 m), from River Blvd below at 20:00 clear - eye 1.7 m over the ground at
+(2384, 2793), yaw 86 (west), pitch 15, fov 55. Its `rail_s` key ("2470:1", refcams_shot.gd, the
+RAIL_S rule) holds a train on the curve. `tools/rc5_rail_aerial/probe.gd` lists the flyovers, the
+freeways under them and the poles there (the s 2293 flyover is the 10, s 2538 the 110, s 3127 the
+105). What gave it away, in order, and what was done (`RcRailAerial`,
+`scripts/world/rc5_rail_aerial.gd`, hooks in LightRailKit; `RC5_RAIL_AERIAL=0` is the A/B):
+
+1. **The structure carried no light.** At 20:00 the girder was a flat grey band in the dark, the
+   columns plain; nothing on a guideway that runs trains every five minutes was lit. Now every
+   pole on the structure carries an LED walkway luminaire either side (a bracket, housing and lens,
+   kind-7 lens on the structure shader, a NightAtmos halo, a pool on the ballast), and a downlight
+   pair hangs under the girder halfway between columns (`soffit_spots()`: on the structure, never
+   over a freeway deck) with a pool on the street below (FreewayKit's pool material).
+2. **What those lamps light stayed dark.** The rail gets its own copy of the freeway structure
+   material (`structure_material()`, carrying the freeway's `under_fill` along) with
+   `rail_wash` (freeway_structure.gdshader, 0 = the block skipped, the freeway untouched): the
+   columns and hammerheads washed from the top down, the soffit and the girder's underside by the
+   street lamps below, the poles and their arms by their own lamps (all emitted, x lamp_factor).
+   The freeway's scupper rust (a blotch every 12 m along the fascia) is respaced to the piers and
+   faint (`RUST_*`).
+3. **The overhead wires were invisible.** 4-6.5 mm prisms 40 m up drew as a few broken dots.
+   Main's RcRailCrossing (merged while this ran) now draws the line's wires as UtilityPoles
+   ribbons; on the structure RcRailAerial takes over with `shaders/rail_wire.gdshader`
+   ("RailWiresLit"): the same camera-facing ribbon, weathered copper, and after dark the light it
+   catches from the nearest pole's lamp (UV.y = metres to the nearest pole, `catch_*`), so the
+   catenary reads as fine lit lines over the train fading between poles - what a photograph of an
+   aerial line at night shows.
+
+**Numbers** (refcams, opengl3 1280x720; before = main 6f5af3d2, after = this branch before the
+merge): p1/p5/p50/p95/p99 3/10/29/106/158 -> 3/10/31/111/161, crushed 2.3 -> 2.3 %, CCT 7,868 ->
+7,304 K; triangles 4.93 M -> 4.91 M, draws 3,360 -> 3,377, shadow 1.28 M -> 1.27 M (flat).
+
+**Forward+**: a city block downtown OOMs lavapipe (fwd_block_shot, killed twice on 15 GB), so
+`tools/rc5_rail_aerial/fwd_scene.tscn` renders the pieces alone (a column, soffit, pole, lens and
+the wires on the real materials at lamp_factor 1) under both renderers: column 71/61/49 vs
+72/61/50, soffit 33/26/18 vs 34/28/20, pole 46/42/34 vs 47/44/36, lens saturated on both - the
+same. The wires' brightest pixel is 113 on Compatibility and 151 on Forward+ (a sub-pixel alpha
+blend added in linear): brighter on the Mac, not wrong, but `catch_gain` is the knob if it reads hot.
+
+Not done / not verified: the curve's flat-shaded facets (one normal per 2 m quad) still show on the
+soffit; the fascia's vnoise grime smears remain (shared freeway look); the ten original cameras
+are untouched by construction (only the light rail kit's FULL chunks change and none of the ten
+looks at the aerial structure) but were not re-shot; the whole view was judged on opengl3 only.
+
+## 9nx. Life in the water from the end of the pier: the sea_life refcam (wave 8, refcam5 `rc5-sea-life`, branch `wt/rc5-sea-life`)
+
+**The camera.** `sea_life` in `tools/refcams/cameras_w8.json`: 08:00 clear, on the straight pier's
+round head (Manhattan pier, head centre (-959, 1100), deck top 6.4 m), eye 1.65 m over the deck at
+(-952, 8.05, 1108.5) looking ESE (yaw -128, pitch -4, FOV 40) down the coast: the power plant, the
+beach town's sand, the horseshoe pier and the front range in morning light, the sun's glitter path
+on the left. Its optional `sea` key (refcams_shot.gd `_sea_stage()`) is `SeaLife.stage_for_shot()`'s
+spec ("kind@x,z[,lead];...", TRUE world): a dolphin pod 40 m out at (-922, 1146) and a pelican line
+at (-918, 1128), staged three frames before the shot with the sea clock held, put back after.
+`SEA_DEBUG=1` prints every swimmer and surfer BeachActivity has (their distance from the lens).
+
+**What read fake, worst first, and what was done** (`SEA_SPRAY=0` puts all of it back):
+1. *Every splash was a dome of polka dots, cut flat by the waterline.* sea_spray.gdshader drew the
+   white water round the hole as camera-facing discs with a grid of round dots, half under the
+   sea plane, so each re-entry was a row of soft glowing balls with a ruler-straight bottom. Now
+   (`look2`, set from `SeaLife.spray_look`): the four low clumps lie FLAT on the water, a patch of
+   white water with a torn edge and a darker hole that spreads and opens into lace over ~3 s; the
+   ten thrown clumps fly as streaks along their own velocity (the quad stretched along the
+   velocity as the eye sees it, a thin sheet tapering both ways with drops strung on it, faded
+   before it meets the water). The blow is unchanged.
+2. *Nothing touched the water.* A dolphin rolling its back through the surface, a leap's entry,
+   a pelican sitting down after its plunge and the whale's back left the sea as it was. They now
+   leave a ring (`SeaLife.SPRAY_RING`, a new spray kind: two flat quads, a band of fine foam broken
+   into arcs round a calmer slick, ageing out over 4 s, left behind as the pod swims on).
+3. *The dolphins read as pale silver plastic.* sea_life.gdshader's `skin2` (dolphin only): the
+   rake scars a third as strong (they striped the flank silver), the body ~20 % darker, and the
+   water film on the skin sharp highlights broken by streaks down the body instead of a broad
+   satin sheen.
+4. *The staged pod leapt in unison* (tooling): `stage()`'s sync now brings the dolphins up a third
+   of a second apart, so at the moment three or four are in the air and the rest roll or are down.
+
+**Looked at and left alone.** The surf's whitewater is there at 08:00 (it is at the beach
+refcam's eye) but from 130-270 m offshore at 8 m it is a 2-4 px band behind the waves' backs and
+does not read; making it read from range means thickening foam in ocean.gdshader, which every
+beach and sunset view shares - out of this area. A debug render (the zone red, the whitewater
+green, the bores blue) showed the bores and whitewater present all along the shore. The surfers
+sit 180-240 m from the pier head (BeachActivity's lineup is break + 8-22 m): dots, as from any
+real pier end. Short dark dashes on the open water (the ocean's wind slicks at this sun angle)
+and the far horseshoe pier's boxy shops are other areas'.
+
+**Numbers** (opengl3, refcams, before = `SEA_SPRAY=0`): 2,682,979 triangles and 900 draws both
+ways (the spray is one draw, the rings are instances of it); luminance p5/p50/p95 40/154/213 ->
+40/153/213. Checks: `tests/rc5_sea_life_checks.gd` (the row, the switch, the shader branches,
+rings that lie on the sea and age out, the staged pod in turn). Kit stills in seconds:
+`tools/sea_life/kit_shot.tscn` (VIEW=dolphin, AGE=; it now shows a ring by the rolling dolphin).
+Not verified on Forward+ (the spray is unshaded and works in linear through color_space).
 
 ## 9d?. A club's line at 23:30 (fleet wave 8, refcam5 `club_line`, branch `wt/rc5-club-line`)
 

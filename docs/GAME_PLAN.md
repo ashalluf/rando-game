@@ -4807,6 +4807,27 @@ none of either.
   a promise about what is behind it: a VACANCY box over striped asphalt read as set dressing.
   Lit windows key their rolls on a rounded integer, never on an interpolated varying. MOTELS=0
   and MOTEL_SIGN_GLOW=0 are the A/Bs.
+- **2026-11-06 First uses after waves 5-8 (first-use-w8, HANDOFF "First uses after waves 5-8").**
+  Every system that makes and draws a new kind of surface in the same frame (a boat, a lit bonfire,
+  a fuel fireball, the wingsuit, a crash's fluids) gets a stage in the loading screen's rehearsal;
+  scenery a chunk builds hidden does not. A first use is told from a draw cost by running the event
+  twice in one process. The rehearsal stages the LOOK only: no Explosion.blast, no chain fuse, no
+  delayed pops, everything it lights swept. WARM_WAVE8=0 is the A/B.
+- **2026-11-06 The rail_aerial refcam: a structure at night carries its own light (rc5-rail-aerial,
+  HANDOFF "The Coral Line's aerial structure at night").** A new reference camera (`rail_aerial`,
+  wave 8's table) under the Coral Line's flyover over the 110 at 20:00. Anything a few millimetres
+  thick (overhead wires) is drawn as a camera-facing ribbon never under a pixel, never as a
+  prism a tenth of a pixel wide; an elevated structure at night is lit by its own fixtures (walkway
+  lamps on the poles, downlights under the girder with pools on the street), and what those
+  fixtures would light (columns, soffit, poles, the wires near each pole) carries that light as
+  emission, on the rail's own copy of a shared material so the freeway is untouched.
+  RC5_RAIL_AERIAL=0 is the A/B.
+- **2026-11-06 The sea_life refcam: water that is touched (rc5-sea-life, HANDOFF "Life in the
+  water from the end of the pier").** A new reference camera (`sea_life`, wave 8's table) on the
+  straight pier's head at 08:00. A splash is white water lying ON the sea plus drops flying as
+  streaks along their path, never camera-facing balls (they cut flat at the waterline); anything
+  that breaks the surface leaves a ring that ages out. The surf's whitewater not reading from a
+  pier end was left to the ocean's owners (shared by every beach view). SEA_SPRAY=0 is the A/B.
 - **2026-11-06 A club takes its sign band; a searchlight starts at its lens (rc5-club-line, HANDOFF
   "A club's line at 23:30").** A new reference camera (`club_line`, wave 8's table) across 6th St
   from AFTERGLOW at 23:30. A venue that dresses a shop owns that shop's sign band (a club's fascia

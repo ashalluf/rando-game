@@ -30,6 +30,8 @@ extends RefCounted
 ##   (aircraft_lights.gdshader `flash_hold`); in play they flash as before.
 ## Nothing rolls; every number is a constant here.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 static var enabled: bool = OS.get_environment("JET_TAKEOFF") != "0"
 
 ## The infield's tufts a square metre (the lawns' 1.9 thinned: mown, dry airfield grass) and the
