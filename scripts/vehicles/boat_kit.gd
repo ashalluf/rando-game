@@ -11,6 +11,8 @@ extends RefCounted
 ## helm's side), Y up. Three levels (BoatMesh.Level), each its own MeshInstance3D faded by
 ## visibility range (Boat._build()).
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 enum Kind { SPEEDBOAT, JETSKI }
 
 ## [length, beam] of each kind (metres).
@@ -40,6 +42,7 @@ static func mesh(kind: int, level: int, accent: int) -> ArrayMesh:
 		_jetski(acc, ac)
 	else:
 		_speedboat(acc, ac)
+		BoatSea.transom(acc, _hull_of(kind), accent, ac)
 	var m := acc.commit()
 	_cache[key] = m
 	return m

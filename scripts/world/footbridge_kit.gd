@@ -21,6 +21,8 @@ extends RefCounted
 ##
 ## Everything is built round the pivot `o` (the span's centre at y 0): vertices are local to it.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 enum Detail { FULL, LOD }
 
 ## What a face is (shaders/footbridge.gdshader): the vertex alpha is kind / 16.

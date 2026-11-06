@@ -7,6 +7,8 @@ extends Pedestrian
 ## out of a door and walk off the platform's end, down the ramp, and are gone). Everything else -
 ## the look, the gait, panic, being shot or knocked down - is Pedestrian's.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 var line: LightRail
 ## The station this rider waits at (an index of LightRail.stations).
 var station := 0

@@ -7,6 +7,8 @@ extends Node3D
 ## swimmer's), CPUParticles3D in world space; emitters ride the water's surface under the hull.
 ## One node per boat; nothing runs past `fx_range` of the camera or while the boat is still.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 ## Beyond this distance from the camera no particles are emitted.
 const FX_RANGE := 160.0
 ## Kelvin's wake half-angle (radians).
@@ -17,6 +19,9 @@ var _trail: CPUParticles3D
 var _arms: Array[CPUParticles3D] = []
 var _spray: Array[CPUParticles3D] = []
 var _rooster: CPUParticles3D
+## BoatSea's spray (BOAT_SEA=0: none): a sheet of spray off each chine (the boil off the transom is
+## the sea's own, ocean.gdshader's wake); the old drops stay, fewer.
+var _sheets: Array[CPUParticles3D] = []
 var _web := OS.has_feature("web")
 
 
@@ -31,6 +36,17 @@ func _ready() -> void:
 		_spray.append(_drops(36 if not _web else 14, 0.9, SwimFX.drop_material(), Color(0.9, 0.95, 1.0, 0.75), 0.06, 0.16))
 	if not big:
 		_rooster = _drops(60 if not _web else 24, 1.1, SwimFX.mist_material(), Color(1.25, 1.28, 1.3, 0.42), 0.5, 1.4)
+	if BoatSea.enabled:
+		for sp: CPUParticles3D in _spray:
+			sp.amount = 18 if not _web else 8
+		for side: float in [-1.0, 1.0]:
+			var sh := _drops(160 if not _web else 48, 0.36, spray_material(), Color(1.6, 1.58, 1.55, 0.55), 0.1 if big else 0.08, 0.45 if big else 0.32)
+			sh.spread = 18.0
+			sh.gravity = Vector3(0.0, -7.0, 0.0)
+			sh.damping_min = 1.5
+			sh.damping_max = 3.0
+			sh.set_meta("side", side)
+			_sheets.append(sh)
 
 
 func _foam(n: int, life: float, box: Vector3, s0: float, s1: float) -> CPUParticles3D:
@@ -84,6 +100,21 @@ func _drops(n: int, life: float, mat: Material, col: Color, s0: float, s1: float
 	return p
 
 
+## BoatSea's spray: the mist's puff, lit, and lit THROUGH from behind (a sheet of spray against a
+## low sun glows; lit only from the front it drew as grey smoke).
+static var _spray_mat: StandardMaterial3D
+
+
+static func spray_material() -> StandardMaterial3D:
+	if _spray_mat == null:
+		var m := SwimFX.mist_material().duplicate() as StandardMaterial3D
+		m.backlight_enabled = true
+		m.backlight = Color(0.85, 0.85, 0.85)
+		m.albedo_color = Color(1.0, 1.0, 1.0)
+		_spray_mat = m
+	return _spray_mat
+
+
 static func _ramp(a0: float) -> Gradient:
 	var g := Gradient.new()
 	g.set_color(0, Color(1, 1, 1, a0))
@@ -102,6 +133,7 @@ func level() -> float:
 func drive(_delta: float) -> void:
 	if boat == null:
 		return
+	BoatSea.push_alone(get_tree())
 	var lv := level()
 	var cam := get_viewport().get_camera_3d() if is_inside_tree() else null
 	if cam != null and cam.global_position.distance_to(boat.global_position) > FX_RANGE:
@@ -116,13 +148,16 @@ func drive(_delta: float) -> void:
 	var right := Vector3(xf.basis.x.x, 0.0, xf.basis.x.z).normalized()
 	var v := boat.linear_velocity.length()
 	var stern := xf * Vector3(0.0, 0.0, s.x * 0.48)
-	_place(_trail, Vector3(stern.x, surf, stern.z), -fwd, on)
+	# BoatSea draws the trail and the arms on the sea itself: the old flat foam quads drifted off as
+	# blobs (on the water metres from any wake), so they stay off under it.
+	var flat_on := on and not (BoatSea.enabled and boat.on_sea())
+	_place(_trail, Vector3(stern.x, surf, stern.z), -fwd, flat_on)
 	_trail.initial_velocity_max = 0.6 + lv * 1.5
 	for i in 2:
 		var side: float = _arms[i].get_meta("side")
 		var bow := xf * Vector3(side * s.y * 0.35, 0.0, -s.x * 0.18)
 		var out := (-fwd * cos(KELVIN) + right * side * sin(KELVIN)).normalized()
-		_place(_arms[i], Vector3(bow.x, surf, bow.z), out, on and lv > 0.15)
+		_place(_arms[i], Vector3(bow.x, surf, bow.z), out, flat_on and lv > 0.15)
 		_arms[i].initial_velocity_min = v * 0.25
 		_arms[i].initial_velocity_max = v * 0.35
 		# Spray: thrown out of the chine forward of amidships, up and out.
@@ -131,6 +166,14 @@ func drive(_delta: float) -> void:
 		_place(_spray[i], Vector3(chine.x, surf + 0.05, chine.z), sd, on and lv > 0.3)
 		_spray[i].initial_velocity_min = 2.0 + lv * 4.0
 		_spray[i].initial_velocity_max = 3.5 + lv * 6.0
+	for i in _sheets.size():
+		var side: float = _sheets[i].get_meta("side")
+		# The sheet peels off the chine a third aft of the bow, out, up and back.
+		var at := xf * Vector3(side * s.y * 0.48, 0.0, -s.x * 0.05)
+		var sd := (right * side * 0.8 + Vector3.UP * 0.22 - fwd * 0.55).normalized()
+		_place(_sheets[i], Vector3(at.x, surf + 0.06, at.z), sd, on and lv > 0.25)
+		_sheets[i].initial_velocity_min = 1.0 + lv * 2.0
+		_sheets[i].initial_velocity_max = 2.0 + lv * 3.5
 	if _rooster:
 		var nz := xf * Vector3(0.0, 0.0, s.x * 0.5)
 		var thr := maxf(boat.throttle, 0.0)

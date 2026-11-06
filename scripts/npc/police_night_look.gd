@@ -23,6 +23,8 @@ extends Node
 ## Nothing here rolls a random number: a car's look is its own `_phase`.
 ## POLICE_NIGHT_LOOK=0 in the environment is the A/B (the old bar, its own BarLight).
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 ## Off with POLICE_NIGHT_LOOK=0.
 static var enabled: bool = OS.get_environment("POLICE_NIGHT_LOOK") != "0"
 ## Real lights anywhere (checks, stills off Forward+).
@@ -200,6 +202,7 @@ func _make_glow(car: PoliceCar) -> Node3D:
 	mat.set_shader_parameter("rate", car.flash_rate)
 	mat.set_shader_parameter("phase", car.flash_phase())
 	RcMayhem.dress_police(mat)
+	PursuitLook.dress_wash(mat, pool_size)
 	glow.set_meta("mat", mat)
 	var bar := car.get_node_or_null("LightBar") as Node3D
 	var flare := MeshInstance3D.new()

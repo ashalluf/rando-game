@@ -8,6 +8,8 @@ extends Node3D
 ## A child of the chunk that holds the loop's start (MarinaBuild._traffic_step()); chunk space is
 ## true world XZ, so it needs nothing on an origin re-centre.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 ## How many boats, their speed (m/s: a harbour's 5 knots is 2.6), and the spacing along the loop.
 @export var boats := 3
 @export var speed := 3.4

@@ -16,6 +16,8 @@ extends RefCounted
 ## the turntable (YOKE_Y up); the drum about x at the trunnions (TRUNNION_Y over the yoke's foot),
 ## its lens toward -z (a SpotLight3D's way).
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 # Vertex colour alpha codes, read by shaders/nightlife.gdshader (round(a * 20)).
 const A_METAL := 0.05
 const A_VELVET := 0.1

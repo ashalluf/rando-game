@@ -6,6 +6,8 @@ extends Pedestrian
 ## never crosses a road. `worker`: a postal carrier by the dock, in the service's blue-grey shirt
 ## and navy trousers (the character shader's garment split, as ApronCrew's hi-vis).
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 const SHIRT := Color(0.46, 0.55, 0.66)
 const TROUSERS := Color(0.07, 0.09, 0.18)
 

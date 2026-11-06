@@ -9,6 +9,8 @@ extends RefCounted
 ##
 ## Tunables, as static vars (like Explosion's): set them from anywhere.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 ## Fall speed (m/s) from which a landing kicks up any dust at all.
 static var dust_speed: float = 22.0
 ## Fall speed at which the dust ring and the camera kick are at full size.

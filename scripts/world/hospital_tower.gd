@@ -10,6 +10,8 @@ extends Building
 ## rooms most of the night (wards never sleep) and no roof plant on the tower, whose roof is the
 ## helipad.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 ## Set before generate(): the podium (x, y, z size) and the tower (size, and its centre's offset
 ## on the podium in x / z), all in the building's space (origin at the podium's foot centre).
 var podium_size: Vector3 = Vector3(40.0, 13.2, 40.0)

@@ -11,6 +11,8 @@ extends Node
 ## ONE node under the tree root, made by the first stunt piece a FULL chunk builds (ensure()).
 ## STUNT_SLOWMO=0 in the environment: the pieces stay, the slow motion does not.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 ## Engine.time_scale at the height of a jump.
 @export_range(0.05, 1.0) var slow_time_scale: float = 0.3
 ## The audio's playback speed at the height of a jump.

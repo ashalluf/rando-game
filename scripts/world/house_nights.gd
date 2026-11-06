@@ -20,6 +20,8 @@ extends RefCounted
 ## `HOUSE_NIGHTS=0` in the environment is the A/B: no UV2 on the glass (its old look), no
 ## fixtures, no glow, the far boxes and pools as before.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 static var enabled: bool = OS.get_environment("HOUSE_NIGHTS") != "0"
 
 # The numbers house_nights.gdshaderinc holds too (checked by tests/house_nights_checks.gd).

@@ -13,6 +13,8 @@ extends RefCounted
 ## pavement. A bistro set: origin on the deck under the table's middle, the chairs at
 ## -x and +x facing it (CHAIR_X). An umbrella: origin on the deck at its pole's foot.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 # Vertex colour alpha codes, read by shaders/parklet.gdshader (round(a * 20)).
 const A_FIXED := 0.0
 const A_DECK := 0.1

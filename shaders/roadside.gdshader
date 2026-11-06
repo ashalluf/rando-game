@@ -43,6 +43,12 @@ uniform float neon_day = 0.6;
 uniform float neon_night = 9.0;
 uniform float bulb_day = 0.25;
 uniform float bulb_night = 7.0;
+// GasNight (scripts/world/gas_night.gd): the canopy's LED panels light the forecourt concrete under
+// them (a downward Lambert source each) and mirror in it as soft glossy blobs. The forecourt's UV
+// is frame metres from the canopy's centre, its UV2 the canopy's half size and quarter turn.
+uniform float canopy_under = 4.86;
+uniform float forecourt_light = 0.55;
+uniform float forecourt_gloss = 1.0;
 
 varying vec3 v_world;
 varying vec3 v_wnormal;
@@ -300,6 +306,47 @@ vec3 rs_room(float s0, float h0, float ds, float dh, float dd, float depth, int 
 	return col;
 }
 
+// The canopy's light on its forecourt (GasNight). `p` frame metres from the canopy's centre, `u2`
+// = (100 + half width, half depth + 100 x quarter turns), `V` camera -> point (world).
+vec3 gas_forecourt(vec2 p, vec2 u2, vec3 V, vec3 albedo, float rough, float lamp) {
+	vec2 hs = vec2(u2.x - 100.0, 0.0);
+	float q = floor((u2.y + 50.0) / 100.0);
+	hs.y = u2.y - 100.0 * q;
+	float yaw = q * 1.5707963;
+	vec3 xa = vec3(cos(yaw), 0.0, -sin(yaw));
+	vec3 za = vec3(sin(yaw), 0.0, cos(yaw));
+	int nx = max(int(hs.x * 2.0 / 3.2), 2);
+	int nz = max(int(hs.y * 2.0 / 3.2), 2);
+	float h = canopy_under;
+	float h2 = h * h;
+	// The mirrored panels: the reflected ray met with the soffit's plane, blurred by its travel.
+	vec3 R = reflect(V, vec3(0.0, 1.0, 0.0));
+	float t = h / max(R.y, 0.02);
+	vec2 hit = p + vec2(dot(R, xa), dot(R, za)) * t;
+	float sp = 0.35 + 0.09 * t * rough;
+	float inv = 1.0 / (2.0 * sp * sp);
+	float diffuse = 0.0;
+	float gloss = 0.0;
+	for (int i = 0; i < 8; i++) {
+		if (i >= nx) break;
+		float cx = -hs.x + (float(i) + 0.5) * hs.x * 2.0 / float(nx);
+		for (int j = 0; j < 5; j++) {
+			if (j >= nz) break;
+			vec2 c = vec2(cx, -hs.y + (float(j) + 0.5) * hs.y * 2.0 / float(nz));
+			vec2 d = p - c;
+			float r2 = dot(d, d) + h2;
+			diffuse += h2 * h2 / (r2 * r2);
+			vec2 e = hit - c;
+			gloss += exp(-dot(e, e) * inv);
+		}
+	}
+	// The panel's lens is 0.66 m square: its energy spread over the blob.
+	gloss *= 0.0693 * inv;
+	float fres = 0.04 + 0.96 * pow(1.0 - clamp(-V.y, 0.0, 1.0), 5.0);
+	vec3 led = vec3(1.0, 0.98, 0.94);
+	return lamp * (albedo * diffuse * forecourt_light + led * gloss * fres * soffit_night * forecourt_gloss);
+}
+
 void fragment() {
 	int code = int(round(v_code * 20.0));
 	vec3 base = cs_srgb_to_linear(COLOR.rgb);
@@ -318,6 +365,11 @@ void fragment() {
 		rough = clamp(rough + (g - 0.5) * 0.18, 0.08, 0.9);
 		base *= 0.94 + 0.08 * g;
 	} else if (code == 2) {
+		bool forecourt = UV2.x > 50.0;
+		if (forecourt) {
+			rough = 0.75;
+			metal = 0.0;
+		}
 		// Poured concrete: joints every 4.5 m, mottle, oil drips and tyre scuffs where cars stand.
 		vec2 j = abs(fract(UV / 4.5) - 0.5);
 		float joint = smoothstep(0.497, 0.4995, max(j.x, j.y)) * (1.0 - smoothstep(0.0, 0.02, fwidth(UV.x)));
@@ -327,6 +379,9 @@ void fragment() {
 		base *= 1.0 - 0.45 * oil;
 		rough = mix(rough, 0.35, oil * 0.6);
 		rough = mix(rough, 0.12, clamp(road_wetness, 0.0, 1.0) * 0.8);
+		if (forecourt && lamp > 0.001) {
+			emit += gas_forecourt(UV, UV2, V, base, rough, lamp);
+		}
 	} else if (code == 3) {
 		// Painted stucco: a sand finish (fine grain, faded to its mean under a pixel), trowel
 		// patches a metre or so across, repainted panels, and soft weathering streaks running down

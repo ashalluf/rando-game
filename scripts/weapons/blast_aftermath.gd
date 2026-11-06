@@ -13,6 +13,8 @@ extends RefCounted
 ## but leaves no pit. Every knob is a static var here; `enabled` false (`BLAST_AFTERMATH=0`)
 ## turns all of it off.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 static var enabled: bool = OS.get_environment("BLAST_AFTERMATH") != "0"
 ## Crater diameter per metre of blast radius (a rocket's 9 m makes a pit about 3.4 m across),
 ## and the scorch round it.

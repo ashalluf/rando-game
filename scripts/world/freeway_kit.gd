@@ -26,6 +26,8 @@ extends RefCounted
 ## Names on signs are invented or public street names; route numbers are this game's own
 ## (ROUTE_NUMBERS), never the real routes'.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 ## Vertex kinds (colour alpha * KIND_SCALE). Structure:
 const S_CONCRETE := 1
 const S_BARRIER := 2

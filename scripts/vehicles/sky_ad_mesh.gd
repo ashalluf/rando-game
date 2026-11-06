@@ -11,6 +11,8 @@ extends RefCounted
 ## tows banners along a beach: 10.7 m span, 6.9 m long, struts, big tyres, a tow hook. Meshes
 ## are cached; the banner is cached per text.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 const K_PAINT := 0
 const K_ENVELOPE := 1
 const K_LETTER := 2

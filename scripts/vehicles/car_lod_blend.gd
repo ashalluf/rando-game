@@ -20,6 +20,8 @@ extends RefCounted
 ## keeps the hard swap. The first hit (CarDamage, which copies and swaps the paint) puts the hard
 ## swap back (revert()). CAR_LOD_BLEND=0 (or LOD_POPS=0) is the A/B.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 ## Off with CAR_LOD_BLEND=0.
 static var enabled: bool = OS.get_environment("CAR_LOD_BLEND") != "0"
 ## Metres the crossfade spans, centred on the swap distance.

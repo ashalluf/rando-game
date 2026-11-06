@@ -10,6 +10,8 @@ extends RefCounted
 ##
 ## Colours below are LINEAR (the shader works in linear on both renderers).
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 ## Width of one fence bay (a post at each end), the perimeter fence's height, a blast fence panel.
 const FENCE_BAY := 3.0
 const FENCE_HEIGHT := 2.6

@@ -21,6 +21,8 @@ extends RefCounted
 ## Nothing here rolls anything: positions are the park's own constants. `PIER_NIGHT=0` in the
 ## environment is the A/B (the park exactly as before).
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 static var enabled: bool = OS.get_environment("PIER_NIGHT") != "0"
 
 ## Chaser bulbs along the coaster: spacing (m), how far outside the rail, their size and colours.

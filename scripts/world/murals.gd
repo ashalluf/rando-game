@@ -32,6 +32,8 @@ extends RefCounted
 ## Static: CityChunk runs build() as a build step of a FULL chunk, after StreetWear; it queues its
 ## real work as the last step before the finish, after YardFill's deferred walls.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 # --- Tunables (consts: never instanced) ----------------------------------------------------------
 
 ## Per CityPlan.District (DOWNTOWN, MIDTOWN, SUBURBS, INDUSTRIAL, CAMPUS, BEACHTOWN):

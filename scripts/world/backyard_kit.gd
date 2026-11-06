@@ -16,6 +16,8 @@ extends RefCounted
 ## CUSTOM0 (w 1), so the shader can keep a bulb at least a pixel or so wide from the air.
 ## Meshes are cached (static), built once; `warm()` builds them on the loading screen.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 # Vertex alpha codes (shaders/backyard.gdshader reads floor(a * 16)).
 const K_FIXED := 0       # the vertex colour is the colour
 const K_PAINT := 1       # vertex rgb x instance paint, satin powder coat

@@ -88,6 +88,23 @@ at the shot): tune `air_dist` / `air_side` from it.
 Run with `REFCAMS_JSON=tools/refcams/cameras_w6.json`. `rooftop_golden`: the black twins' north
 helipad (deck 215.55 m), 17:45 clear, looking SSW over the skyline to the basin and the sea.
 
+## Wave 8's cameras (`cameras_w8.json`)
+
+Run with `REFCAMS_JSON=tools/refcams/cameras_w8.json`. `arena_night` (rc5-arena-night): STARLIGHT
+PLAZA at 21:00 clear, eye level in the crowd at the plaza's south-east looking north-west at the
+screen wall, the theatre's lobby and HOTEL ALTAIR's crown. Its optional `arena_event` key (1 / 0)
+makes the night an event night or a quiet one (ArenaNight, as ARENA_EVENT; set before the city
+loads). `tools/rc5_arena_night/site_probe.gd` prints the district's site rects in world XZ.
+
+## Wave 7's cameras (`cameras_w7.json`)
+
+Run with `REFCAMS_JSON=tools/refcams/cameras_w7.json`. `freight_yard`: the Arroyo Pacific yard at
+16:30 clear, eye level where the ladder meets the storage tracks looking north, a train pulling out
+on the east main. Its optional `freight_into` key holds the freight line's clock that many seconds
+into the yard stand of the trip nearest the yard (`FreightRail.clock_at_yard()`; past 150 s the train
+is pulling out south). `tools/rc4_freight_yard/probe.gd` prints the yard's tracks, cuts and masts and
+the train's ends over the pull-out, `chunk_probe.gd` what each yard chunk lays.
+
 ## Running
 
 ```
@@ -175,6 +192,15 @@ staged and holds it until the shot; while it is held, every placement of the par
 each step, and the tunnel train is hidden with it).
 
 
+## Wave 8's cameras (`cameras_w8.json`)
+
+Run with `REFCAMS_JSON=tools/refcams/cameras_w8.json`. `gas_station_night` (rc5-gas-station-night):
+the HALCYON station at (-64.6, 519.2) from the street at 23:30 clear. Its `pump_car` key (1) sets
+PUMP_CAR=1 before the city loads: every gas station gets GasNight's car at a pump and its driver,
+whatever its hash. `NIGHT_AB=1` (any camera) saves the frame again with the lamps' omnis, the
+pools / spills / glows, the moon and the ambient each taken away (`<name>_nab_<what>.png`, plus
+`nothing`), and prints the environment's night numbers, the lamps within 60 m and the pool batches
+within 40 m: what lights a night frame, measured.
 ## Wave 7's cameras (`cameras_w7.json`)
 
 `lowrider_meet` (rc4-lowrider-meet): the Saturday lowrider meet on Z#4 (x 810-900, seed 1337) at
@@ -199,6 +225,38 @@ Run with `REFCAMS_JSON=tools/refcams/cameras_w8.json`. `skate_park` (rc5-skate-p
 Its optional `skate_t` key holds SkateParkLife's clock (seconds, the riders held: `_skate_clock()` in
 refcams_shot.gd, as SKATE_T= / SKATE_HOLD=1), so the first pool rider is at the top of his
 frontside air over the far coping. `tools/rc5_skate_park/air_probe.gd` lists every rider's air times.
+
+`storm_downtown`: Flower St south of 8th
+toward the towers, 20:30 storm, five staged street cars. Its optional `storm_flash` key
+(`{"dist": m, "az": degrees (0 = +x, -90 = north), "hold": level}`) forces a strike through
+`Weather.force_strike()` as the staging starts and holds its flash and bolt (StormDrama) until the
+shot is saved.
+
+## Wave 8's cameras (`cameras_w8.json`)
+
+Run with `REFCAMS_JSON=tools/refcams/cameras_w8.json`. `speedboat_golden` (rc5-speedboat): the
+SALTRUNNER at speed 300 m off the beach town at 17:45 clear, a chase eye into the sun path. Its
+`boat` key (`tools/refcams/boat_stage.gd`, the same interface as chase_stage.gd) re-centres the world
+on `at`, puts the player in a fresh boat heading `heading` (the --spawn yaw), holds the throttle
+`ticks` physics ticks, and lays a free eye `chase` = [back, side, up, aim ahead] metres off the hull
+every frame up to the shot; optional `kind`, `look`, `boost`, `steer`. The row's own eye is unused.
+## Wave 8's cameras (`cameras_w8.json`)
+
+Run with `REFCAMS_JSON=tools/refcams/cameras_w8.json`. `farmers_market` (rc5-farmers-market): Palm
+St's market aisle on a Saturday at 10:00 clear. Its optional `market_day` key sets `MARKET_DAY` (and
+`MARKET_HOUR` = the row's hour) before the city loads, so the stalls stand up whatever the day.
+## Wave 8's cameras (`cameras_w8.json`)
+
+Run with `REFCAMS_JSON=tools/refcams/cameras_w8.json`. `police_pursuit` (rc5-police-pursuit): the
+player's own car on Wilshire at 22:00 clear through his chase camera (a `drive` row, chase_stage.gd),
+with the drive key's optional `pursuit` (`pursuit_stage.gd`): `stars`, `cruisers` ([metres behind,
+metres to his right] each, held at his speed, their own driving off), `heli` ([dist, side, height]:
+AirTraffic.stage("police") from his camera, its searchlight on him) and `look` ([yaw, pitch] degrees
+the chase camera is turned off its chase view and held). The police dispatch nothing of their own
+while it runs. `POLICE_PURSUIT=0` stages none of it; `PURSUIT_AB=1` saves the frame again with each
+piece switched off (pab_NN_base.png / pab_NN_<piece>.png pairs): the helicopter's spot, pool and
+shaft, the cruisers' wash pool / wall / glare, by their inputs (their owners re-show hidden nodes
+every frame).
 ## Wave 8's cameras (`cameras_w8.json`)
 
 Run with `REFCAMS_JSON=tools/refcams/cameras_w8.json`. `suburb_night` (rc5-suburb-night): the

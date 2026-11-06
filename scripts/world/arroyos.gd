@@ -18,6 +18,8 @@ extends RefCounted
 ## hill chunk asks, and kept in LoadCache across launches. `ARROYOS=0` in the environment turns
 ## the whole thing off (the A/B).
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 static var enabled: bool = OS.get_environment("ARROYOS") != "0"
 
 ## The flow grid's cell, metres.

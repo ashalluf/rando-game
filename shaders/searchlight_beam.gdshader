@@ -26,6 +26,12 @@ global uniform float rain_intensity;
 global uniform float night_aerial;
 #endif
 uniform float far_gain = 0.2;
+// The police pursuit (PursuitLook; 0 = the old shaft): the share of the shaft's length at its ground
+// end it fades out over (its foot was the rim of a white disc on the street), and the camera
+// distances (m) inside which it fades away (a cone wall a few metres off veiled half the frame).
+uniform float foot_fade = 0.0;
+uniform float near_from = 0.0;
+uniform float near_to = 0.0;
 uniform float far_from = 200.0;
 uniform float far_to = 1000.0;
 
@@ -59,6 +65,12 @@ void fragment() {
 		fade = mix(fade, pow(1.0 - along, 0.7) * smoothstep(0.0, 0.03, along), 0.5);
 	}
 	ALBEDO = tint;
+	if (foot_fade > 0.0) {
+		fade *= 1.0 - smoothstep(1.0 - foot_fade, 1.0, along);
+	}
+	if (near_to > near_from) {
+		fade *= smoothstep(near_from, near_to, length(VERTEX));
+	}
 	float a = fade * face * strength * gain * lamp_factor;
 	if (night_aerial > 0.5) {
 		float far_k = smoothstep(far_from, far_to, length(VERTEX));

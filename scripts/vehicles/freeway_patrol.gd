@@ -8,6 +8,8 @@ extends Vehicle
 ## until a hit knocks it out of the traffic like any other car. No siren, no police AI: it is not
 ## in the "police" groups and has no part in the wanted level.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 const AGENCY := "BASIN HIGHWAY PATROL"
 const LETTER_AT := Vector3(0.914, 0.66, -0.2)
 const LETTER_SIZE := 0.06

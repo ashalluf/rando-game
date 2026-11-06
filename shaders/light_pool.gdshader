@@ -22,8 +22,14 @@ uniform float falloff : hint_range(0.5, 6.0) = 2.4;
 // the Mac (the metro kiosk's and the freeway's pools, fwd-review-e). With this on, Forward+ adds the
 // display-space amount decoded, which over a dark ground is what the opengl3 still shows.
 uniform bool display_add = false;
+// The same display-number add on Forward+ ONLY, nothing else (fwd-review-h: the bonfires' and the
+// landing lights' pools; display_add also eases the freeway's pools from the air, on both renderers).
+uniform bool display_add_fwd = false;
 // A street lamp's pool on Forward+, where the lamp's real light already lights the road (see below).
 uniform float street_forward = 0.4;
+// The same on Compatibility (NightGround, wave 8): the street lamp's omni lights the road there too,
+// and the pool added at full strength on top of it washed the whole street evenly.
+uniform float street_compat = 1.0;
 // The night aerial review (NightAerial; NIGHT_AERIAL=0 sets the global 0): a road light's broad
 // pool (display_add: the freeway's) seen from the air. Each one had a hard rim (pow(r, 0.75) rises
 // from 0 with an infinite slope) and they overlapped down the deck into a white tube of discs: the
@@ -111,6 +117,11 @@ void fragment() {
 	// tail lights and its beam on the road and still be a single draw.
 	ALBEDO = tint * COLOR.rgb;
 	ALPHA = a * COLOR.a;
+#if CURRENT_RENDERER == RENDERER_COMPATIBILITY
+	if (v_custom.a > 0.5) {
+		ALPHA *= street_compat;
+	}
+#endif
 #if CURRENT_RENDERER != RENDERER_COMPATIBILITY
 	// A street lamp's broad pool on Forward+: added in display numbers (fwd-review-e: in linear HDR
 	// it was a flat beige carpet), and only the share the real OmniLight does not already give.
@@ -120,6 +131,11 @@ void fragment() {
 		ALPHA = 1.0;
 	} else if (display_add) {
 		// tint arrives decoded here (source_color): back to display numbers, the add, then decoded.
+		vec3 t = mix(tint * 12.92, 1.055 * pow(max(tint, vec3(0.0)), vec3(1.0 / 2.4)) - 0.055, step(vec3(0.0031308), tint));
+		ALBEDO = lp_to_linear(t * COLOR.rgb * clamp(ALPHA, 0.0, 1.0));
+		ALPHA = 1.0;
+	} else if (display_add_fwd) {
+		// fwd-review-h: the same add, without display_add's aerial ease (the bonfires' pools).
 		vec3 t = mix(tint * 12.92, 1.055 * pow(max(tint, vec3(0.0)), vec3(1.0 / 2.4)) - 0.055, step(vec3(0.0031308), tint));
 		ALBEDO = lp_to_linear(t * COLOR.rgb * clamp(ALPHA, 0.0, 1.0));
 		ALPHA = 1.0;

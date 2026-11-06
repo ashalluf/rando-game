@@ -17,6 +17,8 @@ class_name GiTuning
 ## - SSAO was a wide soft veil (radius 2.1 m, detail 0.6); tighter with full detail it sits in the
 ##   creases. SSIL reached a quarter of a street. Neither moved its GPU share (~1 % / ~2 %).
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 static var enabled: bool = OS.get_environment("GI_REVIEW") != "0"
 ## What DayNight multiplies its SDFGI energy and its sky fill by, set by apply() per level (1
 ## with GI_REVIEW=0).

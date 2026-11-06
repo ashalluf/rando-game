@@ -21,6 +21,8 @@ extends StaticBody3D
 ## the welded bodies): there bake() returns null, the chunk draws nothing, and the bodies and the
 ## waking still work, which is what the smoke test checks.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 ## Most figures one alarm wakes (the nearest first), and the farthest it reaches (m): each wakes
 ## into a full rig, so a burst of fire must not rebuild a whole block's people in one frame.
 static var wake_on_alarm: int = 4

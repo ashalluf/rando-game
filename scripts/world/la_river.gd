@@ -35,6 +35,8 @@ extends RefCounted
 ## metres either side (`terrace()`, folded into MacroMap._relief_at()). Everything the city lays
 ## on the relief - roads, bridges, the freeway's deck height - follows it with no code of its own.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 ## The route's control points in world XZ, north to south (see WHERE IT RUNS). The north end
 ## stands at the foot of the front range (a headwall with box culverts), the south end at the back
 ## of the Long Beach sand (MacroMap.bay_z - bay_beach_depth).

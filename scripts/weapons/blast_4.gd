@@ -25,6 +25,8 @@ extends RefCounted
 ##    close, and the camera shake comes with the pressure wave, harder and longer for a fuel blast.
 ## EXPLOSIONS_4=0 in the environment is the A/B (the third pass exactly).
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 static var enabled: bool = OS.get_environment("EXPLOSIONS_4") != "0"
 ## The daylight value range of the mushroom (blast_volume.gdshader `value4`): sunlit billows near
 ## white, deep soot in the folds. BLAST_VALUE=0 is the A/B (the round-3 flat grey).
@@ -273,6 +275,7 @@ static func pop(parent: Node, at: Vector3, radius: float) -> void:
 	if Blast3.takes_fireball(true):
 		# A pop is a fireball and a puff of soot, not a mushroom.
 		Blast3.spawn_volume(parent, at, radius, false, 3.0).set_meta("pop", true)
+		hot_core(parent, at, radius * 1.15, hot_core_life * 0.8)
 	else:
 		WeaponFX._puff_layer(parent, at, WeaponFX._count(14), radius * 0.6, 0.8, radius * 0.3, radius * 0.9, 2.0,
 			WeaponFX._ramp([Color(4.0, 3.0, 1.8, 1.0), Color(2.0, 0.7, 0.14, 1.0), Color(0.6, 0.16, 0.04, 0.85),
@@ -470,6 +473,14 @@ static var flame_look5: bool = OS.get_environment("BLAST_FLAME5") != "0"
 ## Round 18: the pool's light hangs in the flames (2.3 m up), dimmer: at 1.1 m it burnt a white
 ## hot spot into the road (AgX takes a bright orange to white). BLAST_POOL_LIGHT=0.
 static var pool_light5: bool = OS.get_environment("BLAST_POOL_LIGHT") != "0"
+## Round 19 (the lead's review): every fuel / gas blast and every secondary pop gets a short hot
+## black-body core inside its volume (`hot_core()`, shaders/blast_hot_core.gdshader): the volume
+## browns within ~0.2 s and a chain's later cars read as muted clouds. BLAST_HOT_CORE=0.
+static var hot_core_enabled: bool = OS.get_environment("BLAST_HOT_CORE") != "0"
+static var hot_core_life: float = 0.5
+static var _hot_shader: Shader
+## Round 19: a car's fuel trail is puddles of their own sizes with gaps, not two stretched pools. BLAST_FUEL_PUDDLES=0.
+static var fuel_puddles: bool = OS.get_environment("BLAST_FUEL_PUDDLES") != "0"
 static var panel_torn: bool = OS.get_environment("BLAST_PANELS") != "0"
 
 
@@ -526,6 +537,39 @@ static func _crumple(x: float, z: float) -> float:
 	return 0.09 * absf(sin(x * 5.1 + 0.4)) - 0.06 * absf(z * 1.6 - x * 0.7) + 0.16 * pow(maxf(x, 0.0) * 2.0, 2.0) * 0.5
 
 
+## A hot core: a lumpy white-yellow to red card in the young ball, rising with it, blooming, for
+## `life` seconds (additive, fog-free). Returns it, or null when off or on the web (the cards there
+## have their own white-hot start).
+static func hot_core(parent: Node, at: Vector3, radius: float, life: float = -1.0) -> MeshInstance3D:
+	if not enabled or not hot_core_enabled or parent == null or WeaponFX._web():
+		return null
+	if life <= 0.0:
+		life = hot_core_life
+	if _hot_shader == null:
+		_hot_shader = preload("res://shaders/blast_hot_core.gdshader")
+	var m := ShaderMaterial.new()
+	m.shader = _hot_shader
+	m.set_shader_parameter("noise3d", Blast3.noise_texture())
+	m.set_shader_parameter("seed", randf() * 7.0)
+	var q := MeshInstance3D.new()
+	q.name = "BlastHotCore"
+	var qm := QuadMesh.new()
+	qm.size = Vector2.ONE * radius * 2.0
+	q.mesh = qm
+	q.material_override = m
+	q.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	q.extra_cull_margin = radius * 2.0
+	parent.add_child(q)
+	q.global_position = at + Vector3.UP * radius * 0.4
+	var tw := q.create_tween()
+	tw.tween_method(func(a: float):
+		m.set_shader_parameter("age", a)
+		q.scale = Vector3.ONE * (0.55 + 0.6 * sqrt(a)), 0.0, 1.0, life)
+	tw.parallel().tween_property(q, "global_position", at + Vector3.UP * radius * 0.85, life).set_ease(Tween.EASE_OUT)
+	tw.tween_callback(q.queue_free)
+	return q
+
+
 ## The fuel a car's tank threw: two long tongues of burning fuel running out from the pool, their
 ## directions a hash of where it went up. Returns how many were laid.
 static func fuel_trail(node: Node, parent: Node, at: Vector3, radius: float) -> int:
@@ -535,6 +579,29 @@ static func fuel_trail(node: Node, parent: Node, at: Vector3, radius: float) -> 
 		var a := float((h >> (k * 9)) & 511) / 511.0 * TAU + float(k) * PI * 0.8
 		var dir := Vector3(cos(a), 0.0, sin(a))
 		var reach := BlastPool.pool_radius * clampf(radius / 7.0, 0.6, 1.8) * (1.15 + 0.35 * float((h >> (20 + k * 4)) & 15) / 15.0)
+		if fuel_puddles:
+			# Round 19 (the lead's review): one stretched pool a direction drew an even fence of
+			# equal tongues across the road. Fuel runs out and gathers in hollows: two to four
+			# puddles along the run, shrinking outward with dry gaps between, the near ones deeper
+			# (taller flames), each turned and offset its own way.
+			var n := 2 + int((h >> (8 + k * 5)) & 1) + (1 if radius > 8.0 else 0)
+			var big := clampf(radius / 7.0, 0.7, 1.6)
+			var d := reach * 0.8
+			for i in n:
+				var hi := hash([h, k, i])
+				var f := float(hi & 1023) / 1023.0
+				var t := float(i) / maxf(float(n - 1), 1.0)
+				# Metres: a deep puddle near the car, thin smears further out.
+				var pr := lerpf(1.9, 0.75, t) * big * (0.8 + 0.4 * f)
+				var side := dir.cross(Vector3.UP) * pr * 0.9 * (float((hi >> 10) & 255) / 255.0 - 0.5)
+				var p := BlastPool.spawn(node, parent, at + dir * (d + pr) + side, radius, false, a + f * 1.2, 1.25 + 0.5 * f,
+					pr, lerpf(1.1, 0.4, t) * (0.85 + 0.3 * f))
+				if p != null:
+					p.life *= 0.7 - 0.3 * t
+					made += 1
+				# On past this puddle and a stretch of dry road.
+				d += pr * 2.0 + pr * (0.9 + 1.3 * float((hi >> 18) & 255) / 255.0)
+			continue
 		var p := BlastPool.spawn(node, parent, at + dir * reach, radius * 0.5, false, a, 2.6)
 		if p != null:
 			p.life *= 0.6
