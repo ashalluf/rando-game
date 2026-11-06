@@ -12,6 +12,9 @@ global uniform float lamp_factor;
 
 uniform float lens_energy = 4.5;
 uniform float plaque_energy = 1.6;
+// SuburbNight (refcam5 suburb_night): 1 draws a lens as glass panes in a dark frame round a bulb
+// (a hot core fading to amber at the panes' edges); 0 the old even white box.
+uniform float suburb_night = 0.0;
 
 // A seven-segment digit's ink at p (0..1 in its cell).
 float seg7(int d, vec2 p) {
@@ -66,6 +69,19 @@ void fragment() {
 		albedo = vec3(0.78, 0.74, 0.62);
 		em = tint * lens_energy * on * (0.55 + 0.45 * c) * (kind == 2 ? 0.8 : 1.0);
 		rough = 0.2;
+		if (suburb_night > 0.5) {
+			// The bulb: a hot core a little over the middle of the face, the seeded glass round it
+			// warmer and dimmer toward the frame; the frame (edges and a centre muntin) dark bronze.
+			vec2 d = vec2(UV.x - 0.5, (UV.y - 0.48) * 0.8);
+			float core = exp(-dot(d, d) * 22.0);
+			float glow = 0.18 + 0.55 * (1.0 - smoothstep(0.0, 0.5, length(d)));
+			float frame = max(1.0 - step(0.08, UV.x) * step(UV.x, 0.92) * step(0.07, UV.y) * step(UV.y, 0.93),
+				kind == 2 ? 0.0 : step(abs(UV.x - 0.5), 0.035));
+			vec3 warm = tint * vec3(1.0, 0.82, 0.62);
+			em = (warm * glow + tint * core * 1.6) * lens_energy * 0.55 * on * (1.0 - frame) * (kind == 2 ? 0.8 : 1.0);
+			albedo = mix(vec3(0.62, 0.56, 0.44), vec3(0.06, 0.05, 0.04), frame);
+			rough = mix(0.15, 0.45, frame);
+		}
 	}
 	ALBEDO = cs_out(albedo);
 	EMISSION = cs_out(em);

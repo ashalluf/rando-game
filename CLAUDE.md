@@ -496,6 +496,13 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   water's brightest breaks. `FIREWORKS=0` the A/B, `=1` forces them, `FIREWORKS_T=` /
   `FIREWORKS_HOLD=1` / `FIREWORKS_SITE=` for stills; probe `tools/fireworks/probe.tscn` (EYEs);
   checks `tests/fireworks_checks.gd`.
+- Fireworks over the ballpark (wave 8 refcam `fireworks_ballpark` in `tools/refcams/cameras_w8.json`,
+  its `fireworks_t` key stages and holds the show clock; docs/HANDOFF.md "Fireworks over the ballpark
+  from Stadium Way"): the shaders' `look5` - no white disc at a break (a glow quad, the shell's idle
+  trail quad 0, carries the flash and the lit air), radial star trails, willow glitter, brighter
+  climbing comets, smoke lit by the show and the floodlit ground; the flash light's falloff 0.75.
+  `RC5_FIREWORKS=0` is the A/B; small scene `tools/rc5_fireworks/fw_shot.gd` (either renderer);
+  checks `tests/rc5_fireworks_ballpark_checks.gd`.
 - Weather: `Weather` node in the city scene (`scripts/world/weather.gd`): states clear, overcast,
   rain, storm; drives DayNight (`cloud_extra`, `weather_darken`), fog, rain particles, wet roads
   (`PropFactory.set_wetness`), the `wind_factor`, `wave_scale` and `tsunami_scale` shader globals,
@@ -1662,7 +1669,7 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   the wave; later rounds: a rolling lit dust front, the plume's value range, panel debris, the fires'
   underlight on the cap, a held stem, fuel trails and flames up the wreck's sides, a soft crater.
   `EXPLOSIONS_4=0` is the A/B (`BLAST_DUST_ROLL`, `BLAST_VALUE`, `BLAST_CHUNKS`, `BLAST_UNDERLIGHT`,
-  `BLAST_STEM`, `BLAST_WRECK_FIRE`, `BLAST_CRATER`, `BLAST_FLAMES`, `BLAST_PIT`, `BLAST_QUIET`, `BLAST_CORE`, `BLAST_RIBBONS`, `BLAST_FACADES`, `BLAST_DUST_DARK`, `BLAST_SHOCK`, `BLAST_NIGHT`, `BLAST_STREAKS`, `BLAST_RING`, `BLAST_WALL`, `BLAST_MASONRY`, `BLAST_GROUND_FLASH`, `BLAST_RIBBON_SOFT`, `BLAST_RING_AIR`, `BLAST_BURN`, `BLAST_SCORCH`, `BLAST_VOLUME_ROOM`, `BLAST_PANELS`, `BLAST_FLAME5`, `BLAST_POOL_LIGHT`, `BLAST_HOT_CORE`, `BLAST_FUEL_PUDDLES` =0 each part; a secondary pop never takes the last volume slot (`Blast3.takes_fireball(true)`); the ring and ground flash are the AIR's view (faded near and grazing); flame tongues `shaders/flame_tongue.gdshader`, the traced pit `shaders/blast_pit.gdshader`); strips blast_room_shot.gd (`GAS=1`,
+  `BLAST_STEM`, `BLAST_WRECK_FIRE`, `BLAST_CRATER`, `BLAST_FLAMES`, `BLAST_PIT`, `BLAST_QUIET`, `BLAST_CORE`, `BLAST_RIBBONS`, `BLAST_FACADES`, `BLAST_DUST_DARK`, `BLAST_SHOCK`, `BLAST_NIGHT`, `BLAST_STREAKS`, `BLAST_RING`, `BLAST_WALL`, `BLAST_MASONRY`, `BLAST_GROUND_FLASH`, `BLAST_RIBBON_SOFT`, `BLAST_RING_AIR`, `BLAST_BURN`, `BLAST_SCORCH`, `BLAST_VOLUME_ROOM`, `BLAST_PANELS`, `BLAST_FLAME5`, `BLAST_POOL_LIGHT`, `BLAST_HOT_CORE`, `BLAST_FUEL_PUDDLES`, `BLAST_FLAME_FWD` =0 each part; a secondary pop never takes the last volume slot (`Blast3.takes_fireball(true)`); the ring and ground flash are the AIR's view (faded near and grazing); flame tongues `shaders/flame_tongue.gdshader`, the traced pit `shaders/blast_pit.gdshader`); strips blast_room_shot.gd (`GAS=1`,
   `WEB=1`, `CAR=1 CHAIN=1`, `NIGHT=1 WET=1`, `PROPS=1`, `FACADE=1`, `UP=150`); checks `tests/explosions_4_checks.gd`.
 - The mayhem refcam (2026-11-01, docs/HANDOFF.md "The mayhem refcam"): `mayhem` in
   `tools/refcams/cameras_w5.json` is STAGED (`"stage": "mayhem"` -> `tools/refcams/mayhem_stage.gd`:
@@ -2857,6 +2864,16 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   suit. `WINGSUIT=0` is the A/B; stills `WINGSUIT=glide|fall` on `still_shot.gd` (`WS_INPUT`,
   `WS_TIME`, `WS_LOOK`); checks `tests/wingsuit_checks.gd` (room part; alone:
   `tools/wingsuit/checks_only.tscn`, seconds).
+- The wingsuit at golden hour (wave 8, refcam `wingsuit_golden` in `tools/refcams/cameras_w8.json`,
+  its `wingsuit` key stages the glide - `tools/refcams/wingsuit_stage.gd`, shot from his own chase
+  camera; docs/HANDOFF.md "The wingsuit at golden hour"): WingsuitFx `look2` builds each membrane
+  as an INFLATED two-skin wing (16 x 9 grid, `cell_depth`, cells bulging between the seams; UV2.y +4
+  the bottom skin) with a nylon sheen; the vapour starts at 20 m/s, fatter, lit by the sun and the
+  sky (`tree_sun`, `sky_tint`). `Rc5Wingsuit`: THE LATTICE's roof skylight lattice, the concert
+  hall's steel under a low sun (brushed_steel `look`: at 250 m the 18:00 haze IS the sail's colour,
+  only face-to-face contrast reads), lit crowns that wait for dusk (tower_crown `dusk_hold`). Refcam FOV
+  is VERTICAL (60 made a 6 m chase a speck). `WINGSUIT_LOOK=0` / `RC5_WINGSUIT=0` the A/Bs; checks
+  `tests/rc5_wingsuit_golden_checks.gd`.
 - Effects: `WeaponFX` builds everything in code (tracers, muzzle flash, impacts, explosions).
   An explosion is layered: an `OmniLight3D` flash, a white-hot core, alpha-blended fireball
   puffs, slow smoke, additive sparks, a ground shockwave ring, lit debris, a scorch `Decal`
@@ -4564,6 +4581,16 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   (`house_glow.gdshader`, additive in display numbers); pools by `pool_variant()` (lot_yard) and
   `pool_glow()`. `HouseNightLights` puts `budget` (4 / 2 / 0 / 0) OmniLights on the nearest lit
   porches, Forward+ desktop only. `HOUSE_NIGHTS=0` is the A/B; checks `tests/house_nights_checks.gd`.
+- The suburban street at night (wave 8, refcam `suburb_night` in `tools/refcams/cameras_w8.json`,
+  docs/HANDOFF.md "The suburban street at 21:30"): `SuburbMoon` (`scripts/world/suburb_moon.gd`, one
+  factor in DayNight's moon energy; names no city class) cuts the moon to `MOON_GAIN` over SUBURBS /
+  BEACHTOWN deep in the night, eased on the real clock; `SuburbNight` (`scripts/world/suburb_night.gd`,
+  one hook at the end of `HouseBuild._glass()`) lays each ground-floor pane's light on the yard
+  (`shaders/suburb_spill.gdshader` reads the pane's lit / TV roll from HouseNights' hash: key in the
+  instance COLOR.r, the pane's 8-bit roll in .g) and switches house_glow's lantern wash (point-source
+  falloff, the cap's cut) and house_lamp's framed lens (`suburb_night` uniform). `SUBURB_NIGHT=0` is
+  the A/B (`SUBURB_MOON=0` the moon alone; re-judged with NightGround in, it still takes the
+  pavement 79 -> 53 of 255, so it stays); checks `tests/rc5_suburb_night_checks.gd`.
 - Yard sales (2026-10-30, docs/HANDOFF.md "Weekend yard sales"): `YardSales`
   (`scripts/world/yard_sales.gd`, one line after each `Backyards.block()` in YardFill) - a hash of
   seed + lot holds a sale on Saturday / Sunday (`sale_info()`, `state_at()`: SETUP / OPEN /
@@ -5392,6 +5419,14 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   zone over each chunk's part at FULL and LOD; nothing breaks. `CEMETERY=0` is the A/B; probes
   `tools/cemetery/probe.gd` (`EYES=` heights on the rise) and `build_probe.gd`; checks
   `tests/cemetery_checks.gd` (`tools/cemetery/checks_only.tscn` alone).
+- The memorial park at dawn (wave 8, refcam `cemetery_dawn` in `tools/refcams/cameras_w8.json`,
+  docs/HANDOFF.md "The memorial park at dawn under the marine layer"): `Rc5CemeteryDawn`
+  (`scripts/world/rc5_cemetery_dawn.gd`, hooks in DayNight and CemeteryBuild): under the marine
+  deck the sun loses its specular (`sun_specular()`) and the lamps hold past sunrise
+  (`lamp_hold()`); a depth-cut morning mist box over the park (`shaders/cemetery_mist.gdshader`,
+  `mist()` by hour and humidity, `tick()`); mown tufts on its lawn; lawn.gdshader `spray_rough`
+  (the park's dew 0.66); the `rc5_mist_leaf` global keeps a mist's damp (road_mist) off the leaves.
+  `RC5_CEMETERY_DAWN=0` is the A/B; checks `tests/rc5_cemetery_dawn_checks.gd`.
 - Places of worship (2026-10-05, docs/HANDOFF.md "Places of worship"): `Worship`
   (`scripts/world/worship.gd`, placement, pure) puts one per `CELL` (800 m) by a hash of seed +
   cell - kind by the district's `KIND_WEIGHTS` (MISSION, MODERN, STOREFRONT, GREEK, TEMPLE,
@@ -6302,6 +6337,15 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   `STREET_VENDORS=0` turns it off (the A/B). Look with `tools/glshot/vendor_shot.gd` (the stands
   alone, seconds; `NIGHT=1`) and find them with `tools/vendor_probe.gd`; checks:
   `tests/street_vendors_checks.gd`.
+- The taco truck at 23:00 (wave 8, refcam `taco_truck_night` in `tools/refcams/cameras_w8.json`,
+  docs/HANDOFF.md "The taco truck at 23:00"): `TacoTruckNight` (`scripts/world/taco_truck_night.gd`,
+  hooks in StreetVendors): a truck brings 1-3 regulars by the hour (`TacoCustomer` at its queue
+  spots, spots taken; the last vendor spawn step spawns whoever is left), the cook at the counter
+  (`COOK_X`), no truck in a bike lane (`truck_blocked()`) or a bus stop's kerb zone
+  (`truck_in_stop()`) - both after the roll -, running lamps (vendor shader code 19), the menu box
+  and kitchen dimmer (seams on the kitchen), steam off the stack (`shaders/taco_steam.gdshader`).
+  `RC5_TACO=0` is the A/B; probe `tools/rc5_taco_truck/probe.gd`; checks
+  `tests/rc5_taco_truck_checks.gd`.
 - Parklets (fleet wave 2, docs/HANDOFF.md "Outdoor dining parklets"): `Parklets`
   (`scripts/world/parklets.gd`) reads every FULL building's ground-floor shop fronts
   (`Building.shop_fronts`, recorded beside `shop_pools`) and, for a CAFE or RESTAURANT room on the
