@@ -363,7 +363,8 @@ void fragment() {
 		// The city's glow from below: full on what faces straight down, a little wrapped round
 		// the sides, none on what faces up. Windows and glazing take none (they are dark glass).
 		float down = clamp(-wn.y * 0.8 + 0.2, 0.0, 1.0);
-		emit += col * under_glow * down * down * (1.0 - glaze) * lamp_factor;
+		// Bare metal (the wings) takes it as a reflection, not paint: less of it, untinted.
+		emit += col * under_glow * down * down * (1.0 - glaze) * (1.0 - 0.55 * metal) * lamp_factor;
 		// The landing and taxi lights spill onto the gear legs and the nacelles' undersides.
 		if (gear || engine) {
 			emit += col * vec3(1.0, 0.95, 0.85) * gear_light * (gear ? 1.0 : 0.12 * smoothstep(-0.18, -0.26, p.y)) * lamp_factor;

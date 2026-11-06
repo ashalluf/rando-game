@@ -24,7 +24,7 @@ static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/H
 static var enabled: bool = OS.get_environment("JET_FINAL") != "0"
 
 ## The city's glow on the belly (linear, at full: low over the lit city at night).
-const UNDER_GLOW := Color(0.11, 0.066, 0.034)
+const UNDER_GLOW := Color(0.075, 0.058, 0.042)
 ## Full glow below this height over the runway (m), easing to UNDER_HIGH of it by UNDER_FADE_TO.
 const UNDER_FULL_BELOW := 150.0
 const UNDER_FADE_TO := 1400.0

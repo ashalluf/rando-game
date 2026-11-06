@@ -2045,6 +2045,14 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   coarse (jet_exhaust `look`), wingtip lights hang at the model's span (`fitted_span()`), a rolling
   jet has its landing lights and strobes on. `JET_TAKEOFF=0` is the A/B; checks
   `tests/rc5_jet_takeoff_checks.gd`.
+- The final approach from the street (wave 8, refcam `airport_final` in `tools/refcams/cameras_w8.json`,
+  `air` "final"; docs/HANDOFF.md "The final approach over midtown"): `JetFinal`
+  (`scripts/vehicles/jet_final.gd`) gives every AmbientJet its own livery copy with
+  airliner_livery's `final_look`: the gear painted as gear (grey legs, black tyres round hubs; the
+  axles measured off the model) and the nacelles' undersides kept engine, the city's warm glow on
+  what faces down (`under_glow`, by height, none on the runway), the landing lights on the gear
+  (`gear_light`). Parked jets keep the shared material. `JET_FINAL=0` is the A/B; the jet alone
+  `tools/rc5_airport_final/final_shot.gd`; checks `tests/rc5_airport_final_checks.gd`.
 - The terminal's departures kerb (wave 7, refcam `terminal_curb` in `tools/refcams/cameras_w7.json`,
   docs/HANDOFF.md "The terminal's departures kerb"): `TerminalCurb` (`scripts/world/terminal_curb.gd`,
   one hook at the end of `Landmarks._build_dropoff()`, near copy only) lays a kerb stone with a white
