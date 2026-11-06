@@ -65,9 +65,9 @@ func _ready() -> void:
 		for k in keys:
 			hs += "%d:%d " % [k, hist[k]]
 		print("PROBE routes %s; along route %d (100 m bins from the player, +t): %s" % [str(per_route), ri_best, hs])
-		print("PROBE frame %d: freeway cars %d (cap %d), route %d at %.0f m (%.1f m off): %d within 400 m, mean %.1f m/s, %d braking; level %.2f, can_spawn %s, player %s" % [
+		print("PROBE frame %d: freeway cars %d (cap %d), route %d at %.0f m (%.1f m off): %d within 400 m, mean %.1f m/s, %d braking; level %.2f, can_spawn %s, drive %.0f us, player %s" % [
 			i + 1, tm.freeway_cars.size(), tm._fw_cap(), ri_best, anchor, best, near, vsum / maxf(near, 1), braking,
-			RushHour.now_level, PhysicsBudget.can_spawn(), pw])
+			RushHour.now_level, PhysicsBudget.can_spawn(), tm.drive_usec, pw])
 	get_tree().quit()
 
 

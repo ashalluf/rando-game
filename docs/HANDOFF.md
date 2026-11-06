@@ -29933,3 +29933,74 @@ only gets shorter on a slow frame; nothing found).
 
 **Runs** (`SHARDS=3`, shuffled, ~32 min each, shards 3.2-3.7 GB RSS): 21101 (cut short by a tool
 limit at ~4,800 checks: the valet), 21202 PASSED 5,797, 21303 PASSED 5,797 (both on 7f68e37f). Final unshuffled gate on the branch merged with main (batch 53a): FINAL_HERE.
+
+## 9d?. The freeway at rush hour: the rush_hour refcam (fleet wave 8, `rc5-rush-hour`, branch `wt/rc5-rush-hour`)
+
+The task: a new reference view, `rush_hour` (`tools/refcams/cameras_w8.json`): the freeway at 17:40
+clear from a footbridge, looking down the carriageways into the low sun - dense rush-hour traffic,
+brake lights, heat haze, the gantries. Judge it against a 2026 game, fix the worst three to five
+things. Stills on `shots/rc5-rush-hour` (README there).
+
+**The camera.** `Footbridges` puts freeway bridges on every route; the 105 runs east-west south of
+downtown, so a bridge on it looks straight into the setting sun. Two were shot (`fb_f_1_3` by the
+coast, `fb_f_1_213` in Vernon east of the 110); the coast one ends at the beach, the Vernon one runs
+a kilometre and a half straight into the sun past the industrial blocks with downtown's skyline to
+the right, so it is the row: eye (3209.6, 28.9, 2882.5), yaw 86.2 (west, down the route), pitch
+-5, fov 55, 17:40 (17.667) clear, `shot_frames` 90 (the jam needs ~12 s of physics to build). The
+eye stands 2.5 m west of the span's centre line and 5 m north of the median, just outside the cage
+(a lens poked through the chain-link: looking along the freeway from the walkway is looking through
+the cage's side), so the median's light standards stand off the middle of the frame.
+
+**What gave it away, in the order the eye lands on it:**
+1. **An EMPTY freeway at 5:40 pm** (`01_before`): not one car within 400 m. Not a hour thing: the
+   freeway upkeep (`TrafficManager._maintain_freeway()`) returned before spawning whenever
+   `PhysicsBudget.can_spawn()` was false, and a busy city sits at the body cap (BusyStreets already
+   let street traffic through: `traffic_room()`). Freeway cars are kinematic and placed, never
+   simulated. A headless probe at the eye: 26 cars at load, 0 after 300 frames, `can_spawn false`
+   throughout. Every freeway view near a busy spot was empty on main at any hour.
+2. **Even filled, it was a quiet Sunday**: FreewayFill's lanes held a car per 42 m slot at 26 m/s,
+   nobody braking - the hour only changed how many slots stayed empty.
+3. **Black tiles in the concrete**: the deck's asphalt patches (`patched` slabs) at 0.05 albedo and
+   roughness 0.8 in a concrete deck that shines into a low sun - crisp black rectangles.
+4. **No heat in the air**: HeatHaze's strength is the afternoon sun's (`LaWeather.afternoon_heat()`),
+   0.08 by 17:40; a jammed freeway's exhaust still shimmers. (Forward+ only, see below.)
+
+**What changed:**
+- `RushHour` (`scripts/npc/rush_hour.gd`, `RUSH_HOUR=0` is main's freeway exactly). `level(hour)`
+  0..1 (`MORNING` 6:15-10:00, full 7:15-9:00; `EVENING` 15:15-19:45, full 16:30-18:45; 0 at noon and
+  night, 0 while TrafficManager is `staged`), worked out once an upkeep into `now_level`. By that
+  level: lane slots `gap()` 42 -> `RUSH_GAP` 19 m (`FreewayFill.slot_t()`/`candidates()` take the gap;
+  a short slot slides less, so a lane's cars keep 10 m between centres; a truck is not spawned
+  within 26 m of another car of its lane), the cap `cap_gain()` 1.5 -> `RUSH_CAP_GAIN` 2.6 x
+  max_freeway_cars (Quality still scales it), far routes' share `RUSH_FAR_WEIGHT` 0.1, the follow
+  rule's standing gap 20.4 -> `RUSH_STAND` 8.5 m, and a **stop-and-go wave** (`wave_cap()`): a speed
+  limit along each carriageway, slow bands `WAVE_LEN` 420 m apart (12 % of the freeway speed in a
+  band's middle, 62 % between), running UPSTREAM at `WAVE_SPEED` 4.5 m/s, smooth (~1.5 m/s2 into a
+  band: the brake lamps' 0.8 m/s2 rule lights them in clusters and lets them go as a car drives out).
+  While the camera looks along a jammed route (`look_sign()`, |cos| > 0.5) the cap is spent where it
+  looks: no car kept past `BEHIND` 90 m behind or `AHEAD` 470 m ahead (`behind()`), and the
+  out-of-view stretch 40-90 m behind it is a source of new cars like the far inflow band (`offer()`),
+  so the carriageway driving away from the lens fills from behind it. `freeway_room()`: the upkeep no
+  longer waits on PhysicsBudget's cap (BusyStreets.traffic_room()'s rule; with RUSH_HOUR=0 it waits
+  as before). Hooks: a few lines in `_maintain_freeway()`, `_spawn_freeway_car()`, `_drive_freeway()`
+  (the wave on cars not `placed`), `_fw_follow()`, `_fw_cap()` / `_fw_crowded()` new.
+- `RcRushHour` (`scripts/world/rc5_rush_hour.gd`, `RC5_RUSH_LOOK=0` the A/B): the deck's patches
+  (`patch_aged` in freeway_deck.gdshader, default 0 = the old look) aged grey (overlay x1.35 mottled)
+  and tyre-polished (roughness 0.6), a rounded, ragged outline, a softer seam; set from
+  `FreewayCloseup.deck_material()`. And a heat-haze floor (`traffic_haze()`, one line in Weather):
+  `TRAFFIC_HAZE` 0.32 x the jam's level x `RushHour.now_view` (the player within 120 m of a route
+  the camera looks along) x the clear / Santa Ana weight.
+
+**Numbers.** Headless probe at the eye (`tools/rc5_rush_hour/probe.tscn`, `Y=28.9`), 560 frames:
+RUSH_HOUR=0 - 0 freeway cars; on - 180 (cap 182), 119-132 within 400 m of the eye on the 105, mean
+8-10 m/s, 12-61 braking. TrafficManager's tick (`drive_usec`, this 4-core cloud box): 10.6 ms -> 15.1
+ms (+4.5 ms for 180 freeway cars, ~25 us a car; the Mac is several times faster). Frame (refcams GEO,
+opengl3 1280x720): before 4.82 M triangles / 3,939 draws (p5/p50/p95 50/124/225), after 5.27 M /
+3,381 (45/120/226). The ten original cameras before / after: see the end of this section.
+
+**Not done / not verified.** The heat haze is Forward+ desktop only and was NOT rendered (no
+lavapipe run): its strength is reasoned from the afternoon value (0.5), not judged. The jam is
+denser but not bumper-to-bumper all the way (the cap binds: 182 cars over ~560 m of eight lanes); the
+LOD decks past the real cars carry the far city's day traffic only past the LOD ring (the LOD chunks'
+own traffic skin is night-only), not checked from this eye. Cars changing lanes in a crawl nose ~10
+degrees across. Oncoming cars carry no daytime running lamps (head lamps follow `lamp_factor`).

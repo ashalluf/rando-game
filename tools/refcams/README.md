@@ -96,6 +96,10 @@ screen wall, the theatre's lobby and HOTEL ALTAIR's crown. Its optional `arena_e
 makes the night an event night or a quiet one (ArenaNight, as ARENA_EVENT; set before the city
 loads). `tools/rc5_arena_night/site_probe.gd` prints the district's site rects in world XZ.
 
+Run with `REFCAMS_JSON=tools/refcams/cameras_w8.json`. `rush_hour` (rc5-rush-hour): the 105 at 17:40
+clear from the caged footbridge east of the 110 (`fb_f_1_213`), the lens just outside the cage looking
+west down the carriageways into the sun; `shot_frames` 90 lets RushHour's jam build.
+
 ## Running
 
 ```
