@@ -31786,3 +31786,49 @@ gap, a TV flicker in some); no pool in the court, no ice machine, no guests at t
 itself still faces up and down the street (seen edge-on from the opposite pavement); the far city
 keeps both heads of a double-motel corner. A motel on a sloping lot stands at its centre's height
 (the body runs 0.6 m below the floor to hide it).
+
+## 9d?. The marketplace lane at 12:30: a new refcam5 `pueblo_lane`, 2026-11-06 (agent branch `wt/rc5-pueblo-lane`)
+
+**The camera.** `pueblo_lane` in `tools/refcams/cameras_w8.json`: PASEO DE LAS GOLONDRINAS
+(PuebloLane, docs 9ep) at 12:30 clear, eye 1.65 m up in the lane's EAST aisle 3.5 m from its south
+(plaza) end, looking north (yaw 6) under the vine pergola: the puestos on the left, the adobe /
+stucco fronts on the right, papel picado overhead. Seed 1337: (3287.0, -1543.0).
+
+**What read fake (the before, main 6f5af3d2), worst first.**
+1. Nobody there. Lunch in a market lane and the aisle held two people 60 m away; a seller in one
+   stall of four. The lane's crowd was a fixed 18 on a 236 m ring (the lane is 13 m wide, under
+   PlazaCrowd's 14 m open-ground minimum, so the hour never scaled it).
+2. The brick: one flat orange sheet (the brick_red set is an orange photo, tinted warmer still).
+3. The stalls' paint factory-new: flat saturated panels on every counter, post and fascia.
+4. The pergola: perfectly clean flat-brown boxes for posts, beams and joists.
+
+**What changed** (`PuebloLaneLook`, `scripts/world/pueblo_lane_look.gd`; `PUEBLO_LANE_LOOK=0` the A/B):
+- The lane's people by the hour: `LANE_KEYS` (x the base 18; 4.4 at 12:00, 0.1 at night), up to
+  `LANE_MOST` 84, the extra spawned in `PuebloLane.people_steps()` after the vendors on their own
+  stream (`hash(seed, ID, "lane_look")`). Every other extra one is a `LaneShopper`
+  (`scripts/npc/lane_shopper.gd`, a Pedestrian: life_chance 0.8, born at a stall's queue spot so
+  `_plan_queue()` stands them at the counter, bags and coffees, no joggers or dogs). A seller in
+  every second stall (`VENDOR_EVERY` 2). At 12:30 the lane holds ~81 people and 36 sellers
+  (`PUEBLO_DEBUG=1` prints the count); the city stayed far under its 650 cap (209).
+- The brick: tint (0.8, 0.7, 0.64), wear 0.55, road.gdshader `albedo_desat` 0.32 on the lane's
+  own material: a worn browner clay.
+- Weathered paint: pueblo_market.gdshaderinc `weather` (behind `if (weather > 0.0)`, 0 = the old
+  paint): sun-faded toward grey (more on tops), small flakes chipped to grey timber (more below
+  80 cm), shoe scuffs and dirt up the bottom 35 cm of upright faces (true world y over `foot_y`,
+  which PuebloLane sets to the site's ground: the origin shift moves x and z only). New varying
+  `v_ny` (world-up share of the face).
+- The pergola's timbers are the market's grained timber (K_WOOD, grain along local Y: beams and
+  joists are turned so it runs along them), each member its own weathered tone
+  (`PuebloLaneLook.timber()`), in the casting `PuebloMarket` mesh instead of LandmarkGeo's flat box.
+
+**Numbers** (refcams, opengl3 1280x720): before p50 73, sat 0.507, 5.64 M tris / 2,795 draws /
+2.08 M shadow; after p50 69, sat 0.425, 6.13 M / 2,971 / 2.31 M (+0.49 M, +176 draws: the people).
+
+**Stills** (shots/rc5-pueblo-lane): 01 before, 02 after, 03 the stalls alone before / after paint
+(`tools/pueblo_lane/stall_shot.gd`).
+
+**Not verified / not done.** Forward+ (the Mac) not shot: the weathering is linear colour
+arithmetic through cs_srgb_to_linear / cs_out (the include's own rule), the brick through the
+road shader's existing desat path. Near-camera density varies run to run (walkers spread over the
+whole ring; the shoppers stand at random stalls). The adobe fronts are still clean (no wainscot,
+no foot grime on the LandmarkGeo walls). Goods (flat sombrero discs on the back walls) untouched.
