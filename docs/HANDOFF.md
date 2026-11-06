@@ -31823,5 +31823,10 @@ the yard sales moves. `RC5_YARD_SALE=0` is the A/B (old tables, no canopy or bla
 `tests/rc5_yard_sale_checks.gd` (the row, the kit's budgets and sizes, crammed tables vs the old,
 the share of canopies and blankets, off = the old kinds, the camera's block has a canopy).
 
+Numbers: the camera, after vs RC5_YARD_SALE=0, 4.03 M vs 4.05 M triangles, 1,704 vs 1,721 draws,
+p5/p50/p95 27/143/177 both. The ten original cameras on vs off: nine within noise, `freeway` flagged
+by its live traffic (different cars in the lanes; nothing of this pass in that view). Gate: 6,429
+checks, 3 shards, peak 3.9 GB a shard.
+
 Not verified: the stills are opengl3 (Compatibility). The canopy fabric is plain satin paint (the
 shader's 16 codes are all taken), no weave. The browsers still mostly stand in the aisle.
