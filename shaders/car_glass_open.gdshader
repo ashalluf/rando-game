@@ -9,12 +9,20 @@ render_mode blend_mix, cull_disabled, depth_draw_never;
 // who is in), drawn opaque where the ray meets them. Lamp covers and mirrors stay solid dark glass.
 
 #include "res://shaders/car_cabin.gdshaderinc"
+#include "res://shaders/car_glass_wet.gdshaderinc"
 
 uniform vec3 glass_albedo : source_color = vec3(0.14, 0.155, 0.175);
 uniform float glass_roughness = 0.05;
 // How much a clear pane (tint 1) still covers, and the mirrored sky's strength.
 uniform float clear_alpha = 0.08;
 uniform float sky_mirror = 0.55;
+// The rain seen from inside (DriverRain, driver_rain refcam; 0 = the old dry pane): the beads and
+// runs of car_glass_wet.gdshaderinc, each bead a little lens refracting (and flipping) the street
+// behind it out of the screen texture, the film between them blurring it, the wipers' arcs clear.
+uniform float rain_inside = 0.0;
+uniform float bead_refract = 0.03;
+uniform float film_blur = 2.2;
+uniform sampler2D open_screen : hint_screen_texture, filter_linear_mipmap;
 
 varying vec3 lp;
 varying vec3 ln;
@@ -106,5 +114,34 @@ void fragment() {
 		ALBEDO = glass_albedo * (1.0 - who.a);
 		EMISSION = mix(mirror, who.rgb * glass_tint * (1.0 - f) * mix(0.35, 1.0, t), who.a);
 		ALPHA = mix(a, 1.0, who.a);
+		if (rain_inside > 0.5 && ws_on() && who.a < 0.5) {
+			float ms = length(MODEL_MATRIX[0].xyz);
+			float px = max(length(fwidth(lp)) * ms, 1e-5);
+			bool screen = i >= 0 && pane_hi[i].w > 0.5 && pane_hi[i].w < 1.5;
+			// The water on the pane: glass_wet's beads, runs and wiper arcs, read for cover and slope.
+			vec3 wa = vec3(0.0);
+			float wr = 0.0;
+			vec3 we = vec3(1.0);
+			vec3 slope = glass_wet(lp, n, screen, ms, px, TIME, wa, wr, we);
+			float cover = clamp((1.0 - we.x) / 0.45, 0.0, 1.0);
+			float wet = ws_wet(0.25);
+			vec3 sv = (VIEW_MATRIX * (MODEL_MATRIX * vec4(slope, 0.0))).xyz;
+			// A bead is a lens: the street behind it seen refracted and upside down, a little out of
+			// focus (the eye is focused down the road); the film between the beads softens it all.
+			vec2 off = sv.xy * bead_refract * vec2(1.0, -1.0) * cover;
+			float lod = film_blur * wet * (0.35 + 0.65 * cover);
+			vec3 behind = textureLod(open_screen, SCREEN_UV + off, lod).rgb;
+			float own = clamp(cover * 0.9 + wet * 0.25, 0.0, 0.95) * (1.0 - smoothstep(0.6, 1.0, f));
+			// What the water shows is EMITTED (the screen colour as it is), over the dry pane.
+			EMISSION = mix(EMISSION, behind * mix(0.92, 0.8, cover), own);
+			ALBEDO *= 1.0 - own;
+			ALPHA = mix(ALPHA, 1.0, own);
+			// The beads' rims catch a little of the sky as a glint.
+			EMISSION += sky_tint.rgb * wa * 0.5;
+			ROUGHNESS = mix(glass_roughness, 0.18, cover * 0.4);
+			if (length(sv) > 1e-4) {
+				NORMAL = normalize(NORMAL + normalize(sv) * min(length(slope), 1.2) * 0.6);
+			}
+		}
 	}
 }
