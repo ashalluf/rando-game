@@ -30610,7 +30610,7 @@ What the view gave away, worst first, fixed behind `RcRailCrossing.enabled`
    the rest kind 4 (galvanised). Same draw count (it replaces `RailDetail`).
 2. *The flashers burned white.* RailGate's lens was emission (1, 0.08, 0.03) x 7, which AgX takes
    to a white disc with a salmon rim. Lit lenses are `RcRailCrossing.lens_material()` (green held
-   at 0.1 of red, energy 2.6 - the emergency lights' rule) and every flasher and arm lamp has a
+   at 0.1 of red, energy 1.5: at 2.6 it still read pale under its glow) and every flasher and arm lamp has a
    camera-facing glow (`shaders/rc5_flasher_glow.gdshader`: additive with af_cover, a core and a
    skirt that reaches zero at the edge, at least 9 px, brighter by `lamp_factor`) shown only while
    its lamp is lit, alternating with it. Freight gates (FreightKit, the same RailGate) get it too.

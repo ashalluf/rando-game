@@ -6,8 +6,7 @@ extends RefCounted
 ##  - the overhead wires were 4-6.5 mm tubes: past ten metres they broke into dashes. They are
 ##    UtilityPoles' camera-facing ribbons now (never under a pixel, the real width as alpha).
 ##  - the flashers burned WHITE: emission (1, 0.08, 0.03) x 7 is what AgX takes to a white disc
-##    with a salmon rim. Held deep red (green at 0.1 of red, energy 2.6 - the emergency lights'
-##    rule) with a camera-facing glow round each lit lens (shaders/rc5_flasher_glow.gdshader).
+##    with a salmon rim. Held deep red (green at 0.1 of red, energy 1.5) with a camera-facing glow round each lit lens (shaders/rc5_flasher_glow.gdshader).
 ##  - the crossbuck boards were blank: RAILROAD / CROSSING in black on them.
 ##  - the cars' windows were flat tan panels (the saloon lit by the golden sky's colour, a 4 %
 ##    mirror): lrv_glass.gdshader's `look5` - tinted laminated glass, the saloon lit neutral by
