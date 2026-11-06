@@ -138,6 +138,7 @@ static func spawn_volume(parent: Node, at: Vector3, radius: float, fuel: bool, l
 	mat.set_shader_parameter("centre_r", centre)
 	mat.set_shader_parameter("seed", Vector3(randf() * 7.0, randf() * 7.0, randf() * 7.0))
 	mat.set_shader_parameter("steps", volume_steps)
+	var hot := Blast4.enabled and (fuel or Blast4.gas_next) and life_override <= 0.0
 	if Blast4.enabled:
 		# The fourth pass: the volume lives on as the mushroom (a taller box, its own life).
 		v4 = Blast4.dress_volume(mat, fuel, Blast4.gas_next)
@@ -154,6 +155,8 @@ static func spawn_volume(parent: Node, at: Vector3, radius: float, fuel: bool, l
 	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	parent.add_child(mi)
 	mi.global_transform = Transform3D(Basis.from_scale(half * radius), at + centre * radius)
+	if hot:
+		Blast4.hot_core(parent, at, radius * 0.75)
 	# Its bounds for culling: the box itself (a box mesh's own AABB is right; nothing to add).
 	var life := fuel_life if fuel else volume_life
 	if not v4.is_empty():

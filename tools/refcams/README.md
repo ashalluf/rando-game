@@ -88,6 +88,14 @@ at the shot): tune `air_dist` / `air_side` from it.
 Run with `REFCAMS_JSON=tools/refcams/cameras_w6.json`. `rooftop_golden`: the black twins' north
 helipad (deck 215.55 m), 17:45 clear, looking SSW over the skyline to the basin and the sea.
 
+## Wave 8's cameras (`cameras_w8.json`)
+
+Run with `REFCAMS_JSON=tools/refcams/cameras_w8.json`. `arena_night` (rc5-arena-night): STARLIGHT
+PLAZA at 21:00 clear, eye level in the crowd at the plaza's south-east looking north-west at the
+screen wall, the theatre's lobby and HOTEL ALTAIR's crown. Its optional `arena_event` key (1 / 0)
+makes the night an event night or a quiet one (ArenaNight, as ARENA_EVENT; set before the city
+loads). `tools/rc5_arena_night/site_probe.gd` prints the district's site rects in world XZ.
+
 ## Running
 
 ```
@@ -208,3 +216,12 @@ Run with `REFCAMS_JSON=tools/refcams/cameras_w8.json`. `skate_park` (rc5-skate-p
 Its optional `skate_t` key holds SkateParkLife's clock (seconds, the riders held: `_skate_clock()` in
 refcams_shot.gd, as SKATE_T= / SKATE_HOLD=1), so the first pool rider is at the top of his
 frontside air over the far coping. `tools/rc5_skate_park/air_probe.gd` lists every rider's air times.
+
+## Wave 8's cameras (`cameras_w8.json`)
+
+Run with `REFCAMS_JSON=tools/refcams/cameras_w8.json`. `speedboat_golden` (rc5-speedboat): the
+SALTRUNNER at speed 300 m off the beach town at 17:45 clear, a chase eye into the sun path. Its
+`boat` key (`tools/refcams/boat_stage.gd`, the same interface as chase_stage.gd) re-centres the world
+on `at`, puts the player in a fresh boat heading `heading` (the --spawn yaw), holds the throttle
+`ticks` physics ticks, and lays a free eye `chase` = [back, side, up, aim ahead] metres off the hull
+every frame up to the shot; optional `kind`, `look`, `boost`, `steer`. The row's own eye is unused.
