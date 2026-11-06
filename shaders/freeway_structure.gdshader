@@ -63,6 +63,16 @@ uniform float under_fill = 0.0;
 // the girder (strongest at the top), y the soffit and the girder's underside lit by the street
 // lamps below. Both emitted, x lamp_factor.
 uniform vec2 rail_wash = vec2(0.0);
+// The freight trench's walls (RcFreightTrench, its own copy of this material; 0 everywhere else,
+// which skips the block): a wall face (kind 3, UV.y metres over the trench floor, UV2.y the wall's
+// height) drawn as 24 ft cast panels - recessed joints, lift lines, form-tie holes - with diesel
+// soot on the upper wall, ballast dust at the foot, a weep hole a panel with its lime run and
+// graffiti; the concrete weathered darker.
+uniform float trench_look = 0.0;
+uniform float trench_panel = 7.32;
+uniform float trench_tone = 0.74;
+uniform float trench_soot = 0.6;
+uniform float trench_tag_odds = 0.4;
 
 varying vec3 obj_pos;
 varying vec3 obj_nrm;
@@ -264,6 +274,54 @@ void fragment() {
 		alb = mix(alb, mix(grime_color, rust_color, 0.45), st * fade * 0.75);
 		float foot = 1.0 - smoothstep(0.6, 1.9, h);
 		alb = mix(alb, grime_color * 1.4, foot * (0.5 + 0.3 * vnoise(vec2(along * 3.0, h * 5.0))));
+		if (trench_look > 0.5 && UV2.y > 3.0) {
+			float fw = max(fwidth(along), fwidth(h)) + 1e-4;
+			float far_f = 1.0 - smoothstep(0.03, 0.12, fw);
+			alb = conc * trench_tone;
+			// Panels: a recessed joint (3 cm, dark, its average kept past a pixel) every panel and
+			// lift lines a storey apart; each panel its own pour.
+			float jp = trench_panel;
+			float pk = floor(along / jp);
+			float jd = abs(fract(along / jp + 0.5) - 0.5) * jp;
+			float joint = (1.0 - smoothstep(0.018, 0.018 + fw * 1.5, jd)) * clamp(0.036 / max(fw, 0.036), 0.0, 1.0);
+			alb *= 0.9 + 0.2 * hash12(vec2(pk, 3.7));
+			float lift = 0.0;
+			for (int li = 1; li <= 2; li++) {
+				float ld = abs(h - float(li) * 3.05);
+				lift = max(lift, (1.0 - smoothstep(0.008, 0.008 + fw * 1.5, ld)) * clamp(0.016 / max(fw, 0.016), 0.0, 1.0));
+			}
+			alb *= 1.0 - joint * 0.62 - lift * 0.3;
+			// Form-tie holes: a 0.61 m grid, patched with grout a shade darker.
+			vec2 tg = vec2(along / 0.61, h / 0.61 + 0.5);
+			vec2 tq = (fract(tg) - 0.5) * 0.61;
+			float tie = (1.0 - smoothstep(0.011, 0.011 + fw, length(tq))) * far_f;
+			alb *= 1.0 - tie * 0.45;
+			// Ballast dust and brake dust at the foot, browner low down.
+			float splash = (1.0 - smoothstep(0.2, 1.6 + 0.6 * vnoise(vec2(along * 0.8, 1.0)), h));
+			alb = mix(alb, vec3(0.10, 0.075, 0.05), splash * 0.55);
+			// Diesel soot: the upper wall blackened in plumes where the units idle and work, and a
+			// thin dusting everywhere.
+			float from_top = UV2.y - h;
+			float plume = fbm(vec2(along * 0.045, h * 0.08)) * 0.7 + vnoise(vec2(along * 0.4, h * 0.3)) * 0.3;
+			float soot = (1.0 - smoothstep(0.3, 4.5, from_top)) * smoothstep(0.3, 0.75, plume);
+			alb = mix(alb, soot_color * 0.8, clamp(soot * trench_soot + 0.12, 0.0, 0.85));
+			// A weep hole low in each panel, its lime run down to the floor.
+			float wx = along - (pk + 0.5) * jp;
+			float hole = (1.0 - smoothstep(0.035, 0.035 + fw, length(vec2(wx, h - 0.85))));
+			float run_w = 0.05 + 0.08 * (0.85 - h) + 0.03 * vnoise(vec2(along * 5.0, h * 3.0));
+			float lime = (1.0 - smoothstep(run_w * 0.5, run_w, abs(wx))) * step(h, 0.85) * (0.4 + 0.6 * vnoise(vec2(along * 9.0, h * 4.0)));
+			alb = mix(alb, vec3(0.42, 0.41, 0.38), lime * 0.5 * step(0.35, hash12(vec2(pk, 9.1))));
+			alb = mix(alb, vec3(0.012), hole);
+			// Graffiti: big pieces low on the wall, where a writer could reach from the ballast.
+			if (closeup) {
+				uint tk = uint(int(floor(along / 9.0)) + 200000) * 92821u + (obj_nrm.x > 0.0 ? 3u : 0u);
+				if (ih01(tk) < trench_tag_odds) {
+					vec4 g = graffiti(tk, vec2(along, h), 9.0, 0.5, 3.1, false);
+					alb = mix(alb, g.rgb * mix(0.85, 1.0, soot), g.a * (1.0 - soot * 0.5));
+				}
+			}
+			rough = 0.9;
+		}
 	} else if (kind == 1) {
 		float stain = smoothstep(0.55, 0.85, vnoise(vec2(along * 1.9, h * 0.6)));
 		alb = mix(alb, grime_color, stain * 0.35);
