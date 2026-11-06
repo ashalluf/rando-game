@@ -11,6 +11,13 @@ render_mode blend_mix, depth_draw_never, cull_back, shadows_disabled;
 
 #include "res://shaders/color_space.gdshaderinc"
 
+global uniform vec4 sky_tint;
+
+// rc5-tower-gondola (Rc5TowerGondola): 1 = the water reads from the roof next door - the wet
+// sheet mirrors the sky in uneven runs, the soap is a white lather the squeegee's S cuts through,
+// the drips catch the light. 0 = the old film (a dark 16 % wash, invisible over dark glass).
+uniform float look = 0.0;
+
 // Metres of washed glass above the floor (wet), the drips' reach below, the soap still on the pane.
 uniform float wet_top = 6.0;
 uniform float drip_len = 7.0;
@@ -83,6 +90,43 @@ void fragment() {
 	}
 	// Thin lines under a pixel only shimmer: gone by a hundred metres.
 	float fade = 1.0 - smoothstep(45.0, 120.0, length(VERTEX));
+	if (look > 0.5) {
+		// The look from the roof next door: re-weighed, the old patterns kept.
+		float sheen = 0.0;
+		float lather = 0.0;
+		if (y >= 0.0) {
+			// Squeegeed glass is dry: what stays wet is the pane they are on, the stroke ends and a
+			// few runs drying within a floor or so above (not the old film's 12 m column).
+			float dry2 = smoothstep(0.6, 4.0, y + (vnoise(vec2(x * 1.3, y * 0.6)) - 0.5) * 1.6);
+			float sheet = smoothstep(0.3, 0.8, vnoise(vec2(x * 1.7, y * 0.5)) * 0.7 + vnoise(vec2(x * 6.0, y * 1.4)) * 0.3);
+			float ends = smoothstep(0.3, 0.0, half_width - abs(x));
+			sheen = (1.0 - dry2) * (0.25 + 0.5 * sheet) + line * (1.0 - smoothstep(0.0, 6.0, y)) * 0.5 + ends * (1.0 - dry2) * 0.6;
+			// The lather on the pane in front of them, full width at the start of the stop, cut back
+			// by the squeegee as it goes on: a soft white wash, denser along the stroke edge.
+			float suds = vnoise(vec2(x * 7.0, y * 9.0)) * 0.65 + vnoise(vec2(x * 19.0, y * 23.0)) * 0.35;
+			float band = smoothstep(0.3, 0.55, y) * (1.0 - smoothstep(2.35, 2.75, y + 0.15 * sin(x * 3.0)));
+			float done = (1.0 - soap) * 2.0 * half_width - half_width + 0.12 * sin(y * 5.0);
+			float left = smoothstep(done - 0.06, done + 0.06, x);
+			float clot = smoothstep(0.12, 0.0, abs(x - done)) * 0.35;
+			lather = band * step(0.001, soap) * left * clamp(0.55 + 0.3 * smoothstep(0.25, 0.75, suds) + clot, 0.0, 1.0);
+		} else {
+			sheen = alpha * 1.6;
+		}
+		sheen *= edge * fade;
+		lather *= edge * fade;
+		// The water mirrors the sky over the glass (emitted: a reflection does not depend on the
+		// light falling on it), brighter at a grazing look; lather is white, matte, lit.
+		float fres = 0.35 + 0.65 * pow(1.0 - clamp(dot(NORMAL, VIEW), 0.0, 1.0), 3.0);
+		vec3 sky = cs_srgb_to_linear(sky_tint.rgb);
+		vec3 white = vec3(0.80, 0.82, 0.83);
+		float lw = clamp(lather * 1.5, 0.0, 1.0);
+		ALBEDO = cs_out(mix(vec3(0.02, 0.025, 0.03), white, lw));
+		EMISSION = cs_out(sky * (0.7 * fres) * (1.0 - lw));
+		ROUGHNESS = mix(0.02, 0.8, lw);
+		METALLIC = 0.0;
+		SPECULAR = 0.9;
+		ALPHA = clamp(max(sheen * 0.42, lather * 0.62), 0.0, 0.9);
+	} else {
 	alpha *= edge * fade;
 	foam *= edge * fade;
 	// Wet glass: darker and glossier (the film mirrors the sky sharper); foam is white and matte.
@@ -93,4 +137,5 @@ void fragment() {
 	METALLIC = 0.0;
 	SPECULAR = 0.9;
 	ALPHA = clamp(max(alpha, foam * 0.32), 0.0, 0.9);
+	}
 }

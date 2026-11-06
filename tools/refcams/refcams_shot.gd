@@ -102,6 +102,7 @@ func _run() -> void:
 		_port_clock(cam)
 		_freight_clock(cam, scene)
 		_fireworks_clock(cam)
+		_gondola_clock(cam)
 		Engine.time_scale = 1.0
 		# A "drive" row (cameras_w5.json, chase_cam): the player drives his own car and the shot is
 		# his chase camera (tools/refcams/chase_stage.gd), not the free eye.
@@ -687,6 +688,18 @@ func _fireworks_clock(cam: Dictionary) -> void:
 		if staged.has(s.id):
 			s.clock = float(staged[s.id])
 			s.prev = s.clock
+
+
+## A row's optional "gondola_t" (wave 8's tower_gondola): the window-washing cradles' clock held
+## at that many seconds (TowerGondolas.clock_override, as GONDOLA_T= does for a still), so the
+## cradle hangs where the row says. Rows without it put back GONDOLA_T's value (or the running clock).
+func _gondola_clock(cam: Dictionary) -> void:
+	var tg: GDScript = load("res://scripts/world/tower_gondolas.gd")
+	if cam.has("gondola_t"):
+		tg.set("clock_override", float(cam.gondola_t))
+	else:
+		var env := OS.get_environment("GONDOLA_T")
+		tg.set("clock_override", float(env) if env != "" else -1.0)
 
 
 func _port_clock(cam: Dictionary) -> void:

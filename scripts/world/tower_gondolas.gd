@@ -605,7 +605,9 @@ static func unit_cylinder() -> CylinderMesh:
 	return _unit_cyl
 
 
-static func rope_material(color: Color) -> StandardMaterial3D:
+static func rope_material(color: Color) -> Material:
+	if Rc5TowerGondola.enabled:
+		return Rc5TowerGondola.rope_material(color)
 	var key := color.to_html()
 	if not _rope_mats.has(key):
 		var m := StandardMaterial3D.new()

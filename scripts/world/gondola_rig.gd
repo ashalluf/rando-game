@@ -160,6 +160,7 @@ func _build() -> void:
 	_streak_mat = TowerGondolas.streak_material().duplicate() as ShaderMaterial
 	_streak_mat.set_shader_parameter("half_width", hl + 0.2)
 	_streak_mat.set_shader_parameter("seed", float(int(site.seed) % 997))
+	_streak_mat.set_shader_parameter("look", 1.0 if Rc5TowerGondola.enabled else 0.0)
 	_streak.material_override = _streak_mat
 	_streak.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	add_child(_streak)
