@@ -1498,11 +1498,20 @@ static func _honk(car: Node3D) -> void:
 
 
 ## Somebody hidden inside somewhere near `at` (true world XZ), taken out of the hidden pool.
+## The plain crowd: Pedestrian's own script (or the replica's walker), whatever `_lives()` says.
+## A valet, a vendor, a busker, a diner ... override _lives() to get the life clips, so `_lives()`
+## let a valet be borrowed for a shop door; it stayed hidden there, back at no podium (shuffled
+## gate 21101). Anybody borrowed or sent in through a door is plain.
+static func plain(p: Pedestrian) -> bool:
+	var s: Script = p.get_script() if p != null else null
+	return s != null and (s.resource_path.ends_with("/pedestrian.gd") or s.resource_path.ends_with("/replica_walker.gd"))
+
+
 static func _from_pool(at: Vector2, reach: float) -> Pedestrian:
 	for id: int in _hidden.keys():
 		var p: Pedestrian = _hidden[id]
 		# The plain crowd only: anyone else's tick does not run an errand, so they would never come out.
-		if not is_instance_valid(p) or p.errand.is_empty() or p._down or not p._lives():
+		if not is_instance_valid(p) or p.errand.is_empty() or p._down or not plain(p):
 			continue
 		var s: Dictionary = (p.errand.steps as Array)[int(p.errand.i)]
 		if s.do != "inside" or Vector2(p.position.x, p.position.z).distance_to(at) > reach:
@@ -1524,7 +1533,7 @@ static func _from_far(near: Node, at: Vector2) -> Pedestrian:
 	var best_d := 320.0
 	for n in near.get_tree().get_nodes_in_group("pedestrian"):
 		var p := n as Pedestrian
-		if p == null or p._down or not p.errand.is_empty() or not p._lives() or p._cross == Pedestrian.Cross.CROSSING:
+		if p == null or p._down or not p.errand.is_empty() or not plain(p) or p._cross == Pedestrian.Cross.CROSSING:
 			continue
 		# A walker kept in place (a test's, a venue's line: "no_trim") is never borrowed.
 		if p.has_meta("no_trim"):

@@ -39,6 +39,8 @@ func _initialize() -> void:
 	_golf_group()
 	_bonfire_lit()
 	_lowrider_meet()
+	_arena_event()
+	_market_day()
 	# OCCLUSION=0: occlusion culling off (still_shot's switch), to tell what is culled in plain sight.
 	if OS.get_environment("OCCLUSION") == "0":
 		get_root().use_occlusion_culling = false
@@ -97,6 +99,7 @@ func _run() -> void:
 			day.set("hour", float(cam.hour))
 			day.call("_apply")
 		_port_clock(cam)
+		_freight_clock(cam, scene)
 		Engine.time_scale = 1.0
 		# A "drive" row (cameras_w5.json, chase_cam): the player drives his own car and the shot is
 		# his chase camera (tools/refcams/chase_stage.gd), not the free eye.
@@ -113,6 +116,12 @@ func _run() -> void:
 			drive = load("res://tools/refcams/wingsuit_stage.gd").new()
 			await drive.call("run", self, cam, player)
 			fov = player.get("camera").fov
+		elif cam.has("boat"):
+			# A "boat" row (cameras_w8.json, speedboat_golden): the player at the helm under way
+			# off the coast, a free chase eye on the hull (tools/refcams/boat_stage.gd).
+			OS.set_environment("EYE", "")
+			drive = load("res://tools/refcams/boat_stage.gd").new()
+			await drive.call("run", self, cam, player)
 		else:
 			_place(player, fov)
 			# The marine layer's morning damp (MarineMorning) wants the hour and the eye: soaked at once.
@@ -394,6 +403,18 @@ func _bonfire_lit() -> void:
 			OS.set_environment("BONFIRE_LIT", str(int(cam.bonfire_lit)))
 
 
+## A row's optional "arena_event" (wave 8's arena_night): 1 makes tonight an event night at the
+## arena (ArenaNight, as ARENA_EVENT=1: searchlights, the fuller plaza), 0 a quiet one. Set before the
+## city loads, when a camera of this run asks (the plaza is planned as its chunk builds).
+func _arena_event() -> void:
+	if OS.get_environment("ARENA_EVENT") != "":
+		return
+	var only := OS.get_environment("ONLY").split(",", false)
+	for cam: Dictionary in _cameras().get("cameras", []):
+		if cam.has("arena_event") and (only.is_empty() or String(cam.name) in only):
+			OS.set_environment("ARENA_EVENT", str(int(cam.arena_event)))
+
+
 func _bonfire_lit_for(cam: Dictionary) -> void:
 	if not cam.has("bonfire_lit") and OS.get_environment("BONFIRE_LIT") == "":
 		return
@@ -414,6 +435,21 @@ func _lowrider_meet() -> void:
 				(load("res://scripts/world/lowrider_meet.gd") as GDScript).set("force", true)
 			if OS.get_environment("LOWRIDER_POSE") == "" and lm.has("pose"):
 				OS.set_environment("LOWRIDER_POSE", String(lm.pose))
+
+
+## A row's optional "market_day" (wave 8's farmers_market): 1 makes today every farmers' market's
+## day (FarmersMarket.force_market_day, as MARKET_DAY=1), and its "hour" the hour the market is
+## built for (MARKET_HOUR: a chunk built during the load would otherwise be built at the load's
+## hour). Set before the city loads: the static reads the environment when the class first loads.
+func _market_day() -> void:
+	if OS.get_environment("MARKET_DAY") != "":
+		return
+	var only := OS.get_environment("ONLY").split(",", false)
+	for cam: Dictionary in _cameras().get("cameras", []):
+		if cam.has("market_day") and (only.is_empty() or String(cam.name) in only):
+			OS.set_environment("MARKET_DAY", str(int(cam.market_day)))
+			if cam.has("hour") and OS.get_environment("MARKET_HOUR") == "":
+				OS.set_environment("MARKET_HOUR", str(float(cam.hour)))
 
 
 ## A row's optional "golf_group" ("hole:stage[:tee[:count]]", wave 6's golf_morning) puts a group
@@ -611,3 +647,23 @@ func _unstage_rail(scene: Node) -> void:
 	if sys:
 		sys.set("hold", OS.get_environment("RAIL_HOLD") == "1")
 	_rail_held = false
+## A camera row's optional `freight_into` (wave 7, freight_yard): the freight line's clock held at
+## that many seconds into the yard stand of the trip nearest the yard (FreightRail.clock_at_yard();
+## the stand is DWELL_YARD 150 s, so past 150 the train is pulling out south), so the departing
+## train stands where the row was framed for. Rows without it let the clock run as before.
+func _freight_clock(cam: Dictionary, scene: Node) -> void:
+	var sys := scene.get_node_or_null("FreightRail") if scene else null
+	if sys == null:
+		return
+	if not cam.has("freight_into"):
+		sys.set("hold", OS.get_environment("FREIGHT_HOLD") == "1")
+		return
+	var line: Variant = sys.get("line")
+	if line == null:
+		sys.call("step")
+		line = sys.get("line")
+	if line == null:
+		return
+	load("res://scripts/world/freight_rail.gd").set("clock", float(line.call("clock_at_yard", float(cam.freight_into))))
+	sys.set("hold", true)
+	sys.call("step")

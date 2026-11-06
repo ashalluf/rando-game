@@ -51,6 +51,8 @@ varying vec3 world_p;
 
 #include "res://shaders/color_space.gdshaderinc"
 
+#include "res://shaders/fwd_review_h.gdshaderinc"
+
 vec3 disp(vec3 c) {
 	return cs_linear_renderer() ? cs_linear_to_srgb(c) : c;
 }
@@ -159,9 +161,9 @@ void fragment() {
 				// wash of sodium over every shell), a tight fan from each fixture dying a third of the
 				// way up, the shell dark between them and toward the rim.
 				float fan2 = pow(abs(cos(uv.x / 14.0 * 3.14159 + param)), 8.0);
-				emit += to_lit(sodium * albedo) * tank_flood * rc4_flood * lamp_factor * exp(-uv.y / max(h * 0.3, 1.0)) * fan2;
+				emit += to_lit(sodium * albedo) * fh_level(tank_flood * rc4_flood * lamp_factor * exp(-uv.y / max(h * 0.3, 1.0)) * fan2);
 			} else {
-				emit += to_lit(sodium) * tank_flood * lamp_factor * exp(-uv.y / max(h * 0.8, 1.0)) * fan;
+				emit += to_lit(sodium) * fh_level(tank_flood * lamp_factor * exp(-uv.y / max(h * 0.8, 1.0)) * fan);
 			}
 		}
 		metal = 0.2;
@@ -359,7 +361,7 @@ void fragment() {
 		float weld = max(lines(uv.x, 4.2, 0.03), lines(uv.y, 3.0, 0.03));
 		albedo *= 1.0 - 0.08 * weld;
 		albedo = mix(albedo, vec3(0.42, 0.27, 0.16), 0.2 * streaks(uv * vec2(0.5, 1.0), h, param));
-		emit += to_lit(sodium) * tank_flood * 0.7 * lamp_factor * exp(-uv.y / max(h * 0.5, 1.0));
+		emit += to_lit(sodium) * fh_level(tank_flood * 0.7 * lamp_factor * exp(-uv.y / max(h * 0.5, 1.0)));
 		metal = 0.2;
 		rough = 0.55;
 		wet_k = 1.0;
@@ -388,7 +390,8 @@ void fragment() {
 				fl += fall * facing * flick;
 			}
 		}
-		emit += to_lit(vec3(1.0, 0.56, 0.22) * albedo) * fl * flare_gain * (0.3 + 0.7 * night_factor);
+		// The level in the renderer's space too (fwd-review-h: raw, Forward+ drew it ~x^0.45).
+		emit += to_lit(vec3(1.0, 0.56, 0.22) * albedo) * fh_level(fl * flare_gain * (0.3 + 0.7 * night_factor));
 	}
 	// After dark the steel round the platform lamps is lit warm (two cells in three have one).
 	emit += to_lit(sodium * albedo) * flood * lit_steel * lamp_cell * lamp_factor * (bottom ? 1.6 : 1.0);

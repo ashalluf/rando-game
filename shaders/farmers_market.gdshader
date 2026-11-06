@@ -19,8 +19,9 @@ render_mode cull_disabled;
 
 global uniform float lamp_factor;
 
-// String-light bulbs by day (a little: they are on for the market) and at night.
-uniform float bulb_day = 0.6;
+// String-light bulbs by day (a faint filament glow: at 0.6 every bulb read as a lit yellow ball
+// at 10:00, refcam farmers_market) and at night.
+uniform float bulb_day = 0.18;
 uniform float bulb_night = 7.0;
 // How much sun the canvas lets through to its underside.
 uniform float canvas_through = 0.55;
@@ -31,6 +32,7 @@ uniform float grime = 0.22;
 varying vec3 v_local;
 varying vec3 v_paint;
 varying float v_code;
+varying vec3 v_lnormal;
 
 float fm_hash(vec2 p) {
 	p = fract(p * vec2(123.34, 456.21));
@@ -50,8 +52,32 @@ float fm_noise3(vec3 p) {
 	return fm_noise(p.xz + p.y * 1.7) * 0.6 + fm_noise(p.yx * 1.9 + p.z) * 0.4;
 }
 
+// Skin relief on produce and leaves (refcam farmers_market, 2026-11-05): a height field in metres
+// off the mesh position, turned into a normal by its screen derivatives (no tangents needed), and
+// faded once its cells are under a couple of pixels. 0 is the old smooth plastic skin.
+uniform float skin_relief = 1.0;
+// The table cloths' hanging folds (0: a flat sheet).
+uniform float cloth_drape = 1.0;
+// The aluminium's brushed grain along the legs (1) or across them (0, the old ripples).
+uniform float grain_along = 1.0;
+
+// The bump: perturb `n` (view space) by the height `h` (metres) over the surface at `p` (view space).
+vec3 fm_bump(vec3 n, vec3 p, float h) {
+	vec3 dpdx = dFdx(p);
+	vec3 dpdy = dFdy(p);
+	vec3 r1 = cross(dpdy, n);
+	vec3 r2 = cross(n, dpdx);
+	float det = dot(dpdx, r1);
+	if (abs(det) < 1e-12) {
+		return n;
+	}
+	vec3 grad = sign(det) * (dFdx(h) * r1 + dFdy(h) * r2);
+	return normalize(abs(det) * n - grad);
+}
+
 void vertex() {
 	v_local = VERTEX;
+	v_lnormal = NORMAL;
 	v_code = COLOR.a * 20.0;
 	v_paint = INSTANCE_CUSTOM.rgb;
 	// A batch without custom data (or a plain mesh) hands over black: that is white canvas.
@@ -71,7 +97,10 @@ void fragment() {
 	float px = length(fwidth(v_local));
 	if (code == 2) {
 		// Aluminium and steel: a fine brushed grain, a few scuffs.
-		float g = mix(fm_noise(vec2(v_local.y * 90.0, v_local.x * 4.0 + v_local.z * 4.0)), 0.5, smoothstep(0.004, 0.02, px));
+		// The grain runs along a tube: the legs are upright, so it changes fast round them and slowly
+		// up them (it ran across them, and the near leg was a stack of ripples).
+		vec2 gq = grain_along > 0.5 ? vec2((v_local.x + v_local.z) * 90.0, v_local.y * 3.0) : vec2(v_local.y * 90.0, v_local.x * 4.0 + v_local.z * 4.0);
+		float g = mix(fm_noise(gq), 0.5, smoothstep(0.004, 0.02, px));
 		rough = clamp(rough + (g - 0.5) * 0.2, 0.15, 0.9);
 		base *= 0.94 + 0.08 * g;
 	} else if (code == 4) {
@@ -91,6 +120,16 @@ void fragment() {
 		base *= (0.86 + 0.26 * n) * (1.0 - 0.18 * spot);
 		// Toward the stem a fruit is a little darker and duller.
 		rough = clamp(rough + 0.25 * (1.0 - UV.y) * 0.4, 0.15, 0.85);
+		// Skin: pebbly on the rough skins (avocado, peach fuzz, citrus pores), a faint dimple on
+		// the glossy ones; and a broader blush / bruise mottle across each fruit.
+		float pebbly = smoothstep(0.42, 0.62, UV2.x);
+		float cell = fm_noise3(v_local * mix(260.0, 420.0, pebbly));
+		float h = (cell - 0.5) * mix(0.00025, 0.0011, pebbly) * skin_relief;
+		h *= 1.0 - smoothstep(0.0012, 0.004, px);
+		NORMAL = fm_bump(NORMAL, VERTEX, h);
+		float blush = fm_noise3(v_local * 18.0 + 11.0);
+		base *= mix(1.0, 0.8 + 0.4 * blush, skin_relief);
+		rough = clamp(rough + (cell - 0.5) * 0.25 * pebbly * skin_relief, 0.15, 0.9);
 	} else if (code == 7) {
 		// Glass jars and bottles: a deep tone (what is in them), glossy, a little light through.
 		base *= 0.9;
@@ -112,22 +151,53 @@ void fragment() {
 		// Cloth: a weave and, on a gingham cloth, the check.
 		float w = mix(fm_noise(UV * 300.0), 0.5, smoothstep(0.002, 0.008, px));
 		base *= 0.92 + 0.12 * w;
+		// Where it hangs (a side face) it falls in folds that open toward the hem: a few soft
+		// ridges across the face, wider and deeper down, the valleys a shade darker. A flat
+		// sheet down a table's front read as the side of a box.
+		// (UV2.x over 0.935 is the sandbags, 0.95: no folds there.)
+		float hang = (1.0 - smoothstep(0.35, 0.6, abs(v_lnormal.y))) * step(UV2.x, 0.935);
+		float shade = 1.0;
+		vec2 cuv = UV;
+		if (hang > 0.0 && cloth_drape > 0.0) {
+			vec3 ln = normalize(v_lnormal);
+			float along = dot(v_local.xz, vec2(-ln.z, ln.x));
+			float drop = clamp((0.76 - v_local.y) / 0.7, 0.0, 1.0);
+			float ph = along * 15.0 + fm_noise(vec2(along * 3.0, 1.7)) * 3.0;
+			float wave = sin(ph);
+			float h = wave * (0.002 + 0.01 * drop) * hang * cloth_drape;
+			NORMAL = fm_bump(NORMAL, VERTEX, h);
+			shade = 1.0 - 0.14 * hang * cloth_drape * (0.5 - 0.5 * wave) * (0.3 + 0.7 * drop);
+			// The weave bunches into the folds: a check's verticals crowd in the valleys.
+			cuv.x += cos(ph) * (0.004 + 0.012 * drop) * hang * cloth_drape;
+		}
 		if (metal > 0.5) {
-			vec2 c = step(0.5, fract(UV * 9.0));
+			vec2 c = step(0.5, fract(cuv * 9.0));
 			float check = (c.x + c.y) * 0.5;
 			check = mix(check, 0.5, smoothstep(0.01, 0.05, px));
 			base = mix(vec3(0.85, 0.84, 0.8), base, 0.35 + 0.65 * check);
 		}
+		base *= shade;
 		metal = 0.0;
 	} else if (code == 12) {
 		// A lamp: the string's bulbs, a scale's display, a bollard's reflective band.
 		emit = base * mix(bulb_day, bulb_night, lamp);
 		rough = 0.15;
 		metal = 0.0;
+	} else if (code == 13) {
+		// A festoon bulb: clear glass by day (the sky and the canopy seen through it, a filament
+		// glowing faintly), its warm light (the vertex colour) at night. Lit as code 12 by day
+		// every bulb read as a solid yellow ball (refcam farmers_market, 2026-11-05).
+		vec3 glass = vec3(0.62, 0.63, 0.62);
+		base = mix(glass, base, lamp);
+		emit = cs_srgb_to_linear(COLOR.rgb) * mix(bulb_day * 0.5, bulb_night, lamp);
+		rough = 0.06;
+		metal = 0.0;
 	} else if (code == 14) {
-		// Leaves and petals: veins and a lighter tip.
+		// Leaves and petals: veins and a lighter tip, the crinkle in relief.
 		float n = fm_noise3(v_local * 90.0);
 		base *= 0.82 + 0.3 * n;
+		float hl = (fm_noise3(v_local * 140.0) - 0.5) * 0.0012 * skin_relief * (1.0 - smoothstep(0.0015, 0.005, px));
+		NORMAL = fm_bump(NORMAL, VERTEX, hl);
 		rough = clamp(rough, 0.55, 0.9);
 	} else if (code == 16) {
 		// A chalk board: dark slate with the price chalked on it in a couple of strokes.
@@ -148,7 +218,7 @@ void fragment() {
 		base = cs_srgb_to_linear(v_paint);
 	}
 	// Grime from the road on what stands on it (not the lamps or the canvas up in the air).
-	if (code != 12 && code != 4 && code != 6 && code != 14 && code != 18) {
+	if (code != 12 && code != 13 && code != 4 && code != 6 && code != 14 && code != 18) {
 		float gh = clamp(1.0 - v_local.y / grime_height, 0.0, 1.0);
 		float n = fm_noise(v_local.xz * 4.0 + v_local.y * 3.0);
 		base *= 1.0 - grime * gh * (0.5 + 0.5 * n);

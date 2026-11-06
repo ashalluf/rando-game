@@ -666,7 +666,7 @@ static func _far_walker(near: Node, at: Vector2, player_at: Vector3) -> Pedestri
 	var best_d := 320.0
 	for n in near.get_tree().get_nodes_in_group("pedestrian"):
 		var w := n as Pedestrian
-		if w == null or w._down or not w.visible or not w.errand.is_empty() or not w._lives() \
+		if w == null or w._down or not w.visible or not w.errand.is_empty() or not StreetErrands.plain(w) \
 				or w._cross != Pedestrian.Cross.NONE or w.has_meta("no_trim") or (w.rain != null and w.rain.inside):
 			continue
 		if w.global_position.distance_to(player_at) < StreetErrands.FAR_TAKE:
@@ -684,12 +684,12 @@ static func _far_walker(near: Node, at: Vector2, player_at: Vector3) -> Pedestri
 ## A walker passing a shop door on its own pavement: now and then they turn in (StreetErrands'
 ## shop visit). One look a second per walker.
 static func _pass_door(p: Pedestrian) -> void:
-	# Only the plain crowd goes in (Pedestrian._lives()): a valet, a diner or a night-goer walks
+	# Only the plain crowd goes in (StreetErrands.plain(): _lives() is true for valets too): a valet, a diner or a night-goer walks
 	# through avoid() too, and sent in here it stayed hidden for good - its own tick never runs the
 	# errand - until door_tick() borrowed it from the pool and it never came out (batch 38, 5101).
 	# Nor a walker somebody placed on purpose (meta no_trim: a check's, a venue's line).
 	if not StreetErrands.enabled or not (p.get_parent() is CityChunk) or not p._life_free() or p._dog_walker or int(p.flow.get("followers", 0)) > 0 \
-			or p.flow.get("leader") != null or p.has_meta("no_trim") or not p._lives():
+			or p.flow.get("leader") != null or p.has_meta("no_trim") or not StreetErrands.plain(p):
 		return
 	var now := _now()
 	if now < int(p.flow.get("pass_t", 0)):

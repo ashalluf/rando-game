@@ -22,6 +22,7 @@ uniform float lamp_energy = 5.0;
 global uniform float lamp_factor;
 global uniform float road_wetness;
 #include "res://shaders/port_flood.gdshaderinc"
+#include "res://shaders/fwd_review_h.gdshaderinc"
 
 varying vec3 v_col;
 varying float v_part;
@@ -241,7 +242,7 @@ void fragment() {
 	// on the lamps themselves.
 	if (port_night > 0.5 && flood_count > 0 && lamp_factor > 0.01 && part != 5 && part != 8 && (part < 11 || part > 13)) {
 		float fl = min(port_flood(v_world + origin_shift, normalize(v_wn)), flood_cap);
-		emit += albedo * col(flood_tint) * fl * flood_gain * lamp_factor * (1.0 - metal * 0.5);
+		emit += albedo * col(flood_tint) * fh_level(fl * flood_gain * lamp_factor * (1.0 - metal * 0.5));
 	}
 	ALBEDO = albedo;
 	ROUGHNESS = rough;

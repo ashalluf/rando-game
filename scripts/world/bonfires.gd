@@ -417,9 +417,10 @@ static func build_lod(ch: CityChunk, z0: float, z1: float) -> void:
 static func pool_mesh(near: bool = true) -> Mesh:
 	# The bonfire_night refcam: a fire's light falls off fast; the soft 1.7 floodlit the sand
 	# orange for metres past the group.
+	# fwd-review-h: added in display numbers on Forward+, or the pool's tail is an orange carpet.
 	if rc4 and near:
-		return PropFactory.light_pool(POOL_TINT, POOL_STRENGTH * 0.8, 2.8)
-	return PropFactory.light_pool(POOL_TINT, POOL_STRENGTH, 1.7)
+		return FwdReviewH.display_pool(PropFactory.light_pool(POOL_TINT, POOL_STRENGTH * 0.8, 2.8))
+	return FwdReviewH.display_pool(PropFactory.light_pool(POOL_TINT, POOL_STRENGTH, 1.7))
 
 
 ## The shared material for the ring, the stubs and the firewood (`hot` the burning stack's copy:

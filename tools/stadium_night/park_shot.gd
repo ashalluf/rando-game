@@ -11,7 +11,8 @@ extends Node
 ## Forward+ (lavapipe): --rendering-driver vulkan with VK_ICD_FILENAMES=.../lvp_icd.json.
 ## Env: OUT; HOUR (21); EYE=x,y,z,yaw,pitch (true world); FOV (48); FRAMES (30); FAR=1 the far
 ## copy; SHOTS="x,y,z,yaw,pitch[@fov];..." more views from the same build (OUT with _1, _2 ...).
-## STADIUM_NIGHT=0 is the A/B.
+## STADIUM_NIGHT=0 is the A/B. HIDE=name,name (fwd-review-h) hides every node whose name contains
+## one of them (Ballpark_glow, StadiumBankGlow, FieldLight ...): what one layer adds, per renderer.
 
 var _frame := 0
 var _frames := 30
@@ -91,6 +92,10 @@ func _process(_delta: float) -> void:
 	_day.call("set_paused", true)
 	for l in get_tree().get_nodes_in_group("lamp_light"):
 		(l as Light3D).light_energy = 1.0
+	if _frame == 2:
+		for key in _env("HIDE", "").split(",", false):
+			for n in find_children("*" + key + "*", "Node3D", true, false):
+				(n as Node3D).visible = false
 	if _frame == _frames:
 		var out := _env("OUT", "park.png")
 		if _shot > 0:

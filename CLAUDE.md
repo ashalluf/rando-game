@@ -147,6 +147,12 @@ cars lifts `PhysicsBudget.max_active_bodies` for it (a busy city sits at the cap
 the SAME frame when a live system re-checks the condition (CarPanic's kerb); a system that sends
 walkers off (doors, errands) takes plain `_lives()` walkers without `no_trim` only; a shared grid
 keyed on the camera reads the game window's camera; gate loops run from a separate worktree.
+**Wave 8** (docs/HANDOFF.md "The gate's intermittent failures, wave 8"): a timer that decides what
+physics does (settle, freeze, age) runs on the physics step, never the frame time (a loaded frame is
+seconds: `Ragdoll.PHYSICS_TICK`); a spawn PhysicsBudget refuses still draws its rolls (else a block
+built at the body cap is another block: `CityChunk.BUDGET_ROLLS`); "the plain crowd" is `StreetErrands.plain()` (the script), never
+`_lives()` (valets, vendors, buskers ... say true); stage what CrowdFlow must see well inside its
+35 m `RANGE` of the camera.
 
 Download a Linux headless-capable build with:
 
@@ -596,6 +602,12 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   shown only at HIGH / MEDIUM. `RoofRain`: one MultiMesh of crown splashes animated in GDScript on
   the roofs (`Vehicle._model_top_y` over the cabin) of the nearest cars while it rains. Checks:
   `tests/weather_la_checks.gd`; stills in docs/HANDOFF.md 9ck.
+- The brush fire at dusk (wave 8, refcam `brush_fire` in `tools/refcams/cameras_w8.json`,
+  docs/HANDOFF.md "The brush fire on a Santa Ana evening"): `BrushFireLook`
+  (`scripts/world/brush_fire_look.gd`): SantaAnaFx's line sunk behind the crest on a flank curve
+  (fire_glow `look`), a dense laid-over column (brush_smoke `look`), a `SmokePall` downwind, ash;
+  DayNight's Santa Ana sky / fog go smoky amber from dusk (`sky()` / `fog()`, 0 by day).
+  `BRUSH_FIRE_LOOK=0` is the A/B; checks `tests/rc5_brush_fire_checks.gd`.
 - June gloom at street level (wave 5, refcam `marine_morning` in `tools/refcams/cameras_w5.json`,
   docs/HANDOFF.md "June gloom at street level"): `MarineMorning` (`scripts/world/marine_morning.gd`,
   pure) - under the marine layer overnight and in the morning the streets are damp (`damp()`, a
@@ -1470,6 +1482,15 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   FreightStock's too (`RiverBuild._track_run()`). Known gaps: the river's own
   rail-bridge spur (LaRiver) is not joined to this line; Alameda's left-turners may still cross
   the median tracks at a gated crossing; the covered way's interior is not modelled.
+- The freight yard at 16:30 (wave 7, refcam `freight_yard` in `tools/refcams/cameras_w7.json`, its
+  `freight_into` holds the departing train; docs/HANDOFF.md "The freight yard at 16:30"):
+  `RcFreightYard` (`scripts/world/rc4_freight_yard.gd`): the yard's timber ties are drawn (a tie
+  MultiMesh's range was measured to a 520 m chunk's centre: `tie_range()`), a northward track piece
+  keeps its ties (FreightKit.ties() threw the ladder's kilometres away), the ladder has a bed, weeds
+  along every bed in 40 m cells, crushed-rock ballast and graffiti / weathered panels on cars (the
+  `rc4` uniforms of freight_track / freight_stock), the valleys between storage beds filled level
+  (`throat_fill()`: open, each stood up as a wedge), switch stands at the turnouts. `RC4_FREIGHT_YARD=0` is the A/B; checks
+  `tests/rc4_freight_yard_checks.gd`.
 - Cars fly (owner, 2026-09-20: "easily fly cars around the way I fly the main character"). A
   car that leaves the ground goes into stabilised flight (`Vehicle._fly()`): it holds itself
   level instead of tumbling, the stick aims it (W/S nose down/up, A/D turn with a bank), and
@@ -1641,7 +1662,7 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   the wave; later rounds: a rolling lit dust front, the plume's value range, panel debris, the fires'
   underlight on the cap, a held stem, fuel trails and flames up the wreck's sides, a soft crater.
   `EXPLOSIONS_4=0` is the A/B (`BLAST_DUST_ROLL`, `BLAST_VALUE`, `BLAST_CHUNKS`, `BLAST_UNDERLIGHT`,
-  `BLAST_STEM`, `BLAST_WRECK_FIRE`, `BLAST_CRATER`, `BLAST_FLAMES`, `BLAST_PIT`, `BLAST_QUIET`, `BLAST_CORE`, `BLAST_RIBBONS`, `BLAST_FACADES`, `BLAST_DUST_DARK`, `BLAST_SHOCK`, `BLAST_NIGHT`, `BLAST_STREAKS`, `BLAST_RING`, `BLAST_WALL`, `BLAST_MASONRY`, `BLAST_GROUND_FLASH`, `BLAST_RIBBON_SOFT`, `BLAST_RING_AIR`, `BLAST_BURN`, `BLAST_SCORCH`, `BLAST_VOLUME_ROOM`, `BLAST_PANELS`, `BLAST_FLAME5`, `BLAST_POOL_LIGHT` =0 each part; a secondary pop never takes the last volume slot (`Blast3.takes_fireball(true)`); the ring and ground flash are the AIR's view (faded near and grazing); flame tongues `shaders/flame_tongue.gdshader`, the traced pit `shaders/blast_pit.gdshader`); strips blast_room_shot.gd (`GAS=1`,
+  `BLAST_STEM`, `BLAST_WRECK_FIRE`, `BLAST_CRATER`, `BLAST_FLAMES`, `BLAST_PIT`, `BLAST_QUIET`, `BLAST_CORE`, `BLAST_RIBBONS`, `BLAST_FACADES`, `BLAST_DUST_DARK`, `BLAST_SHOCK`, `BLAST_NIGHT`, `BLAST_STREAKS`, `BLAST_RING`, `BLAST_WALL`, `BLAST_MASONRY`, `BLAST_GROUND_FLASH`, `BLAST_RIBBON_SOFT`, `BLAST_RING_AIR`, `BLAST_BURN`, `BLAST_SCORCH`, `BLAST_VOLUME_ROOM`, `BLAST_PANELS`, `BLAST_FLAME5`, `BLAST_POOL_LIGHT`, `BLAST_HOT_CORE`, `BLAST_FUEL_PUDDLES` =0 each part; a secondary pop never takes the last volume slot (`Blast3.takes_fireball(true)`); the ring and ground flash are the AIR's view (faded near and grazing); flame tongues `shaders/flame_tongue.gdshader`, the traced pit `shaders/blast_pit.gdshader`); strips blast_room_shot.gd (`GAS=1`,
   `WEB=1`, `CAR=1 CHAIN=1`, `NIGHT=1 WET=1`, `PROPS=1`, `FACADE=1`, `UP=150`); checks `tests/explosions_4_checks.gd`.
 - The mayhem refcam (2026-11-01, docs/HANDOFF.md "The mayhem refcam"): `mayhem` in
   `tools/refcams/cameras_w5.json` is STAGED (`"stage": "mayhem"` -> `tools/refcams/mayhem_stage.gd`:
@@ -2756,6 +2777,15 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   core. Trap: a shader that writes POSITION in one branch uses it for EVERY vertex - write it in
   the other branch too. `POLICE_NIGHT_LOOK=0` is the A/B; small street `tools/police_night/police_shot.gd`
   (`VIEW=chase|low|block`, `RAIN=`, `T=`, `STRIP=`); checks `tests/police_night_look_checks.gd`.
+- The police pursuit (2026-11-05, refcam `police_pursuit` in `tools/refcams/cameras_w8.json`, a
+  `drive` row's `pursuit` key staged by `tools/refcams/pursuit_stage.gd`; docs/HANDOFF.md "The police
+  pursuit at night"): `PursuitLook` (`scripts/npc/pursuit_look.gd`): the helicopter's spot at
+  `SPOT_GAIN`, its pool faint and on the ground, its shaft faded at the foot and near the lens
+  (searchlight_beam `foot_fade`, `near_*`); an LED triple flash (`flash_side()` = the `pattern` 1
+  strobe of police_lights / police_wash, checked); an LED light bar (`light_bar_mesh()`, the bar
+  shader's `led`); the wash pool a point source at bar height (`point_pool`). Trap: Helicopter and
+  PoliceNightLook re-show their pieces every frame, so hiding one for an A/B does nothing (switch
+  its input off). `PURSUIT_LOOK=0` is the A/B; checks `tests/rc5_police_pursuit_checks.gd`.
 - Character arms: the generated clips were authored for arms that hang straight, but each
   generated rig is bound in whatever pose its mesh came out in (A-pose, or a palms-up shrug
   with the forearms raised), and the clips drive the arm bones as if that were the rest pose -
@@ -4956,6 +4986,14 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   included by building.gdshader AND building_lod.gdshader (change one, both change). Landmark
   facade windows are coverage by pixel footprint. `CIVIC_GROUNDS=0` / `ROOF_WEATHER=0` the A/B;
   probe `tools/civic_grounds/probe.tscn`; checks `tests/rc_downtown_aerial_checks.gd`.
+- STARLIGHT PLAZA on an event night (wave 8, refcam `arena_night` in `tools/refcams/cameras_w8.json`,
+  its `arena_event` key = ARENA_EVENT; docs/HANDOFF.md "STARLIGHT PLAZA on an event night"):
+  `ArenaNight` (`scripts/world/arena_night.gd`, hooks in LandmarkArenaDistrict): LED blades and
+  parapet coves on the plaza's blank walls and its name lit, near and far; each screen's light on
+  the paving (`shaders/arena_spill.gdshader` picks the screen's slide colour as led_screen.gdshader
+  does - change both; checked), a cool omni on Forward+ desktop; the hotel's crown lit from inside;
+  on event nights (`event_tonight()`, a hash) searchlight carts (SkyBeam) on the plaza and by the
+  marquee and a fuller plaza. `ARENA_NIGHT=0` is the A/B; checks `tests/rc5_arena_night_checks.gd`.
 - Broadway's theatre district (2026-10-05, HANDOFF "Broadway"): `Broadway`
   (`scripts/world/broadway.gd`) places eleven invented movie palaces by their REAL house numbers on
   S Broadway (`THEATRES`, `address_z()` through the real cross streets) on the Broadway-fronting lot
@@ -6301,6 +6339,12 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   `StreetVendor`s and `MarketShopper`s, `CityChunk.market_road` puts them on the asphalt).
   `FARMERS_MARKET=0` the A/B, `MARKET_DAY=1`, `MARKET_HOUR=h`. Probe:
   `tools/farmers_market/probe.gd`; checks: `tests/farmers_market_checks.gd`.
+- The farmers' market from the aisle (wave 8, refcam `farmers_market` in `tools/refcams/cameras_w8.json`,
+  its `market_day` key; docs/HANDOFF.md "The farmers' market from the aisle"): produce piled in hex
+  layers, the first as caps (`FarmersMarketKit._heap()`, a table under 14k triangles), farmers_market.gdshader's `skin_relief` /
+  `cloth_drape` / `grain_along` (derivative bumps, no tangents), festoon bulbs code 13 (glass by
+  day), printed cartons, `MAX_SHOPPERS` 46. `RC5_MARKET=0` is the A/B; the kit alone in seconds
+  `tools/farmers_market/kit_shot.gd`; checks `tests/rc5_farmers_market_checks.gd`.
 - Film shoots (2026-10-30, HANDOFF "Film shoots on location"): `FilmShoot`
   (`scripts/world/film_shoot.gd`, pure) closes one local street per `CELL` 2.3 km by hash, the
   farmers' market's way (its own salts; never a market's street or the chunk that builds one -
@@ -6686,6 +6730,12 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   the shallows. Never set its velocities in a tick that applies impulses (`_spin()`). The hero is
   drawn seated (`BoatRidePose`); FX `BoatWake`. `BOATS=0` the A/B; stills `BOAT=` on still_shot.gd;
   checks `tests/speedboats_checks.gd`.
+- The speedboat at golden hour (2026-11-05, refcam `speedboat_golden` in `tools/refcams/cameras_w8.json`,
+  its `boat` key staged by `tools/refcams/boat_stage.gd`; docs/HANDOFF.md "The speedboat at golden
+  hour"): `BoatSea` (`scripts/vehicles/boat_sea.gd`) - driven boats at sea hand their wakes to
+  ocean.gdshader through `OceanTraffic.push_wakes()` (alone: `push_alone()`), `wake_glow` braids the
+  wash and warms / lights the foam, BoatWake throws chine spray sheets (flat foam quads off at sea),
+  `transom()` letters the boat's name. `BOAT_SEA=0` is the A/B; checks `tests/rc5_speedboat_checks.gd`.
 - Swimming (2026-10-05, docs/HANDOFF.md "Swimming"): `Swim` (`scripts/player/swim.gd`, the
   player's child; `swim.step()` is the first thing in Player's tick after the car and does the whole
   tick in water). Where water is: `SwimWater` (`scripts/world/swim_water.gd`) - the sea and the bay
@@ -7345,6 +7395,13 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   few frames (a muzzle flash) does not veil the fog: the fog's temporal blend damps it.
   `fwd_block_shot.gd BLOCKS=0` is a weather sky on Forward+ in three minutes; `FLASH=` holds a
   muzzle flash. `FWD_REVIEW_G=0` is the A/B; checks `tests/fwd_review_g_checks.gd`.
+- And one more (fwd-review-h, 2026-11-05, HANDOFF "Forward+ review h"): **a light LEVEL a
+  renderer-space or display-number shader works out itself (a falloff, a pool's alpha) is raw on
+  both** - Compatibility draws colour x level, Forward+ ~colour x level^0.45 (a tank 150 m from a
+  flare glowed orange all over). Hand it over with `fh_level()` / `fh_display()`
+  (`shaders/fwd_review_h.gdshaderinc`), or add a broad light_pool in display numbers
+  (`display_add_fwd`, `FwdReviewH.display_pool()`). Linear-on-both (cs_out) shaders are safe.
+  `FWD_REVIEW_H=0` the A/B; checks `tests/fwd_review_h_checks.gd`.
 - Native screenshots without a browser: `tools/glshot/building_shot.gd` (one building),
   `tools/glshot/block_shot.tscn` (a few FULL city blocks alone, no far city: a block's ground and
   furniture) and `tools/glshot/city_shot.gd` (the city at a `--spawn`) render with the real
