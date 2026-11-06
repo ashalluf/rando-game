@@ -123,6 +123,17 @@ const PART_COST := {
 const DEFAULT_COST := 6.0
 ## Every share pays for its own city load on top of its parts.
 const CITY_LOAD_COST := 120.0
+## Resident memory (MB) the parts that raise a shard's peak most bring (memory-audit-w8,
+## tools/perf_audit_4/gate_rss.py on a SMOKE_PROFILE=1 gate): a city part that loads its share's
+## city first (its whole load), then the parts that teleport into a heavy area (what they add;
+## RSS never comes back after a part). shard_plan() spreads these first by memory, then deals the
+## rest by time: dealt by time alone, the two heaviest landed on one shard (3.8 GB) while another
+## sat at 3.2. SHARD_MEMORY=0 deals by time alone (the A/B).
+const MEM_COST := {
+	"city_streaming": 2850, "city_cars": 2350, "city_polish": 2200,
+	"police_station_checks": 530, "metro_underground_checks": 400, "hospital_checks": 270,
+	"garage_drive_in_checks": 270, "city_crowd": 240, "city_people": 180, "masjid_checks": 150,
+}
 var _parts := {} # part or check file name -> true; empty = everything
 var _buildings_done := false
 var _ran := {} # the city parts this run has started, for _stage()
@@ -176,10 +187,39 @@ static func shard_plan(count: int) -> Array:
 	var shares: Array = []
 	var busy: Array = []
 	var has_city: Array = []
+	var mem_base: Array = [] # the biggest city load a share has taken, MB
+	var mem_add: Array = [] # what its heavy parts add on top, MB
 	for i in count:
 		shares.append([])
 		busy.append(0.0)
 		has_city.append(false)
+		mem_base.append(0.0)
+		mem_add.append(0.0)
+	if count > 1 and OS.get_environment("SHARD_MEMORY") != "0":
+		var heavy: Array = []
+		for part in names:
+			if MEM_COST.has(part):
+				heavy.append(part)
+		heavy.sort_custom(func(a, b): return int(MEM_COST[a]) > int(MEM_COST[b]) or (MEM_COST[a] == MEM_COST[b] and a < b))
+		for part in heavy:
+			var mb := float(MEM_COST[part])
+			var base := String(part).begins_with("city_") and mb >= 1000.0
+			var best := 0
+			var best_mem := INF
+			for i in count:
+				var m: float = (maxf(mem_base[i], mb) + mem_add[i]) if base else (mem_base[i] + mem_add[i] + mb)
+				if m < best_mem - 0.001 or (absf(m - best_mem) <= 0.001 and busy[i] < busy[best]):
+					best = i
+					best_mem = m
+			var cost: float = PART_COST.get(part, DEFAULT_COST)
+			shares[best].append(part)
+			busy[best] += cost + (CITY_LOAD_COST if not has_city[best] else 0.0)
+			has_city[best] = true
+			if base:
+				mem_base[best] = maxf(mem_base[best], mb)
+			else:
+				mem_add[best] += mb
+			names.erase(part)
 	for part in names:
 		var cost: float = PART_COST.get(part, DEFAULT_COST)
 		var is_city: bool = part != "room"
