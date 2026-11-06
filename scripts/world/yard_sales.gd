@@ -33,8 +33,9 @@ static var enabled: bool = OS.get_environment("YARD_SALES") != "0"
 ## Every candidate lot holds one, today (YARD_SALE=all in the environment, or a test).
 static var force_all: bool = OS.get_environment("YARD_SALE") == "all"
 ## Tests and stills: the hour and the weekday (0 Sunday .. 6 Saturday) to build for (-1: the clock).
-static var force_hour: float = -1.0
-static var force_day: int = -1
+## YARD_SALE_HOUR / YARD_SALE_DAY in the environment set them (refcams' "yard_sale" key).
+static var force_hour: float = OS.get_environment("YARD_SALE_HOUR").to_float() if OS.get_environment("YARD_SALE_HOUR") != "" else -1.0
+static var force_day: int = OS.get_environment("YARD_SALE_DAY").to_int() if OS.get_environment("YARD_SALE_DAY") != "" else -1
 
 enum State { NONE, SETUP, OPEN, LEFTOVER }
 
