@@ -16,6 +16,8 @@ extends RefCounted
 ## carved bed on the hill part. Batch instances go through the chunk's batch, which adds _gy()
 ## itself, so they are handed heights relative to it (`_rel()`).
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 # --- Tunables --------------------------------------------------------------------------------
 # Static-only class, so the knobs are consts here at the top.
 

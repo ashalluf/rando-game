@@ -25,6 +25,8 @@ extends RefCounted
 ## Names: BASIN METRO and the Coral Line are invented (LightRail); the exits are public street
 ## names. METRO_STATION=0 in the environment is the A/B (the old kiosks over nothing).
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 static var enabled: bool = OS.get_environment("METRO_STATION") != "0"
 
 ## The island platform's width (m); the tracks spread round it (LightRail._place_stations()).

@@ -29,6 +29,8 @@ extends RefCounted
 ## Every roll is a walker's own stream (hash of its seed and "flow") or the flow's own; all timing
 ## is the physics clock (Pedestrian._life_now_ms()). Nothing a seed builds moves.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 ## The whole layer on or off (CROWD_FLOW=0 in the environment: the A/B).
 static var enabled: bool = OS.get_environment("CROWD_FLOW") != "0"
 

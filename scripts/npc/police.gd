@@ -28,6 +28,8 @@ extends Node3D
 ## (WorldState.to_world); the units themselves are ordinary nodes under this one and use scene
 ## positions like everything else.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 signal stars_changed(stars: int)
 
 ## Off: crimes are ignored and nobody is sent (the smoke test's other checks run with it off).

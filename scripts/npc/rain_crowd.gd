@@ -21,6 +21,8 @@ extends RefCounted
 ## at the top of its physics tick, `pace()` for the walking speed, `on_walk_end()` where a walk
 ## ends, `pose()` after the life pose.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 enum Gear { NONE, UMBRELLA, HOOD }
 
 ## On or off (the A/B: RAIN_CROWD=0).

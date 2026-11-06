@@ -19,6 +19,8 @@ extends RefCounted
 ## `scaled_local()`, or it stretches sideways on half the streets - which is exactly what the
 ## stop lines on the east-west approaches used to do.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 const NEWS_COLORS := [Color(0.85, 0.15, 0.15), Color(0.15, 0.3, 0.7), Color(0.95, 0.75, 0.1), Color(0.2, 0.2, 0.22)]
 
 # --- Tunables --------------------------------------------------------------------------------

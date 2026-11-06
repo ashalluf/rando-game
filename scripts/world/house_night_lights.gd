@@ -7,6 +7,8 @@ extends Node
 ## (`add_spot()`, chunk-local, which is true world inside a chunk); a chunk's spots go with it.
 ## One node under the tree root, made by the first porch registered.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 ## Lights at each Quality level (Quality._apply_level(): 4, 2, 0, 0).
 static var budget: int = 4
 ## Metres from the camera a porch may be lit from.

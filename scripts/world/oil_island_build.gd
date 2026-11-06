@@ -11,6 +11,8 @@ extends RefCounted
 ## detailed copy adds the collision (one concave shape for the ground you stand on, boxes for the
 ## towers and the wall) and, on desktop, a few `lamp_light` omnis gelled like the floods.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 const K_PAD := 0
 const K_ROCK := 1
 const K_GREEN := 2

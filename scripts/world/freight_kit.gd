@@ -24,6 +24,8 @@ extends FreewayKit
 ## streaks, grime, formwork), the track freight_track.gdshader, the lettering FreewayKit's paint.
 ## LOD chunks keep the trench's shell, the decks, the ballast beds and the portal.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 const T_BALLAST := 1
 const T_TIE := 2
 const T_HEAD := 3

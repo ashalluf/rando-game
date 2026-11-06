@@ -11,6 +11,8 @@ extends Pedestrian
 ## stands and the game booths are the chunk's "vendor_queue" spots (PierPark.queue_spots()), which
 ## the life layer's _plan_queue() already sends people to; the benches are its seats.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 ## The park's frame: world XZ of its origin, and the deck top (world y).
 var origin := Vector2.ZERO
 var deck_top: float = 6.4

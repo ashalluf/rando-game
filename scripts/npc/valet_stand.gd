@@ -20,6 +20,8 @@ extends Node3D
 ## A car shot, crashed, panicking (CarPanic) or taken away mid-service is let go and whoever was
 ## to get in it goes back to the podium.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 ## Metres from the player inside which the stand calls cars in and serves them.
 const ACTIVE_RANGE := 115.0
 ## Most cars called in at once (the one being served and the queue behind it).

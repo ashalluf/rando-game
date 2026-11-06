@@ -27,6 +27,8 @@ extends RefCounted
 ##
 ## `FACADE_MID=0` in the environment turns it all off (the A/B).
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 static var enabled: bool = OS.get_environment("FACADE_MID") != "0"
 
 const SHADER := preload("res://shaders/facade_mid.gdshader")

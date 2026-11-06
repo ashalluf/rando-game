@@ -13,6 +13,8 @@ extends RefCounted
 ## * The far city (capture): plain far boxes (`lod_box`, the old path with no windows) for the span
 ##   and the stairs / towers.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 ## Batches never collapsed under a bridge: the far boxes, flat paint (tilt keys) and light pools.
 const KEEP_KEYS := ["lod_box", "lamp_pool"]
 ## How far a bridge's mesh draws (metres; a LOD chunk's copy takes over within its own range).

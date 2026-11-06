@@ -33,6 +33,8 @@ extends RefCounted
 ##
 ## REFINERY=0 in the environment: no entry, no site - the blocks are ordinary industrial (the A/B).
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 const SITE_ID := "refinery"
 
 static var enabled: bool = OS.get_environment("REFINERY") != "0"

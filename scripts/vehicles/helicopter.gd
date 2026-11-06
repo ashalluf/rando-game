@@ -16,6 +16,8 @@ extends AmbientCraft
 ## (SpotLight3D, volumetric on Forward+ HIGH, a drawn shaft elsewhere, a pool of light where it
 ## lands); news carry a camera ball that follows what they are filming.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 enum Role { POLICE, NEWS }
 enum Mode { HOVER, GOTO, ORBIT, LEAVE }
 

@@ -11,6 +11,8 @@ extends Node3D
 ## it is ticked when nobody is near: past `active_range` from the player only the riders move (they
 ## are cheap) and the water people bob.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 ## Beyond this (m) from the player nothing here is updated but the cheapest.
 @export var active_range: float = 260.0
 ## Most sunbathers one burst of gunfire wakes, in all, and per physics tick.

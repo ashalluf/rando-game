@@ -18,6 +18,8 @@ extends RefCounted
 ## fleets and the debris a knocked rider leaves. Names are invented: the scooter operators
 ## SKOOTA and KWIKR, the share scheme BASIN BIKE (Basin Metro's sister brand).
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 enum Kind { ROAD, CRUISER, CARGO, SHARE, SCOOTER_A, SCOOTER_B }
 
 # Vertex colour alpha codes, read by shaders/micromobility.gdshader (round(a * 20)).

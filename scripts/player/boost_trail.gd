@@ -10,6 +10,8 @@ extends Node3D
 ## they hang in the air where the player passed; the streaks are local to the player and drawn by
 ## shaders/boost_streak.gdshader as camera-facing lines along their velocity.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 ## Speed (m/s) at which the trail and streaks are at full strength.
 @export var full_speed: float = 40.0
 ## Speed (m/s) below which nothing is drawn.

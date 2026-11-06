@@ -20,6 +20,8 @@ extends RefCounted
 ## its direction turned (d.z, -d.x), the building shader's wall tangent (-n.z, n.x) is the edge
 ## direction, and Godot's clockwise front faces work out as written below.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 ## Adjacent edges turning less than this share a smoothed normal and one run of bays (a curve);
 ## more, and the corner is sharp.
 const SMOOTH_TURN_DEG := 24.0

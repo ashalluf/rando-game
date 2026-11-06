@@ -28,6 +28,8 @@ extends RefCounted
 ##
 ## Everything is a pure function of the seed and the map. Nothing here rolls a random number.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 ## The Landmarks.all() anchor: the lake's middle. The landmark chunk round it builds the detail.
 const ANCHOR := Vector2(-540.0, -1350.0)
 ## The box everything here touches (world XZ). carve() is the identity outside it.

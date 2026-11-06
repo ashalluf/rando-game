@@ -15,6 +15,8 @@ extends RefCounted
 ## (CoastHighwayBuild). Everything is laid in d = x - coast_x(z), metres in from the waterline
 ## along +x, the same measure the road's own points use. Every roll is a hash of seed + place.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 ## Off: COAST_HIGHWAY=0 in the environment (the A/B).
 static func enabled() -> bool:
 	return OS.get_environment("COAST_HIGHWAY") != "0"

@@ -13,6 +13,8 @@ extends Node
 ## Played only while the player is wanted, non-positional on the World bus, quiet. The streams
 ## are built once, a few on first use (~30 ms each). `POLICE_RADIO=0` turns it off.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 static var enabled: bool = OS.get_environment("POLICE_RADIO") != "0"
 
 ## Loudness (dB), the quiet between transmissions (s) and how long a queued call keeps (s).

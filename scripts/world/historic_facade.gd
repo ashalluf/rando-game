@@ -27,6 +27,8 @@ extends RefCounted
 ## cast shadows, 380 m) and the fine ones (rustication, arches, surrounds, panels, dentils,
 ## modillions, capitals: no shadow, 170 m). Built one street face per build step.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 const MAIN_DRAW := 380.0
 const FINE_DRAW := 170.0
 ## Course height of the rustication and the joint between courses (m).

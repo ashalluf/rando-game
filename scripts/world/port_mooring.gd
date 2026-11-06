@@ -7,6 +7,8 @@ extends RefCounted
 ## stern, springs cross from a chock near each end to bollards toward midships. Each line is two
 ## hawsers hanging in a shallow catenary. PORT_MOORING=0 is the A/B.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 static var enabled: bool = OS.get_environment("PORT_MOORING") != "0"
 
 ## [bollard x from the ship's centre (lo, hi), chock x from the ship's centre]; a bollard in a

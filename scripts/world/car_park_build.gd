@@ -18,6 +18,8 @@ extends RefCounted
 ## LOD and the far city: a box a storey band (a dark open band over a concrete spandrel) and the
 ## core, the old far-box path.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 const CONCRETE := Color(0.80, 0.79, 0.75)
 const CONCRETE_DARK := Color(0.56, 0.56, 0.55)
 ## One colour a level, on the columns (ground, 1, 2, ...).

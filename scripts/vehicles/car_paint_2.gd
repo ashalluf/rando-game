@@ -18,6 +18,8 @@ class_name CarPaint2
 ## CAR_PAINT_2=0 in the environment (or `enabled` false) is the A/B: no roll changes, `paint2` 0,
 ## the old shader path bit for bit.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 static var enabled: bool = OS.get_environment("CAR_PAINT_2") != "0"
 
 ## Shader numbers per finish (Vehicle.Finish by index). peel: orange peel in the lacquer;

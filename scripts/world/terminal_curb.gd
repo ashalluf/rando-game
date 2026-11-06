@@ -22,6 +22,8 @@ extends RefCounted
 ## Every roll is a hash of the seed and the place; nothing else in the city moves. TERMINAL_CURB=0
 ## is the A/B (the kerb exactly as before).
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 static var enabled: bool = OS.get_environment("TERMINAL_CURB") != "0"
 
 ## The kerb line (world z) and where the strip's top is over the tarmac (Landmarks._build_dropoff()).

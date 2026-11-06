@@ -5,6 +5,8 @@ extends Pedestrian
 ## look (the crowd's life), most of them carrying shopping bags. Everything else (the look, the
 ## gait, panic, being shot or knocked down) is Pedestrian's.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 ## The aisle's two ends (chunk space), half its free width, and whether it runs along x.
 var lane_a: Vector2 = Vector2.ZERO
 var lane_b: Vector2 = Vector2.ZERO

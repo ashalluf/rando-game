@@ -16,6 +16,8 @@ class_name LowriderMeet
 ## HOURS.x to HOURS.y). LOWRIDER_MEET=1 in the environment (or `force`) holds every meet on;
 ## LOWRIDERS=0 turns meets and cruisers off.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 const CELL := 1600.0
 const ODDS := 0.7
 const TRIES := 6

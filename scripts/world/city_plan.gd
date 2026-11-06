@@ -4,6 +4,8 @@ extends RefCounted
 ## intersection index can be asked for and always comes back the same.
 ## Pure data, no nodes. CityStreamer builds CityChunks from it around the player.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 enum District { DOWNTOWN, MIDTOWN, SUBURBS, INDUSTRIAL, CAMPUS, BEACHTOWN }
 enum BlockKind { BUILDINGS, PARK, PLAZA, MALL, BIGBOX, SCHOOL }
 enum Intersection { PLAIN, STOP_SIGNS, SIGNALS, ROUNDABOUT }

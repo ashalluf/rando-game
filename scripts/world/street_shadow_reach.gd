@@ -8,6 +8,8 @@ class_name StreetShadowReach
 ## reach of the camera; up close nothing changes. `SHADOW_REACH=0` on still_shot.gd turns every
 ## reach off (the A/B), as it does the facade kit's roofline.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 ## Batch key -> reach in metres.
 const REACH := {
 	"bench": 60.0, "bollard": 40.0, "bus_sign": 40.0, "meter": 40.0, "rack": 50.0,

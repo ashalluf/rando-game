@@ -31,6 +31,8 @@ extends RefCounted
 ##
 ## Off (FASHION=0 in the environment): none of it, the A/B for stills and frame counts.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 static var enabled: bool = OS.get_environment("FASHION") != "0"
 
 ## The stretch: east of Main, from 7th St to Pico Blvd (DowntownReal names), and how far east.

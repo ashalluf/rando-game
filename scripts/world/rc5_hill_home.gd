@@ -21,6 +21,8 @@ class_name Rc5HillHome
 ##   built for: trees of the terraced garden under the pool's view span are left out (after their
 ##   rolls: every other tree keeps its place).
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 ## The whole pass (`RC5_HILL_HOME=0` turns it off).
 static var enabled: bool = OS.get_environment("RC5_HILL_HOME") != "0"
 

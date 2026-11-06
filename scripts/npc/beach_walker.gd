@@ -6,6 +6,8 @@ extends Pedestrian
 ## BeachGoer.dress(), on the sand's height (BeachLife.ground_at()), and going straight across the
 ## open beach rather than round a block's corners.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 var suit: int = 0
 ## Carries a board (BeachLife.BOARDS paint index), or -1.
 var board: int = -1

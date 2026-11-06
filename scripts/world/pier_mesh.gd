@@ -15,6 +15,8 @@ extends RefCounted
 ## Winding: every triangle is given the direction it must face and is flipped to match (the
 ## LandmarkGeo rule), so a builder never has to think about vertex order.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 const K_PAINT := 0
 const K_METAL := 1
 const K_CANVAS := 2

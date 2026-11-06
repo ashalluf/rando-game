@@ -33,6 +33,8 @@ extends RefCounted
 ## (scripts/world/kerb_bins.gd), not ours. STREET_FURNITURE=0 in the environment is the A/B (the
 ## old meshes everywhere, no pay stations, no stop benches).
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 ## Kinds (COLOR.a = (kind + 0.5) / 16), mirrored by the shader's K_* constants.
 const K_PAINT := 0      # cast iron / steel in the instance's paint, chipped and rusting with wear
 const K_PAINT_V := 1    # steel in the vertex colour's paint

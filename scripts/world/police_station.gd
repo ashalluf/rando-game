@@ -27,6 +27,8 @@ extends RefCounted
 ## Names are this game's own (RANDO CITY POLICE, invented division names), never a real
 ## department's, division's or building's.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 const CELL := 1500.0
 const ODDS := 0.92
 const TRIES := 6

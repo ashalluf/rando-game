@@ -22,6 +22,8 @@ extends RefCounted
 ## is kept to a dock's length. The lights (masthead glows, dock pedestals, nav lights) are one
 ## billboard mesh on aircraft_lights.gdshader.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 const FAR_WATER := Color(0.035, 0.07, 0.085)
 const FAR_LAND := Color(0.42, 0.41, 0.38)
 const FAR_ASPHALT := Color(0.11, 0.11, 0.115)
