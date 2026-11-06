@@ -30623,8 +30623,10 @@ What the view gave away, worst first, fixed behind `RcRailCrossing.enabled`
 4. *The crossbuck boards were blank.* RAILROAD / CROSSING in black (FreewayKit's letters, the paint
    mesh), each on its board, FULL chunks.
 
-**Cost.** opengl3 refcam: see the shots README for the final numbers (tris and draws within a
-percent; the ribbons replace the tubes).
+**Cost.** opengl3 refcam rail_crossing: before 6,907,097 tris / 3,829 draws / 2,299,033 shadow,
+after 6,872,328 / 3,817 / 2,289,117 (-0.5 %: the ribbons replace the tubes; peak 6.7 GB on a
+warm cache). The ten original cameras with RC5_RAIL_CROSSING=0 against on: seven ok, street_noon /
+street_night / freeway flagged by where the live traffic stood (no rail in those views).
 
 **Not done / not verified.** Forward+ not seen (the glow is additive in linear there: its skirt is
 small, but a Mac look is needed; the glass's emission is the same path as before). The bell on the
