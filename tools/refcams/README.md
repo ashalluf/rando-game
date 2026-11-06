@@ -113,6 +113,11 @@ the train's ends over the pull-out, `chunk_probe.gd` what each yard chunk lays.
 Run with `REFCAMS_JSON=tools/refcams/cameras_w8.json`. `rush_hour` (rc5-rush-hour): the 105 at 17:40
 clear from the caged footbridge east of the 110 (`fb_f_1_213`), the lens just outside the cage looking
 west down the carriageways into the sun; `shot_frames` 90 lets RushHour's jam build.
+`rail_aerial` (rc5-rail-aerial): the Coral Line's structure where it swings off Flower over the 110,
+from River Blvd below at 20:00 clear, looking west. Its optional `rail_s` key ("<s>:<dir>[:<seconds
+before>]", LightRailSystem's RAIL_S) sets and holds the light rail's clock so a train's nose is at
+s along the line (dir 1 runs toward the downtown terminus); "2470:1" puts a train on the curve.
+`tools/rc5_rail_aerial/probe.gd` prints the flyovers, the freeways under them and the poles there.
 
 ## Running
 
@@ -283,6 +288,10 @@ premiere, the characters and the tourists come from the build hour (WalkOfFameNi
 the run needs `OCCLUSION=0` (the occlusion raycast hang, above). For framing in a minute:
 `tools/glshot/station_night_shot.tscn` with `WOF_HOUR=22` (that scene has no DayNight at its root,
 so the walk would otherwise build at the 13:30 fallback).
+`sea_life` (rc5-sea-life): the straight pier's round head at 08:00 clear looking ESE down the coast.
+Its optional `sea` key is SeaLife.stage_for_shot()'s spec ("dolphin@x,z[,lead];pelican@x,z", TRUE
+world), staged three frames before the shot with the sea clock held and cleared after it;
+`SEA_DEBUG=1` prints the surfers and swimmers BeachActivity has round the lens.
 `yard_sale` (rc5-yard-sale): a suburb Saturday 09:30 from the far pavement. Its `yard_sale` key (1)
 builds every yard sale for a Saturday at the row's hour (YARD_SALE_DAY / YARD_SALE_HOUR), its
 `clear_cars` (metres) hides the vehicles that near the lens.

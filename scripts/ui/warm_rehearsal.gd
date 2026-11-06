@@ -47,6 +47,14 @@ static var wave3: bool = OS.get_environment("WARM_WAVE3") != "0"
 ## blood on the hero (blood-gore-2). Measured with tools/shader_warm/first_use_probe EVENTS=wave4.
 ## `WARM_WAVE4=0` leaves them out (the A/B).
 static var wave4: bool = OS.get_environment("WARM_WAVE4") != "0"
+## Waves 5-8's first uses (first-use-w8, 2026-11-06; docs/HANDOFF.md "First uses after waves 5-8"):
+## a car's fuel fireball (explosions-4: the burning pool and fuel trail, the flames up the wreck,
+## the tongues), a boat under way (BoatWake, BoatSea's chine sheets),
+## the wingsuit's fabric and vapour (look2), a jet's landing-light beams (jet-takeoff), a lit beach
+## bonfire (rc4-bonfire's glow), a crash's oil and coolant pool (rc5-crash-closeup). Measured
+## with tools/shader_warm/first_use_probe EVENTS=wave8.
+## `WARM_WAVE8=0` leaves them out (the A/B).
+static var wave8: bool = OS.get_environment("WARM_WAVE8") != "0"
 ## For the first-use probe (tools/shader_warm/), which cannot fit the whole rehearsal's pipelines in
 ## lavapipe's memory any more: only these stages ("cars", "people", ...) and body types (empty: all).
 static var only_stages: PackedStringArray = []
@@ -98,6 +106,9 @@ static func run(scene: Node, cam: Camera3D, progress: Callable = Callable(), log
 		["effects", _stage_effects],
 		["idle particles", _stage_ghosts],
 	]
+	if wave8:
+		stages.append(["wave 5-8 blasts", _stage_wave8_blasts])
+		stages.append(["wave 5-8 effects", _stage_wave8_effects])
 	for i in stages.size():
 		if not only_stages.is_empty() and not only_stages.has(String(stages[i][0])):
 			continue
@@ -123,7 +134,7 @@ static func run(scene: Node, cam: Camera3D, progress: Callable = Callable(), log
 		for c in fx_root.get_children():
 			if before.has(c.get_instance_id()) or c == holder or c.is_queued_for_deletion():
 				continue
-			if c.get_script() == null or String(c.name).begins_with("BlastCrater"):
+			if c.get_script() == null or String(c.name).begins_with("BlastCrater") or c is BlastPool:
 				c.queue_free()
 				last_found = f
 		await tree.process_frame
@@ -347,6 +358,12 @@ static func _stage_effects(holder: Node3D, ground: Vector3, fwd: Vector3, right:
 ## Copies of the particle systems and meshes that sit idle until something wakes them - the
 ## weather's rain, splashes and lens drops, the boost's vapour and streaks - turned on in front of
 ## the camera. A plain duplicate: no script, no signals, no groups.
+## The idle systems the ghost stage copies at most, and what it saw / copied last time (checks).
+const GHOST_CAP := 64
+static var ghosts_seen: int = 0
+static var ghosts_made: int = 0
+
+
 static func _stage_ghosts(holder: Node3D, ground: Vector3, fwd: Vector3, right: Vector3, tree: SceneTree) -> void:
 	var sources: Array = []
 	var weather := tree.current_scene.get_node_or_null("Weather") if tree.current_scene else null
@@ -358,11 +375,15 @@ static func _stage_ghosts(holder: Node3D, ground: Vector3, fwd: Vector3, right: 
 		sources.append(trail if trail else player)
 	var at := ground + fwd * 5.0 + Vector3.UP * 1.5
 	var n := 0
+	var seen := 0
 	for src: Node in sources:
 		for g in src.find_children("*", "GeometryInstance3D", true, false):
-			if n >= 64:
-				break
 			if g is CPUParticles3D or g is GPUParticles3D or (g is GeometryInstance3D and not (g as Node3D).is_visible_in_tree()):
+				seen += 1
+				# Counted (first-use-w8): a source past the cap would leave the boost trail, copied after
+				# the weather, with none. The checks fail before the weather grows that far.
+				if n >= GHOST_CAP:
+					continue
 				var copy := (g as Node).duplicate(0) as Node3D
 				if copy == null:
 					continue
@@ -377,6 +398,9 @@ static func _stage_ghosts(holder: Node3D, ground: Vector3, fwd: Vector3, right: 
 				elif copy is GPUParticles3D:
 					(copy as GPUParticles3D).emitting = true
 				n += 1
+	ghosts_seen = seen
+	ghosts_made = n
+	print("LOADING rehearsal idle systems copied: %d of %d" % [n, seen])
 	await tree.process_frame
 
 
@@ -466,6 +490,121 @@ static func _stage_wave4_effects(holder: Node3D, ground: Vector3, fwd: Vector3, 
 	holder.add_child(heli)
 	heli.global_position = at_heli
 	WantedEscalation.arm_gunship(heli)
+
+
+## Waves 5-8's blast first uses (see `wave8`): a car goes up as a fuel fireball, through WeaponFX.explosion (the look alone: no Explosion.blast, so nothing is
+## pushed, knocked or damaged) - Blast4.after_blast's burning pools and fuel trail, the flames up
+## the car's sides, the tongues, the pops. Blast4's chain is held off (a car near it would catch a
+## fuse and go up for real); the pools are swept with the rest.
+static func _stage_wave8_blasts(holder: Node3D, ground: Vector3, fwd: Vector3, right: Vector3, tree: SceneTree) -> void:
+	if not Blast4.enabled:
+		return
+	var car := Vehicle.new()
+	car.setup(Vehicle.BodyType.SEDAN, Color(0.2, 0.25, 0.3), 0)
+	car.collision_layer = 0
+	car.set_meta(TAG, true)
+	holder.add_child(car)
+	car.global_position = ground + fwd * 16.0 + right * 6.0 + Vector3.UP * 1.0
+	await tree.process_frame
+	var depth := Blast4.chain_depth
+	Blast4.chain_depth = 0
+	# No secondary pops either: they go off on timers up to 1.6 s later, after the sweep, and the
+	# fireball itself already rehearses what a pop draws. (A pump's gas blast is the same pool and
+	# volume with other uniforms: not staged.)
+	var pops := Blast4.secondary_count
+	Blast4.secondary_count = Vector2i.ZERO
+	BlastFX.fuel_next = true
+	WeaponFX.explosion(car, car.global_position + Vector3.UP * 0.8, 7.0, 1.0)
+	BlastFX.fuel_next = false
+	Blast4.chain_depth = depth
+	Blast4.secondary_count = pops
+
+
+## Waves 5-8's effect first uses: a speedboat and a jet ski with their wakes and spray on, a lit
+## beach bonfire (its flames, embers, smoke, pool and glow), two landing-light beams, and the
+## wingsuit's two meshes - stand-ins with the fabric's and the vapour's materials and the very
+## vertex formats WingsuitFx builds (its fabric only exists while he glides).
+static func _stage_wave8_effects(holder: Node3D, ground: Vector3, fwd: Vector3, right: Vector3, tree: SceneTree) -> void:
+	# (Awaited by run() like every stage: the frame at the end is the stage's.)
+	for k in 2:
+		var boat := Boat.new()
+		boat.setup_boat(k, 3 + k)
+		boat.set_meta(TAG, true)
+		boat.collision_layer = 0
+		boat.collision_mask = 0
+		boat.freeze = true
+		holder.add_child(boat)
+		boat.global_position = ground + fwd * 11.0 + right * (5.0 + 4.0 * k) + Vector3.UP * 0.4
+		# Held still (its wake would switch its emitters off on dry land): the hull draws, and plain
+		# copies of the wake's emitters (no script) spray beside it.
+		boat.process_mode = Node.PROCESS_MODE_DISABLED
+		var n := 0
+		for p in boat.find_children("*", "CPUParticles3D", true, false):
+			var copy := (p as CPUParticles3D).duplicate(0) as CPUParticles3D
+			for ch in copy.get_children():
+				copy.remove_child(ch)
+				ch.free()
+			holder.add_child(copy)
+			copy.visible = true
+			copy.global_position = boat.global_position + right * (float(n % 4) - 1.5) * 0.8 + fwd * float(n / 4) * 0.8
+			copy.emitting = true
+			n += 1
+	var fire := BonfireFire.new()
+	holder.add_child(fire)
+	fire.global_position = ground + fwd * 8.0 - right * 4.0
+	fire.call("_build")
+	for p in fire.find_children("*", "CPUParticles3D", true, false):
+		(p as CPUParticles3D).emitting = true
+	for n in fire.find_children("*", "MeshInstance3D", true, false):
+		(n as Node3D).visible = true
+	var beam_at := ground + fwd * 20.0 + Vector3.UP * 6.0
+	JetTakeoff.show_beams(JetTakeoff.build_beams(holder, [[beam_at, fwd], [beam_at + right * 3.0, fwd]]), true)
+	# A crash's fluids (CrashAftermath: rc5-crash-closeup, a PlaneMesh on crash_fluids.gdshader).
+	# CrashAftermath itself skips the rehearsal's cars (its pools are kept for the session), so a
+	# plain stand-in with its mesh and shader; its steam is the smoke material, rehearsed already.
+	if CrashAftermath.enabled:
+		var fluid := ShaderMaterial.new()
+		fluid.shader = CrashAftermath.SHADER
+		fluid.render_priority = -2
+		fluid.set_shader_parameter("size", CrashAftermath.POOL_SIZE)
+		fluid.set_shader_parameter("spread", 0.6)
+		var plane := PlaneMesh.new()
+		plane.size = Vector2(CrashAftermath.POOL_SIZE, CrashAftermath.POOL_SIZE)
+		var pool := MeshInstance3D.new()
+		pool.mesh = plane
+		pool.material_override = fluid
+		pool.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		holder.add_child(pool)
+		pool.global_position = ground + fwd * 7.0 + right * 3.0 + Vector3.UP * 0.012
+	# The wingsuit's fabric: VERTEX, NORMAL, TANGENT, UV, UV2 and an index, as WingsuitFx._rebuild().
+	var arrays := []
+	arrays.resize(Mesh.ARRAY_MAX)
+	var c := ground + fwd * 6.0 + Vector3.UP * 1.5
+	arrays[Mesh.ARRAY_VERTEX] = PackedVector3Array([c, c + right * 0.6, c + Vector3.UP * 0.6])
+	arrays[Mesh.ARRAY_NORMAL] = PackedVector3Array([-fwd, -fwd, -fwd])
+	arrays[Mesh.ARRAY_TANGENT] = PackedFloat32Array([right.x, right.y, right.z, 1.0, right.x, right.y, right.z, 1.0, right.x, right.y, right.z, 1.0])
+	arrays[Mesh.ARRAY_TEX_UV] = PackedVector2Array([Vector2.ZERO, Vector2.RIGHT, Vector2.DOWN])
+	arrays[Mesh.ARRAY_TEX_UV2] = PackedVector2Array([Vector2.ZERO, Vector2.RIGHT, Vector2.DOWN])
+	arrays[Mesh.ARRAY_INDEX] = PackedInt32Array([0, 1, 2])
+	var fabric_mesh := ArrayMesh.new()
+	fabric_mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+	var fabric := MeshInstance3D.new()
+	fabric.mesh = fabric_mesh
+	fabric.material_override = WingsuitFx.fabric_material()
+	holder.add_child(fabric)
+	# The vapour: an ImmediateMesh strip with a colour and a UV per vertex (WingsuitFx._draw_ribbons()).
+	var strip := ImmediateMesh.new()
+	strip.surface_begin(Mesh.PRIMITIVE_TRIANGLE_STRIP)
+	for i in 4:
+		strip.surface_set_color(Color(1.0, 1.0, 1.0, 0.5))
+		strip.surface_set_uv(Vector2(-1.0 if i % 2 == 0 else 1.0, float(i / 2)))
+		strip.surface_add_vertex(c - right * 1.5 + right * float(i % 2) * 0.4 + fwd * float(i / 2))
+	strip.surface_end()
+	var vapour := MeshInstance3D.new()
+	vapour.mesh = strip
+	vapour.material_override = WingsuitFx.vapour_material()
+	vapour.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	holder.add_child(vapour)
 
 
 ## The burnt rehearsal car stays in CarDamage's static lists (burning, smoking, wrecks) after it is

@@ -2447,6 +2447,8 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	load("res://tests/loading_first_frame_checks.gd").new().run(self, city)
 	# Load time after wave 4 (tests/load_time_3_checks.gd): the rehearsal's stages, freed list entries.
 	load("res://tests/load_time_3_checks.gd").new().run(self, city)
+	# First uses after waves 5-8 (tests/first_use_w8_checks.gd): the rehearsal's wave 5-8 stages, swept.
+	await load("res://tests/first_use_w8_checks.gd").new().run(self, city)
 	# The extra occluders (tests/occluders_checks.gd): hill terrain, decks, banks, sound walls and
 	# the far mountains, each inside what it stands for.
 	await load("res://tests/occluders_checks.gd").new().run(self, city)
@@ -3035,6 +3037,11 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	# The Googie motel refcam (tests/rc5_googie_motel_checks.gd, Motels): the motor court behind a
 	# motel pole sign, the camera row, the sign's light.
 	load("res://tests/rc5_googie_motel_checks.gd").new().run(self, city)
+	# The rail_aerial refcam (tests/rc5_rail_aerial_checks.gd, RcRailAerial): the guideway's wire ribbons, lamps, washes.
+	load("res://tests/rc5_rail_aerial_checks.gd").new().run(self, city)
+	# The sea_life refcam (tests/rc5_sea_life_checks.gd, SeaLife.spray_look): the camera row, the
+	# flat white water and streaked throws, the surfacing rings, the staged pod in turn.
+	load("res://tests/rc5_sea_life_checks.gd").new().run(self, city)
 	# The yard_sale refcam (tests/rc5_yard_sale_checks.gd, Rc5YardSale): crammed tables, the canopy, the blanket, the row.
 	load("res://tests/rc5_yard_sale_checks.gd").new().run(self, city)
 

@@ -1431,6 +1431,15 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   escalators (level 2, standing on the step), alighters ride up, arrivals refill the island while
   `MetroStation.showing`. `METRO_LOOK=0` / `METRO_CROWD=0` the A/Bs; checks
   `tests/rc4_metro_station_checks.gd`.
+- The Coral Line's aerial structure at night (wave 8, refcam `rail_aerial` in
+  `tools/refcams/cameras_w8.json`, its `rail_s` key stages a train as RAIL_S; docs/HANDOFF.md "The
+  Coral Line's aerial structure at night"): `RcRailAerial` (`scripts/world/rc5_rail_aerial.gd`,
+  hooks in LightRailKit): on the structure the overhead wires are RcRailCrossing's ribbons lit near
+  each pole after dark (`shaders/rail_wire.gdshader`, "RailWiresLit": UV.y = metres to the nearest pole), LED
+  walkway lamps on every aerial pole, downlight pairs under the girder between columns with pools on
+  the street, the columns / soffit / poles washed (freeway_structure `rail_wash`, on the rail's own
+  material copy, 0 = the freeway untouched). `RC5_RAIL_AERIAL=0` is the A/B; checks
+  `tests/rc5_rail_aerial_checks.gd`.
 - Freight rail (2026-10-05, "freight trains on the industrial rail"; HANDOFF 9do): the **Arroyo
   Pacific's Harbor Subdivision** (invented railroad, mark APXR) down ALAMEDA ST (a pinned real
   street that runs the whole map). **The line is a DATA TABLE** (`FreightRail`,
@@ -6658,6 +6667,12 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   send the sea lions in for a minute or so. `SEA_LIFE=0` is the A/B. Stills: `SEA="kind@x,z,lead;..."`
   on `still_shot.gd` (holds the clock), the kit alone `tools/sea_life/kit_shot.tscn`, the plan
   `tools/sea_life/probe.tscn`; checks `tests/sea_life_checks.gd`.
+- The sea_life refcam (wave 8, `sea_life` in `tools/refcams/cameras_w8.json`, its `sea` key stages
+  SeaLife; docs/HANDOFF.md "Life in the water from the end of the pier"): sea_spray.gdshader `look2`
+  lays a splash's white water flat on the sea and streaks the thrown drops along their velocity
+  (camera-facing clumps cut flat at the waterline), `SeaLife.SPRAY_RING` rings where a back breaks
+  the surface or a bird sits down, sea_life.gdshader `skin2` the dolphin's wet skin.
+  `SEA_SPRAY=0` is the A/B; checks `tests/rc5_sea_life_checks.gd`.
 - Beach life (VISUAL_ROADMAP #60, 2026-10-05: "a Los Angeles beach on a warm afternoon"):
   `BeachLife` (`scripts/world/beach_life.gd`, static) fills the sand `CityChunk._build_beach()`
   lays. **Everything is a hash of seed + a WORLD cell of shore (`CELL_Z` 6.5 m) + the hour the
@@ -7018,6 +7033,13 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   `WARM=0 REHEARSE=1`: the full warm-up no longer fits). `MacroMap.bake()` memoises a pixel's raw
   height (byte-identical, `bake_probe.tscn FULL=1`). Never `x is T` on a list entry that can be
   freed: `is_instance_valid()` first.
+- First uses after waves 5-8 (2026-11-06, docs/HANDOFF.md "First uses after waves 5-8"):
+  WarmRehearsal's `wave 5-8 blasts` stage (a fuel fireball on a car through WeaponFX.explosion,
+  Blast4's chain and secondary pops held off, the BlastPools swept) and `wave 5-8 effects` stage
+  (two boats with copies of their wake emitters, a lit BonfireFire, landing-light beams, stand-ins
+  with the wingsuit's fabric / vapour vertex formats). Measure on lavapipe one event set at a time
+  (`first_use_probe` EVENTS=wave8, each event twice to tell first use from render cost); the blasts
+  still OOM it. `WARM_WAVE8=0` is the A/B; checks `tests/first_use_w8_checks.gd`.
 - The Mac launch (2026-11-05, docs/HANDOFF.md "The Mac launch", docs/PLAYING_ON_MAC.md): the
   window presents frames for the WHOLE load. `LoadPulse` (`scripts/util/load_pulse.gd`) draws the
   loading art on its own RenderingServer canvas and `tick()` presents it with `force_draw()` from
