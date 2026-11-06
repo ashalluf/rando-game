@@ -332,7 +332,7 @@ static func _venue(plan: CityPlan, chunk: CityChunk, rect: Rect2, district: int,
 			index = chunk.ix
 			dir = -1
 	return {"door": p, "out": n, "along": along, "side": side, "run": run, "kind": kind, "key": key,
-		"shop_key": int(f[5]), "name": name, "kerb": depth, "face": face,
+		"shop_key": int(f[5]), "name": name, "kerb": depth, "face": face, "width": float(f[2]),
 		"led": int(_h01([plan.seed, key, "nl_led"]) * NightLifeKit.LED_COLORS.size()) % NightLifeKit.LED_COLORS.size(),
 		"accent": ACCENTS[int(_h01([plan.seed, key, "nl_accent"]) * ACCENTS.size()) % ACCENTS.size()],
 		"metal": int(_h01([plan.seed, key, "nl_metal"]) < 0.3),
@@ -447,6 +447,8 @@ static func _build_venue(chunk: CityChunk, block: Dictionary, v: Dictionary, hou
 		chunk._batch.set_shadow_distance(k, SHADOW_DISTANCE)
 		tint = NightLifeKit.LED_COLORS[int(v.led)]
 		_sign(holder, String(v.name), xf * Vector3(0.0, NightLifeKit.CANOPY_Y + NightLifeKit.CANOPY_T * 0.5, NightLifeKit.CANOPY_D + 0.012), xf.basis, 0.26, NightLifeKit.CANOPY_W - 0.4, tint, gy)
+		v.open = open_now
+		RcClubLine.front(chunk, holder, v, xf, float(v.get("width", 0.0)), tint, custom, gy)
 	else:
 		chunk._batch.add("nl_bar", NightLifeKit.bar_entrance(), xf, Color.WHITE, custom)
 		chunk._batch.set_draw_distance("nl_bar", ENTRANCE_DRAW)

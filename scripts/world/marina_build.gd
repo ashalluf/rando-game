@@ -365,6 +365,9 @@ static func boat_material() -> ShaderMaterial:
 		# MarinaGolden: rigging widened to a pixel, the furled jibs' cover strips.
 		m.set_shader_parameter("wire_px", 1.0 if MarinaGolden.enabled else 0.0)
 		m.set_shader_parameter("jib_strip", 1.0 if MarinaGolden.enabled else 0.0)
+		# MarinaNight: the cover's turns overlap (no barber pole).
+		m.set_shader_parameter("jib_soft", 1.0 if MarinaNight.enabled else 0.0)
+		m.set_shader_parameter("cabin_panes", 1.0 if MarinaNight.enabled else 0.0)
 		_mats["boat"] = m
 	return _mats["boat"]
 
@@ -394,6 +397,8 @@ static func material(key: String) -> Material:
 			m = PropFactory.road("concrete", 4.0, Color(0.92, 0.91, 0.88), 4023, 3.0, 0.9)
 		"bulkhead":
 			m = PropFactory.road("concrete", 3.0, Color(0.86, 0.85, 0.82), 4024, 0.0, 1.0)
+		"seawall":
+			m = MarinaNight.seawall_material()
 		"lawn":
 			m = PropFactory.lawn(Color(0.82, 0.95, 0.7), 4025, 0.3)
 		"bank":
@@ -539,7 +544,8 @@ func _bulkhead(a: Vector2, b: Vector2) -> void:
 		if not mr.site.grow(0.5).has_point(qm):
 			continue
 		var want := Vector3(n.x, 0.0, n.y)
-		quad("bulkhead", Vector3(q0.x, top_y + 0.06, q0.y), Vector3(q1.x, top_y + 0.06, q1.y), Vector3(q1.x, -1.6, q1.y), Vector3(q0.x, -1.6, q0.y), want)
+		# MarinaNight: the face in the water wears the seawall (tide zone, joints, streaks).
+		quad("seawall" if MarinaNight.enabled else "bulkhead", Vector3(q0.x, top_y + 0.06, q0.y), Vector3(q1.x, top_y + 0.06, q1.y), Vector3(q1.x, -1.6, q1.y), Vector3(q0.x, -1.6, q0.y), want)
 		# Coping: a 0.45 m cap a little proud of the paving.
 		var i0 := q0 - n * 0.45
 		var i1 := q1 - n * 0.45
@@ -872,6 +878,8 @@ func _building(b: Dictionary) -> void:
 			building.canopy_chance = 1.0
 			building.balcony_chance = 0.0
 			building.lit_ratio_range = Vector2(0.7, 0.95)
+			# MarinaNight: a waterfront restaurant's shops are eateries.
+			building.name_pool = MarinaNight.eatery_pool()
 		_:
 			building.min_height = 7.0
 			building.max_height = 8.5
