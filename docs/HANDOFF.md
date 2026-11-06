@@ -29503,6 +29503,13 @@ files) - so each was looked at for what a LOADED shard, or an earlier file, chan
   A/B); gate_flakes_2_checks builds a block with room and with the cap at 0 and compares (it fails
   on the A/B). In play: a block rebuilt mid-fight, at the cap, is now the same block.
 
+**The deck's debris (batch 53, shard 0: "0 landed, 0 under").** Not the shard: the check watched
+120 ticks, and Blast3's pieces bounce until they are slow enough to settle, with unseeded throws -
+alone a run settled two pieces in that window, so now and then none. The check now watches for the
+pieces' whole flight (`MAX_FLIGHT` + 0.5 s, stopping once every piece is down) and counts a landing
+only on the deck; alone it reads 7 landed, three runs out of three. The street closeup check keeps
+the lead's PhysicsBudget headroom (main 32921534) beside the source fix.
+
 **Not reproduced (traces added):** the follower's lag (1303, 6101, 18505: mean 2.1 m, the same
 numbers each time). It passed in every probe; on failure the check now prints the pair every half
 second (positions, speeds, slot, heading, acts, strides, rain, crossings) and every solid within
@@ -29513,7 +29520,7 @@ its `SHOTGUN_CRATE` line stand (the fire is a physics tick, the cooldown runs on
 only gets shorter on a slow frame; nothing found).
 
 **Runs** (`SHARDS=3`, shuffled, ~32 min each, shards 3.2-3.7 GB RSS): 21101 (cut short by a tool
-limit at ~4,800 checks: the valet), 21202 PASSED 5,797, 21303 PASSED 5,797 (both on 7f68e37f). Final unshuffled gate on the branch merged with main (batch 53a): FINAL_HERE.
+limit at ~4,800 checks: the valet), 21202 PASSED 5,797, 21303 PASSED 5,797 (both on 7f68e37f). Final unshuffled gate on the branch merged with main (batch 54): FINAL_HERE.
 
 ## 9mn. The terminal's departures kerb (rc4-terminal-curb, wave 7, 2026-11-02)
 
