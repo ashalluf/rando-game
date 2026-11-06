@@ -62,6 +62,7 @@ static func _parts(rects: Array, area: Rect2) -> Array[Rect2]:
 # =================================================================================================
 
 static func site_steps(ch: CityChunk) -> Array[Callable]:
+	RcPowerPlant.apply(ch.plan)
 	var steps: Array[Callable] = []
 	var lay := PowerPlant.layout(ch.plan)
 	if lay.is_empty():
@@ -292,6 +293,11 @@ static func _lamps(ch: CityChunk, lay: Dictionary, area: Rect2) -> void:
 			l.add_to_group("lamp_light")
 			ch.add_child(l)
 			n_omni += 1
+	if _full(ch) and RcPowerPlant.enabled:
+		# RcPowerPlant: a pool on the ground under each of the halls' wall packs.
+		for q: Vector4 in RcPowerPlant.pack_pools(ch.plan):
+			if area.has_point(Vector2(q.x, q.z)):
+				ch._batch.add(POOL_KEY, PropFactory.light_pool(Color(1.0, 0.86, 0.66), 0.8, 2.0), Transform3D(Basis().scaled(Vector3(q.w, 1.0, q.w)), Vector3(q.x, PowerPlant.BASE_Y + 0.03, q.z)))
 	if _full(ch):
 		ch._batch.set_no_shadow(POOL_KEY)
 
@@ -642,7 +648,7 @@ static func landmark(parent: Node3D, plan: CityPlan) -> void:
 				for kk in [0, 1, 2, 0, 2, 3]:
 					st.set_color(red)
 					st.set_uv(corners[kk])
-					st.set_uv2(Vector2(4.2 if li == 0 else 3.0, code))
+					st.set_uv2(Vector2((4.2 if li == 0 else 3.0) * RcPowerPlant.LIGHT_SIZE_GAIN, code))
 					st.set_normal(Vector3.UP)
 					st.add_vertex(at)
 				n += 1
@@ -656,6 +662,8 @@ static func landmark(parent: Node3D, plan: CityPlan) -> void:
 		var mat := ShaderMaterial.new()
 		mat.shader = load("res://shaders/aircraft_lights.gdshader")
 		mat.set_shader_parameter("day_level", 0.14)
+		if RcPowerPlant.enabled:
+			mat.set_shader_parameter("hdr", RcPowerPlant.LIGHT_HDR)
 		var mesh := st.commit()
 		mesh.surface_set_material(0, mat)
 		var lights := MeshInstance3D.new()
