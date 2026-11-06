@@ -28997,8 +28997,9 @@ freeway_night, chinatown_dusk, broadway_night within tolerance.
 **Cost.** This camera: main 6,086,006 triangles / 3,172 draws -> 6,230,358 / 3,233 (+2.4 %, the
 car at the pump and its driver). The light changes add no draw.
 
-**Stills** (`shots/rc5-gas-station-night`): 01-02 before (main), 03-08 NIGHT_AB passes and the first
-eye, 09-11 the final eye after, its GAS_NIGHT=0 / NIGHT_GROUND=0 A/Bs; README there.
+**Stills** (`shots/rc5-gas-station-night`): 01-02 before (main), 03-04 after (final and first eye),
+05 main's NIGHT_AB passes, 06-07 and 09 Forward+ lamp street (30 m and 12 m spacing), 08 the ten
+refcams, 10 alley_night, 11 the wave 6 night cameras; README there.
 
 **Not done / not seen.** The gas station itself on Forward+ (only the lamp street was rendered on
 lavapipe: the whole city does not fit). alley_night is darker by design of the fix; if it reads too
