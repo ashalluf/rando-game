@@ -32990,3 +32990,84 @@ DayNight's Color uniforms and the grade, renderer-neutral, and the probe's numbe
 both). The bus's windscreen is still a dark slab at dusk (the traced cabin is lit only after dark);
 the far deco facade top-left keeps its orange floodlit look (its own palette). The full ten-camera
 compare is in the session's report.
+
+## 9??. The web build after wave 8, 2026-11-06 (fleet wave 8 session `web-review-5`, branch `wt/web-review-5`; VISUAL_ROADMAP "?")
+
+**What was asked.** Export the web build after wave 8, load every bookmark one tab at a time in the
+full Chromium, fix shader / WebGL / global-buffer errors and anything that draws badly only on the
+web, keep the pck and the wasm heap in budget, keep `tests/web_build_checks.gd` green, stills
+before and after. The hero reading blue / black in rain belongs to session `web-hero-blue`.
+
+**How.** main `9edd6b1e` (batch 57), the 4.7.2 `web_nothreads_release` template,
+`--export-release "Web"` (37 s), `tools/webshot/bookmarks.sh` (Chromium 1243 full, SwiftShader,
+960x540, 7 minutes of streaming, `KEY=k`, `PROBE=1`), one tab at a time.
+
+**Result: every bookmark loads and draws, console clean.** All twelve bookmarks (the eight old ones
+and four new, below) print only the template's `Occlusion culling is disabled at build-time` and
+Chrome's autoplay notice: no `SHADER ERROR`, WebGL error, global-buffer error, script error or
+out-of-memory. The static web budgets (`tools/webshot/web_budget.gd`, 315 shaders) all hold with
+room: samplers at most 8 (terrain; budget 9), uniform block 3,788 bytes (ocean; 16 KB), varyings 35
+(building_lod; 40), source 186 KB (building; 200), constant items 1,240 (building; 1,600). No
+shader added since wave 4 (76 files) calls a GLSL ES 3.10+ function, declares an `instance
+uniform` or a global that project.godot lacks.
+- **Size**: `index.pck` 619.8 MB (+10.5 since wave 4's 609.3; budget 650, Pages' cap 1 GB),
+  `index.wasm` 39.5 MB. Getting close to the budget: the next big asset wave should look at the
+  Web preset's `exclude_filter` again.
+- **Memory**: the wasm heap is 720 MB after load and takes one growth step to 821-827 MB while
+  streaming at most bookmarks, two (928 MB) at `arena_night` - a quarter of the browser's 4 GB.
+  JS heap at the end 0.76-0.89 GB. Web Audio buffers climb as in 9jz / 9lh (probe.js counts every
+  copy Godot's sample playback makes on a loop restart; the garbage collector takes the old ones).
+- **Looks**: downtown noon, night street, golden hour, hills, MacArthur Park and the beach match
+  wave 4's stills (`shots/web-build-5`). The storm's street is now a dark wet mirror (wave 4: a pale
+  sheet). In the rain the hero reads near-black, not blue, and the pale sky wedges of 9lh are gone
+  (for `web-hero-blue`: on main 9edd6b1e at the `rain` bookmark the hero's top and trousers have a
+  median of (26, 24, 23), quartiles (16, 14, 14) - (43, 39, 36): neutral dark, not 9lh's (25, 46, 100)).
+
+**Four new bookmarks** (`bookmarks.sh`): the eight old ones show none of the night and weather
+shaders waves 5-8 added. `beach_night` (refcam bonfire_night's beach, 21:00), `port_night`
+(refcam port_night, 22:00), `arena_night` (STARLIGHT PLAZA, 21:00), `santa_ana` (refcam
+brush_fire's corner, 18:30, Santa Ana). All four load clean and draw the plaza's LED blades, the
+port's floods, the pier's lights, the brush fire's column and the smoky dusk.
+
+**Not fixed: the bonfire flames are not drawn in the browser.** At `beach_night` the lit ring shows
+its glow, pool, logs, embers and smoke but no flames (natively, on opengl3 with every material built
+the web way, `WeaponFX._web_cache = 1`, the flames draw). Reproduced in seconds in
+`tools/web_probe/fx_room.tscn bonfire=1 night=1` exported as the web main scene. What it is NOT
+(each a browser variant, `bonfire=<v>[+<v>...]`, five or six fires side by side): the flames'
+material (alpha or additive puff), the colour ramp (HDR or LDR), the initial-colour ramp, the
+scale curve, scale 1 or 2.5, the emission shape, preprocess, the spin angle, damping, lifetime 3 s,
+the custom AABB, cast shadows, the glow, the pool, a fresh row-fire QuadMesh, or all the row fire's
+settings at once; nor frame time (natively at 3 and 10 s a frame they draw); nor the simulation:
+`dump=1` prints each system's live instance buffer (count, scale, colour, custom, origin) and the
+browser's numbers equal the native ones. With the log stack hidden a tiny sliver of flame shows at
+the base, with `local_coords` on a small flame at the right height; the room's own `fire` column
+(the same material, under the room node, not a BonfireFire) draws in the browser at 3 m and 14 m.
+So something in how the browser renders CPUParticles3D under the BonfireFire node; the same class
+as 9lh's unexplained MacArthur fountain plume. Unverified on a real GPU browser (SwiftShader only).
+Next step: a bare Node3D parent in place of BonfireFire in the room (rules the script in or out),
+then the WebGL draw calls (Spector.js in the harness).
+
+**Not a web bug: the band under the Santa Ana bookmark.** At first framed looking up (pitch +12),
+the frame's bottom eighth was near-black under a hard edge and a flat translucent grey sheet ran
+from the horizon down. It draws the same natively (opengl3 `city_shot.gd`), so it is not the web:
+looking up swings the third-person camera down to 0.40 m over the junction of Elm Blvd and 7th St
+(`tools/web_probe/plane_probe.gd` prints the camera, the collision under it - a StreetProps shape at
+0.185 m - and the visible player / swim state), and `tools/web_probe/render_bisect.gd` makes it go
+when the chunks' `@MeshInstance3D` ground goes: the camera is in or under the street's drawn
+surface there. The arena bookmark (pitch +22, camera 0.27 m over a plaza) is clean. For the camera
+rig's owner (the spring arm keeps world-layer clearance only). The bookmark now looks level
+(pitch -4), what a player normally sees.
+
+**Tools** (all in `tools/web_probe/`):
+- `fx_room.tscn` grows `bonfire=1|variants|<v>,<v>+<v>,...` (fires 8 m out, a variant each),
+  `night=1`, `webmat=1` (natively, every effect material built the web way), `dump=1` (each
+  particle system's live instance buffer), `rowz=<z>` (the effect row moved out).
+- `plane_probe.gd`: headless, a city spawn: the camera, the collision under it, the player's swim
+  state, wide thin meshes near the camera's height (`MODE=over`: anything drawn over it), wide UI.
+- `render_bisect.gd`: one city load, a frame per `STEPS='a,b;c;...'` group hidden, with each
+  frame's bottom-quarter mean.
+- Harness traps found: editing `bookmarks.sh` while it runs makes bash re-read the file mid-loop
+  (it ran a second pass over every bookmark); a `pgrep -f` wait on a pattern that is in the
+  waiting shell's own command line never ends (9lh's trap again).
+
+Stills on `shots/web-review-5`.

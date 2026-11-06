@@ -4934,3 +4934,8 @@ none of either.
   overcast times the dusk so noon rain, rainy nights and clear sunsets do not move; the wet road
   mirrors the lit city as soon as the lamps are on; a rider with nothing over their head waits under
   the shelter. RC5_BUS_STOP=0 is the A/B.
+- 2026-11-06 (web-review-5): the web build after wave 8 needs no shader or code change: twelve
+  bookmarks load clean, budgets hold (pck 619.8 MB of 650). The bonfire's flames do not draw in the
+  SwiftShader browser and are left as they are (not root-caused, unverified on a real GPU, a
+  web-only workaround would be blind); the probe tools stay for the next pass. The web bookmarks
+  now include four wave 5-8 night / weather views.
