@@ -29933,3 +29933,54 @@ only gets shorter on a slow frame; nothing found).
 
 **Runs** (`SHARDS=3`, shuffled, ~32 min each, shards 3.2-3.7 GB RSS): 21101 (cut short by a tool
 limit at ~4,800 checks: the valet), 21202 PASSED 5,797, 21303 PASSED 5,797 (both on 7f68e37f). Final unshuffled gate on the branch merged with main (batch 53a): FINAL_HERE.
+
+## 9mt. The farmers' market from the aisle: the farmers_market refcam, 2026-11-05 (fleet wave 8, refcam5 `farmers_market`, branch `wt/rc5-farmers-market`)
+
+**The camera.** `farmers_market` in `tools/refcams/cameras_w8.json`: Palm St's market (seed 1337,
+the Saturday market round (1253, -3833)) at 10:00 clear, 1.65 m over the asphalt in the middle of
+the aisle at its west end, looking east down the two rows of canopies. Its `market_day` key sets
+`MARKET_DAY=1` and `MARKET_HOUR` = the row's hour before the city loads (refcams_shot.gd
+`_market_day()`), so the stalls are up whatever the load's day and the chunks built during the load
+are built at the shot's hour.
+
+**What read fake, worst first** (before: `01_before_farmers_market.jpg` on `shots/rc5-farmers-market`):
+1. **The produce was a tray of toys**: fruit on a 2-radius grid with 20 % jitter over a flat dome
+   of the goods' colour, 6 x 3-segment ellipsoids, every skin smooth plastic. Now
+   (`FarmersMarketKit._heap()`) round goods are a hexagonal layer a little tighter than touching
+   with a second layer in its hollows over the crown, the fill darkened to read as the shadow between
+   them, 8-10 segments (the packed first layer drawn as a two-ring cap: only its top shows between
+   its neighbours), a five-sepal calyx on tomatoes (`_calyx()`); the
+   shader's `skin_relief` adds a derivative bump (`fm_bump()`: no tangents needed) - pebbly on the
+   rough skins (avocado, citrus, peach: UV2.x roughness 0.42-0.62 and up), a faint dimple on the
+   glossy ones - and a blush mottle across each fruit; leaves get a crinkle. Bunches and carrots keep
+   their grid.
+2. **Table cloths were the sides of boxes**: `cloth_drape` hangs the cloth in folds on its side faces
+   (the model-space normal is passed as a varying; folds widen toward the hem, valleys darker, the
+   gingham's verticals bunch into them). Sandbags (UV2.x 0.95) are left out.
+3. **Festoon bulbs were lit yellow balls at 10:00**: a new code 13 (`C_GLASS_BULB`) is clear glass by
+   day with a faint filament and the warm light at night; `bulb_day` 0.6 -> 0.18.
+4. **The near aisle was empty**: `MAX_SHOPPERS` 34 -> 46 at the peak (the crowd cap still rules).
+5. Smaller: produce cartons are printed and taped (`_carton()`: flap seam, tape over it and down the
+   ends, hand holes, an ink band and block on the long faces), and the aluminium's brushed grain runs
+   along the legs (`grain_along`; it ran across them, so the near leg was a stack of ripples).
+
+**The other ten cameras** (`compare` against main at batch 52): eight unchanged; street_night and
+freeway flagged only for a bus and a box truck the live traffic put in the frame.
+
+**A/B.** `RC5_MARKET=0` (`FarmersMarketKit.rc5` false): the old heaps, segment counts and plain
+boxes bit for bit (a produce table is 8,706 triangles again), the shader uniforms at their old
+values, code 12 bulbs, 34 shoppers.
+
+**Tools.** `tools/farmers_market/kit_shot.gd`: every goods table under a canopy in two rows on a
+plain ground, sun and sky, seconds a frame (`CAM`, `LOOK`, `FOV`; prints each table's triangles).
+
+**Frame cost** (the refcam's own numbers, opengl3 1280 x 720): main 6.12 M triangles, 3,407 draws,
+2.27 M shadow; the branch before merging main's batch 52 6.50 M, 3,457, 2.45 M; the merged head
+5.36 M, 3,420, 2.45 M (main re-shot at batch 52 still read 6.12 M: the difference is what the live
+crowd and vans put in the frame, so read the branch's own +6 % as the honest cost). A produce table is 8-13k triangles near (6.4-10k before; the
+farmers_market_checks budget of 14k holds; a first try at 25-27k failed it). The far level and the shadow twin are
+unchanged (crates and heaps). Checks: `tests/rc5_farmers_market_checks.gd`.
+
+**Not done.** The vans behind the stalls are the road van's far twin (8k triangles) even at 3 m;
+the canopy underside has no seams; nothing here is judged on Forward+ (the bump and the folds are
+normal-only and should hold; the bulb glass is a plain albedo).

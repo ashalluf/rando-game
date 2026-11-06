@@ -2962,6 +2962,9 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	# STARLIGHT PLAZA on an event night (tests/rc5_arena_night_checks.gd, ArenaNight): the screens'
 	# spill, the facades' LED, the hotel's crown, the searchlights, the camera row.
 	load("res://tests/rc5_arena_night_checks.gd").new().run(self, city)
+	# The farmers' market refcam (tests/rc5_farmers_market_checks.gd): the camera row in the aisle,
+	# packed produce, printed cartons, the material's relief and drape, the busier market.
+	load("res://tests/rc5_farmers_market_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()

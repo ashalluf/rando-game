@@ -40,6 +40,7 @@ func _initialize() -> void:
 	_bonfire_lit()
 	_lowrider_meet()
 	_arena_event()
+	_market_day()
 	# OCCLUSION=0: occlusion culling off (still_shot's switch), to tell what is culled in plain sight.
 	if OS.get_environment("OCCLUSION") == "0":
 		get_root().use_occlusion_culling = false
@@ -426,6 +427,21 @@ func _lowrider_meet() -> void:
 				(load("res://scripts/world/lowrider_meet.gd") as GDScript).set("force", true)
 			if OS.get_environment("LOWRIDER_POSE") == "" and lm.has("pose"):
 				OS.set_environment("LOWRIDER_POSE", String(lm.pose))
+
+
+## A row's optional "market_day" (wave 8's farmers_market): 1 makes today every farmers' market's
+## day (FarmersMarket.force_market_day, as MARKET_DAY=1), and its "hour" the hour the market is
+## built for (MARKET_HOUR: a chunk built during the load would otherwise be built at the load's
+## hour). Set before the city loads: the static reads the environment when the class first loads.
+func _market_day() -> void:
+	if OS.get_environment("MARKET_DAY") != "":
+		return
+	var only := OS.get_environment("ONLY").split(",", false)
+	for cam: Dictionary in _cameras().get("cameras", []):
+		if cam.has("market_day") and (only.is_empty() or String(cam.name) in only):
+			OS.set_environment("MARKET_DAY", str(int(cam.market_day)))
+			if cam.has("hour") and OS.get_environment("MARKET_HOUR") == "":
+				OS.set_environment("MARKET_HOUR", str(float(cam.hour)))
 
 
 ## A row's optional "golf_group" ("hole:stage[:tee[:count]]", wave 6's golf_morning) puts a group

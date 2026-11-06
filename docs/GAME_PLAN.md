@@ -4598,3 +4598,9 @@ none of either.
   frame); shop doors and far-walker borrowing take only the plain crowd by script (a valet was sent
   through a door for good); the crowd-flow passing check meets nearest the camera. RAGDOLL_PHYSICS_TICK=0
   is the A/B.
+- **2026-11-05 The farmers' market refcam: market goods are piled, not spaced (rc5-farmers-market,
+  HANDOFF "The farmers' market from the aisle").** A new reference camera (`farmers_market`, wave 8's
+  table) stands in Palm St's market aisle on a Saturday at 10:00. Decisions: produce is packed the
+  way a grower piles it (a hex layer and a second in its hollows), never a spaced grid over a fill;
+  skin relief, cloth folds and grain are normal-only shader passes with no tangents; a string-light
+  bulb is glass by day; the market's peak crowd is 46. RC5_MARKET=0 is the A/B.

@@ -216,3 +216,8 @@ SALTRUNNER at speed 300 m off the beach town at 17:45 clear, a chase eye into th
 on `at`, puts the player in a fresh boat heading `heading` (the --spawn yaw), holds the throttle
 `ticks` physics ticks, and lays a free eye `chase` = [back, side, up, aim ahead] metres off the hull
 every frame up to the shot; optional `kind`, `look`, `boost`, `steer`. The row's own eye is unused.
+## Wave 8's cameras (`cameras_w8.json`)
+
+Run with `REFCAMS_JSON=tools/refcams/cameras_w8.json`. `farmers_market` (rc5-farmers-market): Palm
+St's market aisle on a Saturday at 10:00 clear. Its optional `market_day` key sets `MARKET_DAY` (and
+`MARKET_HOUR` = the row's hour) before the city loads, so the stalls stand up whatever the day.

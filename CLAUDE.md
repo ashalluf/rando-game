@@ -6305,6 +6305,12 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   `StreetVendor`s and `MarketShopper`s, `CityChunk.market_road` puts them on the asphalt).
   `FARMERS_MARKET=0` the A/B, `MARKET_DAY=1`, `MARKET_HOUR=h`. Probe:
   `tools/farmers_market/probe.gd`; checks: `tests/farmers_market_checks.gd`.
+- The farmers' market from the aisle (wave 8, refcam `farmers_market` in `tools/refcams/cameras_w8.json`,
+  its `market_day` key; docs/HANDOFF.md "The farmers' market from the aisle"): produce piled in hex
+  layers, the first as caps (`FarmersMarketKit._heap()`, a table under 14k triangles), farmers_market.gdshader's `skin_relief` /
+  `cloth_drape` / `grain_along` (derivative bumps, no tangents), festoon bulbs code 13 (glass by
+  day), printed cartons, `MAX_SHOPPERS` 46. `RC5_MARKET=0` is the A/B; the kit alone in seconds
+  `tools/farmers_market/kit_shot.gd`; checks `tests/rc5_farmers_market_checks.gd`.
 - Film shoots (2026-10-30, HANDOFF "Film shoots on location"): `FilmShoot`
   (`scripts/world/film_shoot.gd`, pure) closes one local street per `CELL` 2.3 km by hash, the
   farmers' market's way (its own salts; never a market's street or the chunk that builds one -
