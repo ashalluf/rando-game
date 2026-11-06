@@ -33333,3 +33333,8 @@ flash. No perimeter fence along the front (LA's black steel pickets): tried on p
 1-pixel pickets at 25-60 m would shimmer in every street view. The yard shows only past the staff
 car park (it is behind the wing everywhere). High schools get no drop-off (their kerbs are the
 friday_lights / bus area's).
+
+**Status (wrap-up).** Done: all four fixes, the camera row, checks, docs, stills. Gated: head
+`fe7fe837` (main merged to `a870978b`) passed `SHARDS=3 tests/headless_check.sh`, 6,634 checks, 0
+failed; this note is a docs-only commit on top. Open: the items above (moving drop-off loop, bus
+warning lamps, front fence, Forward+ look).
