@@ -32752,6 +32752,8 @@ a little flat grey.
 
 ## 9d?. The gate, third pass: a fresh deal, RESET lines, where the rest of the time goes, 2026-11-06 (fleet wave 8, branch `wt/gate-speed-3`; VISUAL_ROADMAP "?")
 
+**Status at wrap-up (account move):** DONE and pushed. Gate: `SHARDS=3 tests/headless_check.sh` PASSED (6,576 checks, 0 fail, 1,291 s) on 87ba156d (main 8c0de652 merged); the commits after it touch docs only, so the pushed head is gated in substance. OPEN: merge to main by the lead; the time sinks listed below (synchronous chunk rebuilds on teleports, the live city's per-tick cost) are measured, not attacked; CI's SHARDS=auto runner not measured. No stills (infra task, no shots branch).
+
 The task: `SHARDS=3 tests/headless_check.sh` takes ~40 minutes and ~3.9 GB a shard on the lead's
 box; make it faster without losing a check. Measured on the fleet box (4 cores, 15 GB), each run a
 SHARDS=3 gate with `SMOKE_PROFILE=1`, alone on the box:
