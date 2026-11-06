@@ -174,6 +174,8 @@ static func people(ctx: Dictionary) -> void:
 		var roll := Worship.h01([sd, i, "ws_role"])
 		var role := 0 if (arriving_now and roll < 0.62) else 1
 		var start := Worship.h01([sd, i, "ws_at"])
+		ped.set("kind", kind)
+		ped.set("site_seed", sd)
 		ped.call("setup_worship", rect, seed_i, pts, role, start, not arriving_now)
 		var at: Vector2 = ped.call("start_point")
 		ped.position = Vector3(at.x, ch.ground_y(at.x, at.y) + 0.12, at.y)

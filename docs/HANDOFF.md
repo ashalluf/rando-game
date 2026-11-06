@@ -33329,3 +33329,33 @@ five Mission churches of seed 1337 with EYEs.
 
 **A/B.** `WORSHIP_SUNDAY=0` (nobody), `RC5_CHURCH=0` (the trees, the tower, the soffit, the lime
 wash and the glass as before). Both off is main.
+
+**Numbers** (refcams.py, opengl3 1280x720, the same commit, A/B env off -> on; p1 / p5 / p50 /
+p95 / p99 luminance): before 8 / 15 / 103 / 204 / 236, after 12 / 29 / 134 / 236 / 237 (the frame
+was mostly leaf shade; it is now the sunlit church). GEO 6,649,631 -> 6,868,191 triangles (+3.3 %),
+3,587 -> 3,713 draws: the ~25 people of the congregation and the church now drawn whole, less the
+trees that stood in front of it. The 32 places of worship of seed 1337 are 124-957 m from the ten
+original cameras; only `sunset` (178 m from a modern church) and `hills` (124 m from a synagogue)
+can build one at FULL.
+
+**Stills** (`shots/rc5-church-sunday`): `01_before_church_sunday.jpg`, `02_after_church_sunday.jpg`,
+`03_after_first_framing_from_left.jpg` (the plain tower merged with the facade, and the sky line
+under the espadana, that the later fixes answer).
+
+**Checks**: `tests/rc5_church_sunday_checks.gd` (the camera row; the congregation's hours on its day
+only, the synagogue's Saturday, the board's services; the forecourt's spots on its paving, the gate
+across the wall, the door's step; the kerb and lawn trees kept off the front and as before with the
+pass off; the nearest Mission church's chunk built a quarter hour before Mass holds 25 people in
+Sunday best, none on a Wednesday).
+
+**Not verified / not done.** The stucco and glass changes were not seen on Forward+: lavapipe ran
+out of memory (13.6 GB peak, OOM-killed) on even one block of `fwd_block_shot.tscn` on this box,
+so the lime wash (a factor in linear light, raised to 1/2.2 on Compatibility, so the two should
+agree) and the darker glass are judged on opengl3 only, where the sunlit stucco sits on AgX's
+shoulder (p50 232 on the facade) and most of the lime wash's variation is compressed. Inside, the
+church is not modelled: the arrivals vanish at the door. No organ, bells or voices. The
+congregation is spawned when the chunk is built (the hour then); as the hours pass, anyone whose
+site is no longer busy (`Worshipper._still_busy()`) leaves by the gate, goes in at the door or along
+the street and is freed, so a chunk built before Mass empties after it - but nobody new comes to a
+chunk that was built while the site was quiet (a player waiting outside from 08:00 sees no one
+arrive for 09:00 Mass until the chunk is rebuilt).

@@ -24,6 +24,9 @@ var leg: int = 0
 var leaving: bool = false
 var _inside: float = 0.0
 var _side: float = 1.0
+## The site's kind and seed (WorshipSunday.busy(): whether there is still a reason to be here).
+var kind: int = 0
+var site_seed: int = 0
 
 
 func setup_worship(block_rect: Rect2, seed_value: int, points: Dictionary, r: int, start: float, after: bool) -> void:
@@ -82,10 +85,21 @@ func _court_spot() -> Vector2:
 	return c[_rng.randi() % c.size()] + Vector2(_rng.randf_range(-0.4, 0.4), _rng.randf_range(-0.4, 0.4))
 
 
+## Whether the site is still busy (on its day, before or after a service) at this hour.
+func _still_busy() -> bool:
+	if not is_inside_tree():
+		return true
+	return WorshipSunday.busy(kind, site_seed, WorshipSunday.day_now(self), WorshipSunday.hour_now(self)) > 0.02
+
+
 ## The next stop on the route.
 func _random_ring_point(sidewalk: float) -> Vector2:
 	if pts.is_empty():
 		return super(sidewalk)
+	if not leaving and leg >= 3 and not _still_busy():
+		# The service is over (or the doors long shut): out by the gate and home.
+		leaving = true
+		leg = 10
 	if leaving:
 		# After the service: on the forecourt a while, then out by the gate and along the street,
 		# and gone (back for the next service as an arrival).
@@ -154,6 +168,10 @@ func _go_inside() -> void:
 
 func _come_back() -> void:
 	_inside = 0.0
+	if not _still_busy():
+		# Nothing on here now: they have gone home (their room in the crowd cap with them).
+		queue_free()
+		return
 	leg = 0
 	var st: Array = pts.street
 	var a: Vector2 = st[0] if _side < 0.0 else st[1]
