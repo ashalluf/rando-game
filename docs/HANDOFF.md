@@ -32397,3 +32397,57 @@ view; see the follow-up below). Luminance p50 88 -> 88, saturation 0.291 -> 0.28
 not looked at on Forward+ (lavapipe cannot hold the city; a small scene would need the car park
 alone). Downtown's towers still read dark at 18:15 on this renderer - that is the city-wide grade
 and glass at that hour, not this view's to change. The lamps are off at 18:15 (lamp_factor 0).
+
+## 9d?. The school drop-off at 07:50 (fleet wave 8, refcam5 `school_morning`, branch `wt/rc5-school-morning`)
+
+**The view.** New row `school_morning` in `tools/refcams/cameras_w8.json`: LIVE OAK ELEMENTARY
+(Schools cell (-1, -1) on seed 1337, block (-3, -2), front on its -z street at z -403.4, 20 m wide)
+at 07:50 clear, from the pavement across the street (eye -212.0, 1.7 agl, -416.4, yaw 145, pitch 2,
+FOV 46), with the row's `clear_people` 5 m (a passer-by's shoulder filled the first before).
+In frame: the three buses in their loading zone, the drop-off lane beside them, the marquee sign,
+the 1-storey brick classroom wing and the office, the staff car park's chain-link at the left
+edge. Four elementary schools were shot first to pick it (cand stills not kept); the yard sits
+behind the front wing at every school and shows only past the staff car park.
+`tools/rc5_school_morning/probe.gd` (`CELL=x,z`) prints a school's front, bus zone, gate, sign and
+flag positions; `bus_census.gd` lists the parked school buses round a spawn, headless.
+
+**What gave it away (main), worst first.**
+1. **No school bus, at any school whose loading zone is on its -x or -z kerb** (14 of 23 schools
+   on seed 1337, Live Oak among them). `Schools.park_buses()` ran only in the school block's own
+   steps and parked only the spots inside that chunk's owned rect, but a block's -x / -z road
+   belongs to the chunk BEFORE it (`CityPlan.owned_rect()`), which never runs the school's steps.
+   Now every FULL chunk asks the two blocks whose -x / -z road it owns
+   (`Schools.park_kerb_buses()`, one hook line at the end of `CityChunk.begin_build()`'s FULL list,
+   skipping a block of its own school so a high school's row parks nothing twice).
+2. **07:50 on a school day and the kerb was ordinary parking, nobody at the gate.** In
+   `DROP_HOURS` (07:12-08:30, 14:18-15:30) `RcSchoolMorning.dropoff_rect()` (pure) is a drop-off
+   lane up to 32 m long beside the bus zone on the same kerb, on the side with more room, 9 m clear
+   of the block's end; the chunk's parked cars keep off it (`blocks_parking()` in
+   `CityChunk._kerb_taken()`, after every roll) and the owner chunk puts parents' cars there
+   (`school_front()`: a car a 6.6 m slot at 80 %, pulled in a little skewed, `seat_waiting_driver()`
+   then `waiting = false`: brake lamps and hazards). On the pavement (`SchoolStaff`,
+   `scripts/npc/school_staff.gd`, a StreetVendor): a crossing guard in lime hi-vis with
+   Construction's STOP paddle at the kerb between the buses and the drop-off, a supervisor in hi-vis
+   at the gate, 2-4 parents in plain clothes along the drop-off. In the crowd cap, `no_trim`.
+   Adults only: no children (the project's rule).
+3. **The marquee sign stood behind the buses.** Schools put it on the lawn at the gate + 7 m, the
+   middle of the 42 m bus zone centred on the gate: three buses at the kerb hid it from every
+   street eye. `sign_s()` stands it 2.5 m past the bus zone's end on the drop-off side (only cars
+   there), the lawn trees keep off it as before.
+4. **The wing's street face was a flat box** (ribbon windows painted flush, a saturated band at the
+   top). `wing_relief()` adds per ribbon a precast sunshade 0.8 m deep over the glass and a sill
+   under it, and a fin in the wall's finish on every bay line (the bays are SchoolKit.wall()'s:
+   pitch 9 m, ribbon 0.5-8.5 x 1.0-3.0 m a storey); `fascia()` weathers the brick wings' band toward
+   a warm grey. 112 triangles a 40 m wing, in the chunk's one SchoolWalls mesh.
+
+**Numbers** (opengl3 refcams, this eye; before = `RC5_SCHOOL_MORNING=0`, which is exactly main):
+luminance p5/p50/p95 31/125/180 -> 33/124/180, crush 0.3 % -> 0.1 %; triangles 5.00 M -> 5.19 M,
+draws 3271 -> 3361 (three buses, the parents' cars and people). Stills on `shots/rc5-school-morning`.
+
+**Not done / not verified.** Forward+ not judged (no colour or lighting change: geometry, cars and
+people only). The parents' cars and the people stand still (no drop-off loop: cars arriving, a
+parent walking a child in, leaving); the school buses' amber / red warning lamps still do not
+flash. No perimeter fence along the front (LA's black steel pickets): tried on paper, left out -
+1-pixel pickets at 25-60 m would shimmer in every street view. The yard shows only past the staff
+car park (it is behind the wing everywhere). High schools get no drop-off (their kerbs are the
+friday_lights / bus area's).
