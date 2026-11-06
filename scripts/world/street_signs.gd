@@ -22,6 +22,8 @@ extends RefCounted
 ## FULL chunks only (LOD chunks and the far city never drew signs). `STREET_SIGNS=0` in the
 ## environment puts the old signs back (the A/B).
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 static var enabled: bool = OS.get_environment("STREET_SIGNS") != "0"
 ## Tests: commit() keeps each sign batch's transforms on the chunk (meta "ss_debug_xforms"), as
 ## the dummy renderer reads a MultiMesh's back as identity.

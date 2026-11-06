@@ -20,6 +20,8 @@ extends RefCounted
 ## FULL: the ground through Industrial's ground mesh, uprights through its walls mesh, cars and
 ## containers as batches. LOD and the far city: the ground as slabs and everything as far boxes.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 const LADDER_SLOPE := 0.21
 const STORAGE := 6
 const TRACK_STEP := 5.0

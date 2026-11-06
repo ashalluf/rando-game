@@ -8,6 +8,8 @@ extends SwimPose
 ## the wheel or the bars, and a lean and a turn of the head with the steering (`steer`, -1..1).
 ## Skeleton space: the rig faces +Z, Y up, his LEFT is +X.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 ## How far under the standing hips the Avatar is lowered: the hips then sit at the seat point.
 const DROP := [0.95, 0.95]
 

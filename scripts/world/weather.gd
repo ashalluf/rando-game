@@ -15,6 +15,8 @@ extends Node
 ## Debug: ?weather=storm on the web, -- --weather=storm on desktop (clear, overcast, rain, storm,
 ## marine, santa_ana).
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 enum State { CLEAR, OVERCAST, RAIN, STORM, MARINE, SANTA_ANA }
 const STATE_NAMES := ["Clear", "Overcast", "Rain", "Storm", "Marine layer", "Santa Ana"]
 ## The names --weather= / ?weather= take, by state (and the aliases after them).

@@ -10,6 +10,8 @@ class_name Lowrider
 ## drivers, lights, pools and the rest work unchanged. Everything per car is a hash of its look.
 ## LOWRIDERS=0 in the environment turns the meets and the cruisers off (the A/B).
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 const HARDTOP := Vehicle.BodyType.LOWRIDER_HARDTOP
 const COUPE := Vehicle.BodyType.LOWRIDER_COUPE
 

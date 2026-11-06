@@ -14,6 +14,8 @@ extends Node
 ## the map and the plan at that point (the zone, the road or the pavement ring of the block, a
 ## park or a yard, the pier over the water). Pure, so the smoke test asks it directly.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 ## Level of a step at a walk and at a full run, dB.
 @export var walk_db: float = -13.0
 @export var run_db: float = -7.0

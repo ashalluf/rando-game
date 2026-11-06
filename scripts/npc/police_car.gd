@@ -14,6 +14,8 @@ extends Vehicle
 ## when it goes physical - CLAUDE.md), and it is never frozen with wheels on. The player can take
 ## one: with `driver` set it drives like any car and the police AI lets go of it.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 enum Mode { DISPATCH, PURSUE, STOPPED, PARKED, LEAVING }
 
 @export_group("Police car")

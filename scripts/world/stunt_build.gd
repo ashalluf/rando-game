@@ -13,6 +13,8 @@ extends RefCounted
 ##   no collision, at half the draw distance.
 ## Nothing is ever built in the far city: the pieces are small next to a 7 km view.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 const DRAW_DISTANCE := 420.0
 const LOD_DRAW := 900.0
 ## Batches never collapsed under a piece (Footbridges' rule).

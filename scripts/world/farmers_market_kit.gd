@@ -16,6 +16,8 @@ extends RefCounted
 ## (Geo: the near triangles are the surface, the far ones its LOD at FAR_EDGE), so a batch of
 ## tables a street away draws crates and heaps, not every apple.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 const C_FIXED := 0.0
 const C_METAL := 2.0
 const C_CANVAS := 4.0

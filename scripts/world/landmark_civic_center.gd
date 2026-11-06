@@ -24,6 +24,8 @@ extends RefCounted
 ## it never sits on a road. LandmarkGeo meshes (a surface per material) and a MultiMeshBatch for
 ## repeats; box collision for everything you can stand on.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 const CITY_HALL_NAME := "CITY HALL"
 const PARK_NAME := "CIVIC PARK"
 const MUSEUM_NAME := "THE LATTICE"

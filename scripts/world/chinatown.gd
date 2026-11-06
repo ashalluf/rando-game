@@ -31,6 +31,8 @@ extends RefCounted
 ##
 ## Off (CHINATOWN=0 in the environment): none of it - the A/B for stills and frame counts.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 const NAME := "CHINATOWN"
 const GATE_NAME := "GATE OF GOLDEN HARMONY"
 const PLAZA_NAME := "JADE LANTERN PLAZA"

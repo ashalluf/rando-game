@@ -26,6 +26,8 @@ extends RefCounted
 ##
 ## `FARMERS_MARKET=0` in the environment turns it off (the A/B): no market, the street is open.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 enum Kind { PRODUCE, FLOWERS, BREAD, PANTRY }
 enum State { GONE, FOLDED, UP }
 

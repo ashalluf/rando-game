@@ -3,6 +3,8 @@ extends Weapon
 ## Pump-action 12 gauge: a cone of pellets that throws whatever it hits, then a pump stroke - the
 ## forend slides back, a spent shell spins out of the port, and it slides home for the next shot.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 @export_group("Shotgun")
 ## Pellets per shot.
 @export var pellets: int = 9

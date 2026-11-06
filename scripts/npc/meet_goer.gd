@@ -6,6 +6,8 @@ extends Pedestrian
 ## knocked, ragdolled, in the crowd cap, hears gunfire), and when the scare is over they walk
 ## back to their spot.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 var home := Vector2.ZERO
 var home_yaw: float = 0.0
 ## Which way the road runs (CityPlan.AXIS_*), to look along the row.

@@ -7,6 +7,8 @@ extends Node3D
 ## joints (build). Spawned when a pedestrian
 ## gets hit. Registered as debris so PhysicsBudget frees it later.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 ## Total mass of the box body; fling() scales impulses by piece mass over this.
 const TOTAL_MASS := 23.0
 

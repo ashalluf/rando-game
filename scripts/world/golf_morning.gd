@@ -7,6 +7,8 @@ extends RefCounted
 ## environment is the A/B: the `golf_morning` shader global goes to 0 and every branch it gates
 ## draws the course as it was.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 static var enabled: bool = OS.get_environment("GOLF_MORNING") != "0"
 
 

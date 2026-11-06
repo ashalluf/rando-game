@@ -10,6 +10,8 @@ extends Pedestrian
 ##   FIELD  a fielder on the diamond: stands at a position, now and then shuffles off it and back
 ##   HANG   round the playground or the picnic tables: strolls, stands, talks
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 enum Mode { JOG, LOOP, PLAY, FIELD, HANG }
 
 var mode: int = Mode.HANG

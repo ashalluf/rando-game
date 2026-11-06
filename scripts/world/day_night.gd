@@ -3,6 +3,8 @@ extends Node
 ## Day/night cycle: moves the sun and the moon, tints the sky and fog, and drives the
 ## `night_factor` global shader parameter that makes windows and lamps glow after dark.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 ## Real seconds for a full day. 2880 is 48 minutes, two real seconds per game minute - the pace
 ## the big open-world games settled on. At 480 (owner, 2026-09-23: "the day/night cycle is too
 ## fast") a sunset was over in under a minute and a whole day in eight.

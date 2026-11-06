@@ -2962,6 +2962,8 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	# STARLIGHT PLAZA on an event night (tests/rc5_arena_night_checks.gd, ArenaNight): the screens'
 	# spill, the facades' LED, the hotel's crown, the searchlights, the camera row.
 	load("res://tests/rc5_arena_night_checks.gd").new().run(self, city)
+	# The boot compile (tests/boot_compile_checks.gd, LoadPulse.compiled()): frames inside the cycle's compile.
+	load("res://tests/boot_compile_checks.gd").new().run(self)
 
 	city.queue_free()
 	_world_state().reset()

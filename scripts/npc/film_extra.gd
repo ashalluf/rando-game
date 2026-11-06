@@ -5,6 +5,8 @@ extends MarketShopper
 ## talking, on the phone or with a coffee from catering. MarketShopper's aisle walk with
 ## FilmShoot.holding() as the aisle (the street frame is the same), out of the market's group.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 
 func _roll_life(seed_value: int) -> void:
 	super(seed_value)

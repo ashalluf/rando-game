@@ -6,6 +6,8 @@ class_name RockBuild
 ## bedded in the hill roads' cut banks - into its batch, with collision. Every roll a hash of the
 ## seed and the place; the chunk's own random streams are never touched.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 ## How many outcrop grid rows a build step, and the most outcrops and bank boulders a chunk.
 const ROWS_PER_STEP := 6
 const MAX_OUTCROPS := 40

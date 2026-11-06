@@ -12,6 +12,8 @@ extends RefCounted
 ##   UV         metres in the face's frame                UV2.x    the box's height or a parameter
 ##   UV2.y      the crane animation code (CODE_*)
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 # --- Kinds (COLOR.a in 32nds; mirrored in construction.gdshader's header) -----------------------
 const K_CONCRETE := 0
 const K_FORM := 1

@@ -28,6 +28,8 @@ extends RefCounted
 ## IndustrialKit.walls_material(): its kinds already draw tank paint, painted and galvanised steel,
 ## chain-link, barbed wire, concrete, timber and lamps.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 ## The pumpjack's geometry (metres, scale 1): the saddle bearing, the crank shaft, the horsehead's
 ## arc radius (pivot to the wire), the tail (pivot to the equalizer), the crank radius (shaft to the
 ## wrist pin), where the carrier bar rides at mid-stroke.

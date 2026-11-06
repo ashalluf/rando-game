@@ -26,6 +26,8 @@ extends RefCounted
 ## State lives on the car (`Vehicle.motion`), made the first time it is needed. `TRAFFIC_MOTION=0`
 ## in the environment is the A/B (the old glide, the old steering, no queue beat).
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 static var enabled: bool = OS.get_environment("TRAFFIC_MOTION") != "0"
 ## The queue beat for cars placed by hand (place_car(): checks and stills). Off by default, so the
 ## checks that time a staged queue are unchanged; `TRAFFIC_REACT_PLACED=1` turns it on for stills.

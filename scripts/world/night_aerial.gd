@@ -20,6 +20,8 @@ extends RefCounted
 ## `NIGHT_AERIAL=0` in the environment turns it off (the A/B): the global goes to 0 and every
 ## shader is as it was. tests/rc2_night_aerial_checks.gd holds the copies below equal.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 static var enabled: bool = OS.get_environment("NIGHT_AERIAL") != "0"
 
 ## tower_wash(): of the masonry NightSkyline.FLOOD_SHARE floods, the share kept (salt 113).

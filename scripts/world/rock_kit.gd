@@ -20,6 +20,8 @@ class_name RockKit
 ## is the ground; g the tone (0 sandstone .. 1 granite); b how deep the origin was sunk under the
 ## real ground, / 100; a 0 collapses it (RockFar's far copy of a tor its near cell draws).
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 const DIR := "res://assets/models/"
 ## The kinds, their files and what they are. A kind's index is what RockOutcrops plans with.
 const KINDS := ["tor_a", "tor_b", "face_a", "boulder_c", "boulder_a", "boulder_b"]

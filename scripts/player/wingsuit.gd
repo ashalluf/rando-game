@@ -16,6 +16,8 @@ extends Node3D
 ## is the `wind` loop pitched and swelled by the airspeed. WINGSUIT=0 in the environment builds
 ## none of it (the A/B).
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 enum State { OFF, GLIDE, SKID }
 
 @export_group("Opening")

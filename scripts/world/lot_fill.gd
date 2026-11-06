@@ -24,6 +24,8 @@ extends RefCounted
 ## far plates darken where there is asphalt. The furniture is FULL only, through the chunk's
 ## batches and merged boxes (planter kerbs share the plinths' concrete), a draw or two a kind.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 ## Districts whose lots get podiums, forecourts and car parks.
 const DISTRICTS := [CityPlan.District.DOWNTOWN, CityPlan.District.MIDTOWN]
 ## Top of the forecourt paving, and of the asphalt (driveways lie on the paving), over the

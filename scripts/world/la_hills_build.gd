@@ -11,6 +11,8 @@ extends RefCounted
 ## shader (FootbridgeKit: concrete, walking grit, nosings, paint); LOD chunks and the far city get
 ## the slab.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 ## The flight: its width, the riser it is quantised to, the cheek walls, the rail.
 const WIDTH := 3.0
 const RISER := 0.165

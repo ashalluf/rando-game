@@ -8,6 +8,8 @@ extends Node3D
 ## draws however many pieces it threw. Everything is in this node's own space, which an origin
 ## re-centre shifts with the scene.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 ## Gravity on a piece (heavier than a particle's: these are lumps of car and road).
 const GRAVITY := 17.0
 ## Longest a piece flies before it is called landed wherever it is.

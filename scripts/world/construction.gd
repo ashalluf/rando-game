@@ -21,6 +21,8 @@ extends RefCounted
 ## Workers are crowd rigs in hi-vis and hard hats (ConstructionWorker), in the crowd cap, only in
 ## working hours.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 ## Off: no sites at all (the A/B; `CONSTRUCTION=0` in the environment).
 static var enabled: bool = OS.get_environment("CONSTRUCTION") != "0"
 ## The hour the crews are built for, for tests and stills (negative: the city's clock).

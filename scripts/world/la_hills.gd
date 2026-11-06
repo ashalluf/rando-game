@@ -26,6 +26,8 @@ extends RefCounted
 ## CityPlan.road_open() (road_closed() here), built by LaHillsBuild. `LA_HILLS=0` in the
 ## environment is the A/B: the city exactly as before.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 static var enabled: bool = OS.get_environment("LA_HILLS") != "0"
 
 ## A street stretch steeper than this (rise over run, its steepest 12 m) is a stairway.

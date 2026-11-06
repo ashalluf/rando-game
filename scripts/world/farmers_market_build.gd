@@ -9,6 +9,8 @@ extends RefCounted
 ## the canopies alone (their mesh's far level). The far city's capture: nothing (a canopy is a
 ## pixel from there). Static: call with the chunk.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 ## How far the pieces draw (m) and cast shadows.
 const CANOPY_DRAW := 320.0
 const GOODS_DRAW := 140.0

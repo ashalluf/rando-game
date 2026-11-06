@@ -7,6 +7,8 @@ extends Node3D
 ## glow and a line of flame on the hill after dark, and on Forward+ a light that colours the
 ## slope. Purely visual: nothing burns, nothing spreads. At zero weight it is hidden.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 ## Leaves and litter in the air round the player at full wind, and dust puffs.
 @export var litter_amount: int = 90
 @export var dust_amount: int = 26

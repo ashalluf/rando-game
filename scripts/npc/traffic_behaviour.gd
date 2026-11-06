@@ -19,6 +19,8 @@ extends RefCounted
 ## OBSTACLE_EVERY seconds, the heads only for cars within LOOK_RANGE of the camera.
 ## TRAFFIC_BEHAVIOUR=0 in the environment turns it all off (the A/B).
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 static var enabled: bool = OS.get_environment("TRAFFIC_BEHAVIOUR") != "0"
 
 ## Share of drivers who stop short of the line at a red and creep up to it.

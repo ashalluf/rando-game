@@ -27,6 +27,8 @@ extends RefCounted
 ## Collision: the arena's podium, walls and roof are one concave shape (you can land on the roof
 ## and walk the steps); every box is a box shape; screens and trim are not solid.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 const ARENA_NAME := "RANDO ARENA"
 const PLAZA_NAME := "STARLIGHT PLAZA"
 const THEATER_NAME := "STARLIGHT THEATER"

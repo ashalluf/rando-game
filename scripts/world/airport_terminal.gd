@@ -18,6 +18,8 @@ extends RefCounted
 ## building, a surface per material), materials LandmarkMats. Coordinates are world, y up from
 ## MacroMap.tarmac_top.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 const TOWER_SHAFT_TOP := 58.0
 const TOWER_CAB_TOP := 66.0
 ## The top of the tower's roof (the rotating beacon sits on it: Airport.lights_mesh()).

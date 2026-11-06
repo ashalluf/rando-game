@@ -7,6 +7,8 @@ extends Node
 ## driver is off the road it sends them on fleeing round their block. Gone - and the door with
 ## it - when the car is pooled, wrecked or the player gets in (the door shuts first).
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 var car: Vehicle
 var door: Node3D
 var threat: Vector2

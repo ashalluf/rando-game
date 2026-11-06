@@ -25,6 +25,8 @@ extends RefCounted
 ##    close, and the camera shake comes with the pressure wave, harder and longer for a fuel blast.
 ## EXPLOSIONS_4=0 in the environment is the A/B (the third pass exactly).
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 static var enabled: bool = OS.get_environment("EXPLOSIONS_4") != "0"
 ## The daylight value range of the mushroom (blast_volume.gdshader `value4`): sunlit billows near
 ## white, deep soot in the folds. BLAST_VALUE=0 is the A/B (the round-3 flat grey).

@@ -8,6 +8,8 @@ extends RefCounted
 ## which `CARS_3=0` (the A/B) hands back - so with the switch off every roll lands where it landed
 ## before this wave, bit for bit. Original designs and invented badges (a chevron), no real names.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 ## `CARS_3=0` in the environment: no new body is rolled (the rows fall back to their old owners).
 static var enabled: bool = OS.get_environment("CARS_3") != "0"
 

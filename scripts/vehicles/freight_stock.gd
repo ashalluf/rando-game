@@ -17,6 +17,8 @@ extends RefCounted
 ## first: paint index (PALETTE) * 16 + wear (0..15), an integer, exact in a half float. The instance
 ## colour stays white (Godot multiplies it into every vertex colour).
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 const P_PAINT := 0.0
 const P_STEEL := 1.0
 const P_BLACK := 2.0
