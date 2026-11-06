@@ -31245,15 +31245,23 @@ frame (`00_first_framing_against_a_garage.jpg`).
    sky) in 1.5 m tiles; it is warmer, more weathered, 2 m slabs (`apron_material()`). The parapet's
    bare slab edge has a coping with a drip either side (`parapet_cap()`).
 
-**Numbers** (refcams, opengl3 1280x720, `coast_highway`): before (RC5_COAST=0) p5/p50/p95
-41/138/177, 1.88 M triangles, 918 draws; after: see the final table in the report below. The
-draws and triangles rise by the palms, the planted species and the doors (a few dozen draws, about
-+6 % triangles in this view); nothing changes outside the coast corridor (the ten original cameras
-compared, see below).
+**Numbers** (refcams, opengl3 1280x720, RC5_COAST=0 -> on):
+
+| view | p5/p50/p95 | triangles | draws |
+|---|---|---|---|
+| coast_highway (the refcam) | 41/138/177 -> 36/136/177 | 1.88 M -> 2.01 M (+7 %) | 918 -> 998 |
+| apron at z -1176 (proof) | 40/109/176 -> 37/105/177 | 1.50 M -> 1.66 M | 762 -> 846 |
+| the house fronts (proof) | 35/65/221 -> 34/64/221 | 0.89 M -> 1.00 M | 354 -> 399 |
+
+The rise is the palms, LaTrees' planted species and the door slats, FULL chunks of the stretch
+only. The ten original refcams, RC5_COAST=0 against on: seven `ok`; street_noon, street_night and
+freeway flag on live traffic standing elsewhere between the two loads (none is near the coast).
+The first fill logs `COAST_FILL 36 cars, 18 wanted a direction` at 17:00. Stills on
+`shots/rc5-coast-highway`.
 
 **Not done / not verified.** Forward+ (the Mac) not seen: the apron tint is a road-material tint
 like the old one, but its look under SDFGI is unproven. The big smooth face north of the slide is
 the front range's own (outside the stretch: not fluted). The cars parked on the shoulders still
 stand where the plan put them in 2026-10; the moving traffic is kinematic and pops round in its
 U-turn at the closure (~280 m from the camera). The houses' street faces are only seen obliquely
-from the refcam; the proof still is `04_after_house_fronts.jpg`.
+from the refcam; the proof stills are `06_before_house_fronts.jpg` / `07_after_house_fronts.jpg`.
