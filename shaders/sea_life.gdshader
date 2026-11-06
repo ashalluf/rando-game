@@ -44,6 +44,10 @@ uniform float eye_r = 0.018;
 uniform float body_roughness = 0.24;
 uniform float body_specular = 0.6;
 uniform vec3 lamp_color = vec3(0.1, 1.0, 0.25);
+// rc5-sea-life (SEA_SPRAY=0 the A/B): a dolphin's wet skin - the rake scars faint, the body a
+// little darker, the water film on it sharp highlights broken by streaks running back down the
+// body instead of a broad satin sheen (it read as pale silver plastic from the pier).
+uniform float skin2 = 0.0;
 
 varying vec3 v_model;
 varying float v_part;
@@ -168,7 +172,13 @@ void fragment() {
 		float mot = noise3(m * vec3(9.0, 9.0, 3.0));
 		alb *= 0.9 + 0.2 * mot;
 		float rake = smoothstep(0.93, 0.99, sin(m.z * 140.0 + noise3(m * 11.0) * 6.0)) * smoothstep(0.55, 0.8, noise3(m * vec3(3.0, 3.0, 1.5)));
-		alb = mix(alb, alb * 1.9 + 0.03, rake * 0.6);
+		alb = mix(alb, alb * 1.9 + 0.03, rake * mix(0.6, 0.2, skin2));
+		if (skin2 > 0.0) {
+			float film = noise3(m * vec3(6.0, 6.0, 1.1)) * 0.65 + noise3(m * vec3(19.0, 19.0, 3.0)) * 0.35;
+			alb *= mix(1.0, 0.78, skin2);
+			rough = mix(rough, mix(0.09, 0.3, smoothstep(0.35, 0.75, film)), skin2);
+			spec = mix(spec, 0.42, skin2);
+		}
 	} else if (kind == 1) {
 		// A sea lion's short fur: a fine streak along the body, wet and glossy where it drips.
 		float fur = noise3(m * vec3(60.0, 60.0, 14.0));

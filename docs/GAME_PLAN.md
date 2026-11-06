@@ -4822,3 +4822,9 @@ none of either.
   fixtures would light (columns, soffit, poles, the wires near each pole) carries that light as
   emission, on the rail's own copy of a shared material so the freeway is untouched.
   RC5_RAIL_AERIAL=0 is the A/B.
+- **2026-11-06 The sea_life refcam: water that is touched (rc5-sea-life, HANDOFF "Life in the
+  water from the end of the pier").** A new reference camera (`sea_life`, wave 8's table) on the
+  straight pier's head at 08:00. A splash is white water lying ON the sea plus drops flying as
+  streaks along their path, never camera-facing balls (they cut flat at the waterline); anything
+  that breaks the surface leaves a ring that ages out. The surf's whitewater not reading from a
+  pier end was left to the ocean's owners (shared by every beach view). SEA_SPRAY=0 is the A/B.

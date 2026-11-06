@@ -288,3 +288,7 @@ premiere, the characters and the tourists come from the build hour (WalkOfFameNi
 the run needs `OCCLUSION=0` (the occlusion raycast hang, above). For framing in a minute:
 `tools/glshot/station_night_shot.tscn` with `WOF_HOUR=22` (that scene has no DayNight at its root,
 so the walk would otherwise build at the 13:30 fallback).
+`sea_life` (rc5-sea-life): the straight pier's round head at 08:00 clear looking ESE down the coast.
+Its optional `sea` key is SeaLife.stage_for_shot()'s spec ("dolphin@x,z[,lead];pelican@x,z", TRUE
+world), staged three frames before the shot with the sea clock held and cleared after it;
+`SEA_DEBUG=1` prints the surfers and swimmers BeachActivity has round the lens.

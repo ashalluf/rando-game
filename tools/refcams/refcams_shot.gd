@@ -166,6 +166,8 @@ func _run() -> void:
 				_stage_freeway_cars(cam, scene)
 			if cam.has("skate_t") and (i == stage_at or i >= frames - 3):
 				_skate_clock(cam)
+			if cam.has("sea") and i == frames - 3:
+				_sea_stage(cam, scene)
 			await process_frame
 			_place(player, fov)
 			if day:
@@ -227,6 +229,7 @@ func _run() -> void:
 		if traffic_staged:
 			scene.get_node("Traffic").set("staged", false)
 		_unstage_rail(scene)
+		_sea_unstage(cam, scene)
 		var png := _out_dir.path_join("%s.png" % cam.name)
 		get_root().get_texture().get_image().save_png(png)
 		# NIGHT_AB=1 (rc5-gas-station-night): what lights the night ground - the frame again with
@@ -682,6 +685,35 @@ func _skate_clock(cam: Dictionary) -> void:
 	for n in get_root().find_children("*", "", true, false):
 		if n.get_script() == sl:
 			n.call("set_clock", float(cam.skate_t))
+
+
+## A row's optional "sea" (wave 8's sea_life): SeaLife.stage_for_shot()'s spec, "kind@x,z[,lead];..."
+## (dolphin, pelican, dive, whale at TRUE world XZ), as still_shot's SEA=: staged a few frames before
+## the shot and the sea clock held there; put back after it. Rows without the key leave SeaLife alone.
+func _sea_stage(cam: Dictionary, scene: Node) -> void:
+	var sea := scene.get_node_or_null("SeaLife")
+	if sea == null or _eye_cam == null:
+		print("REFCAM %s: no SeaLife to stage" % cam.name)
+		return
+	sea.call("stage_for_shot", String(cam.sea), _eye_cam, 40.0, float(cam.get("sea_lead", 0.4)))
+	if OS.get_environment("SEA_DEBUG") == "1":
+		var ba: GDScript = load("res://scripts/world/beach_activity.gd")
+		for n in get_root().find_children("*", "", true, false):
+			if n.get_script() == ba:
+				var water: Array = n.get("_water")
+				for w: Dictionary in water:
+					var nd := w.node as Node3D
+					if nd:
+						print("SEA_DEBUG %s %s at %s d %.0f vis %s" % [w.kind, w.get("state", ""), nd.global_position, nd.global_position.distance_to(_eye_cam.global_position), nd.is_visible_in_tree()])
+
+
+func _sea_unstage(cam: Dictionary, scene: Node) -> void:
+	if not cam.has("sea"):
+		return
+	var sea := scene.get_node_or_null("SeaLife")
+	if sea:
+		sea.call("clear_stage")
+		sea.set("hold_clock", false)
 
 
 ## A row's optional "fireworks_t" (wave 8's fireworks_ballpark): a show staged at that show clock

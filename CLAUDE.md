@@ -6661,6 +6661,12 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   send the sea lions in for a minute or so. `SEA_LIFE=0` is the A/B. Stills: `SEA="kind@x,z,lead;..."`
   on `still_shot.gd` (holds the clock), the kit alone `tools/sea_life/kit_shot.tscn`, the plan
   `tools/sea_life/probe.tscn`; checks `tests/sea_life_checks.gd`.
+- The sea_life refcam (wave 8, `sea_life` in `tools/refcams/cameras_w8.json`, its `sea` key stages
+  SeaLife; docs/HANDOFF.md "Life in the water from the end of the pier"): sea_spray.gdshader `look2`
+  lays a splash's white water flat on the sea and streaks the thrown drops along their velocity
+  (camera-facing clumps cut flat at the waterline), `SeaLife.SPRAY_RING` rings where a back breaks
+  the surface or a bird sits down, sea_life.gdshader `skin2` the dolphin's wet skin.
+  `SEA_SPRAY=0` is the A/B; checks `tests/rc5_sea_life_checks.gd`.
 - Beach life (VISUAL_ROADMAP #60, 2026-10-05: "a Los Angeles beach on a warm afternoon"):
   `BeachLife` (`scripts/world/beach_life.gd`, static) fills the sand `CityChunk._build_beach()`
   lays. **Everything is a hash of seed + a WORLD cell of shore (`CELL_Z` 6.5 m) + the hour the
