@@ -301,6 +301,14 @@ already mapped so milestone 2 is script-only.
   reads as abandoned); a landmark that spans several chunks spawns its people from the chunk that
   builds it, not from its own owned rect. The airport loop's kerb lane stops cars by a hash of the
   car and its lap (no state outside the car's traffic dict). TERMINAL_CURB=0 is the A/B.
+- **2026-11-05 The police pursuit at night (rc5-police-pursuit, HANDOFF "The police pursuit at
+  night").** A chase is a reference camera (`police_pursuit`, cameras_w8.json: the chase camera on
+  Wilshire at 22:00, two cruisers on his rear quarters, three stars, the helicopter's light on him,
+  staged by tools/refcams/pursuit_stage.gd). The searchlight's spot does the lighting; its pool and
+  shaft only add the hot middle and a haze that fades at the foot and near the lens. A light bar
+  flashes like a modern LED bar (a bank lit 72 % of the time, not 36 %), so red and blue are on the
+  street in most frames; its washes are the light of a lamp at bar height, not a 13 m dot; the bar
+  is an LED bar, not six coloured boxes. PURSUIT_LOOK=0 is the A/B.
 
 - **2026-11-02 The pier by day (rc3-pier-day, HANDOFF "The pier by day from the deck").** A deck
   the camera stands on is worked out per board in its own shader (transverse boards, gaps,
@@ -4598,6 +4606,28 @@ none of either.
   frame); shop doors and far-walker borrowing take only the plain crowd by script (a valet was sent
   through a door for good); the crowd-flow passing check meets nearest the camera. RAGDOLL_PHYSICS_TICK=0
   is the A/B.
+- **2026-11-05 The farmers' market refcam: market goods are piled, not spaced (rc5-farmers-market,
+  HANDOFF "The farmers' market from the aisle").** A new reference camera (`farmers_market`, wave 8's
+  table) stands in Palm St's market aisle on a Saturday at 10:00. Decisions: produce is packed the
+  way a grower piles it (a hex layer and a second in its hollows), never a spaced grid over a fill;
+  skin relief, cloth folds and grain are normal-only shader passes with no tangents; a string-light
+  bulb is glass by day; the market's peak crowd is 46. RC5_MARKET=0 is the A/B.
+- **2026-11-05 The brush fire refcam: a ridge fire is smoke over the basin, not a lit cloud
+  (rc5-brush-fire, HANDOFF "The brush fire on a Santa Ana evening").** A new reference camera
+  (`brush_fire`, wave 8's cameras_w8.json): midtown at 18:30 in a Santa Ana toward the front-range
+  fire. The fire line sinks behind the crest and follows its flanks (the far ridge is drawn lower
+  than the real one, so a line at the true height floated in the sky); the column is dense and laid
+  over with a pall drifting downwind; from dusk the sky and fog go smoky amber. BRUSH_FIRE_LOOK=0
+  is the A/B.
+- **2026-11-02 The freight_yard refcam: what the eye stands on must be there (rc4-freight-yard,
+  HANDOFF "The freight yard at 16:30").** A new reference camera (`freight_yard`, wave 7's table) at
+  eye level where the yard's ladder meets the storage tracks, a train pulling out (its clock held by
+  the row's `freight_into`). The yard's storage tracks had no ties and its ladder neither ties nor
+  bed, from two bugs that every other view hid. Decisions: a chunk-wide batch's draw range is set
+  from its own extent (a range is measured to the batch's centre, and the yard's chunks are 520 m
+  wide); railway ground is never clean (weeds by hash along the beds, crushed angular ballast) and
+  freight cars carry graffiti and weather like the real ones; a yard is one ballast field, level
+  between neighbouring tracks (never open valleys between beds). RC4_FREIGHT_YARD=0 is the A/B.
 - **2026-11-06 The take-off refcam: the infield, the jet's lights (rc5-jet-takeoff, HANDOFF "The
   take-off from the infield").** A new reference camera (`jet_takeoff`, wave 8's table) watches an
   airliner rotate off 27R at 19:15 from the grass beside an edge light. Decisions: the airfield's

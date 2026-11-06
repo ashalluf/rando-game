@@ -2962,6 +2962,17 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	# STARLIGHT PLAZA on an event night (tests/rc5_arena_night_checks.gd, ArenaNight): the screens'
 	# spill, the facades' LED, the hotel's crown, the searchlights, the camera row.
 	load("res://tests/rc5_arena_night_checks.gd").new().run(self, city)
+	# The farmers' market refcam (tests/rc5_farmers_market_checks.gd): the camera row in the aisle,
+	# packed produce, printed cartons, the material's relief and drape, the busier market.
+	load("res://tests/rc5_farmers_market_checks.gd").new().run(self, city)
+	# The police pursuit at night (tests/rc5_police_pursuit_checks.gd, PursuitLook): the LED flash
+	# pattern and bar, the searchlight's pool and shaft, the camera row.
+	load("res://tests/rc5_police_pursuit_checks.gd").new().run(self)
+	# The brush_fire refcam (tests/rc5_brush_fire_checks.gd, BrushFireLook): the camera row, the
+	# smoky dusk sky and fog, the pall, the ash, the fire line under the site.
+	load("res://tests/rc5_brush_fire_checks.gd").new().run(self, city)
+	# The freight_yard refcam (tests/rc4_freight_yard_checks.gd, RcFreightYard): ties, the ladder, weeds, rock, tags.
+	load("res://tests/rc4_freight_yard_checks.gd").new().run(self, city)
 	# The jet_takeoff refcam (tests/rc5_jet_takeoff_checks.gd, JetTakeoff): the beams, the take-off
 	# shimmer, the edge lights' glow, the camera row.
 	load("res://tests/rc5_jet_takeoff_checks.gd").new().run(self, city)

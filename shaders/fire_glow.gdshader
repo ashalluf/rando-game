@@ -10,6 +10,13 @@ uniform vec3 flame_col = vec3(3.2, 1.25, 0.3);
 uniform vec3 glow_col = vec3(0.55, 0.17, 0.04);
 uniform float level = 0.0;
 uniform float seed = 0.0;
+// BrushFireLook (1; 0 the old card exactly): the fire line on a curve that falls down both flanks
+// (`flank_fall` card heights at the ends), its centre `foot` up the card (the site; the card's
+// foot stands under it so the hill in front hides what is below the ground), broken into runs,
+// with a smouldering band of burnt ground under the flames.
+uniform float look = 0.0;
+uniform float flank_fall = 0.24;
+uniform float foot = 0.23;
 
 float hash11(float p) {
 	p = fract(p * 0.1031);
@@ -48,6 +55,23 @@ void fragment() {
 	float tongue = (1.0 - smoothstep(h * 0.4, h, up)) * smoothstep(0.0, 0.015, up) * run;
 	float flick = 0.75 + 0.25 * vnoise1(TIME * 7.0 + x);
 	vec3 col = glow_col * glow * 0.55 + flame_col * tongue * flick;
+	if (look > 0.5) {
+		float edge_x = 1.0 - smoothstep(0.7, 0.97, abs(q.x));
+		float base = foot - flank_fall * q.x * q.x + 0.025 * (vnoise1(x * 0.4 + 11.0) - 0.5);
+		float above = up - base;
+		float hh = 0.035 + 0.09 * vnoise1(x * 0.7 + TIME * 0.9) + 0.045 * vnoise1(x * 2.3 - TIME * 2.7);
+		// Runs: the line burns in stretches with gaps, a few big flare-ups.
+		float run2 = smoothstep(0.3, 0.55, vnoise1(x * 0.21 + 3.0)) * edge_x;
+		float flare = 1.0 + 1.4 * smoothstep(0.75, 0.95, vnoise1(x * 0.09 + 7.0));
+		float t2 = (1.0 - smoothstep(hh * flare * 0.35, hh * flare, above)) * smoothstep(-0.006, 0.004, above) * run2;
+		// The burnt band under the line: embers in patches, dim and red.
+		float ember = smoothstep(-0.06, -0.005, above) * (1.0 - smoothstep(-0.005, 0.0, above))
+			* smoothstep(0.45, 0.8, vnoise1(x * 1.7 + 19.0)) * edge_x;
+		// The glow hugs the line and the smoke over it.
+		float g2 = exp(-max(above, 0.0) * 5.0) * smoothstep(-0.08, 0.0, above) * edge_x
+			* (1.0 - smoothstep(0.55, 0.95, up)) * smoothstep(0.0, 0.05, up);
+		col = glow_col * g2 * 0.6 + flame_col * t2 * flick + vec3(0.9, 0.22, 0.04) * ember * flick;
+	}
 	// NOT through cs_out(): added light on the Compatibility renderer lands on a display-space
 	// buffer, where the sRGB curve would turn the glow's faint tail (0.03) into a bright 0.19 and
 	// draw the card's rectangle. The same numbers on both renderers keep the tail a tail.
