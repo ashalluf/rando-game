@@ -30512,3 +30512,47 @@ needs eyes). The crane's jib-tip and counter-jib lamps are still lamp boxes, not
 slew). A round glare blob on the glass in this view is a street lamp's halo, not the site's. The
 crews stand; nobody pours, and the hoist's car does not move. Columns on the open floors are lit
 only by the OmniLights.
+
+## 9d?. The power plant at dusk from the beach (fleet wave 8, refcam5 `power_plant_dusk`, branch `wt/rc5-power-plant-dusk`)
+
+**The camera.** `power_plant_dusk` in `tools/refcams/cameras_w8.json`: the wet sand north of the
+plant (TRUE world -713, 1.7 agl, 1115; yaw -141, pitch 9, fov 66), 18:50 clear. In frame: the
+turbine hall and boiler house with the twin stacks' banded tops and aviation lights over them, the
+HRSG stacks' plumes, the line's angle tower at the left edge (behind the palms), the surf receding
+down the right edge. Framing notes: anything north of z ~1105 stands under the beach footbridge /
+the 105's west end; the plant is ~300 m off, so the tower and the surf only both fit at fov ~64+
+(tower yaw -96, waterline -186 from this eye). The stacks stand east of the boiler house, so from
+any beach eye north-west of the plant their lower half is behind it (the middle aviation ring too).
+
+**What read fake, in the order the eye lands on it, and what changed** (`RcPowerPlant`,
+`scripts/world/rc5_power_plant.gd`; `RC5_POWER_PLANT=0` is the A/B and puts all of it back):
+1. *The window bands were flat cream slabs, torn by z-fighting.* They stood 7 cm off the cladding,
+   under the depth buffer's step at 200-300 m. Now `GLASS_OUT` 0.24 m with a steel head and sill
+   (`PowerPlantKit._band_trim()`; jambs and head / sill on the boiler house's strips), in front of
+   the cladding and behind the pilasters' fronts. The shader draws them as bays of five panes lit or
+   dark by a hash, fluorescent or sodium, brighter toward the high-bay lights, a transom, the crane
+   girder and machinery as silhouettes behind the glass (`pp_window()`); the boiler house's tall
+   strips a lit floor every 6 m.
+2. *The plant's lamps lit nothing*: moon-grey walls with warm dots on them. `sources()` (pure from
+   the layout, TRUE world, at most 64): the halls' wall packs (PowerPlantKit.hall()'s rule), the
+   boiler stair tower's landing lamps, new eave floods on the halls and the boiler house
+   (`_eave_flood()`), two uplights at each tall stack's foot (new fixtures), the yard's eight masts.
+   `power_plant.gdshader` lights every wall, stack and steel face from them after dark
+   (`shaders/rc5_power_plant.gdshaderinc` `pp_flood()`: a wall pack is a scallop on its own wall, a
+   flood aimed down, an uplight aimed up; `flood_at()` the GDScript copy) as emission of the
+   albedo through `fh_level()` (Forward+ review h). One shared material, so `apply()` sets the table
+   once per plan from `site_steps()`. Plus a pool on the ground under each wall pack
+   (`pack_pools()`, the plant's `pp_pool` batch).
+3. *The aviation lights were pin-pricks*: size x1.6 and hdr 4 (was 2.5) on the stack lights' own
+   material.
+4. *The foreground damp sand read as crumpled foil* under the moon (the moon's specular on the damp
+   band's hummocks, prints and grain at band_roughness). `beach_sand.gdshader` `moon_band_soft`
+   (set by PropFactory.beach_sand_material() from RcPowerPlant.enabled): after dark the band's
+   relief is calmed 75 % and its film roughened to 0.42, so the moon lays a soft path. Every beach
+   at night takes it (pier_night, bonfire_night): see the ten-camera compare.
+
+**Numbers** (opengl3, the refcam): see shots/rc5-power-plant-dusk's README for the final table.
+
+**Tools.** `tools/rc5_power_plant/coast_probe.tscn` (headless, seconds: coast_x and beach width
+round the plant, the 105's deck segments, the line's towers, the stacks) for framing.
+Checks: `tests/rc5_power_plant_dusk_checks.gd`.
