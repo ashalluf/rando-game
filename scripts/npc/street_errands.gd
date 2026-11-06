@@ -454,6 +454,7 @@ static func _start_bus(p: Pedestrian, stop: Dictionary, at_spawn: bool) -> bool:
 		return false
 	taken[slot] = p
 	var at: Vector2 = (stop.slots as Array)[slot]
+	at = StopShelter.spot(p, stop, slot, at)
 	var look := -(stop.inward as Vector2) - (stop.travel as Vector2) * 0.7
 	var yaw := atan2(-look.x, -look.y) + _rng_of(p).randf_range(-0.25, 0.25)
 	var wait := {"do": "wait_bus", "stop": stop, "slot": slot, "yaw": yaw,

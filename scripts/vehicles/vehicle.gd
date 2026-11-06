@@ -1737,13 +1737,18 @@ func _update_wheels(delta: float) -> void:
 			for i in wheels.size():
 				_susp_rest[i] = wheels[i].position.y
 	var limit := suspension_travel + suspension_rest_length * 0.5
+	# Off the ground the wheels hang to the springs' stop (StuntJumpFX; RC5_STUNT_JUMP=0 the A/B).
+	_hang_air = _hang_air + delta if travel and is_airborne() else 0.0
 	for i in _wheel_rigs.size():
 		var rig: Array = _wheel_rigs[i]
 		var node := rig[0] as Node3D
 		node.rotation.y = steer if rig[4] else 0.0
 		if travel and not is_nan(_susp_rest[i]):
-			node.position.y = rig[5] + clampf(wheels[i].position.y - _susp_rest[i], -limit, limit)
+			node.position.y = rig[5] + StuntJumpFX.hang(clampf(wheels[i].position.y - _susp_rest[i], -limit, limit), _hang_air, limit)
 		(rig[1] as MeshInstance3D).basis = spun * (rig[3] as Basis)
+
+
+var _hang_air: float = 0.0
 
 
 ## The camera, once per physics frame for the whole fleet.
