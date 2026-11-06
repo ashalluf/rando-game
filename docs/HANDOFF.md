@@ -30801,3 +30801,12 @@ denser but not bumper-to-bumper all the way (the cap binds: 182 cars over ~560 m
 LOD decks past the real cars carry the far city's day traffic only past the LOD ring (the LOD chunks'
 own traffic skin is night-only), not checked from this eye. Cars changing lanes in a crawl nose ~10
 degrees across. Oncoming cars carry no daytime running lamps (head lamps follow `lamp_factor`).
+
+**The ten original cameras** (`refcams.py run` on cameras.json, one tree, before = `RUSH_HOUR=0
+RC5_RUSH_LOOK=0`): 9 of 10 within noise (triangles -1.1 % .. +0.2 %, draws -0.6 % .. +1.2 %, pixel
+MAD <= 2.1); `freeway` (13:00) flagged on its traffic only - the before had a semi filling the lens,
+the after more cars now that freeway spawns do not wait on the physics cap (triangles -1.3 %, draws
+-4.4 %). The jam itself is off at 13:00 (level 0).
+
+**Gate** (`SHARDS=3`, merged with origin/main 2026-11-06): 6,212 checks, 0 failed, 1,484 s; shard
+peaks 3,274 / 3,806 / 3,592 MB.
