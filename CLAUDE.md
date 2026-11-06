@@ -135,7 +135,8 @@ shard_0.log shard_1.log shard_2.log` refreshes `PART_COST` from a whole sharded 
 `tools/gate/deal.py 3` prints the deal without Godot. Never add PART_COST rows by hand (a new file
 is dealt at DEFAULT_COST; appended rows conflict with every refresh). `tools/gate/frame_probe.tscn`
 times the live city's physics tick (the floor of every game-time wait). The reset also puts back
-static pointers to the city's own nodes (a singleton's `_inst`) that a second city nulled.
+static pointers to the city's own nodes (a singleton's `_inst`) that a second city nulled, and clears
+CrashDebris' shared ring.
 **Flake rules** (2026-10-31, docs/HANDOFF.md "The gate's intermittent failures, wave 4"): a check
 that builds a chunk twice frees the first build's parked cars (they live under the city root); one
 that counts the people a build spawns gives it room in the crowd cap; never find a node by a name

@@ -32476,6 +32476,11 @@ alone; each failed because the deal put a file after one it had never followed b
   and with PhysicsBudget at its cap the second build is refused what the first took. The check now
   lifts the budget for the two builds (the flake rule) and prints what differs if it ever fails
   again (`KERBS A/B differ:`). Not reproduced, so the cause is the likeliest one, not a proven one.
+- `car crash 3: and stay drawn, one MultiMesh under the level root` failed once in three runs with
+  the same neighbours: CrashDebris is one ring of 220 pieces shared by the level, and its `thrown` /
+  `resting` counters run for the whole process, so once earlier files' crashes in the shard had laid
+  more than 220 pieces, `resting` passed the ring's `visible_instance_count`. The reset now clears
+  CrashDebris (`clear()`: a clean city has no crash pieces in the street), as it frees BlastDebris.
 
 Not done / not verified: CI's runner (SHARDS=auto) not measured; the per-tick and sync-build costs
 above are reported, not cut.

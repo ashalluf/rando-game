@@ -12,7 +12,7 @@ extends RefCounted
 ##   level and force, Traffic's cap and `staged`, and every child's `enabled` / `staged`
 ##   (Police, Emergency, NewsCrews, Birds, OceanTraffic, CoastTraffic, ...);
 ## - the world: WorldState's destruction, the police's stars and units, open onlooker scenes,
-##   wrecks and burning cars, debris (bodies, rubble, BlastDebris), a blast's fading effects, car alarms, Engine.time_scale, the audio
+##   wrecks and burning cars, debris (bodies, rubble, BlastDebris, CrashDebris's pieces), a blast's fading effects, car alarms, Engine.time_scale, the audio
 ##   speed, pause, the player out of any car with full health;
 ## - the crowd: the cap, and the head-count trimmed back to the snapshot's (the farthest plain
 ##   walkers freed, as BusyStreets frees them in play), so a file that builds a chunk and counts
@@ -285,6 +285,13 @@ func full(tree: SceneTree) -> void:
 		if is_instance_valid(node) and not node.is_queued_for_deletion():
 			node.queue_free()
 			freed += 1
+	# Crash pieces lying in the street (CrashDebris, one shared ring of CAPACITY): a clean city has
+	# none, and the counters are what car_crash_3 reads (resting past the ring's 220 after earlier
+	# files' crashes failed "and stay drawn", gate-speed-3).
+	var crash_debris = CrashDebris.instance()
+	if crash_debris and int(crash_debris.thrown) > 0:
+		crash_debris.clear()
+		last["CrashDebris"] = true
 	for d in BlastDebris._all:
 		if is_instance_valid(d) and not (d as Node).is_queued_for_deletion():
 			(d as Node).queue_free()
