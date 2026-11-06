@@ -9,9 +9,17 @@ extends Node3D
 ## the web), HoseSpray (the smoke material, white ramp), HoseWater (hose_water.gdshader), a
 ## FountainPlume-like spray (lit). Prints FX <name> r g b: the mean over each column. Knobs:
 ## frames (40), fixed (1: fixed 30 fps particles), quit (1).
+## web-bonfire added: per-fire tokens copy[.prop...] (the row fire's properties, less the listed
+## ones), sharemesh / onemesh / dupmesh / plainq / co0 / latemesh / late0 / late1 / remesh3 (which
+## mesh object the flames draw), nodepth / dupmat / tq / tqmat (the material), up / up3, life0,
+## amt20, notongue / noflame / noember / nosmoke; params rowoff=1 (hide the effect row), norow=1,
+## fires=1 (a car engine fire and a burning tree crown beside the fires), shots=a.b.c (also save
+## those frames), diff=1 (print the row fire's properties that differ from the flames'). With
+## tools/web_probe/glprobe.js (GLPROBE=1 on webshot.js) and ANGLE=gl|swiftshader on webshot.js.
 
 var _q := {}
 var _cols: Array = []
+var _one_mesh: QuadMesh = null
 
 
 func _arg(k: String, d: String) -> String:
@@ -57,7 +65,7 @@ func _ready() -> void:
 	_emit("smoke", -6.0, WeaponFX.smoke_material(), Color(0.035, 0.032, 0.03),
 		WeaponFX._ramp([Color(8.0, 3.4, 1.1, 0.6), Color(1.6, 1.15, 1.0, 0.97), Color(1, 1, 1, 0.92),
 			Color(1, 1, 1, 0.62), Color(1, 1, 1, 0.26), Color(1, 1, 1, 0.0)]), 5.5, 32, Vector3(0, 1.5, 0), fixed)
-	_emit("fire", -3.0, CarDamage.fire_material(), Color(1, 1, 1),
+	if _arg("norow", "0") != "1": _emit("fire", -3.0, CarDamage.fire_material(), Color(1, 1, 1),
 		WeaponFX._ramp([Color(1.25, 0.64, 0.07, 0.0), Color(1.3, 0.66, 0.07, 0.95), Color(1.05, 0.48, 0.05, 0.9),
 			Color(0.65, 0.25, 0.03, 0.6), Color(0.3, 0.09, 0.015, 0.22), Color(0.06, 0.04, 0.025, 0.0)]), 0.85, 20, Vector3(0, 2.0, 0), fixed)
 	_emit("spray", 0.0, WeaponFX.smoke_material(), Color(0.85, 0.87, 0.9),
@@ -164,12 +172,113 @@ func _ready() -> void:
 							p.spread = 25.0
 						"noaabb":
 							p.custom_aabb = AABB()
+						"amt20":
+							p.amount = 20
+						"restart":
+							p.restart()
+						"onemesh":
+							if _one_mesh == null:
+								_one_mesh = QuadMesh.new()
+								_one_mesh.material = CarDamage.fire_material()
+							p.mesh = _one_mesh
+						"latemesh":
+							var lp := p
+							get_tree().create_timer(0.0).timeout.connect(func() -> void:
+								for _k in 3:
+									await get_tree().process_frame
+								var lq := QuadMesh.new()
+								lq.material = CarDamage.fire_material()
+								lp.mesh = lq)
+						"late0", "late1", "remesh3", "reown3":
+							var lp2 := p
+							var tk: String = tok
+							var own: Mesh = p.mesh
+							if tk == "late0":
+								(func() -> void:
+									var q0 := QuadMesh.new()
+									q0.material = CarDamage.fire_material()
+									lp2.mesh = q0).call_deferred()
+							else:
+								get_tree().create_timer(0.0).timeout.connect(func() -> void:
+									for _k in (1 if tk == "late1" else 3):
+										await get_tree().process_frame
+									if tk == "late1":
+										var q1 := QuadMesh.new()
+										q1.material = CarDamage.fire_material()
+										lp2.mesh = q1
+									elif tk == "remesh3":
+										# The same mesh object, unset and set again.
+										lp2.mesh = null
+										lp2.mesh = own
+									else:
+										# The same mesh object onto a brand-new system's multimesh.
+										lp2.amount = lp2.amount + 1)
+						"sharemesh":
+							p.mesh = get_node("fire").mesh
+						"co0":
+							var cq := QuadMesh.new()
+							cq.size = Vector2.ONE
+							cq.center_offset = Vector3.ZERO
+							cq.material = CarDamage.fire_material()
+							p.mesh = cq
+						"plainq":
+							var pq := QuadMesh.new()
+							pq.material = CarDamage.fire_material()
+							p.mesh = pq
+						"dupmesh":
+							p.mesh = (get_node("fire").mesh as QuadMesh).duplicate()
+						"nodepth":
+							var nm := (CarDamage.fire_material() as StandardMaterial3D).duplicate() as StandardMaterial3D
+							nm.no_depth_test = true
+							(p.mesh as QuadMesh).material = nm
+						"dupmat":
+							(p.mesh as QuadMesh).material = (CarDamage.fire_material() as StandardMaterial3D).duplicate()
+						"tq":
+							Blast4.tongue_quad(p.mesh as QuadMesh)
+						"tqmat":
+							(p.mesh as QuadMesh).material = Blast4.flame_material()
+						"up":
+							p.position.y += 1.0
+						"up3":
+							p.position.y += 3.0
+						"life0":
+							p.lifetime_randomness = 0.0
+						_:
+							# copy[.prop.prop...]: every stored property of the room's "fire" column onto
+							# this system but the listed ones (web-bonfire's bisect).
+							if tok.begins_with("copy") and has_node("fire"):
+								var keep: PackedStringArray = tok.split(".").slice(1)
+								var src := get_node("fire")
+								for pr: Dictionary in src.get_property_list():
+									var pn: String = pr["name"]
+									if (int(pr["usage"]) & PROPERTY_USAGE_STORAGE) == 0 or pn in keep:
+										continue
+									if pn in ["name", "transform", "position", "rotation", "scale", "quaternion", "basis", "global_transform", "global_position", "script", "unique_name_in_owner"]:
+										continue
+									p.set(pn, src.get(pn))
 			f._pool.visible = true
 			if f._glow:
 				f._glow.visible = true
 			if "reparent" in String(variants[i]):
 				for p: CPUParticles3D in [f._flames, f._licks]:
 					p.reparent(self, true)
+			if "notongue" in String(variants[i]):
+				f._licks.visible = false
+				f._licks.emitting = false
+			if "noflame" in String(variants[i]):
+				f._flames.visible = false
+				f._flames.emitting = false
+			if "noember" in String(variants[i]):
+				f._embers.visible = false
+			if "nosmoke" in String(variants[i]):
+				f._smoke.visible = false
+				f._smoke.emitting = false
+			if _arg("diff", "0") == "1" and i == 0 and has_node("fire"):
+				var src2 := get_node("fire")
+				for pr: Dictionary in src2.get_property_list():
+					var pn2: String = pr["name"]
+					if (int(pr["usage"]) & PROPERTY_USAGE_STORAGE) != 0 and str(src2.get(pn2)) != str(f._flames.get(pn2)):
+						print("DIFF %s row=%s flames=%s" % [pn2, src2.get(pn2), f._flames.get(pn2)])
 			if "nostack" in String(variants[i]):
 				f._stack.visible = false
 			if "nopool" in String(variants[i]):
@@ -185,6 +294,38 @@ func _ready() -> void:
 		cam.position = Vector3(0, 1.6, -1.0) if variants.size() == 1 else Vector3(0, 2.0, 2.0)
 		cam.look_at(Vector3(0, 0.9, -8.0))
 		_cols.append(["bonfire", 0.0])
+	# fires=1 (web-bonfire): the other CPUParticles fires beside the bonfires - a car's engine fire
+	# as CarDamage._start_fire() builds it (x -6) and a burning tree crown (TreeFire.Burn, x 6).
+	if _arg("fires", "0") == "1":
+		var cd := CarDamage.new()
+		cd.position = Vector3(-6.0, 0.6, -8.0)
+		add_child(cd)
+		var ef: CPUParticles3D = cd._flame_system("EngineFire", 40, Vector2.ONE, 180.0)
+		ef.emission_shape = CPUParticles3D.EMISSION_SHAPE_BOX
+		ef.emission_box_extents = Vector3(0.6, 0.1, 0.5)
+		ef.spread = 22.0
+		ef.lifetime = 0.85
+		ef.lifetime_randomness = 0.4
+		ef.initial_velocity_min = 1.0
+		ef.initial_velocity_max = 2.0
+		ef.gravity = Vector3(0.0, 2.5, 0.0)
+		ef.scale_amount_min = 0.7
+		ef.scale_amount_max = 1.1
+		ef.preprocess = 1.5
+		var tb := TreeFire.Burn.new()
+		tb.tree = {"id": 1, "crown": WorldState.to_world(Vector3(6.0, 4.0, -9.0)), "r": 2.5, "palm": false}
+		tb.rec = {"key": "fxroom", "chunk": weakref(null), "trees": [], "nodes": {}, "charred": {}}
+		tb.id = "fxroom_tree"
+		tb.staged = 0.3
+		add_child(tb)
+	# rowoff=1: hide the whole effect row (its smoke and spray stand between the camera and the
+	# fires: web-bonfire's depth A/B).
+	if _arg("rowoff", "0") == "1":
+		for rn in ["smoke", "fire", "spray", "hose", "lit"]:
+			var rnode := get_node_or_null(rn) as CPUParticles3D
+			if rnode:
+				rnode.visible = false
+				rnode.emitting = false
 	if _arg("night", "0") == "1":
 		sun.visible = false
 		RenderingServer.global_shader_parameter_set("lamp_factor", 1.0)
@@ -228,7 +369,18 @@ func _process(_delta: float) -> void:
 
 
 func _shoot() -> void:
-	for i in int(_arg("frames", "40")):
+	# shots=a.b.c: also save the frame after a, b, c frames (web-bonfire: when does it go wrong).
+	var done := 0
+	for sf in _arg("shots", "").split(".", false):
+		while done < int(sf):
+			await get_tree().process_frame
+			done += 1
+		var simg := get_viewport().get_texture().get_image()
+		if OS.has_feature("web"):
+			print("PROBE_IMG f%s %s" % [sf, Marshalls.raw_to_base64(simg.save_png_to_buffer())])
+		else:
+			simg.save_png(_arg("out", "/tmp/fx_room.png").replace(".png", "_f%s.png" % sf))
+	for i in maxi(0, int(_arg("frames", "40")) - done):
 		await get_tree().process_frame
 	# dump=1: each particle system's live instances (count, mean scale, mean colour, mean custom).
 	if _arg("dump", "0") == "1":

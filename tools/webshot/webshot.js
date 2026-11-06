@@ -29,7 +29,7 @@ const OLD_CHROME = (() => {
 })();
 (async () => {
   await new Promise(r=>server.listen(PORT,r));
-  const browser = await chromium.launch({ executablePath: process.env.CHROME || (fs.existsSync(OLD_CHROME) ? OLD_CHROME : undefined), args: ['--use-angle=swiftshader','--enable-unsafe-swiftshader','--ignore-gpu-blocklist','--enable-webgl','--no-sandbox'] });
+  const browser = await chromium.launch({ headless: process.env.HEADFUL !== '1', executablePath: process.env.CHROME || (fs.existsSync(OLD_CHROME) ? OLD_CHROME : undefined), args: (process.env.ANGLE ? ['--use-angle=' + process.env.ANGLE] : ['--use-angle=swiftshader','--enable-unsafe-swiftshader']).concat(['--ignore-gpu-blocklist','--enable-webgl','--no-sandbox']).concat(process.env.CHROME_ARGS ? process.env.CHROME_ARGS.split(' ') : []) });
   const page = await browser.newPage({ viewport: { width: parseInt(process.env.VW || '960'), height: parseInt(process.env.VH || '540') } });
   const logs = [];
   const t0 = Date.now(); const stamp = () => ((Date.now() - t0) / 1000).toFixed(1) + 's';
@@ -40,6 +40,10 @@ const OLD_CHROME = (() => {
   if (process.env.PROBE === '1') {
     // PROBE=1: probe.js tallies Web Audio buffers, worklets and WebGL uploads ([probe] lines).
     await page.addInitScript({path: path0.join(__dirname, 'probe.js')});
+  }
+  if (process.env.GLPROBE === '1') {
+    // GLPROBE=1: tools/web_probe/glprobe.js logs the instanced draws of one frame ([gl] lines).
+    await page.addInitScript({path: path0.join(__dirname, '..', 'web_probe', 'glprobe.js')});
   }
   await page.goto(`http://127.0.0.1:${PORT}/index.html` + (process.env.QS || ''));
   await page.waitForTimeout(parseInt(process.env.WAIT || '25000'));
