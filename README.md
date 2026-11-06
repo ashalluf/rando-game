@@ -8,6 +8,6 @@ Mac's Forward+.
 - `01_before_freight_trench.jpg` - the final camera with `RC5_FREIGHT_TRENCH=0` (the old look).
 - `02_after_freight_trench.jpg` - the same with the branch: panelled, sooted, weep-holed walls with
   graffiti, fouled ballast with the crib up at the ties, the wall lights on a conduit, sooted and
-  grimed locomotive roofs with fan guards.
+  grimed locomotive roofs with fan guards, the lead unit's windscreen framed with wipers, a visor and grab irons, its red deepened.
 - `03_before_after_train.jpg`, `03_before_after_wall.jpg`, `03_before_after_ballast.jpg` - crops,
   before left, after right.
