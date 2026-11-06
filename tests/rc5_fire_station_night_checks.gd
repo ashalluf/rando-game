@@ -150,6 +150,12 @@ func _live(plan: CityPlan, st: Dictionary) -> void:
 	var w := WorldState.to_world(car.global_position)
 	var behind := (Vector2(w.x, w.z) - (b.face as Vector2)).dot(b.out as Vector2)
 	_t._check(behind < -2.0, "it starts in its bay (%.1f m behind the face)" % behind)
+	var wch: Variant = car._exit.watch if car._exit != null else null
+	_t._check(wch is StationWatch, "a firefighter goes out to stop the street")
+	if wch is StationWatch:
+		var sw := WorldState.to_world((wch as StationWatch).spot)
+		var to_face := (Vector2(sw.x, sw.z) - (b.face as Vector2)).dot(b.out as Vector2)
+		_t._check(to_face > float(b.to_kerb) - 1.5 and to_face < float(b.to_kerb), "standing at the kerb by the apron (%.1f m out of %.1f)" % [to_face, float(b.to_kerb)])
 	_t._check(StationExit.stop_gap(int(st.road[0]), int(st.road[1]), 1, (st.front.y if int(st.road[0]) == CityPlan.AXIS_X else st.front.x) - 40.0) < INF,
 		"the station's street is stopped while it comes out")
 	car.set_physics_process(false)
@@ -173,4 +179,7 @@ func _live(plan: CityPlan, st: Dictionary) -> void:
 	_t._check(not still, "and the street goes again once it is down the road")
 	em.units.erase(car)
 	em.incidents.erase(inc)
+	if wch is StationWatch and is_instance_valid(wch):
+		em.crews.erase(wch)
+		(wch as Node).queue_free()
 	car.queue_free()

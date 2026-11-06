@@ -77,6 +77,16 @@ static func stage(tree: SceneTree, scene: Node, cam: Camera3D, _player: Node3D, 
 			car._physics_process(dt)
 		if tm:
 			TrafficAI.advance_shot(tm, dt)
+	# The firefighter stopping the street stands at the kerb by now (StationWatch walks there in a
+	# few seconds of the game's own physics, which the stepping above does not run).
+	var ex: Variant = car.get("_exit") if is_instance_valid(car) else null
+	if ex != null and is_instance_valid(ex.watch):
+		var wch: Node3D = ex.watch
+		wch.global_position = wch.get("spot")
+		var lk: Vector3 = (wch.get("look") as Vector3) - wch.global_position
+		var vis: Node3D = wch.get("_visual")
+		if vis:
+			vis.rotation.y = atan2(-lk.x, -lk.z)
 	if is_instance_valid(car):
 		# Held where the stepping left it: its lights (and wash) set up once, then nothing moves it
 		# (PhysicsBudget would switch its physics back on).
@@ -89,6 +99,9 @@ static func stage(tree: SceneTree, scene: Node, cam: Camera3D, _player: Node3D, 
 		if n and n.get_meta("cell", Vector2i(-99999, -99999)) == st.cell:
 			for child in n.get_children():
 				if String(child.name).begins_with("BayDoor"):
+					var tw: Variant = child.get_meta("door_tween", null)
+					if tw is Tween and (tw as Tween).is_valid():
+						(tw as Tween).kill()
 					(child as Node3D).position.y = FireStation.BAY_DOOR.y - 0.35
 			FireStationNight.show_spill(n, true)
 	for i in 6:

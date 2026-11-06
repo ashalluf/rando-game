@@ -2830,6 +2830,19 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   (`police_station_glass.gdshader`, `trace`). Judge a block at night with
   `tools/glshot/station_night_shot.tscn` (the city's real DayNight, lamps on; block_shot's NIGHT=1
   never switches the lamps on). `POLICE_NIGHT=0` is the A/B; checks `tests/police_night_checks.gd`.
+- The fire station at night (wave 8, refcam `fire_station_night` in `tools/refcams/cameras_w8.json`,
+  staged by `"stage": "fire_station"` -> `tools/refcams/fire_station_stage.gd`; docs/HANDOFF.md "The
+  fire station at night"): `StationExit` (`scripts/npc/station_exit.gd`, one hook in
+  `Emergency.send()`, one in `EmergencyCar._physics_process`) starts a unit sent out of a station IN
+  its bay (`bays()`, FireStation's frame), waits for the door, drives it out across the apron into its
+  lane, sends a `StationWatch` firefighter to the kerb and stops the street both ways meanwhile
+  (`stop_gap()`, one hook in `TrafficManager._drive_street`); `EmergencyWash` (one hook in
+  `EmergencyCar._process`) lays the warning lights' pool and facade wash (`shaders/engine_wash.gdshader`,
+  the lenses' own flash clock); `FireStation.setback()` caps the face 7.5 m off the lot's edge (deep
+  downtown lots stood it 40 m back); `FireStationNight` dresses the bays (gear lockers, bay and door
+  lights in `lamp_light`, the spill out of an open door). `STATION_EXIT=0` / `EMERGENCY_WASH=0` /
+  `FIRE_STATION_FRONT=0` / `FIRE_STATION_NIGHT=0` the A/Bs; probe `tools/rc5_fire_station/probe.gd`;
+  checks `tests/rc5_fire_station_night_checks.gd`.
 - The police chase (2026-10-31, docs/HANDOFF.md "The police chase"): `PoliceChase`
   (`scripts/npc/police_chase.gd`, Police's child) deals cruisers within 55 m of the player's car a
   role - BOX (under 7 m/s: four slots, stop there), PIT (over 11 m/s: line up at the rear wheel, turn

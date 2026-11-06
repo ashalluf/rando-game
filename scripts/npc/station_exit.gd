@@ -18,7 +18,7 @@ static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/H
 
 static var enabled: bool = OS.get_environment("STATION_EXIT") != "0"
 ## Seconds the unit waits in the bay for its door (FireStation.DOOR_TIME is the door's whole roll).
-const DOOR_WAIT := 2.6
+const DOOR_WAIT := 3.0
 ## Speeds out of the bay: creeping through the door, then up to this at the lane (m/s).
 const BAY_SPEED := 3.0
 const OUT_SPEED := 6.0
@@ -41,6 +41,8 @@ var speed: float = 0.0
 var wait: float = DOOR_WAIT
 var start: Array = []
 var _entry: Array = []
+## The firefighter out at the kerb (StationWatch), or null.
+var watch: Node3D = null
 
 
 ## The bays of `station` (a FireStation entry): {"face": the building's front centre (TRUE world
@@ -83,7 +85,7 @@ static func door_for(b: Dictionary, road_dir: Vector2) -> float:
 	var doors: Array = b.doors
 	var x_axis: Vector2 = b.x
 	var toward := x_axis.dot(road_dir)
-	return float(doors[0]) if toward > 0.0 else float(doors[doors.size() - 1])
+	return float(doors[doors.size() - 1]) if toward > 0.0 else float(doors[0])
 
 
 ## The path out of the bay into the lane `start` (EmergencyCar's [axis, index, dir, point]) for a
@@ -145,7 +147,7 @@ static func path_for(plan: CityPlan, station: Dictionary, start: Array, length: 
 		var a := pts[maxi(i - 1, 0)]
 		var c := pts[mini(i + 1, pts.size() - 1)]
 		var d := Vector2(c.x - a.x, c.z - a.z)
-		yaws.append(atan2(d.x, d.y) if d.length() > 0.01 else 0.0)
+		yaws.append(atan2(-d.x, -d.y) if d.length() > 0.01 else 0.0) # facing d: -Z forward
 	return {"pts": pts, "yaws": yaws, "door": door, "face": face}
 
 
@@ -169,7 +171,41 @@ static func begin(car: EmergencyCar, plan: CityPlan, station: Dictionary, start:
 	exiting.append(ex._entry)
 	car.traffic_speed = 0.0
 	ex._pose()
+	ex._send_watch(plan, station, start)
 	return ex
+
+
+## The firefighter who stops the street: out of the bay beside the unit to the kerb at the apron's
+## corner on the side the traffic comes from (the unit turns away from it), facing it.
+func _send_watch(plan: CityPlan, station: Dictionary, lane_start: Array) -> void:
+	var em := car.service
+	if em == null or not car.is_inside_tree():
+		return
+	var b := bays(plan, station)
+	var axis := int(lane_start[0])
+	var dir := int(lane_start[2])
+	var road_dir := Vector2(0.0, float(dir)) if axis == CityPlan.AXIS_X else Vector2(float(dir), 0.0)
+	var out: Vector2 = b.out
+	var door: Vector2 = (b.face as Vector2) + (b.x as Vector2) * door_for(b, road_dir)
+	var half := FireStation.BAY_DOOR.x * 0.5
+	var spot := door + out * (float(b.to_kerb) - 0.7) - road_dir * (half + 3.2)
+	# Out of the bay by the door (the building's one collision box covers the bays: a body made
+	# inside it is thrown out), and back to the same place to go in.
+	var home := door + out * 0.6 - road_dir * (half + 0.7)
+	var look := spot - road_dir * 10.0 + out * 2.0
+	var y := float(b.y)
+	var w := StationWatch.new()
+	w.setup_crew(em, car, EmergencyCrew.Role.FIRE, 1, hash([plan.seed, station.cell, "watch"]))
+	w.car = null
+	w.unit = car
+	w.exit = self
+	w.spot = WorldState.to_local(Vector3(spot.x, plan.height_at(spot) + CityChunk.SIDEWALK_TOP + 0.05, spot.y))
+	w.home = WorldState.to_local(Vector3(home.x, y + 0.05, home.y))
+	w.look = WorldState.to_local(Vector3(look.x, y, look.y))
+	em.add_child(w)
+	w.global_position = w.home
+	em.crews.append(w)
+	watch = w
 
 
 ## One physics tick; true while the exit still has the car (EmergencyCar skips its lane driving).

@@ -292,3 +292,12 @@ so the walk would otherwise build at the 13:30 fallback).
 Its optional `sea` key is SeaLife.stage_for_shot()'s spec ("dolphin@x,z[,lead];pelican@x,z", TRUE
 world), staged three frames before the shot with the sea clock held and cleared after it;
 `SEA_DEBUG=1` prints the surfers and swimmers BeachActivity has round the lens.
+
+`fire_station_night` (rc5-fire-station-night): STATION 79 on 7th St downtown at 21:00 clear, from the
+far pavement as an engine goes out on a call. `"stage": "fire_station"` runs
+`tools/refcams/fire_station_stage.gd`: the station nearest the eye, a call opened `call_ahead` m down
+its street, the engine sent through Emergency.send() (out of its bay, StationExit), the `cars` placed
+on the station's road, then the engine and the street traffic STEPPED `t` seconds at 60 Hz by hand
+(the same moment every run), the doors held up, the watch at the kerb. `FS_T=` overrides `t`
+(`FS_T=0.6` on main is the before: the engine on the street). `tools/rc5_fire_station/probe.gd`
+lists stations with their bays and an eye across the street.

@@ -17,6 +17,8 @@ static var enabled: bool = OS.get_environment("FIRE_STATION_NIGHT") != "0"
 ## A bay light's share of the street lamps' level (DayNight's lamp_gain) and its reach (m).
 const BAY_LIGHT_GAIN := 1.1
 const BAY_LIGHT_RANGE := 11.0
+## The lamp over each door's share (it is 0.9 m over the door, 8 m reach).
+const DOOR_LIGHT_GAIN := 0.55
 static var _mats: Dictionary = {}
 
 
@@ -82,6 +84,22 @@ static func dress(node: Node3D, doors: Array, w: float, d: float, bay_w: float) 
 			l.set_meta("lamp_gain", BAY_LIGHT_GAIN)
 			l.add_to_group("lamp_light")
 			node.add_child(l)
+			# The lamp over the door lights the brick round it and the apron (the "lamp" boxes
+			# beside each door glowed and lit nothing).
+			var wl := OmniLight3D.new()
+			wl.name = "DoorLight%d" % i
+			wl.position = Vector3(x, FireStation.BAY_DOOR.y + 0.9, 0.8)
+			wl.omni_range = 8.0
+			wl.omni_attenuation = 1.4
+			wl.light_color = Color(1.0, 0.86, 0.66)
+			wl.light_energy = 0.0
+			wl.shadow_enabled = false
+			wl.distance_fade_enabled = true
+			wl.distance_fade_begin = 110.0
+			wl.distance_fade_length = 30.0
+			wl.set_meta("lamp_gain", DOOR_LIGHT_GAIN)
+			wl.add_to_group("lamp_light")
+			node.add_child(wl)
 		# The bay's light out of the open door on the apron (a quad laid flat, +Z out of the door).
 		var spill := MeshInstance3D.new()
 		spill.name = "BaySpill%d" % i

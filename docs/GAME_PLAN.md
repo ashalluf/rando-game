@@ -4828,3 +4828,14 @@ none of either.
   streaks along their path, never camera-facing balls (they cut flat at the waterline); anything
   that breaks the surface leaves a ring that ages out. The surf's whitewater not reading from a
   pier end was left to the ocean's owners (shared by every beach view). SEA_SPRAY=0 is the A/B.
+- **2026-11-06 The fire station at night: units come out of their bays (rc5-fire-station-night,
+  HANDOFF "The fire station at night").** A new reference camera (`fire_station_night`, wave 8's
+  table): STATION 79 on 7th St at 21:00 as an engine goes out on a call. A unit sent out of a station
+  now starts in its bay, waits for the door, and drives out across the apron into its lane, while a
+  firefighter stands at the kerb and the street traffic stops short of the station both ways; it
+  used to appear standing on the street's centre line in front of the closed doors. The warning
+  lights light the road and the facades (an additive pool and wall wash on the lenses' own flash
+  clock, every renderer). A station's face stands at most 7.5 m off its lot's street edge (deep
+  downtown lots put it 40 m back behind a concrete field). The bays carry gear lockers, lights and a
+  spill out of an open door. Switches: STATION_EXIT, EMERGENCY_WASH, FIRE_STATION_FRONT,
+  FIRE_STATION_NIGHT (=0 each).

@@ -437,6 +437,7 @@ static func open_door(tree: SceneTree, station: Dictionary) -> void:
 			tw.tween_property(door, "position:y", BAY_DOOR.y - 0.35, DOOR_TIME).set_trans(Tween.TRANS_SINE)
 			tw.tween_interval(DOOR_OPEN_HOLD)
 			tw.tween_property(door, "position:y", 0.0, DOOR_TIME).set_trans(Tween.TRANS_SINE)
+			door.set_meta("door_tween", tw)
 		FireStationNight.show_spill(n, true)
 		var hide := n.create_tween()
 		hide.tween_interval(DOOR_TIME * 2.0 + DOOR_OPEN_HOLD)
