@@ -3027,6 +3027,8 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	# The backyard_pool refcam (tests/rc5_backyard_pool_checks.gd, Rc5Backyard): the traced yard
 	# pool, the weekend lunch barbecues, the loungers' umbrella, the built fence, the camera row.
 	load("res://tests/rc5_backyard_pool_checks.gd").new().run(self, city)
+	# The crash_closeup refcam (tests/rc5_crash_closeup_checks.gd, CrashAftermath): the pole's V, the popped bonnet, fluids, steam.
+	await load("res://tests/rc5_crash_closeup_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()
