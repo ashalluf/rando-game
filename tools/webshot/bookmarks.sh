@@ -21,7 +21,7 @@ declare -A QS=(
   [beach_night]='?spawn=-862.6,-56.7,44,-5&hour=21&weather=clear&nohud'
   [port_night]='?spawn=3182,6490,101,10&hour=22&weather=clear&nohud'
   [arena_night]='?spawn=2183,1139,36,22&hour=21&weather=clear&nohud'
-  [santa_ana]='?spawn=7,420,3,12&hour=18.5&weather=santa_ana&nohud'
+  [santa_ana]='?spawn=7,420,3,-4&hour=18.5&weather=santa_ana&nohud'
 )
 NAMES=("$@"); [ ${#NAMES[@]} -eq 0 ] && NAMES=(downtown_noon night_street rain golden storm hills macarthur beach beach_night port_night arena_night santa_ana)
 for n in "${NAMES[@]}"; do

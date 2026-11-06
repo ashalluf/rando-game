@@ -4668,3 +4668,8 @@ none of either.
   read by at dusk; glass on a half-finished tower shows the fit-out lit behind it, not a black
   mirror; anything pasted on a hoarding is printed (StreetWear's bills), never a flat colour block.
   CONSTRUCTION_DUSK=0 is the A/B.
+- 2026-11-06 (web-review-5): the web build after wave 8 needs no shader or code change: twelve
+  bookmarks load clean, budgets hold (pck 619.8 MB of 650). The bonfire's flames do not draw in the
+  SwiftShader browser and are left as they are (not root-caused, unverified on a real GPU, a
+  web-only workaround would be blind); the probe tools stay for the next pass. The web bookmarks
+  now include four wave 5-8 night / weather views.

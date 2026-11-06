@@ -28,6 +28,9 @@ func _ready() -> void:
 			for part in (search as String).trim_prefix("?").split("&", false):
 				var kv := part.split("=")
 				_q[kv[0]] = kv[1] if kv.size() > 1 else "1"
+	# webmat=1: natively, build every effect material the way the web build does.
+	if _arg("webmat", "0") == "1":
+		WeaponFX._web_cache = 1
 	var city: Node = (load("res://scenes/levels/city.tscn") as PackedScene).instantiate()
 	var we := city.get_node("WorldEnvironment").duplicate() as WorldEnvironment
 	add_child(we)
@@ -84,6 +87,109 @@ func _ready() -> void:
 			plm.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 		cam.position = Vector3(0, 2.5, 30)
 		cam.look_at(Vector3(0, 8.0, -40))
+	# bonfire=1: a lit beach fire ring (BonfireFire, built straight away, no plan or clock) 8 m
+	# behind the row's middle; night=1 turns the sun off and lamp_factor on (web-review-5).
+	# bonfire=1: a lit beach fire ring (BonfireFire, built straight away, no plan or clock) 8 m
+	# ahead; bonfire=variants: five in a row, each flame system changed one way (none, nocurve,
+	# noinit, ldr, add) to bisect what the browser does not draw.
+	var bf := _arg("bonfire", "0")
+	if bf != "0":
+		var variants: Array = ["none"] if bf == "1" else (["none", "nocurve", "noinit", "ldr", "add"] if bf == "variants" else Array(bf.split(",")))
+		for i in variants.size():
+			var f := BonfireFire.new()
+			f.position = Vector3((float(i) - (variants.size() - 1) * 0.5) * 3.0, 0.0, -8.0)
+			add_child(f)
+			f._build()
+			f.lit = true
+			for p: CPUParticles3D in [f._flames, f._licks, f._embers, f._smoke]:
+				p.emitting = true
+				p.visible = true
+			for p: CPUParticles3D in [f._flames, f._licks]:
+				for tok: String in String(variants[i]).split("+"):
+					match tok:
+						"nocurve":
+							p.scale_amount_curve = null
+						"noinit":
+							p.color_initial_ramp = null
+						"ldr":
+							p.color_ramp = WeaponFX._ramp([Color(1.0, 0.6, 0.07, 0.0), Color(1.0, 0.62, 0.08, 0.95),
+								Color(1.0, 0.5, 0.06, 0.7), Color(0.9, 0.38, 0.05, 0.28), Color(0.7, 0.24, 0.03, 0.05), Color(0.5, 0.15, 0.02, 0.0)])
+						"add":
+							(p.mesh as QuadMesh).material = WeaponFX._puff_material(true)
+						"point":
+							p.emission_shape = CPUParticles3D.EMISSION_SHAPE_POINT
+						"pre3":
+							p.preprocess = 3.0
+						"noangle":
+							p.angle_min = 0.0
+							p.angle_max = 0.0
+						"big":
+							p.scale_amount_min = 2.0
+							p.scale_amount_max = 2.5
+						"life3":
+							p.lifetime = 3.0
+						"nodamp":
+							p.damping_min = 0.0
+							p.damping_max = 0.0
+						"rowlike":
+							p.preprocess = 3.0
+							p.emission_shape = CPUParticles3D.EMISSION_SHAPE_POINT
+							p.damping_min = 0.0
+							p.damping_max = 0.0
+							p.scale_amount_curve = null
+							p.color_initial_ramp = null
+							p.angle_min = 0.0
+							p.angle_max = 0.0
+							p.lifetime = 0.85
+						"sq":
+							p.scale_amount_curve = null
+							p.scale_amount_min = 1.0
+							p.scale_amount_max = 1.0
+						"rowmesh":
+							var rq := QuadMesh.new()
+							rq.size = Vector2.ONE
+							rq.material = CarDamage.fire_material()
+							p.mesh = rq
+						"shadowon":
+							p.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+						"local":
+							p.local_coords = true
+						"rowramp":
+							p.color_ramp = WeaponFX._ramp([Color(1.25, 0.64, 0.07, 0.0), Color(1.3, 0.66, 0.07, 0.95), Color(1.05, 0.48, 0.05, 0.9),
+								Color(0.65, 0.25, 0.03, 0.6), Color(0.3, 0.09, 0.015, 0.22), Color(0.06, 0.04, 0.025, 0.0)])
+						"nograv":
+							p.gravity = Vector3(0, 2.0, 0)
+							p.initial_velocity_min = 0.8
+							p.initial_velocity_max = 1.6
+							p.spread = 25.0
+						"noaabb":
+							p.custom_aabb = AABB()
+			f._pool.visible = true
+			if f._glow:
+				f._glow.visible = true
+			if "reparent" in String(variants[i]):
+				for p: CPUParticles3D in [f._flames, f._licks]:
+					p.reparent(self, true)
+			if "nostack" in String(variants[i]):
+				f._stack.visible = false
+			if "nopool" in String(variants[i]):
+				f._pool.visible = false
+			if "noglow" in String(variants[i]) and f._glow:
+				f._glow.visible = false
+			if "bare" in String(variants[i]):
+				f._stack.visible = false
+				f._pool.visible = false
+				if f._glow:
+					f._glow.free()
+					f._glow = null
+		cam.position = Vector3(0, 1.6, -1.0) if variants.size() == 1 else Vector3(0, 2.0, 2.0)
+		cam.look_at(Vector3(0, 0.9, -8.0))
+		_cols.append(["bonfire", 0.0])
+	if _arg("night", "0") == "1":
+		sun.visible = false
+		RenderingServer.global_shader_parameter_set("lamp_factor", 1.0)
+		RenderingServer.global_shader_parameter_set("night_factor", 1.0)
+		we.environment.background_energy_multiplier = 0.05
 	_shoot.call_deferred()
 
 
@@ -108,7 +214,7 @@ func _emit(n: String, x: float, mat: Material, col: Color, ramp: Gradient, life:
 	q.size = Vector2.ONE
 	q.material = mat
 	p.mesh = q
-	p.position = Vector3(x, 0.5, 0)
+	p.position = Vector3(x, 0.5, float(_arg("rowz", "0")))
 	add_child(p)
 	_cols.append([n, x])
 	return p
@@ -124,6 +230,9 @@ func _process(_delta: float) -> void:
 func _shoot() -> void:
 	for i in int(_arg("frames", "40")):
 		await get_tree().process_frame
+	# dump=1: each particle system's live instances (count, mean scale, mean colour, mean custom).
+	if _arg("dump", "0") == "1":
+		_dump(self)
 	var img := get_viewport().get_texture().get_image()
 	var cam := get_viewport().get_camera_3d()
 	for c in _cols:
@@ -149,3 +258,31 @@ func _shoot() -> void:
 	print("FX_DONE")
 	if _arg("quit", "1") == "1" and not OS.has_feature("web"):
 		get_tree().quit()
+
+
+func _dump(n: Node) -> void:
+	for c in n.get_children():
+		if c is CPUParticles3D:
+			var cp := c as CPUParticles3D
+			var buf := RenderingServer.multimesh_get_buffer(cp.get_base())
+			var cnt := RenderingServer.multimesh_get_instance_count(cp.get_base())
+			var stride := buf.size() / maxi(1, cnt)
+			var sc := 0.0
+			var col := Vector4.ZERO
+			var cus := Vector4.ZERO
+			var live := 0
+			var org := Vector3.ZERO
+			for i in cnt:
+				var o := i * stride
+				var s := Vector3(buf[o], buf[o + 4], buf[o + 8]).length()
+				if s > 0.0001:
+					live += 1
+					sc += s
+					org += Vector3(buf[o + 3], buf[o + 7], buf[o + 11])
+					if stride >= 16:
+						col += Vector4(buf[o + 12], buf[o + 13], buf[o + 14], buf[o + 15])
+					if stride >= 20:
+						cus += Vector4(buf[o + 16], buf[o + 17], buf[o + 18], buf[o + 19])
+			var k := maxf(1.0, float(live))
+			print("DUMP %s/%s n=%d stride=%d live=%d scale=%.3f col=%s custom=%s pos=%s org=%s inst_xf=%s" % [n.name, cp.name, cnt, stride, live, sc / k, col / k, cus / k, cp.global_position, org / k, cp.global_transform.origin])
+		_dump(c)

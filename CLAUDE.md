@@ -7491,6 +7491,11 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   (`plume_allowed()`, `?fountain_plume=1`): it blew up into glare there. Bisect a web-only look on
   the REAL build with `tools/web_probe/export_probe.sh` (an autoload probe: `ap_hide=` steps,
   frames as PROBE_IMG); `tools/webshot/web_budget.gd` prints every shader's web budgets.
+- The web build after wave 8 (2026-11-06, docs/HANDOFF.md "The web build after wave 8"): twelve
+  bookmarks clean (four new night / weather ones), pck 620 MB of 650, wasm heap 720-928 MB. The
+  bonfire flames do not draw in the browser (open; `tools/web_probe/fx_room.tscn bonfire=<variants>
+  dump=1` bisects particles in seconds); `render_bisect.gd` / `plane_probe.gd` find which node draws
+  a stray band. Never edit `bookmarks.sh` while it runs (bash re-reads it).
 - Forward+ review of small scenes (2026-10-05, docs/HANDOFF.md "Forward+ review A"): lavapipe
   renders `block_shot.tscn` (a few FULL blocks, ~10 min a run, ~12 GB) and the room tools
   (`hero_moves_shot.gd`, `photo_shot.gd ROOM=1`, ~2 min) with `--rendering-driver vulkan` and
