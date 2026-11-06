@@ -195,6 +195,13 @@ func _run() -> void:
 			_clear_lens(cam.name)
 		if park and _eye_cam:
 			park.call("clear_people", self, _eye_cam.global_position)
+		# A row's optional "clear_people" (metres; wave 8's taco_truck_night): walkers that stray
+		# within it of the lens are hidden for the shot (a passer-by's shoulder filled the frame).
+		if cam.has("clear_people") and _eye_cam:
+			for p in get_nodes_in_group("pedestrian"):
+				var n := p as Node3D
+				if n and n.global_position.distance_to(_eye_cam.global_position) < float(cam.clear_people):
+					n.visible = false
 		for car in _fw_staged:
 			if is_instance_valid(car) and _eye_cam:
 				print("REFCAM %s: staged %s at %.1f m, visible %s, in tree %s" % [cam.name, car.name, (car as Node3D).global_position.distance_to(_eye_cam.global_position), (car as Node3D).is_visible_in_tree(), (car as Node).is_inside_tree()])

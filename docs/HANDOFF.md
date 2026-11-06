@@ -30776,3 +30776,73 @@ the break's colour; the puffs read rounder there, so the thin-edge lift is only 
 
 **Not verified**: the whole city on Forward+ (lavapipe cannot hold it); the Mac's bloom on top of the
 glow quad (it may want `glow_gain` lower there); the web build (no new feature: the same quads).
+
+## 9nf. The taco truck at 23:00 (fleet wave 8, refcam5 `taco_truck_night`, branch `wt/rc5-taco-truck-night`)
+
+A new reference camera, `taco_truck_night` in `tools/refcams/cameras_w8.json`: BIRRIA LA CHAPARRITA
+(StreetVendors' truck variant 3) at the kerb of block (7, -1), midtown on seed 1337 (the truck at
+x 703.4, z -113.5, nose +z), 23:00 clear, the eye 1.65 m over the pavement behind its queue
+(697.9, -120.8, yaw -145, pitch -2, fov 55): the generator and the menu box in front, the serving
+window with the cook, the regulars, the bike share dock, the street on beyond. Its optional
+`clear_people` key (2.5 m, handled in refcams_shot.gd) hides walkers that stray onto the lens.
+Find trucks with `tools/vendor_probe.gd KIND=truck --hour=23`; `tools/rc5_taco_truck/probe.gd`
+lists a truck's cook, regulars and queue spots round a point after a real load.
+
+### What gave it away (before, main dec7e128)
+
+1. **Nobody there.** At 23:00 the queue spots were empty (walkers are few that late and only
+   `QUEUE_SHARE` of the passers-by stop), and the cook stood at local x 0.3, 0.9 m behind the
+   window, hidden by the jamb from anywhere but square on: a lit, empty box.
+2. **The first site was a truck in a protected bike lane** among the delineator posts
+   (Micromobility takes the parking lane for its lane) and **the second in a BUS ZONE** on the red
+   kerb under the stop's plate (shots 07 and 06).
+3. **The menu box was a white card.** 2.4 x a near-white face; through AgX (and on Forward+ with
+   the glow) it bloomed and the lettering washed out. The kitchen behind the window (3.2 x) the same:
+   a white sheet behind the cook.
+4. **A dead box at night.** No running lamps, dark tail lamps, nothing off the stack.
+
+### What changed (`TacoTruckNight`, `scripts/world/taco_truck_night.gd`)
+
+- Regulars: `regular_count()` by the hour (21:00-01:30 three, dusk two, late night one; a hash of
+  the truck takes one off half the time) puts `TacoCustomer`s (`scripts/npc/taco_customer.gd`, a
+  StreetVendor that is nobody's vendor) at the truck's queue spots, front pair first, the spots
+  marked taken; they look up at the window, fold their arms, talk, some text. They are people in
+  the crowd cap (`_take_crowd_room`). StreetVendors' last spawn step now spawns whoever is left on
+  the list (CityChunk still queues `MAX_PER_BLOCK` steps).
+- The cook stands at the counter (`COOK_X` 0.62).
+- `truck_blocked()` (a bike lane on that stretch: `Micromobility.lane_on`) and `truck_in_stop()`
+  (`BigVehicles.in_stop_zone` at the truck's middle and ends): asked in `plan_block()` AFTER the
+  truck's roll, so nothing else on the block moves; that face just has no truck.
+- Running lamps in the truck mesh (`marker_lamps()`: amber clearance and ID lamps over the cab, red
+  at the rear roof, side markers, lit tail lamps) on a new vendor-shader code 19 (`marker_night` /
+  `marker_day`).
+- The vendor material's `glow_night` 2.4 -> `MENU_GLOW` 1.05, `interior_night` 3.2 ->
+  `INTERIOR_GLOW` 1.7 with `interior_detail` (stainless sheet seams, box-filtered, lit brightest
+  under the tubes).
+- Steam off the extractor stack: `shaders/taco_steam.gdshader`, twelve camera-facing puffs placed
+  from TIME (backyard_smoke's method), lit warm from below by `lamp_factor`; one MeshInstance3D a
+  truck in FULL chunks, drawn to 140 m, no shadow.
+
+`RC5_TACO=0` is the A/B (every piece gated; the material keeps its old numbers).
+
+### Proof
+
+- opengl3 refcam before (RC5_TACO=0) / after: shots/rc5-taco-truck-night `01`-`04`. p5/p50/p95
+  3/69/196 -> 3/68/195, p99 236 -> 228 (the menu box), saturation 0.377 -> 0.381.
+- Forward+ (lavapipe, `tools/glshot/vendor_shot.gd NIGHT=1`, now with the steam): shot `05` - the
+  menu box no longer blooms, the steam and the clearance lamps read.
+- Frame cost at the camera (GEO, opengl3, two separate loads so the crowd differs): 7.08 M ->
+  7.16 M triangles (+1.2 %), 3,395 -> 3,406 draws, shadow 2.09 M -> 2.15 M - the regulars (crowd
+  rigs) and the steam quads.
+- Checks: `tests/rc5_taco_truck_checks.gd` (no truck in a bike lane, regulars by the hour, the
+  chunk's regulars on their spots, the cook at the counter, steam per truck, the lamps in the mesh
+  and the shader, the material's levels, the camera row on a 23:00 truck, the A/B).
+
+### Not done
+
+- The cook is a crowd rig in street clothes (no apron, cap or cooking motion); nothing on the
+  plancha moves; the steam is not lit by the window's own colour.
+- The regulars do not leave with food or turn over; at the hour a chunk is built they are there.
+- The lamp post in the camera's frame stands between the eye and the queue (the street's own).
+- The ten original cameras were not re-shot with this branch (time); the change is limited to
+  vendor trucks, the vendor shader and the trucks' placement rules.

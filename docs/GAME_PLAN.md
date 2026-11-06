@@ -4628,6 +4628,14 @@ none of either.
   as particle quads on the water; a wake's foam is braided lines on an aerated sheet that emits the
   evening's light, not a lit white band; spray is a low sheet off the chines; a boat's transom carries
   its invented name. BOAT_SEA=0 is the A/B.
+- **2026-11-06 The taco truck refcam: a truck at night brings its people (rc5-taco-truck-night,
+  HANDOFF "The taco truck at 23:00").** A new reference camera (`taco_truck_night`, wave 8's table)
+  stands in a midtown taco truck's queue at 23:00. Decisions: a working truck is never empty - it
+  brings its regulars (1-3 by the hour) rather than waiting for walkers to happen by, and the cook
+  works at the counter; a truck never parks in a bike lane or a bus stop's kerb zone (both asked
+  after the truck's roll, so nothing else on the block moves); a truck runs its clearance and tail
+  lamps and steams off its stack; a lightbox burns near 1, not 2.4 (AgX made it a white card).
+  RC5_TACO=0 is the A/B.
 - 2026-11-05 (fleet wave 8, gate-flakes-2): the gate's last open flakes. A jointed doll's settle and
   freeze clocks run on the physics step (a long frame froze dolls mid-fall, in play too on a slow
   frame); shop doors and far-walker borrowing take only the plain crowd by script (a valet was sent
