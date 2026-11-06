@@ -25,6 +25,8 @@ extends RefCounted
 ## on the benches (CrowdLife seats) and queue at the rides, stands and booths (the chunk's
 ## "vendor_queue" spots, which the life layer's _plan_queue() fills).
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 const PARK_NAME := "GULLWING PARK"
 ## Centre height of the deck slabs (LandmarkBeachPiers.DECK_Y: the three piers agree) and their
 ## thickness; the walking surface is DECK_TOP.

@@ -17,6 +17,8 @@ extends RefCounted
 ## Names and numbers are this game's own (RANDO CITY FIRE DEPT, STATION nn), never a real
 ## department's.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 const CELL := 850.0
 const ODDS := 0.85
 const STATION_DISTRICTS := [CityPlan.District.DOWNTOWN, CityPlan.District.MIDTOWN, CityPlan.District.SUBURBS,

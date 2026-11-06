@@ -22,6 +22,8 @@ extends Node3D
 ## thrown on as debris. Baking needs mesh data (none headless): there the figures draw nothing
 ## and everything else works. Baked a figure a frame, never more.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 ## The park's anchor (the boardwalk's), for the hashes.
 var anchor := Vector2.ZERO
 var _clock: float = 0.0

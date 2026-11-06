@@ -12,6 +12,8 @@ extends Node3D
 ## (`blimp_flies()`, `banner_flies()`: the hour and the weather), checked by
 ## tests/sky_ads_checks.gd. A craft that is shot down is replaced `respawn_seconds` later.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 ## The blimp's loop: a circle over the ballpark and one over the beach (radius, m), the beach
 ## circle's centre (true world XZ; x is taken from the coast), and its least height over what
 ## is under it and above the sea (m).

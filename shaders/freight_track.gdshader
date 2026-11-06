@@ -28,6 +28,10 @@ uniform vec3 oil_color = vec3(0.025, 0.022, 0.02);
 // How big a ballast stone is (m) and how much it bumps the light.
 uniform float stone_size = 0.055;
 uniform float stone_relief = 0.65;
+// The freight yard refcam (RcFreightYard, 1 unless RC4_FREIGHT_YARD=0): ballast as crushed rock -
+// flat-faced stones of varied size with dark crevices between them - instead of round domes, which
+// from eye height read as a cobbled street.
+uniform float rc4 = 0.0;
 
 varying vec3 tw;
 varying vec3 wn;
@@ -80,6 +84,36 @@ vec4 stones(vec2 p) {
 }
 
 
+// Crushed stone: (F1, F2 - F1, the stone's id, its facet split), and its cell offset (the facet's
+// split direction) in `rr`.
+vec4 rocks(vec2 p, out vec2 rr) {
+	vec2 i = floor(p);
+	vec2 f = fract(p);
+	float d1 = 8.0;
+	float d2 = 8.0;
+	vec2 b1 = vec2(0.0);
+	vec2 c1 = vec2(0.0);
+	for (int y = -1; y <= 1; y++) {
+		for (int x = -1; x <= 1; x++) {
+			vec2 g = vec2(float(x), float(y));
+			vec2 o = hash22(i + g);
+			vec2 r = g + o - f;
+			float d = dot(r, r);
+			if (d < d1) {
+				d2 = d1;
+				d1 = d;
+				b1 = r;
+				c1 = i + g;
+			} else if (d < d2) {
+				d2 = d;
+			}
+		}
+	}
+	rr = b1;
+	return vec4(sqrt(d1), sqrt(d2) - sqrt(d1), hash12(c1 + 0.37), hash12(c1 + 5.1));
+}
+
+
 void vertex() {
 	vec3 w = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
 	tw = w + origin_shift;
@@ -117,7 +151,36 @@ void fragment() {
 		float n2 = vnoise(tw.xz * 4.0);
 		rock = mix(rock, dust_color, clamp(near_rail * (0.35 + 0.4 * n1) * UV2.y, 0.0, 0.8));
 		rock = mix(rock, oil_color, clamp(mid * smoothstep(0.35, 0.8, n1 * 0.7 + n2 * 0.3) * 0.7 * UV2.y, 0.0, 0.85));
-		alb = rock;
+		if (rc4 > 0.5) {
+			// Crushed rock: two sizes of stone mixed, each a few flat faces (the stone's own tilt,
+			// split across a random line through it), dark crevices between, granite greys with a
+			// warm or a cool cast stone to stone.
+			float big = step(0.55, vnoise(tw.xz * 1.7));
+			float size = stone_size * mix(0.75, 1.25, big);
+			vec2 rr;
+			vec4 rk = rocks(tw.xz / size, rr);
+			float det = 1.0 - smoothstep(0.3, 1.1, px / size);
+			vec2 tilt0 = (hash22(vec2(rk.z * 91.0, rk.w * 37.0)) - 0.5) * 1.4;
+			vec2 split_dir = normalize(hash22(vec2(rk.w * 13.0, rk.z * 71.0)) - 0.5 + 1e-4);
+			float face = step(0.0, dot(rr, split_dir));
+			vec2 tilt = mix(tilt0, tilt0 * -0.6 + split_dir * 0.5, face) * stone_relief;
+			float crevice = 1.0 - smoothstep(0.02, 0.16, rk.y);
+			n_out = normalize(wn + vec3(tilt.x, 0.0, tilt.y) * det * (1.0 - crevice));
+			vec3 warm = vec3(1.08, 0.98, 0.9);
+			vec3 cool = vec3(0.92, 0.97, 1.04);
+			vec3 cast = mix(cool, warm, step(0.5, fract(rk.z * 7.3)));
+			float tone = 0.62 + 0.62 * rk.z + 0.12 * (face - 0.5);
+			vec3 stone = base * cast * tone;
+			stone = mix(stone, base * 0.18, crevice * 0.85);
+			// Under a pixel, the stones' mean with the crevices' share of shadow.
+			vec3 mean_col = base * 0.86;
+			vec3 rk_col = mix(mean_col, stone, det);
+			rk_col = mix(rk_col, dust_color, clamp(near_rail * (0.35 + 0.4 * n1) * UV2.y, 0.0, 0.8));
+			rk_col = mix(rk_col, oil_color, clamp(mid * smoothstep(0.35, 0.8, n1 * 0.7 + n2 * 0.3) * 0.7 * UV2.y, 0.0, 0.85));
+			alb = rk_col;
+		} else {
+			alb = rock;
+		}
 		rough = 0.92;
 	} else if (kind == 2) {
 		// Concrete tie: weathered grey, rust weeping off the clips at each rail seat.

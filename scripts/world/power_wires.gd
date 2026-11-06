@@ -3,6 +3,8 @@ extends MeshInstance3D
 ## The power plant's wires (PowerPlantBuild.landmark()): power_wire.gdshader needs the viewport's
 ## size pushed to it (VIEWPORT_SIZE does not reach its vertex stage), as RidgeSystem does for its own.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 var _vp := Vector2.ZERO
 
 

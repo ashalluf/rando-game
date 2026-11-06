@@ -13,6 +13,8 @@ extends RefCounted
 ## `FACADES_MID3=0` in the environment turns all of it off (the A/B): the walls, the roofs and the
 ## far boxes draw exactly as before.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 static var enabled: bool = OS.get_environment("FACADES_MID3") != "0"
 
 ## Pier systems (fm3_system()).

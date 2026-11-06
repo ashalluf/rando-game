@@ -23,6 +23,8 @@ extends RefCounted
 ## rig (StreetVendor) at the cart or in the truck; customers are walkers who stop and wait at the
 ## queue spots (Pedestrian._plan_queue(), the crowd's life). Static: call with the chunk.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 enum Kind { TRUCK, FRUIT, ELOTE, HOTDOG, PALETA, FLOWERS }
 enum Place { NONE, DOWNTOWN, MIDTOWN, INDUSTRIAL, PARK, MACARTHUR, ARENA, BEACH }
 

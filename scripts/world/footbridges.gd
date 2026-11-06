@@ -24,6 +24,8 @@ extends RefCounted
 ## {"side", "p" span end, "ground", "foot" what the stair stands on, "stair": its flights}),
 ## clear (Rect2s, world: what the planting and the street furniture keep off, FootbridgeBuild).
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 ## The A/B switch: FOOTBRIDGES=0 in the environment, none of it.
 static var enabled: bool = OS.get_environment("FOOTBRIDGES") != "0"
 

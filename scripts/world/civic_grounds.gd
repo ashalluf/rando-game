@@ -16,6 +16,8 @@ extends RefCounted
 ## `CIVIC_GROUNDS=0` in the environment is the A/B (the bare paving again; downtown's park lawns
 ## take the rolled tint again too, see park_lawn()).
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 ## The civic centre's sites that share their blocks' leftovers (the first in CivicSites.ORDER of a
 ## block builds them).
 const CIVIC := ["ziggurat_hall", "civic_park", "concert_hall", "lattice_museum"]

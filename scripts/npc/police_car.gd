@@ -14,6 +14,8 @@ extends Vehicle
 ## when it goes physical - CLAUDE.md), and it is never frozen with wheels on. The player can take
 ## one: with `driver` set it drives like any car and the police AI lets go of it.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 enum Mode { DISPATCH, PURSUE, STOPPED, PARKED, LEAVING }
 
 @export_group("Police car")
@@ -234,6 +236,7 @@ func _build_light_bar() -> void:
 	_bar_mat.set_shader_parameter("phase", _phase)
 	_bar_mat.set_shader_parameter("energy", lens_energy)
 	bar.material_override = _bar_mat
+	PursuitLook.dress_bar(bar, _bar_mat)
 	bar.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	bar.visibility_range_end = 260.0
 	# Just behind the middle of the car, where every model's roof is (see _add_livery_props).
@@ -300,6 +303,8 @@ static func _bar_box(st: SurfaceTool, c: Vector3, s: Vector3, col: Color) -> voi
 ## draws (two quick strobes a side), so the light on the street matches the lenses.
 func flash_side(t: float) -> int:
 	var f := fposmod(t * flash_rate + _phase, 1.0)
+	if PursuitLook.enabled:
+		return PursuitLook.flash_side(f)
 	if (f < 0.09) or (f > 0.15 and f < 0.24):
 		return 1
 	if (f > 0.5 and f < 0.59) or (f > 0.65 and f < 0.74):

@@ -10,6 +10,8 @@ extends RefCounted
 ## Names and marks are invented: the studio is SUNSPIRE PICTURES, its mark a half sun rising
 ## behind a spire (emblem()), drawn here, never a real studio's.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 const K_STUCCO := 0
 const K_ROOF := 1
 const K_DOOR := 2

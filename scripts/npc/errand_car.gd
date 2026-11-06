@@ -6,6 +6,8 @@ extends Node
 ## got into out of its kerb space into the traffic once its lane has room (StreetErrands.pull_out).
 ## One per car, made on demand, gone when the car is done with.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 enum Mode { IDLE, IN, PULL, OUT, KEEP }
 
 ## Seconds after the door shuts before the driver pulls out; most it waits for room in the lane.

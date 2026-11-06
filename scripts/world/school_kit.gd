@@ -11,6 +11,8 @@ extends RefCounted
 ## parameter: style + 16 x the number of whole bays, with UV.x zero at the first bay (the bays are
 ## centred on the face and the margins either side stay blank).
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 const K_STUCCO := 0
 const K_BRICK := 1
 const K_CONCRETE := 2

@@ -15,6 +15,8 @@ extends RefCounted
 ## HeliSpot and FlyableHeli use the autoloads, so they are loaded by path here, never named: this
 ## file is reached from Rooftops and Airport, which --script tools compile before the autoloads.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 static var enabled: bool = OS.get_environment("HELI_FLYABLE") != "0"
 const SPOT_SCRIPT := "res://scripts/vehicles/heli_spot.gd"
 

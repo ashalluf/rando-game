@@ -24,6 +24,8 @@ extends SkeletonModifier3D
 ## first time they are near, so a crowd far away has none). `CROWD_LOOK=0` in the environment
 ## turns it off (the old _post_pose head turn, the A/B).
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 enum Kind { THREAT, BLAST, CRASH, LANDING, BOOST, SIREN, FIRE, MAGNET, LIFE, CAR, PLAYER, PASSER, IDLE, AWAY }
 
 ## How much each kind is worth (the best score wins; a new target must beat the one held by

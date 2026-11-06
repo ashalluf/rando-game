@@ -32,6 +32,8 @@ extends RefCounted
 ##
 ## Static: CityChunk runs build() as one build step of a FULL chunk.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 # --- Tunables --------------------------------------------------------------------------------
 # Never instanced (every entry point is static), so the knobs are consts here at the top.
 

@@ -14,6 +14,8 @@ extends Pedestrian
 ## round the corner to the line's tail. Gunfire breaks the line (they run like everyone else,
 ## and come back to the tail when it is over); the bouncer holds his ground.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 enum Role { QUEUE, BOUNCER, SMOKER, FAN }
 enum State { LINE, GOING_IN, INSIDE, TO_CAR, IN_CAR, BACK }
 

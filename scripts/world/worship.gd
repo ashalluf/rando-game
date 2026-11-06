@@ -23,6 +23,8 @@ extends RefCounted
 ## StreetWear paints nothing within the site's radius + its WORSHIP_MARGIN (`blocked_near()`), and
 ## no encampment is laid on a block within Encampment.WORSHIP_CLEAR of one (`near_rect()`).
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 enum Kind { MISSION, MODERN, STOREFRONT, GREEK, TEMPLE, SYNAGOGUE }
 const KIND_NAMES := ["mission", "modern", "storefront", "greek", "temple", "synagogue"]
 

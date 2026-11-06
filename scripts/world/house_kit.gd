@@ -35,6 +35,8 @@ extends RefCounted
 ## lie on their local X face (the shader treats a local +-Y face as a flat roof and paints plant on
 ## it), and their bases are rotation times scale, which keeps the normals right.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 ## Off, house lots get Building boxes as before (the A/B: still_shot.gd HOUSES=0).
 static var enabled: bool = true
 

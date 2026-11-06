@@ -8,6 +8,8 @@ extends RefCounted
 ## OMEGA, anticlockwise from above as American carousels do; horse k bobs on its own phase), so
 ## nothing runs on the CPU. The base it stands on is a separate static mesh with collision.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 const OMEGA := TAU / 22.0
 const R_PLATFORM := 8.2
 const R_CANOPY := 8.8

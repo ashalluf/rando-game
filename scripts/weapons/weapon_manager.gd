@@ -3,6 +3,8 @@ extends Node3D
 ## Sits at the player's hand. Owns the weapons, switches between them instantly, and
 ## points them along the camera pitch.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 @export var start_weapon: int = 0
 
 var weapons: Array[Weapon] = []

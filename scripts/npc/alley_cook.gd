@@ -5,6 +5,8 @@ extends StreetVendor
 ## (StreetVendor's: shot, knocked, ragdolled, in the crowd cap and the "pedestrian" group); gunfire
 ## sends them running and they walk back to the door after.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 
 func _roll_life(seed_value: int) -> void:
 	super(seed_value)

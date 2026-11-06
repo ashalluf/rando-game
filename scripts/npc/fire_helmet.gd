@@ -10,6 +10,8 @@ extends RefCounted
 ##
 ## Original: no department's crest or number on the shield, which is plain leather in a brass rim.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 ## The shell stands this far off the skull (m): the suspension and the liner.
 const STANDOFF := 0.030
 ## The band edge over the eyes at the front and round the back (m above the eye line).

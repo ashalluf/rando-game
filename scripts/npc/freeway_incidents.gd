@@ -30,6 +30,8 @@ extends Node3D
 ## into it>` (with FW_INCIDENT_HOLD=1 the clock stands still), placed on the route point nearest
 ## the player (`FW_INCIDENT_AT=<route>:<t>:<dir>` exactly).
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 enum Kind { NONE, STALL, TYRE, MATTRESS, SLOW }
 
 static var enabled: bool = OS.get_environment("FREEWAY_INCIDENTS") != "0"

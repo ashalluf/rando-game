@@ -5,6 +5,8 @@ extends Node3D
 ## MEDIUM, where DayNight's lamp_scale is 0, and the light pools carry it), and the blooms over
 ## their lenses (one mesh, built once the chunk's standards are all in).
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 ## [lens centre, facing (unit, flat), aim point] per standard (chunk space = true world).
 var banks: Array = []
 var spots: Array = []

@@ -17,6 +17,8 @@ class_name MacArthurLook
 ##   * The lake's outline (`LAKE`) and the fountain's boil (a soft billow, `boil()`).
 ## Every roll is a hash of the seed and the place. MACARTHUR_LOOK=0 is the A/B: the park as it was.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 static var enabled: bool = OS.get_environment("MACARTHUR_LOOK") != "0"
 
 ## Shade trees per 1000 m2 of lawn (the old park: 1.1) and the least spacing between them.

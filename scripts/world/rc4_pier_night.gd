@@ -26,6 +26,8 @@ extends RefCounted
 ##
 ## `RC4_PIER_NIGHT=0` in the environment is the A/B: every number and shader as before.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 static var enabled: bool = OS.get_environment("RC4_PIER_NIGHT") != "0"
 
 ## The coast's exposure lives in CoastExposure (scripts/world/coast_exposure.gd): DayNight calls it

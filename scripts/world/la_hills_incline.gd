@@ -11,6 +11,8 @@ extends Node3D
 ## (claims()); they become a paved plaza, and the first of them builds the incline (FULL chunks; an
 ## LOD chunk and the far city get the paving). `LA_HILLS=0` leaves it out with the hills.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 const NAME := "PALOMA FLIGHT"
 ## The strip: its half width round the track's centre line (track, stairs, a margin).
 const HALF := 11.0

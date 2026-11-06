@@ -26,6 +26,8 @@ extends RefCounted
 ## only a premiere's sky beams. `NIGHTLIFE=0` in the environment is the A/B. Static: call with
 ## the chunk.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 enum Kind { BAR, CLUB }
 
 # --- Tunables --------------------------------------------------------------------------------

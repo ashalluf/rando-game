@@ -24,6 +24,8 @@ extends RefCounted
 ## Every roll is a hash of the seed and the school's cell; nothing Schools rolls moves.
 ## RC5_FRIDAY_LIGHTS=0 is the A/B (the stadium exactly as before).
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 ## Spotlight energy at full lamp level, its range and cone (degrees), and how much of it the
 ## volumetric fog takes (Forward+ HIGH: the haze over the field).
 const SPOT_ENERGY := 9.0

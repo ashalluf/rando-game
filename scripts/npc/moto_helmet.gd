@@ -8,6 +8,8 @@ extends RefCounted
 ## the opening. One smooth-shaded mesh per rig and shell colour, vertex colours on one glossy
 ## clear-coated material; one draw per wearer, no shadow. The hair goes under it (hidden).
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 const COLS := 40
 const ROWS := 16
 const COLORS := [Color(0.05, 0.05, 0.055), Color(0.05, 0.05, 0.055), Color(0.92, 0.92, 0.91), Color(0.62, 0.05, 0.04),

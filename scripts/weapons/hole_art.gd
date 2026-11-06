@@ -15,6 +15,8 @@ extends RefCounted
 ## edge. Normal maps OpenGL-style (green = the row below minus the row above, CLAUDE.md's
 ## fwd-review-b note). No rng: a variant is a seed.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 
 static func build(surf: int, variant: int, px: int) -> Array:
 	var seed := surf * 131 + variant * 17 + 5

@@ -9,6 +9,8 @@ extends HouseBuild
 ## the court's ground and planting (and the whole lot's ground in midtown, where no yard pass runs).
 ## FULL into the chunk's house surfaces; LOD adds the galleries and the court's lawns.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 const STOREY := HouseKit.STOREY
 
 ## Air conditioners and balconies found while laying the openings: [fo, t, n, a, y].

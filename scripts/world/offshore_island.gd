@@ -10,6 +10,8 @@ extends Node
 ## overcast, gone in the marine layer and the rain - and the town's lights after dark.
 ## ISLAND=0 in the environment (or -- --no-island) leaves it out (the A/B).
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 ## The footprint, true world metres: centre, long axis, half length, greatest half width.
 ## From the beach town (-900, 0) the centre is 36 km out a little south of west, so the island
 ## spans the sunset's side of the horizon (its north point near due west); from the hills and

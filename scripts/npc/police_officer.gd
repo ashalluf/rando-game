@@ -17,6 +17,8 @@ extends Pedestrian
 ## Officers are not in the "pedestrian" group - an alarm does not send them running and they
 ## do not count against the crowd cap - but they are in "police", which LockOn aims at.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 enum Task { COVER, ENGAGE, SEARCH, REBOARD }
 
 @export_group("Officer")
