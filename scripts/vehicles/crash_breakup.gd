@@ -211,7 +211,10 @@ func _release_bonnet(over: float) -> void:
 	bonnet_angle = maxf(float(cd._panel_angle[CrashDeform.Lid.BONNET]), 0.04)
 	# A hit throws it up hard; it rests on its bent hinges.
 	_bonnet_vel = 4.0 + over * 0.35
-	_bonnet_rest = lerpf(bonnet_rest.x, bonnet_rest.y, float(absi(hash([car.get_instance_id(), "bonnet"])) % 100) / 100.0)
+	var h01 := float(absi(hash([car.get_instance_id(), "bonnet"])) % 100) / 100.0
+	_bonnet_rest = lerpf(bonnet_rest.x, bonnet_rest.y, h01)
+	_bonnet_rest = CrashAftermath.bonnet_rest(over, bonnet_fly_over, _bonnet_rest, h01)
+	_bonnet_vel = CrashAftermath.bonnet_kick(over, bonnet_fly_over, _bonnet_vel)
 	cd._set_panel(CrashDeform.Lid.BONNET, bonnet_angle, 0.0)
 	_fit_bonnet(cd._panel_data[CrashDeform.Lid.BONNET])
 	# Its underside shows now: the paint drawn from both sides.

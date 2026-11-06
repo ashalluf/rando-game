@@ -178,8 +178,10 @@ uniform vec3 wear_door_color : source_color = vec3(0.5);
 uniform vec4 wear_primer = vec4(0.0, 0.0, 0.0, 1.0);
 varying vec3 paint_rest;
 #ifdef PAINT_FROM_CUSTOM
-// A MultiMesh of static parked bodies (car_park_car.gdshader): the paint per instance, sRGB.
+// A MultiMesh of static parked bodies (car_park_car.gdshader): the paint per instance, sRGB;
+// INSTANCE_CUSTOM.a 2 = a metallic finish (RcCarParkRoof; 1 the material's own).
 varying vec3 inst_paint;
+varying float inst_metal;
 #endif
 
 // Custom paint (the lowriders: Lowrider.paint()), 0 on every other car, which skips all of it.
@@ -360,6 +362,7 @@ void vertex() {
 #endif
 #ifdef PAINT_FROM_CUSTOM
 	inst_paint = INSTANCE_CUSTOM.rgb;
+	inst_metal = INSTANCE_CUSTOM.a > 1.5 ? 1.0 : 0.0;
 #endif
 	world_pos = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
 	paint_rest = rest_pos;
@@ -706,6 +709,10 @@ void fragment() {
 	// Glass is not a metal: what it shows is its own specular and the lacquer lobe. At 0.5 metal
 	// every dark trim piece mirrored the sky too.
 	float metal = mix(mix(0.1, 0.0, glass), paint_metallic, body);
+#ifdef PAINT_FROM_CUSTOM
+	// RcCarParkRoof: a metallic parked car (Vehicle.FINISHES METALLIC's metal).
+	metal = mix(metal, 0.38 * body, inst_metal);
+#endif
 	rough *= mix(1.0, stripe_roughness_mul, livery * body);
 
 	// Panels are never perfectly uniform: a slow ripple in roughness reads as real sheet metal

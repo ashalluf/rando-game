@@ -30,6 +30,8 @@ extends RefCounted
 ## PoliceNightLook._make_glow() (`dress_wash()`), Helicopter._build_searchlight() (`dress_searchlight()`) and Helicopter._aim_gear()
 ## (`pool_dia()`, `POOL_LIFT`). PURSUIT_LOOK=0 in the environment is the A/B (the old look).
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 static var enabled: bool = OS.get_environment("PURSUIT_LOOK") != "0"
 
 ## The pool's light (additive, on top of the spot's) and its white-hot middle.
