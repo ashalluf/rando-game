@@ -22,7 +22,7 @@ rc5-hill-home-dusk	session_01Q7NKyyLMoGqosJq9UFEY2d	merged b55 (main dec7e128)
 rc5-speedboat	session_01Q7NKyzxwFfJmL2sczFoA82	merged b55 (main dec7e128)
 rc5-arena-night	session_01Q7NKyxGVr97NRqpWw19Cs2	merged b55 (main dec7e128)
 fwd-review-h	session_01Q7NKyzZVrQeyt9q3ocESrk	merged b55 (main dec7e128)
-perf-audit-6	session_01Q7NKyyXCQqtHZiAHAQTnSh	running
+perf-audit-6	session_01Q7NKyyXCQqtHZiAHAQTnSh	merged b67 (main a870978b)
 mac-launch	session_01Q7NKyxZ7EPKy99JtXU4HBF	merged b53a (main 50f463a4)
 rc5-taco-truck-night	session_01Q7NKyyAN33y6S1rG2uPcoW	merged b60 (main b612a9f7)
 rc5-fireworks-ballpark	session_01Q7NKywJ9nHxFPLCcdA9ktq	merged b60 (main b612a9f7)
@@ -42,7 +42,7 @@ rc5-googie-motel	session_01Q7NKyzpA9ynBfzLSTXW6xk	merged b66 (main 8c0de652)
 rc5-rail-crossing	session_01Q7NKyzS8Lh5LnsqPvCjosD	merged b63 (main c2fcfcef)
 rc5-port-gate	session_01Q7NKyxvmy4Dcs528jQPRh1	merged b66 (main 8c0de652)
 rc5-power-plant-dusk	session_01Q7NKyz7RxAnzS6bKZ7aSiW	merged b63 (main c2fcfcef)
-web-review-5	session_01Q7NKyzUJKPKBTmt67DuXJo	running
+web-review-5	session_01Q7NKyzUJKPKBTmt67DuXJo	merged b67 (main a870978b)
 rc5-coast-highway	session_01Q7NKyxDpsN61PsoU1w7cVj	merged b65 (main 7f062523)
 rc5-reservoir-dam	session_01Q7NKyze7AoEQzZvJCLRNWU	merged b66 (main 8c0de652)
 rc5-film-shoot-night	session_01Q7NKz1cCbhhtvBfaFfTwFd	merged b66 (main 8c0de652)
@@ -64,13 +64,13 @@ fwd-review-i	session_01Q7NKz1zJt7BNzNhLwFyzeh	merged b65 (main 7f062523)
 rc5-fire-station-night	session_01Q7NKyzSYtmLwsRgSuNYfGF	running
 rc5-school-morning	session_01Q7NKyyEmSirj2uk5Go2i7t	running
 rc5-airport-final	session_01Q7NKyzTuF62WtKiHebQr6D	running
-rc5-freight-trench	session_01Q7NKyzuLCvYbmKMFxU9jZC	running
+rc5-freight-trench	session_01Q7NKyzuLCvYbmKMFxU9jZC	merged b67 (main a870978b)
 rc5-car-wash	session_01Q7NKyy7VthA6zGfkMKoBc6	running
-rc5-bus-stop-rain	session_01Q7NKyy8XeGNfs1CAMu1y9N	running
+rc5-bus-stop-rain	session_01Q7NKyy8XeGNfs1CAMu1y9N	merged b67 (main a870978b)
 rc5-news-live	session_01Q7NKyxvHSrfhd2hRa4oKHA	running
-rc5-stunt-jump	session_01Q7NKyxjeF39ovn8uQ7TrFu	running
+rc5-stunt-jump	session_01Q7NKyxjeF39ovn8uQ7TrFu	merged b67 (main a870978b)
 rc5-marina-night	session_01Q7NKyxdvCKsjE1WXr2ejbc	merged b66 (main 8c0de652)
-coast-houses	session_01Q7NKz1ahJqeGpzidPkUitQ	running
+coast-houses	session_01Q7NKz1ahJqeGpzidPkUitQ	merged b67 (main a870978b)
 cinematic-review-w8	session_01Q7NKywbmh9BPPV3Tspoene	running
 gate-speed-3	session_01Q7NKz1qR5nUXyWY83iieyj	running
 rc5-arts-district	session_01Q7NKyyZx7TsaxcmrGSL3g8	running

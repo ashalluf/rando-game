@@ -5,22 +5,19 @@ Roster: sessions_w8.tsv (status per slug; "merged bNN (main <sha>)" or "running"
 Tasks: tasks_w8.tsv (every row's brief; a new session uses the same create_session prompt shape).
 
 ## main
-`8c0de652` = batch 66 (gated green, 6,569 checks). Batches 52-66 landed this wave; CI builds
+`a870978b` = batch 67 (see below); batch 66 was `8c0de652`. Batches 52-66 landed this wave; CI builds
 425-438 (438 = batch 66, was building at handoff). The Mac launch fix (mac-launch, boot-compile,
 first-use-w8) is in.
 
-## Batch 67 - merged, gate was RUNNING at handoff, NOT on main
-`gate-b67` = main + rc5-freight-trench f43ca2fa + coast-houses bf34140f + rc5-stunt-jump dc6fe637 +
-rc5-bus-stop-rain 34ae2b80 + web-review-5 57905217 + perf-audit-6 032dedab + a HANDOFF numbering
-commit; head `dfd4431c`, pushed to `claude/awesome-euler-de8eps` (the lead's dev branch).
-TO DO: check out dfd4431c, `--import`, `SHARDS=3 GODOT=... tests/headless_check.sh`; green ->
-push to main (check origin/main 8c0de652 is still its ancestor). RISK: perf-audit-6's own gate failed
-4 street_errands door checks in shard 0 (pass alone); batches 63-66 never failed them, so if they
-fail here suspect perf-audit-6 and drop it.
+## Batch 67 - ON MAIN
+`a870978b` = batch 67 (gated green, 6,620 checks; peaks 3,726 / 3,899 / 3,543 MB) + a CLAUDE.md
+line pointing here: rc5-freight-trench, coast-houses, rc5-stunt-jump, rc5-bus-stop-rain,
+web-review-5, perf-audit-6 (street_errands passed: perf-audit-6's shard-0 failure was a flake).
+CI build 439 = batch 67. Next batch is 68.
 
 ## Batch 68 candidates (all sessions were told to WRAP UP: commit, push, state gate status in HANDOFF)
 Take only heads whose HANDOFF / report says gated green; re-gate the batch as always.
-- rc5-tower-gondola 337a047a (name board fix; its gate: 1 fail = pedestrian_flow flake, passes alone)
+- rc5-tower-gondola 1a049fb4 (wrapped up; code 337a047a NOT full-gated, last full gate a46cfc7e had 1 pedestrian_flow flake)
 - rc5-buskers-plaza, rc5-fire-station-night, rc5-school-morning, rc5-airport-final, rc5-car-wash,
   rc5-news-live: refcam5 views, mostly done, were in final A/B renders / gates.
 - gate-flakes-3 (16 commits: many flakes fixed at source incl. CI 429's pedestrian_flow pair),
