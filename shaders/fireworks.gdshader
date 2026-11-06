@@ -37,9 +37,22 @@ uniform float haze = 6500.0;
 
 const float HALO = 2.4;
 
+/// The look's second pass (wave 8 refcam fireworks_ballpark, docs/HANDOFF.md "Fireworks over the
+/// ballpark from Stadium Way"): 0 is the old look bit for bit (`RC5_FIREWORKS=0`). On: no white
+/// disc at a break (the 96 white-hot stars no longer stack on one point; the flash is a soft glow
+/// quad instead), peony / ring / crossette stars draw radial trails, stars burn at their own
+/// brightness and sparkle out, willows hang as long thin glitter, and every live break carries a
+/// broad soft glow in its colour (the air round it lit; what bloom does on the Mac, and the only
+/// glow Compatibility has).
+uniform float look5 = 0.0;
+/// The glow round a break: its size against the break's reach, and its brightness.
+uniform float glow_size = 1.7;
+uniform float glow_gain = 0.045;
+
 varying vec3 v_color;
 varying float v_alpha;
 varying float v_len;
+varying float v_glow;
 
 
 vec3 fw_hidden() {
@@ -67,6 +80,7 @@ void vertex() {
 	float radius = star_radius;
 	float tail_fade = 1.0;
 	uint k = fw_key(show_seed, b);
+	float glow = 0.0;
 	if (live && strength > 0.001) {
 		float t = now - tm.x;
 		float rise = tm.y - tm.x;
@@ -78,7 +92,12 @@ void vertex() {
 				vec3 v;
 				fw_star(type, q, k, size, a, wind, p, v);
 				head = burst + p;
-				float tl = min(FW_TAIL[type], a);
+				float tail_s = FW_TAIL[type];
+				if (look5 > 0.5) {
+					// Radial trails: a star's streak is what reads at half a kilometre.
+					tail_s = type == FW_PEONY ? 0.42 : (type == FW_RING ? 0.34 : (type == FW_CROSSETTE ? 0.30 : (type == FW_WILLOW ? 1.05 : tail_s)));
+				}
+				float tl = min(tail_s, a);
 				vec3 p0;
 				vec3 v0;
 				fw_star(type, q, k, size, a - tl, wind, p0, v0);
@@ -109,10 +128,35 @@ void vertex() {
 				// The first instant of a break is white-hot.
 				col = mix(vec3(1.0, 0.93, 0.8), base, smoothstep(0.0, 0.18, a));
 				radius *= type == FW_PEONY ? 1.15 : 1.0;
+				if (look5 > 0.5) {
+					// Every star its own brightness; the white-hot instant is the glow quad's, not
+					// 96 stacked stars (they summed to a solid disc); a star sparkles as it dies.
+					amt *= mix(0.55, 1.3, fw_roll(uint(q) * 53u + 7u, k & 8191u));
+					amt *= mix(0.3, 1.0, smoothstep(0.05, 0.3, a));
+					if (u > 0.6 && type != FW_STROBE) {
+						amt *= 0.6 + 0.9 * step(0.45, fw_roll(uint(q) * 29u + uint(floor(a * 20.0)), k & 2047u));
+					}
+					radius *= type == FW_WILLOW ? 0.55 : 0.7;
+				}
 			}
 		} else {
 			int j = q - FW_STARS;
-			if (j == FW_TRAIL - 1) {
+			float ag = now - tm.y;
+			float glife = FW_LIFE[type] * mix(0.85, 1.12, fw_roll(k, 15u));
+			if (look5 > 0.5 && j == 0 && ag >= 0.0 && ag < glife) {
+				// After the break the shell's trail quads are idle: the first one is the break's
+				// glow - a white flash at the instant, then the air lit in the stars' colour
+				// while they burn (Fireworks.flash_level's curve), drifting with them.
+				vec3 gb = type == FW_WILLOW ? FW_WILLOW_COLOR : (type == FW_STROBE ? FW_STROBE_COLOR : FW_COLORS[c1]);
+				float reach = FW_V0[type] / FW_DRAG[type] * size;
+				float burn = 1.0 - smoothstep(0.5 * glife, glife, ag);
+				head = burst + vec3(wind.x, -FW_GRAV[type] * 0.25 * ag, wind.y) * ag;
+				tail = head;
+				col = mix(vec3(1.0, 0.9, 0.75), gb, smoothstep(0.0, 0.35, ag));
+				amt = glow_gain * (2.6 * exp(-ag * 7.0) + 0.75 * exp(-ag * 0.9) * burn);
+				radius = reach * glow_size * min(1.0, 0.35 + ag * 2.5) / HALO;
+				glow = 1.0;
+			} else if (j == FW_TRAIL - 1) {
 				// The mortar's flash on the barge or the ground, for an instant.
 				if (t >= 0.0 && t < 0.18) {
 					head = off + vec3(0.0, 3.0, 0.0);
@@ -133,12 +177,18 @@ void vertex() {
 					col = j == 0 ? vec3(1.0, 0.75, 0.42) : vec3(1.0, 0.5, 0.14);
 					amt = j == 0 ? 1.2 : 0.7 * (1.0 - float(j) / float(FW_TRAIL));
 					radius = j == 0 ? 0.6 : 0.35;
+					if (look5 > 0.5) {
+						// The climbing comet reads from the hills: brighter, its sparks a longer streak.
+						amt *= 2.2;
+						tail = fw_rise_point(off, burst, rise, max(ts - 0.14, 0.0)) + jit;
+					}
 				}
 			}
 		}
 	}
 	if (amt <= 0.0) {
 		VERTEX = fw_hidden();
+		v_glow = 0.0;
 	} else {
 		vec3 hv = (MODELVIEW_MATRIX * vec4(head, 1.0)).xyz;
 		vec3 tv = (MODELVIEW_MATRIX * vec4(tail, 1.0)).xyz;
@@ -160,12 +210,21 @@ void vertex() {
 		v_len = len / r;
 		v_color = col;
 		v_alpha = amt * brightness * strength * exp(-0.693 * dist / haze);
+		v_glow = glow;
 	}
 }
 
 
 void fragment() {
 	vec2 c = UV * 2.0 - 1.0;
+	if (v_glow > 0.5) {
+		// The break's glow: a soft round falloff, reaching zero at the quad's edge (an additive
+		// tail would draw the quad on Forward+).
+		float d2g = dot(c, c);
+		float fall = max(1.0 - d2g, 0.0);
+		float g = exp(-d2g * 2.5) * fall * fall;
+		ALBEDO = cs_out(v_color * v_alpha * g);
+	} else {
 	// A capsule round the streak from its tail (0) to its head (v_len), in units of the quad's
 	// half width: the star is 1 / HALO of it and a faint glow fills the rest, which is most of
 	// what a firework is on a renderer without bloom.
@@ -177,6 +236,7 @@ void fragment() {
 	// The head burns brightest; the tail fades back along the streak.
 	float along = v_len > 0.01 ? mix(0.12, 1.0, clamp(y / v_len, 0.0, 1.0)) : 1.0;
 	float core = exp(-x2 * 6.0) * along;
-	vec3 col = mix(v_color, vec3(1.0, 0.96, 0.9), core * 0.55);
+	vec3 col = mix(v_color, vec3(1.0, 0.96, 0.9), core * (look5 > 0.5 ? 0.3 : 0.55));
 	ALBEDO = cs_out(col * v_alpha * across * along);
+	}
 }
