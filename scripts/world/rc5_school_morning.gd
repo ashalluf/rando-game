@@ -170,8 +170,12 @@ static func _people(ch: CityChunk, pl: Dictionary) -> void:
 		drop_s = (drop.get_center() - (fr.o as Vector2)).dot(fr.s)
 	var side := signf(drop_s - gate_s) if drop_s != gate_s else 1.0
 	# [s, d, yaw, kind]: kind 0 the guard, 1 the supervisor, 2 a parent.
+	# The guard where the parents cross: the kerb between the buses and the drop-off, by the sign.
+	var zs0 := minf((zr.position - (fr.o as Vector2)).dot(fr.s), (zr.end - (fr.o as Vector2)).dot(fr.s))
+	var zs1 := maxf((zr.position - (fr.o as Vector2)).dot(fr.s), (zr.end - (fr.o as Vector2)).dot(fr.s))
+	var guard_s := (zs1 + 1.0) if side > 0.0 else (zs0 - 1.0)
 	var spots: Array = [
-		[gate_s + side * 3.0, kerb_d, street_yaw, 0],
+		[guard_s, kerb_d, street_yaw, 0],
 		[gate_s - side * 1.6, -0.9, street_yaw, 1],
 	]
 	var parents := 2 + int(Schools._h01([ch.plan.seed, pl.cell, "parents"]) * 3.0)

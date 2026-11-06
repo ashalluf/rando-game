@@ -292,3 +292,8 @@ so the walk would otherwise build at the 13:30 fallback).
 Its optional `sea` key is SeaLife.stage_for_shot()'s spec ("dolphin@x,z[,lead];pelican@x,z", TRUE
 world), staged three frames before the shot with the sea clock held and cleared after it;
 `SEA_DEBUG=1` prints the surfers and swimmers BeachActivity has round the lens.
+`school_morning` (rc5-school-morning): LIVE OAK ELEMENTARY (Schools cell (-1, -1) on seed 1337) at
+07:50 clear from the pavement across its front street. No staging key: the buses, the parents' cars
+in the drop-off lane and the adults at the gate come from the build hour (RcSchoolMorning,
+`DROP_HOURS`). `tools/rc5_school_morning/probe.gd` (`CELL=x,z`) prints a school's front, bus zone,
+gate, sign and flag; `bus_census.gd` lists the parked school buses round a spawn.
