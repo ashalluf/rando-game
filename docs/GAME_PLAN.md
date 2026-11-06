@@ -4908,3 +4908,8 @@ none of either.
   term is never a uniform glow in its ripples (that reads as paving). The jetty nav lights stay
   out of this frame (occluded by boats from every headwalk spot that holds the restaurants).
   MARINA_NIGHT=0 is the A/B.
+- 2026-11-06 (web-review-5): the web build after wave 8 needs no shader or code change: twelve
+  bookmarks load clean, budgets hold (pck 619.8 MB of 650). The bonfire's flames do not draw in the
+  SwiftShader browser and are left as they are (not root-caused, unverified on a real GPU, a
+  web-only workaround would be blind); the probe tools stay for the next pass. The web bookmarks
+  now include four wave 5-8 night / weather views.
