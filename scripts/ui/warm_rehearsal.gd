@@ -47,6 +47,13 @@ static var wave3: bool = OS.get_environment("WARM_WAVE3") != "0"
 ## blood on the hero (blood-gore-2). Measured with tools/shader_warm/first_use_probe EVENTS=wave4.
 ## `WARM_WAVE4=0` leaves them out (the A/B).
 static var wave4: bool = OS.get_environment("WARM_WAVE4") != "0"
+## Waves 5-8's first uses (first-use-w8, 2026-11-06; docs/HANDOFF.md "First uses after waves 5-8"):
+## a car's fuel fireball and a pump's gas blast (explosions-4: the burning pool and fuel trail, the
+## flames up the wreck, the tongues, the pops), a boat under way (BoatWake, BoatSea's chine sheets),
+## the wingsuit's fabric and vapour (look2), a jet's landing-light beams (jet-takeoff), a lit beach
+## bonfire (rc4-bonfire's glow). Measured with tools/shader_warm/first_use_probe EVENTS=wave8.
+## `WARM_WAVE8=0` leaves them out (the A/B).
+static var wave8: bool = OS.get_environment("WARM_WAVE8") != "0"
 ## For the first-use probe (tools/shader_warm/), which cannot fit the whole rehearsal's pipelines in
 ## lavapipe's memory any more: only these stages ("cars", "people", ...) and body types (empty: all).
 static var only_stages: PackedStringArray = []
@@ -123,7 +130,7 @@ static func run(scene: Node, cam: Camera3D, progress: Callable = Callable(), log
 		for c in fx_root.get_children():
 			if before.has(c.get_instance_id()) or c == holder or c.is_queued_for_deletion():
 				continue
-			if c.get_script() == null or String(c.name).begins_with("BlastCrater"):
+			if c.get_script() == null or String(c.name).begins_with("BlastCrater") or c is BlastPool:
 				c.queue_free()
 				last_found = f
 		await tree.process_frame
@@ -252,6 +259,8 @@ static func _stage_cars(holder: Node3D, ground: Vector3, fwd: Vector3, right: Ve
 		await _stage_wave3_cars(cars, fwd, tree)
 	if wave4:
 		await _stage_wave4_cars(holder, cars, ground, fwd, right, tree)
+	if wave8:
+		await _stage_wave8_cars(holder, cars, ground, fwd, right, tree)
 
 
 static func _stage_people(holder: Node3D, ground: Vector3, fwd: Vector3, right: Vector3, tree: SceneTree) -> void:
@@ -341,6 +350,8 @@ static func _stage_effects(holder: Node3D, ground: Vector3, fwd: Vector3, right:
 		spot.look_at(p, Vector3.UP)
 	if wave4:
 		_stage_wave4_effects(holder, ground, fwd, right, tree)
+	if wave8:
+		_stage_wave8_effects(holder, ground, fwd, right, tree)
 	await tree.process_frame
 
 
@@ -466,6 +477,98 @@ static func _stage_wave4_effects(holder: Node3D, ground: Vector3, fwd: Vector3, 
 	holder.add_child(heli)
 	heli.global_position = at_heli
 	WantedEscalation.arm_gunship(heli)
+
+
+## Waves 5-8's car first uses (see `wave8`): one car of the row goes up as a fuel fireball and a
+## gas blast goes off beside the row, through WeaponFX.explosion (the look alone: no Explosion.blast,
+## so nothing is pushed, knocked or damaged) - Blast4.after_blast's burning pools and fuel trail,
+## the flames up the car's sides, the tongues, the pops. Blast4's chain is held off (the other cars
+## of the row would catch a fuse and go up for real); the pools are swept with the rest.
+static func _stage_wave8_cars(holder: Node3D, cars: Array, ground: Vector3, fwd: Vector3, right: Vector3, tree: SceneTree) -> void:
+	if not Blast4.enabled:
+		return
+	var depth := Blast4.chain_depth
+	Blast4.chain_depth = 0
+	var car: Vehicle = cars[4] if cars.size() > 4 and is_instance_valid(cars[4]) else null
+	if car != null:
+		BlastFX.fuel_next = true
+		WeaponFX.explosion(car, car.global_position + Vector3.UP * 0.8, 7.0, 1.0)
+		BlastFX.fuel_next = false
+	Blast4.gas_next = true
+	WeaponFX.explosion(holder, ground + fwd * 12.0 - right * 12.0 + Vector3.UP * 0.9, Blast4.gas_radius, 1.0)
+	Blast4.gas_next = false
+	Blast4.chain_depth = depth
+	for f in HOLD_FRAMES:
+		await tree.process_frame
+
+
+## Waves 5-8's effect first uses: a speedboat and a jet ski with their wakes and spray on, a lit
+## beach bonfire (its flames, embers, smoke, pool and glow), two landing-light beams, and the
+## wingsuit's two meshes - stand-ins with the fabric's and the vapour's materials and the very
+## vertex formats WingsuitFx builds (its fabric only exists while he glides).
+static func _stage_wave8_effects(holder: Node3D, ground: Vector3, fwd: Vector3, right: Vector3, tree: SceneTree) -> void:
+	for k in 2:
+		var boat := Boat.new()
+		boat.setup_boat(k, 3 + k)
+		boat.set_meta(TAG, true)
+		boat.collision_layer = 0
+		boat.collision_mask = 0
+		boat.freeze = true
+		holder.add_child(boat)
+		boat.global_position = ground + fwd * 11.0 + right * (5.0 + 4.0 * k) + Vector3.UP * 0.4
+		# Held still (its wake would switch its emitters off on dry land): the hull draws, and plain
+		# copies of the wake's emitters (no script) spray beside it.
+		boat.process_mode = Node.PROCESS_MODE_DISABLED
+		var n := 0
+		for p in boat.find_children("*", "CPUParticles3D", true, false):
+			var copy := (p as CPUParticles3D).duplicate(0) as CPUParticles3D
+			for ch in copy.get_children():
+				copy.remove_child(ch)
+				ch.free()
+			holder.add_child(copy)
+			copy.visible = true
+			copy.global_position = boat.global_position + right * (float(n % 4) - 1.5) * 0.8 + fwd * float(n / 4) * 0.8
+			copy.emitting = true
+			n += 1
+	var fire := BonfireFire.new()
+	holder.add_child(fire)
+	fire.global_position = ground + fwd * 8.0 - right * 4.0
+	fire.call("_build")
+	for p in fire.find_children("*", "CPUParticles3D", true, false):
+		(p as CPUParticles3D).emitting = true
+	for n in fire.find_children("*", "MeshInstance3D", true, false):
+		(n as Node3D).visible = true
+	var beam_at := ground + fwd * 20.0 + Vector3.UP * 6.0
+	JetTakeoff.show_beams(JetTakeoff.build_beams(holder, [[beam_at, fwd], [beam_at + right * 3.0, fwd]]), true)
+	# The wingsuit's fabric: VERTEX, NORMAL, TANGENT, UV, UV2 and an index, as WingsuitFx._rebuild().
+	var arrays := []
+	arrays.resize(Mesh.ARRAY_MAX)
+	var c := ground + fwd * 6.0 + Vector3.UP * 1.5
+	arrays[Mesh.ARRAY_VERTEX] = PackedVector3Array([c, c + right * 0.6, c + Vector3.UP * 0.6])
+	arrays[Mesh.ARRAY_NORMAL] = PackedVector3Array([-fwd, -fwd, -fwd])
+	arrays[Mesh.ARRAY_TANGENT] = PackedFloat32Array([right.x, right.y, right.z, 1.0, right.x, right.y, right.z, 1.0, right.x, right.y, right.z, 1.0])
+	arrays[Mesh.ARRAY_TEX_UV] = PackedVector2Array([Vector2.ZERO, Vector2.RIGHT, Vector2.DOWN])
+	arrays[Mesh.ARRAY_TEX_UV2] = PackedVector2Array([Vector2.ZERO, Vector2.RIGHT, Vector2.DOWN])
+	arrays[Mesh.ARRAY_INDEX] = PackedInt32Array([0, 1, 2])
+	var fabric_mesh := ArrayMesh.new()
+	fabric_mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+	var fabric := MeshInstance3D.new()
+	fabric.mesh = fabric_mesh
+	fabric.material_override = WingsuitFx.fabric_material()
+	holder.add_child(fabric)
+	# The vapour: an ImmediateMesh strip with a colour and a UV per vertex (WingsuitFx._draw_ribbons()).
+	var strip := ImmediateMesh.new()
+	strip.surface_begin(Mesh.PRIMITIVE_TRIANGLE_STRIP)
+	for i in 4:
+		strip.surface_set_color(Color(1.0, 1.0, 1.0, 0.5))
+		strip.surface_set_uv(Vector2(-1.0 if i % 2 == 0 else 1.0, float(i / 2)))
+		strip.surface_add_vertex(c - right * 1.5 + right * float(i % 2) * 0.4 + fwd * float(i / 2))
+	strip.surface_end()
+	var vapour := MeshInstance3D.new()
+	vapour.mesh = strip
+	vapour.material_override = WingsuitFx.vapour_material()
+	vapour.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	holder.add_child(vapour)
 
 
 ## The burnt rehearsal car stays in CarDamage's static lists (burning, smoking, wrecks) after it is

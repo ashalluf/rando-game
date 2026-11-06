@@ -2447,6 +2447,8 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	load("res://tests/loading_first_frame_checks.gd").new().run(self, city)
 	# Load time after wave 4 (tests/load_time_3_checks.gd): the rehearsal's stages, freed list entries.
 	load("res://tests/load_time_3_checks.gd").new().run(self, city)
+	# First uses after waves 5-8 (tests/first_use_w8_checks.gd): the rehearsal's wave 5-8 stages, swept.
+	await load("res://tests/first_use_w8_checks.gd").new().run(self, city)
 	# The extra occluders (tests/occluders_checks.gd): hill terrain, decks, banks, sound walls and
 	# the far mountains, each inside what it stands for.
 	await load("res://tests/occluders_checks.gd").new().run(self, city)
