@@ -15,6 +15,8 @@ extends Node3D
 ## and keeps turning): the legs, the hub, the platform and each rim as a ring of boxes, which a
 ## turning wheel can share because a rim is the same shape at any angle.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 ## Radius of the gondola pins (the outer rim), metres.
 const RADIUS := 13.0
 ## Height of the hub over the deck, metres.

@@ -12,6 +12,8 @@ extends RefCounted
 ##  - the "AMBULANCE ENTRANCE" words on the fascia big enough to read from the street.
 ## FULL chunks only (the LOD and far tiers keep their lit panel). `RC4_HOSPITAL=0` is the A/B.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 static var enabled := OS.get_environment("RC4_HOSPITAL") != "0"
 
 ## The light box (LINEAR, hospital_sign.gdshader): a dark red face glowing under 1 at night.

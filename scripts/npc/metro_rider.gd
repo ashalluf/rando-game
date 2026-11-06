@@ -7,6 +7,8 @@ extends RailRider
 ## stand on their own floor's height. They pass through the city's ground box for good: they never
 ## leave the station (MetroStation.sink()'s exception, added before their first step).
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 ## MetroStation.frame() of the station.
 var frame: Dictionary = {}
 ## 0 the platform, 1 the concourse, 2 riding an escalator of the bank (MetroCrowd, wave 7).

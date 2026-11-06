@@ -16,6 +16,8 @@ extends RefCounted
 ## ONE material (shaders/car_interior.gdshader): what a vertex is in COLOR.r (R_* / 16), UV in
 ## metres (UV2 0..1 across a screen or the cluster). Built once per body type (cached).
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 const R_SEAT := 0
 const R_INSERT := 1
 const R_DASH := 2

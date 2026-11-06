@@ -15,6 +15,8 @@ extends RefCounted
 ## middle, its front (the customers' side, a sign's face) toward -Z, except the corner signs,
 ## whose face is +Z (YardSales turns them to face the cross street).
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 const K_FIXED := 0
 const K_PAINT := 1
 const K_FABRIC := 2

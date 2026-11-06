@@ -28,6 +28,8 @@ extends RefCounted
 ## `SHOPFRONT_DRESS=0` in the environment builds none of it (the A/B); it rides FacadeStreet's
 ## mesh, so FACADES_STREET=0 leaves it out too.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 static var enabled: bool = OS.get_environment("SHOPFRONT_DRESS") != "0"
 ## SF_DEBUG=1: every piece is also listed on the Building (meta `sf_dress_log`: [what, Building-local
 ## point, the wall's outward normal]), for tools/storefront_closeup_2/probe.gd to frame stills.

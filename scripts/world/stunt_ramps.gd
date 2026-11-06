@@ -21,6 +21,8 @@ extends RefCounted
 ## holds the site's `p` builds it (StuntBuild).
 ## STUNT_RAMPS=0 in the environment: none of it (the A/B).
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 enum Kind { KICKER, QPIPE, LAUNCH, LAND, LOOP, PIER, DIRT }
 
 static var enabled: bool = OS.get_environment("STUNT_RAMPS") != "0"

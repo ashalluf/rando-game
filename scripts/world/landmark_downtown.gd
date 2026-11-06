@@ -27,6 +27,8 @@ extends RefCounted
 ## Meshes are cached per id and shared by the far copy CityStreamer keeps and the detailed one a
 ## chunk builds, so the skyline seen from the freeway IS the tower you land on.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 ## Every tower stands on the pavement top: landmarks keep the relief flat under them.
 const BASE_Y := 0.25
 
@@ -349,6 +351,7 @@ static func _glow_material(key: String, day: Color, pattern: int, rib: float, en
 	mat.set_shader_parameter("glow_energy", energy)
 	mat.set_shader_parameter("day_mirror", mirror)
 	mat.set_shader_parameter("part_height", height)
+	mat.set_shader_parameter("dusk_hold", Rc5Wingsuit.crown_dusk_hold())
 	_materials[k] = mat
 	return mat
 

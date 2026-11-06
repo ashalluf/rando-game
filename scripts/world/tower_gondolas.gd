@@ -25,6 +25,8 @@ extends RefCounted
 ## and the workers drop to a crouch and hang on to the rail. GONDOLAS=0 in the environment turns
 ## it all off (the A/B), and Rooftops draws its static cradle again.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 static var enabled: bool = OS.get_environment("GONDOLAS") != "0"
 
 const SALT := "tower gondolas"

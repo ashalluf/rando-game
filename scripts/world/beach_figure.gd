@@ -14,6 +14,8 @@ extends CampFigure
 ## pedalling is a flipbook of RIDE_FRAMES bakes - the legs solved onto the pedals by two-bone IK at
 ## each crank angle, the crank and the bike baked in with them (ride_meshes()).
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 ## The extra pose (BeachGoer.BEACH_POSES) and the swimsuit (BeachGoer.SUITS).
 var beach_pose: String = ""
 var suit: int = 0

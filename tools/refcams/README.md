@@ -96,6 +96,12 @@ screen wall, the theatre's lobby and HOTEL ALTAIR's crown. Its optional `arena_e
 makes the night an event night or a quiet one (ArenaNight, as ARENA_EVENT; set before the city
 loads). `tools/rc5_arena_night/site_probe.gd` prints the district's site rects in world XZ.
 
+`wingsuit_golden` (rc5-wingsuit-golden): the
+hero gliding in his wingsuit ~120 m over Bunker Hill toward the skyline at 18:00 clear, shot from his
+OWN chase camera 6 m behind. Its `wingsuit` key (`tools/refcams/wingsuit_stage.gd`: at, heading,
+speed, lead, input, dist, look, fov) launches him `lead` seconds back along the trim glide so he
+passes `at` at the shot; the log prints where he is, his speed and whether the vapour trails.
+
 ## Wave 7's cameras (`cameras_w7.json`)
 
 Run with `REFCAMS_JSON=tools/refcams/cameras_w7.json`. `freight_yard`: the Arroyo Pacific yard at
@@ -192,6 +198,15 @@ staged and holds it until the shot; while it is held, every placement of the par
 each step, and the tunnel train is hidden with it).
 
 
+## Wave 8's cameras (`cameras_w8.json`)
+
+Run with `REFCAMS_JSON=tools/refcams/cameras_w8.json`. `gas_station_night` (rc5-gas-station-night):
+the HALCYON station at (-64.6, 519.2) from the street at 23:30 clear. Its `pump_car` key (1) sets
+PUMP_CAR=1 before the city loads: every gas station gets GasNight's car at a pump and its driver,
+whatever its hash. `NIGHT_AB=1` (any camera) saves the frame again with the lamps' omnis, the
+pools / spills / glows, the moon and the ambient each taken away (`<name>_nab_<what>.png`, plus
+`nothing`), and prints the environment's night numbers, the lamps within 60 m and the pool batches
+within 40 m: what lights a night frame, measured.
 ## Wave 7's cameras (`cameras_w7.json`)
 
 `lowrider_meet` (rc4-lowrider-meet): the Saturday lowrider meet on Z#4 (x 810-900, seed 1337) at
@@ -216,6 +231,12 @@ Run with `REFCAMS_JSON=tools/refcams/cameras_w8.json`. `skate_park` (rc5-skate-p
 Its optional `skate_t` key holds SkateParkLife's clock (seconds, the riders held: `_skate_clock()` in
 refcams_shot.gd, as SKATE_T= / SKATE_HOLD=1), so the first pool rider is at the top of his
 frontside air over the far coping. `tools/rc5_skate_park/air_probe.gd` lists every rider's air times.
+
+`storm_downtown`: Flower St south of 8th
+toward the towers, 20:30 storm, five staged street cars. Its optional `storm_flash` key
+(`{"dist": m, "az": degrees (0 = +x, -90 = north), "hold": level}`) forces a strike through
+`Weather.force_strike()` as the staging starts and holds its flash and bolt (StormDrama) until the
+shot is saved.
 
 ## Wave 8's cameras (`cameras_w8.json`)
 

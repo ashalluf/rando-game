@@ -178,7 +178,8 @@ func _full(city: Node3D, plan: CityPlan, e: Dictionary, seen: Dictionary) -> voi
 	var queued := 0
 	var waiting_ok := true
 	for car in chunk.get("_cars"):
-		if is_instance_valid(car) and (car as Node).has_meta("roadside"):
+		# (GasNight's car at a pump is the station's too, but empty: its driver stands at the pump.)
+		if is_instance_valid(car) and (car as Node).has_meta("roadside") and not (car as Node).has_meta("pump_car"):
 			queued += 1
 			waiting_ok = waiting_ok and car.waiting and car.light_brake and car.light_signal == 0 and car._cabin_seats() != 0
 	var wash := false

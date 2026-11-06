@@ -17,6 +17,8 @@ extends Node
 ## Every level is a pure function (step_interval(), step_db(), tyre_kind(), tyre_db()) so the smoke
 ## test can check them; `AMBIENT_SOUND_2=0` in the environment turns all of it off (the A/B).
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 ## Off: none of this, and Ambience's two new beds and the wet hiss stay silent.
 static var enabled: bool = OS.get_environment("AMBIENT_SOUND_2") != "0"
 

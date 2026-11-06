@@ -8,6 +8,8 @@ extends AmbientCraft
 ## speed, the pitch from its grade. Only the flare and the roll on the runway are integrated.
 ## Uses the same models as the flyable Aircraft (Aircraft.MODELS).
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 enum Plan { ARRIVAL, DEPARTURE, CROSSING }
 ## GROUND: driven along AirportGround's taxi legs (to a gate, a pushback, out to the runway);
 ## PARKED: standing at a gate, engines off.

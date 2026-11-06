@@ -8,6 +8,8 @@ extends RefCounted
 ## Every vehicle's frame: +X forward (its direction of travel), +Y up, origin on the ground at its
 ## centre (a chassis' origin is its centre too, so a box on it sits at CHASSIS_BED).
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 const B := PortKit.Buf
 
 # --- Straddle carrier (a 1-over-2 machine: 9.6 m long, 4.9 m wide, 14.6 m tall) ---------------

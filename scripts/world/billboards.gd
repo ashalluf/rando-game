@@ -37,6 +37,8 @@ extends RefCounted
 ## boards' props are placed in a deferred step just before the finish, so the block's own props
 ## keep their ids. `enabled` false (BILLBOARDS=0 in the environment) is the A/B.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 static var enabled: bool = OS.get_environment("BILLBOARDS") != "0"
 
 const BULLETIN := Vector2(14.63, 4.27)

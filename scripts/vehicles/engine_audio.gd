@@ -32,6 +32,8 @@ extends Node
 ## (ensure()), like CarLights. `ENGINE_AUDIO=0` in the environment turns it off (the Vehicle's old
 ## engine loop plays for the player's car again). `ENGINE_AUDIO_HUD=1` shows the debug panel.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 ## Off with ENGINE_AUDIO=0.
 static var enabled: bool = OS.get_environment("ENGINE_AUDIO") != "0"
 ## Traffic voices (the player's car is extra).

@@ -45,6 +45,8 @@ extends RefCounted
 ## glass band on each wing's view face that glows warm after dark (INSTANCE_CUSTOM.g), so the
 ## hills twinkle across the basin.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 ## Off, the estates get the old Building slab (the A/B: HILL_HOMES=0 in the environment).
 static var enabled: bool = OS.get_environment("HILL_HOMES") != "0"
 

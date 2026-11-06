@@ -12,6 +12,8 @@ class_name LowriderMeetLook
 ##   car), and the folding chairs have people in them (sitters, `sitter_spots()`).
 ## Every pick is a hash of the meet's seed (nothing rolls). RC4_LOWRIDER_MEET=0 is the A/B.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 static var enabled: bool = OS.get_environment("RC4_LOWRIDER_MEET") != "0"
 
 enum Stance { LAID, LOCKED, THREE, NOSE }

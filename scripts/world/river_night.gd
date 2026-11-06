@@ -13,6 +13,8 @@ class_name RiverNight
 ## All of it is behind `lamp_factor` (nothing by day: day is bit-identical) and the `river_night`
 ## global (`RIVER_NIGHT=0` is the A/B).
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 ## The arrays' size in the shaders (rn_a ... rn_e[MAX]).
 const MAX := 6
 ## Bridge kinds as the shaders read them (rn_b.w).

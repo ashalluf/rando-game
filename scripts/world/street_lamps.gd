@@ -16,6 +16,8 @@ extends RefCounted
 ##   MAST    mast-arm LED: tall pole, long straight arm, slim LED head (LED patches only)
 ## Arms reach along the model's +x; place() turns +x toward the street.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 enum Type { COBRA, TWIN, LANTERN, POST, MAST }
 
 const MODEL := "res://assets/models/street_lamps.glb"

@@ -12,6 +12,8 @@ extends RefCounted
 ## copy takes the same phase (`sync()`, from Vehicle._apply_occupant()). Nothing per car runs on
 ## the CPU. Off with WetWorld (WET_WORLD=0).
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 const SHADER := preload("res://shaders/car_wiper.gdshader")
 ## Running phase buckets (fractions of a cycle).
 const PHASES := 4

@@ -11,6 +11,8 @@ extends RefCounted
 ## The base it works from is a pose the caller hands over (the crowd rig's idle at a fixed moment,
 ## the hero's rest pose), so it fits any rig with the crowd's 24 bone names.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 const BONES := ["Hips", "Spine02", "Spine01", "Spine", "neck", "Head", "headfront",
 		"LeftUpLeg", "LeftLeg", "LeftFoot", "LeftToeBase", "RightUpLeg", "RightLeg", "RightFoot", "RightToeBase",
 		"LeftShoulder", "LeftArm", "LeftForeArm", "LeftHand", "RightShoulder", "RightArm", "RightForeArm", "RightHand"]

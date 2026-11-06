@@ -26,6 +26,8 @@ extends RefCounted
 ##
 ## Names are invented (NAMES); no real cemetery's, family's or person's name anywhere.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 ## Off (CEMETERY=0 in the environment): no block becomes a memorial park (the A/B).
 static var enabled: bool = OS.get_environment("CEMETERY") != "0"
 
