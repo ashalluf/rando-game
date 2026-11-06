@@ -32352,3 +32352,48 @@ shell dither has no TAA there); not judged on Forward+ in the city. Eyeshine ign
 is (a real tapetum shines only with a light near the viewer's line of sight; here any lit night
 counts). The wild animals' raccoon idle still sniffs head-down except at the carts or alert. The
 porch-light share (82 % of lived-in houses) is left as it was.
+
+## 9od. The car park's roof deck at 18:15, 2026-11-06 (fleet wave 8, `wt/rc5-car-park-roof`; VISUAL_ROADMAP "?")
+
+**The view.** New refcam5 row `car_park_roof` in `tools/refcams/cameras_w8.json`: the roof of the
+TEMPLE GARAGE (five decks, block (18, 2), x 1700-1771, z 347-389 on the default seed, roof at
+y 15.54) at 18:15 clear, the eye 1.7 m over the roof on the strip lane at the last ramp's head
+(1726, 17.24, 369.5), looking east-north-east (yaw -58, pitch 4, fov 55) over the ramp opening's
+parapets and the stall rows to Bunker Hill's towers. `agl` false (the roof, not the street, is the
+ground there). `tools/rc5_car_park_roof/probe.gd` prints the car park nearest `AT=x,z`: its frame,
+roof height, bands, the end of its drive path and its corners.
+
+**What read fake, in the order the eye lands on it, and what changed** (`RcCarParkRoof`,
+`scripts/world/rc5_car_park_roof.gd`; `RC5_CAR_PARK_ROOF=0` puts every piece back):
+1. **The parked cars were a candy box**: orange, red, lime and white side by side. CarParkBuild
+   picked `Vehicle.PAINTS` flat (14 of its 39 entries are saturated) and gave them all one solid
+   gloss. `paint()` deals a car park's mix by hash of the stall (80 % white / black / grey / silver,
+   12 % muted, 8 % saturated) and says which are metallic (PAINT_FINISH METALLIC / PEARL / DEEP);
+   the metallic flag rides INSTANCE_CUSTOM.a = 2 into car_paint.gdshaderinc's `PAINT_FROM_CUSTOM`
+   block (`inst_metal`, metal 0.38 like FINISHES METALLIC). Every other car is untouched: only
+   car_park_car.gdshader defines PAINT_FROM_CUSTOM, and with the switch off alpha stays 1.
+2. **The core's roof wall was a 42 m blank grey slab** behind the whole view. `core()`: panel
+   reveals every 3 m and one along the storey line, the roof level's painted band in its column
+   colour (the garage convention), a second stair door with its EXIT sign, three wall packs,
+   downpipes with shoes, a louvre.
+3. **The parapets were plain boxes**. `parapets()`: joints every 3 m on the perimeter's inner
+   faces and on all four faces of the ramp opening's walls (down the opening), coping on the back
+   and round the opening (the front and far end had theirs).
+4. **The roof poles were square sticks on a hazard box.** `poles()` builds them instead of
+   `CarParkBuild._roof()`: a yellow-banded concrete pedestal (collides), a round tapered pole, two
+   LED shoebox heads on short arms; one where each old one stood.
+5. **The deck was one flat grey.** car_park_deck.gdshader's `rc5` (set on the material when the
+   switch is on; only roof bands, `roof && rc5 > 0.5`): each precast double tee (`rc5_tee`
+   3.66 m along u) its own pour tone, the joints' overbanded sealant with tide lines, ponding
+   blotches with dried rims, drains with their stains on the drives' centre lines, the coating's
+   satin, faint rubber streaks along the drives. In the structure's frame (`frame_pos`), so the
+   joints run straight across every band.
+
+**Numbers** (refcam GEO, opengl3, the same eye): before (RC5_CAR_PARK_ROOF=0) 5,348,968 triangles,
+3,543 draws; after 5,385,949 / 3,598 (+0.7 % / +55 draws: the new surfaces of the car parks in
+view; see the follow-up below). Luminance p50 88 -> 88, saturation 0.291 -> 0.289.
+
+**Not done / not verified.** Judged on opengl3 only: the metallic paint and the deck's satin were
+not looked at on Forward+ (lavapipe cannot hold the city; a small scene would need the car park
+alone). Downtown's towers still read dark at 18:15 on this renderer - that is the city-wide grade
+and glass at that hour, not this view's to change. The lamps are off at 18:15 (lamp_factor 0).

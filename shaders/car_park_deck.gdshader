@@ -30,12 +30,21 @@ uniform vec3 paint_yellow = vec3(0.62, 0.42, 0.04);
 uniform vec3 oil = vec3(0.05, 0.048, 0.045);
 uniform float stain_amount = 0.75;
 
+// The roof at eye level (RcCarParkRoof, 0 = the old roof bit for bit): the precast double tees'
+// joints every `rc5_tee` m along u with their sealant, each tee its own pour, ponding stains and
+// drains on the drives' centre lines, a traffic coating's sheen. In the structure's own frame
+// (VERTEX: x along u, z along v), so the joints run straight across every band.
+uniform float rc5 = 0.0;
+uniform float rc5_tee = 3.66;
+
 global uniform float road_wetness;
 
 varying vec2 info;
+varying vec3 frame_pos;
 
 void vertex() {
 	info = UV2;
+	frame_pos = VERTEX;
 }
 
 float hash12(vec2 p) {
@@ -152,6 +161,53 @@ void fragment() {
 	rough = mix(rough, 0.45, clamp(stain, 0.0, 1.0));
 	rough = mix(rough, 0.55, polish * 0.4);
 	rough = mix(rough, 0.5, paint * 0.5);
+	if (roof && rc5 > 0.5) {
+		vec2 fp = frame_pos.xz;
+		float fpx = max(fwidth(fp.x), 1e-4);
+		float ti = floor(fp.x / rc5_tee);
+		float tx = fp.x - (ti + 0.5) * rc5_tee;
+		// Each tee its own pour: a tone and a roughness of its own.
+		float th = hash12(vec2(ti, 4.7));
+		col *= (0.9 + 0.17 * th) * mix(vec3(1.0), vec3(1.03, 1.0, 0.95), hash12(vec2(ti, 9.1)));
+		rough = mix(rough, rough * (0.85 + 0.25 * th), 1.0 - paint);
+		// The joint: a sealant band 4-7 cm wide (overbanded, its edge wandering), dark and satin,
+		// a hairline of shadow in the middle; filtered to its mean under a pixel.
+		float jd = rc5_tee * 0.5 - abs(tx);
+		float sw = 0.022 + 0.012 * vnoise(vec2(fp.y * 1.7, ti));
+		float seal = clamp((sw - jd) / fpx + 0.5, 0.0, 1.0);
+		float core = clamp((0.004 - jd) / fpx + 0.5, 0.0, 1.0);
+		vec3 sealc = vec3(0.11, 0.11, 0.115) * (0.85 + 0.3 * vnoise(fp * vec2(0.5, 3.0)));
+		col = mix(col, sealc, seal * 0.85);
+		col *= 1.0 - 0.5 * core;
+		rough = mix(rough, 0.42, seal);
+		// Water stands along the joints and dries in tide lines: a soft darker band either side.
+		float tide = smoothstep(0.55, 0.0, jd) * (0.4 + 0.6 * vnoise(vec2(fp.y * 0.6, ti * 3.1)));
+		col *= 1.0 - 0.07 * tide;
+		// Ponding: low blotches where the deck sags, ringed by a darker, dried edge.
+		float pond = fbm(fp * 0.09 + 21.0);
+		float ring = smoothstep(0.58, 0.62, pond) * (1.0 - smoothstep(0.64, 0.7, pond));
+		col *= 1.0 - 0.05 * smoothstep(0.6, 0.75, pond) - 0.06 * ring;
+		// Drains on a drive's centre line every other tee, a stain spreading round each.
+		if (kind < 0.5) {
+			float di = floor(fp.x / (rc5_tee * 2.0));
+			vec2 dc = vec2((di + 0.5) * rc5_tee * 2.0, 0.0);
+			vec2 dd = vec2(fp.x - dc.x, m.y);
+			float grate = step(abs(dd.x), 0.17) * step(abs(dd.y), 0.17);
+			float slot = step(0.5, fract(dd.x * 14.0 + 0.25));
+			float stain2 = smoothstep(1.4, 0.15, length(dd * vec2(1.0, 1.3)) + (vnoise(fp * 2.3) - 0.5) * 0.5);
+			col *= 1.0 - 0.14 * stain2 * (1.0 - grate);
+			col = mix(col, vec3(0.04, 0.04, 0.045) * (0.6 + 0.8 * slot), grate);
+			rough = mix(rough, 0.35, grate);
+			// Rubber laid by a car swung round the empty roof: a pair of streaks 1.6 m apart,
+			// swaying, now and then along the drive.
+			float sway = 1.1 * sin(fp.x * 0.11 + 1.7) + 0.4 * sin(fp.x * 0.37);
+			float on = smoothstep(0.55, 0.7, vnoise(vec2(fp.x * 0.04, floor(fp.y / 12.0) + 3.0)));
+			float sk = line(m.y - sway - 0.8, 0.16, fpx) + line(m.y - sway + 0.8, 0.16, fpx);
+			col *= 1.0 - 0.28 * on * sk * (0.5 + 0.5 * vnoise(vec2(fp.x * 1.3, m.y)));
+		}
+		// The traffic coating: a faint satin sheen and the dust of the day.
+		rough = mix(rough, rough * 0.82, 0.5 * (1.0 - paint));
+	}
 	// The roof is out in the rain.
 	if (roof) {
 		float wet = road_wetness * (0.6 + 0.4 * smoothstep(0.3, 0.7, fbm(m * 0.18 + 5.0)));

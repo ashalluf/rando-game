@@ -2700,6 +2700,13 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   entry. Keep-clear hooks: `_park_car()`, Encampment, Micromobility. `CAR_PARKS=0` is the A/B;
   `tools/car_park/probe.gd`, `drive_shot.gd` (an autopilot drives up for stills); checks
   `tests/garage_drive_in_checks.gd`.
+- The car park's roof at 18:15 (wave 8, refcam `car_park_roof` in `tools/refcams/cameras_w8.json`,
+  docs/HANDOFF.md "The car park's roof deck at 18:15"): `RcCarParkRoof`
+  (`scripts/world/rc5_car_park_roof.gd`, hooks in CarParkBuild): parked cars in a real car park's
+  paint mix (`paint()`, metallic in INSTANCE_CUSTOM.a 2 under `PAINT_FROM_CUSTOM`), the core's
+  roof wall dressed, parapet joints and coping, round poles on pedestals, the roof deck's tee
+  joints / drains / ponding / rubber (car_park_deck `rc5`). `RC5_CAR_PARK_ROOF=0` is the A/B;
+  probe `tools/rc5_car_park_roof/probe.gd`; checks `tests/rc5_car_park_roof_checks.gd`.
 - Police stations (2026-10-05, "police stations the cruisers come out of"; HANDOFF 9bz):
   `PoliceStation` (`scripts/world/police_station.gd`, static). WHERE is worked out like
   FireStation's, never placed: `CELL` 1500 m squares, a hash of seed + cell, up to `TRIES` hashed

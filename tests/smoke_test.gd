@@ -3059,6 +3059,8 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	# The coyote_night refcam (tests/rc5_coyote_night_checks.gd, Rc5CoyoteNight): the small hours'
 	# street, the landscape timers, no shaft in clear air, the wildlife's eyeshine, the camera row.
 	load("res://tests/rc5_coyote_night_checks.gd").new().run(self, city)
+	# The car_park_roof refcam (tests/rc5_car_park_roof_checks.gd, RcCarParkRoof): the paint mix, the core, parapets, poles, deck, the camera row.
+	load("res://tests/rc5_car_park_roof_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()

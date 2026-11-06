@@ -4867,3 +4867,8 @@ none of either.
   by a hash after each walker's roll so no other roll moves. Landscape lighting is on timers that
   end by 00:30; porch lights stay. A lamp's light cone is not drawn in clear air (it read as a
   coloured column against the sky); only haze, mist and rain show one. RC5_COYOTE_NIGHT=0 the A/B.
+- 2026-11-06, the car park roof refcam (rc5-car-park-roof): a parked car's colour is dealt for a
+  car park (mostly neutrals, metallic where the finish is), not the street's flat pick of
+  Vehicle.PAINTS: a lot of cars side by side is where a third saturated reads as toys. The roof
+  is precast double tees with sealed joints, so the deck shader draws that structure rather than a
+  noise. RC5_CAR_PARK_ROOF=0 is the A/B.
