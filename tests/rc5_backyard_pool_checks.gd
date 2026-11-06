@@ -86,7 +86,7 @@ func _camera(plan: CityPlan) -> void:
 func _cooking() -> void:
 	for path in ["res://shaders/backyard.gdshader", "res://shaders/backyard_smoke.gdshader"]:
 		var s := FileAccess.get_file_as_string(path)
-		_t._check(s.contains("uniform float weekend = 0.0;") and s.contains("s < %.1f" % Rc5Backyard.WEEKEND_SHARE)
+		_t._check(s.contains("uniform float weekend = 0.0;") and s.contains("seed < %.1f" % Rc5Backyard.WEEKEND_SHARE)
 			and s.contains("mix(%.1f, %.1f, fract(q * 3.17))" % [Rc5Backyard.LUNCH_START.x, Rc5Backyard.LUNCH_START.y])
 			and s.contains("mix(%.1f, %.1f, fract(q * 5.71))" % [Rc5Backyard.LUNCH_LEN.x, Rc5Backyard.LUNCH_LEN.y]),
 			"%s's lunch window is Rc5Backyard's" % path.get_file())
@@ -101,7 +101,7 @@ func _cooking() -> void:
 			wk += 1
 		if Rc5Backyard.cooking(seed, 19.0, true) < Rc5Backyard.cooking(seed, 19.0, false):
 			dinner_same = false
-	_t._check(sat > 200 and sat < 800, "on a Saturday at 15:00 some grills are going (%d of 2000)" % sat)
+	_t._check(sat > 400 and sat < 1000, "on a Saturday at 15:00 some grills are going (%d of 2000)" % sat)
 	_t._check(wk == 0, "on a weekday at 15:00 none are")
 	_t._check(dinner_same, "the weekend lunch takes nothing from dinner")
 	Rc5Backyard.force_weekend = 1

@@ -5,20 +5,20 @@ extends RefCounted
 ## RC5_BACKYARD=0 in the environment is the A/B: the yards exactly as before.
 ##
 ## - THE WEEKEND BARBECUE. Grills only cooked at dinner (17:06-21:30), so a Saturday afternoon's
-##   yards had cold grills and no smoke. On a Saturday or Sunday `WEEKEND_SHARE` of the cooking
-##   households fire up for a late lunch too (11:30-18:24, their own window from their seed): the
+##   yards had cold grills and no smoke. On a Saturday or Sunday `WEEKEND_SHARE` of the households
+##   with a grill fire it up for a late lunch too (11:30-17:24, each its own window from its seed;
+##   about a third at 15:00, more than at dinner on a weekday: a weekend afternoon): the
 ##   `weekend` uniform on BackyardKit's grill and smoke materials, set from the day each time a
 ##   chunk's yards are built (`day_hook()`); backyard.gdshader and backyard_smoke.gdshader's
 ##   cooking() read it (the two copies agree; checked).
 
 static var enabled: bool = OS.get_environment("RC5_BACKYARD") != "0"
 
-## The share of the cooking households (backyard*.gdshader cook_share) that also cook at lunch on
-## a weekend. Copied in both shaders' cooking() (`weekend_share`).
-const WEEKEND_SHARE := 0.6
+## The share of the households with a grill (by its seed) that also cook at lunch on a weekend. Copied in both shaders' cooking() (`weekend_share`).
+const WEEKEND_SHARE := 0.7
 ## The lunch window's start range and length range (hours), also in both shaders.
 const LUNCH_START := Vector2(11.5, 14.0)
-const LUNCH_LEN := Vector2(2.8, 4.4)
+const LUNCH_LEN := Vector2(1.8, 3.4)
 ## FarmersMarket's days: 0 Sunday .. 6 Saturday.
 const WEEKEND_DAYS := [0, 6]
 
@@ -42,14 +42,14 @@ static func day_hook(ch: Node) -> void:
 
 ## The same window as the shaders' cooking() (GDScript copy, for checks and probes).
 static func cooking(seed: float, hour: float, weekend: bool, cook_share: float = 0.55) -> float:
-	if seed >= cook_share:
-		return 0.0
-	var s := seed / maxf(cook_share, 0.001)
-	var start := 17.1 + s * 1.2
-	var length := 1.5 + fposmod(s * 7.31, 1.0) * 1.6
-	var on := smoothstep(start, start + 0.15, hour) * (1.0 - smoothstep(start + length - 0.2, start + length, hour))
-	if weekend and s < WEEKEND_SHARE:
-		var q := s / WEEKEND_SHARE
+	var on := 0.0
+	if seed < cook_share:
+		var s := seed / maxf(cook_share, 0.001)
+		var start := 17.1 + s * 1.2
+		var length := 1.5 + fposmod(s * 7.31, 1.0) * 1.6
+		on = smoothstep(start, start + 0.15, hour) * (1.0 - smoothstep(start + length - 0.2, start + length, hour))
+	if weekend and seed < WEEKEND_SHARE:
+		var q := seed / WEEKEND_SHARE
 		var ls := lerpf(LUNCH_START.x, LUNCH_START.y, fposmod(q * 3.17, 1.0))
 		var ll := lerpf(LUNCH_LEN.x, LUNCH_LEN.y, fposmod(q * 5.71, 1.0))
 		on = maxf(on, smoothstep(ls, ls + 0.15, hour) * (1.0 - smoothstep(ls + ll - 0.2, ls + ll, hour)))

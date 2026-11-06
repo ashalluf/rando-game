@@ -72,20 +72,20 @@ float by_noise(vec2 p) {
 
 // 1 while this grill is cooking (an evening window per household), 0 otherwise.
 float cooking(float seed) {
-	if (seed >= cook_share) {
-		return 0.0;
-	}
-	float s = seed / max(cook_share, 0.001);
-	float start = 17.1 + s * 1.2;
-	float len = 1.5 + fract(s * 7.31) * 1.6;
 	float h = city_hour;
-	float on = smoothstep(start, start + 0.15, h) * (1.0 - smoothstep(start + len - 0.2, start + len, h));
-	// Rc5Backyard: on a weekend a share of them fire up for a late lunch too (the same numbers as
-	// Rc5Backyard.cooking(): WEEKEND_SHARE, LUNCH_START, LUNCH_LEN).
-	if (weekend > 0.5 && s < 0.6) {
-		float q = s / 0.6;
+	float on = 0.0;
+	if (seed < cook_share) {
+		float s = seed / max(cook_share, 0.001);
+		float start = 17.1 + s * 1.2;
+		float len = 1.5 + fract(s * 7.31) * 1.6;
+		on = smoothstep(start, start + 0.15, h) * (1.0 - smoothstep(start + len - 0.2, start + len, h));
+	}
+	// Rc5Backyard: on a weekend most households with a grill fire it up for a late lunch too (the
+	// same numbers as Rc5Backyard.cooking(): WEEKEND_SHARE, LUNCH_START, LUNCH_LEN).
+	if (weekend > 0.5 && seed < 0.7) {
+		float q = seed / 0.7;
 		float ls = mix(11.5, 14.0, fract(q * 3.17));
-		float ll = mix(2.8, 4.4, fract(q * 5.71));
+		float ll = mix(1.8, 3.4, fract(q * 5.71));
 		on = max(on, smoothstep(ls, ls + 0.15, h) * (1.0 - smoothstep(ls + ll - 0.2, ls + ll, h)));
 	}
 	return on;

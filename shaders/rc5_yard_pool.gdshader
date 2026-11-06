@@ -34,9 +34,9 @@ uniform float depth_deep = 1.85;
 uniform float band = 0.22;
 uniform float ripple = 0.05;
 // Absorption per metre of water (linear, red goes first) and the light the water scatters back.
-uniform vec3 absorb = vec3(0.62, 0.15, 0.085);
+uniform vec3 absorb = vec3(0.75, 0.19, 0.11);
 uniform vec3 scatter = vec3(0.012, 0.13, 0.17);
-uniform vec3 plaster = vec3(0.56, 0.72, 0.76);
+uniform vec3 plaster = vec3(0.5, 0.68, 0.73);
 // The pool light after dark (the same idea as lot_yard's).
 uniform vec3 night_glow = vec3(0.05, 0.55, 0.66);
 uniform float night_energy = 1.1;
@@ -199,7 +199,7 @@ void fragment() {
 		float el = clamp(R.y, 0.0, 1.0);
 		float az = atan(R.z, R.x);
 		vec3 sky_r = sky * mix(1.05, 0.55, smoothstep(0.35, 0.95, el));
-		vec3 amb = sky * 0.55 + sun_c * 0.22 * day;
+		vec3 amb = sky * 0.4 + sun_c * 0.14 * day;
 		float wob = 0.03 * sin(az * 23.0 + g.x * 2.0);
 		float fence_top = 0.16 + 0.03 * sin(az * 3.0 + rnd * 9.0);
 		float roof_top = 0.3 + 0.1 * h21(vec2(floor(az * 2.5 + rnd * 7.0), 1.0));
