@@ -57,11 +57,18 @@ uniform float top_look = 0.0;
 uniform float top_dip = 0.0;
 uniform float coast_x = -900.0;
 uniform float coast_top = 430.0;
-uniform float inland_top = 282.0;
+uniform float inland_top = 266.0;
 uniform float dip_near = 600.0;
 uniform float dip_far = 3600.0;
 uniform float soft_shore = 55.0;
+// The haze over the top per metre (the clear air over the inversion; capped, the scene's fog is the
+// gloom's under the deck).
+uniform float top_haze = 0.00007;
+// The top's brightness over the lit colour Weather hands it (linear, a white tuned cool).
+uniform vec3 top_gain = vec3(1.22, 1.25, 1.3);
 uniform sampler2D depth_texture : hint_depth_texture, filter_nearest, repeat_disable;
+
+global uniform vec4 sky_tint;
 
 varying vec3 wpos;
 varying float bank_h;
@@ -138,6 +145,45 @@ vec3 worley_v(vec2 p) {
 	}
 	best.z = sqrt(best.z);
 	return best;
+}
+
+// Puffs: a round cap of a jittered radius on each cell's point, blended by a smooth max (soft
+// creases where two meet), about 0..1 in cell units.
+float puffs(vec2 p) {
+	vec2 i = floor(p);
+	vec2 f = fract(p);
+	float h = 0.0;
+	for (int y = -1; y <= 1; y++) {
+		for (int x = -1; x <= 1; x++) {
+			vec2 o = vec2(float(x), float(y));
+			vec2 j = hash22(i + o);
+			vec2 r = o + 0.15 + 0.7 * j - f;
+			float rad = 0.55 + 0.35 * j.y;
+			// A cap that meets the deck flat (no hard rim), the caps summed softly (a smooth max).
+			float u = max(1.0 - dot(r, r) / (rad * rad), 0.0);
+			float c = rad * u * u * (0.7 + 0.3 * j.x);
+			h += exp(c * 12.0) - 1.0;
+		}
+	}
+	return log(1.0 + h) / 12.0;
+}
+
+// The deck's top as a height (m): puffs of 640, 190 and 60 m heaped on each other, each faded to
+// its mean once it is under a few pixels (`fw` metres a pixel), the big ones stretched down the wind.
+float cloud_h(vec2 q, float fw) {
+	float k1 = 1.0 - smoothstep(70.0, 280.0, fw);
+	float k2 = 1.0 - smoothstep(22.0, 90.0, fw);
+	float k3 = 1.0 - smoothstep(7.0, 28.0, fw);
+	// The broad heaps under them: soft rolls, kept at every distance (what a far deck shows).
+	float h = 70.0 * fbm(q * vec2(1.0 / 1500.0, 1.0 / 900.0));
+	h += 70.0 * mix(0.4, puffs(q * vec2(1.0 / 560.0, 1.0 / 380.0)), k1);
+	h += 34.0 * mix(0.4, puffs(q / 170.0 + vec2(3.7, 1.1)), k2);
+	h += 10.0 * mix(0.4, puffs(q / 55.0 + vec2(9.2, 4.4)), k3);
+	return h;
+}
+
+float cloud_hmax(float fw) {
+	return 165.0;
 }
 
 // The stratocumulus underside (look 1), linear: x brightness factor on the shaded colour, y how
@@ -312,44 +358,41 @@ void fragment() {
 			float lit = clamp(dot(n, sun_dir) * 0.6 + 0.4, 0.0, 1.0);
 			col = mix(shade_col, lit_col, lit) * (0.9 + 0.14 * hgt + 0.04 * fine);
 			if (top_look > 0.5) {
-				// Stratocumulus from above: domed cells in long rows down the wind, each a billow
-				// lit on its sun side and shaded in the trough round it, smaller billows on the big
-				// ones; every scale fades to its mean once it is under a few pixels (`fw`).
-				float fw = length(fwidth(tw));
+				// Stratocumulus from above: heaped lumps, each lit on its sun side and shaded in the
+				// creases round it, smaller lumps on the big ones; every scale fades to its mean once
+				// it is under a few pixels (`fw`).
+				// The footprint across the screen (geometric mean of the two axes): at a grazing look
+				// the depth axis alone would fade every billow out kilometres too soon.
+				float fw = sqrt(length(dFdx(tw)) * length(dFdy(tw)));
 				vec2 q = p + 260.0 * (vec2(fbm(p * 0.0008), fbm(p * 0.0008 + vec2(7.3, 2.1))) - 0.5);
-				vec2 s1 = vec2(1.0 / 520.0, 1.0 / 330.0);
-				vec2 s2 = vec2(1.0 / 150.0, 1.0 / 110.0);
-				vec2 s3 = vec2(1.0 / 46.0, 1.0 / 40.0);
-				vec3 c1 = worley_v(q * s1);
-				vec3 c2 = worley_v(q * s2 + vec2(3.7, 1.1));
-				vec3 c3 = worley_v(q * s3 + vec2(9.2, 4.4));
-				float k1 = 1.0 - smoothstep(60.0, 260.0, fw);
-				float k2 = 1.0 - smoothstep(18.0, 80.0, fw);
-				float k3 = 1.0 - smoothstep(6.0, 24.0, fw);
-				// A dome h = 1 - d^2 per cell: its slope in metres is 2 r / scale (r toward the centre).
-				vec2 g1 = 2.0 * c1.xy * s1 * 42.0;
-				vec2 g2 = 2.0 * c2.xy * s2 * 14.0;
-				vec2 g3 = 2.0 * c3.xy * s3 * 4.0;
-				vec2 gs = g1 * k1 + g2 * k2 + g3 * k3;
-				vec3 nn = normalize(vec3(-gs.x, 1.0, -gs.y));
-				// The troughs between cells: dark where F1 is large (the cell runs out).
-				float trough = smoothstep(0.55, 1.05, c1.z) * k1 * 0.55 + smoothstep(0.5, 1.0, c2.z) * k2 * 0.3
-					+ smoothstep(0.5, 1.0, c3.z) * k3 * 0.15;
+				// Puffs heaped on puffs (cloud_h), parted by creases. The normal from the height's own
+				// differences.
+				float eps = clamp(fw * 0.6, 2.0, 60.0);
+				float h0 = cloud_h(q, fw);
+				float hx = cloud_h(q + vec2(eps, 0.0), fw);
+				float hz = cloud_h(q + vec2(0.0, eps), fw);
+				vec3 nn = normalize(vec3(-(hx - h0) / eps, 1.0, -(hz - h0) / eps));
+				// The creases between lumps: low where the height falls toward its troughs.
+				float trough = 1.0 - smoothstep(0.2, 0.7, h0 / cloud_hmax(fw));
 				vec3 sd = normalize(sun_dir + vec3(0.0, 0.001, 0.0));
 				float ndl = dot(nn, sd);
 				// Wrapped light: a cloud is translucent, its far side never black.
-				float diff = clamp(ndl * 0.55 + 0.45, 0.0, 1.0);
+				float diff = clamp(ndl * 0.7 + 0.3, 0.0, 1.0);
 				// The shade a billow throws on the far side of its trough (from the low sun).
 				float self_sh = clamp(1.0 - trough * (1.0 - clamp(sd.y * 1.6, 0.0, 1.0)) * 1.1, 0.0, 1.0);
 				vec3 view = normalize(wpos - CAMERA_POSITION_WORLD);
 				// The sky's blue in the shaded flanks (what lights a cloud top out of the sun).
 				vec3 sky_fill = mix(shade_col, vec3(dot(shade_col, vec3(0.3, 0.59, 0.11))) * vec3(0.78, 0.9, 1.25), 0.7) * 1.75;
 				vec3 top_col = mix(sky_fill, lit_col * 1.04, diff * self_sh);
-				top_col *= 1.0 - trough * 0.22;
+				// Occlusion in the troughs, and the deck's broad thick / thin patches (brighter where it
+				// is heaped up), so it reads as a lumpy field from any sun.
+				top_col *= (1.0 - trough * 0.42) * (0.88 + 0.2 * thick);
 				// A silver sheen on the billows looking toward the sun (forward scattering).
 				float fwd = pow(clamp(dot(view, sd), 0.0, 1.0), 6.0);
 				top_col += lit_col * fwd * (0.25 + 0.35 * (1.0 - trough));
-				col = top_col;
+				// A sunlit stratus top is the brightest thing in the view, whiter than the cumulus
+				// above it (the old top, lit like the underside, read as a beige plain).
+				col = top_col * top_gain;
 				// Its edge where it burns off: torn into the cells, not a smooth fade.
 				a = density * smoothstep(0.0, 0.45, c * 1.15 - (1.0 - thick) * 0.45 * (1.0 - c) - trough * 0.6 * (1.0 - c));
 				// The shore: thin where the ground or a tower stands close under the top (the scene's
@@ -380,6 +423,13 @@ void fragment() {
 		// it cooled (the scene's dusk fog colour is a warm brown that turned the wall khaki).
 		fogk = fog_k * 0.22;
 		fogc = mix(fog_col, vec3(dot(fog_col, vec3(0.3, 0.59, 0.11))) * vec3(0.9, 0.95, 1.08), 0.6);
+	}
+	if (mode == 1 && top_look > 0.5) {
+		// Over the inversion the air is clear: a little haze, cooled toward the sky's own colour
+		// (the scene's fog is the gloom's warm grey under the deck).
+		fogk = min(fog_k * 0.3, top_haze);
+		vec3 sky = cs_srgb_to_linear(sky_tint.rgb);
+		fogc = mix(fog_col, sky * 1.15, 0.55);
 	}
 	col = mix(col, fogc, 1.0 - exp(-dist * fogk));
 	ALBEDO = cs_out(col);

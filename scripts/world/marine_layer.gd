@@ -1,5 +1,6 @@
 class_name MarineLayer
 extends Node3D
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
 ## The marine layer's geometry (see LaWeather for where and when): the deck's underside and top as
 ## two big planes that follow the camera, and the evening fog bank as a ribbon standing on the
 ## water along the deck's edge (shaders/marine_layer.gdshader). Weather owns it and calls

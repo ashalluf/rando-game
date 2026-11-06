@@ -1,5 +1,6 @@
 class_name SeaOfClouds
 extends RefCounted
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
 ## The marine layer seen from ABOVE (refcam `sea_of_clouds`, tools/refcams/cameras_w8.json: the
 ## east range at 08:30 looking west over the deck). What the deck's top did not give the view:
 ##
@@ -30,7 +31,7 @@ static var enabled: bool = OS.get_environment("SEA_OF_CLOUDS") != "0"
 const COAST_TOP := 430.0
 ## The deck's top well inland on a burning-off morning (true world metres). Downtown's crowns
 ## (the 310 m round tower, the 335 m sail) and the front range's crests (~380 m) stand out of it.
-const INLAND_TOP := 282.0
+const INLAND_TOP := 266.0
 ## The top is COAST_TOP within NEAR of the coast line and INLAND_TOP from FAR inland (m).
 const NEAR := 600.0
 const FAR := 3600.0

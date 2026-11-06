@@ -29,7 +29,7 @@ func _pure() -> void:
 	var top := LaWeather.deck_heights(8.5).y
 	var at_coast := SeaOfClouds.top_at(coast, 8.5, coast + 200.0, top)
 	var downtown := SeaOfClouds.top_at(coast, 8.5, 2800.0, top)
-	_t._check(absf(at_coast - SeaOfClouds.COAST_TOP) < 1.0 and downtown < 300.0 and downtown > LaWeather.DECK_BASE + 15.0,
+	_t._check(absf(at_coast - SeaOfClouds.COAST_TOP) < 1.0 and downtown < 300.0 and downtown > LaWeather.DECK_BASE + 5.0,
 		"sea of clouds: the deck's top %.0f m at the coast, %.0f m over downtown at 08:30 (crowns out, over the underside)" % [at_coast, downtown])
 	_t._check(SeaOfClouds.morning(18.5) == 0.0 and SeaOfClouds.morning(2.0) == 0.0 and SeaOfClouds.morning(15.0) == 0.0
 		and SeaOfClouds.morning(8.5) > 0.99,
