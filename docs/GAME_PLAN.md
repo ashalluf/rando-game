@@ -4598,3 +4598,11 @@ none of either.
   frame); shop doors and far-walker borrowing take only the plain crowd by script (a valet was sent
   through a door for good); the crowd-flow passing check meets nearest the camera. RAGDOLL_PHYSICS_TICK=0
   is the A/B.
+- **2026-11-06 The crash refcam: a crash reads by what it hit and what it leaks (rc5-crash-closeup,
+  HANDOFF "The crash at arm's length").** A new reference camera (`crash_closeup`, wave 8's table)
+  stages a sedan wrapped round a street lamp at 13:00. Decisions: what the car hit shapes the crush
+  (a pole a narrow deep V, a wall the wide flat crush), told to CrashDeform by a one-frame hint from
+  whoever knows (PropBreak's smash, the stager), never guessed from the contact; a bonnet only flies
+  open past the fly-off speed, below it it pops and buckles; a front crush leaks oil and coolant onto
+  the ground and steams for a couple of minutes; the stager is a camera-row key (`"stage": "crash"`),
+  never a change to the city. CRASH_AFTERMATH=0 is the A/B.

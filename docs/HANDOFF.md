@@ -29933,3 +29933,59 @@ only gets shorter on a slow frame; nothing found).
 
 **Runs** (`SHARDS=3`, shuffled, ~32 min each, shards 3.2-3.7 GB RSS): 21101 (cut short by a tool
 limit at ~4,800 checks: the valet), 21202 PASSED 5,797, 21303 PASSED 5,797 (both on 7f68e37f). Final unshuffled gate on the branch merged with main (batch 53a): FINAL_HERE.
+
+## 9d?. The crash at arm's length (fleet wave 8, refcam5 `crash_closeup`, branch `wt/rc5-crash-closeup`)
+
+**The view.** A new reference camera, `crash_closeup` in `tools/refcams/cameras_w8.json`: a sedan
+that left its lane on Cedar Ave (midtown, the road of constant x at 1391, the -x kerb), jumped the
+kerb and wrapped its nose round a street lamp (lamp_40 of chunk 14,7 at (1383.0, 1391.4) on the
+default seed), a minute after, 13:00 clear, from the pavement ahead of the nose. It is STAGED
+(`"stage": "crash"` -> `tools/refcams/crash_stage.gd`, the row's `crash` key; keys and env
+overrides in the stager's header): the lamp nearest `along` on that kerb is bent over by the hit
+(PropBreak's lean through `CityChunk.damage_prop()`), the car (random_car() walked to SEDAN, seed 77)
+placed at `angle` 24 degrees into the kerb with its crushed nose on the pole `offset` m off its
+centre line, and given the crash through the one entry point (`take_hit(HIT_CRASH)` at the pole,
+55 km/h, CarDamage's staged way: marks, no health), walkers added to the block and the Onlookers
+scene opened round the wreck; the eye is in the car's frame (`eye` / `look`), walkers in the line of
+sight hidden. The log prints the crush, the pool, the steam, the bonnet and every onlooker.
+
+**What gave it away (main's crash code, `01_before_crash_closeup.jpg`), in the order the eye found
+it, and the fixes** (`CrashAftermath`, `scripts/vehicles/crash_aftermath.gd`; `CRASH_AFTERMATH=0`
+is the A/B, the crash code exactly as before):
+- **A lamp post hit like a wall.** CrashDeform crushed the whole front back, flat-topped and
+  1.1 m wide, and hung the bumper off one corner (a blue sheet draped down to the road over the
+  wheel: the torn "teeth"). Now `note_pole()` (from `PropBreak.smash_ahead()` for a lamp, signal or
+  sign post, and the stager) tells CrashDeform the hit is a pole for that physics frame;
+  `crash()` takes it (`take_pole()`, used once) and makes the zone NARROW (`pole_radius()`: half
+  the pole + 0.12 + 0.6 x the crush) and `POLE_DEPTH` 1.3 x deeper, marked a pole's
+  (`crumple_shape.w` 1) so car_crumple.gdshaderinc bends it into a V (falloff `(1 - r)^1.5`, not
+  the flat top) over a TALL slot (the height counts 0.3: the bumper, the grille and the bonnet edge
+  all wrap), and hangs no bumper (`_pole_hit` in `_panels()`). `move_point()` mirrors it. At
+  55 km/h: 0.51 m at the pole, nothing at the far corner.
+- **The bonnet swung wide open over a black engine bay.** CrashBreakup releases the catch past a
+  0.28 m crush and rested it at 0.35-0.95 rad; a real bonnet in a 50 km/h hit buckles and pops off
+  its catch. Below `bonnet_fly_over` it now rests at `POP_REST` (0.05-0.12 rad) with a small kick
+  (`bonnet_rest()`, `bonnet_kick()`), the crumple's tent doing the rest; a 75 km/h head-on still
+  throws it wide (car_crash_3_checks holds that).
+- **The lower grille stood whole in front of the crushed nose.** CarCloseup's pushed copy of the
+  bumper trim (`BumperBands`, a child of the near body mesh) kept its plain trim material, so it
+  never crumpled. `CrashAftermath.bands()` puts it on a crumple part material of its own when the
+  car crumples (`CrashDeform._ensure_materials()`) and back on `reset()`.
+- **Nothing on the road.** A front crush past `FLUID_AT` (0.16 m) leaks: one quad under the nose
+  on `shaders/crash_fluids.gdshader` (a black oil pool with a faint thin-film rim, a wider sheet of
+  green coolant thrown forward out of the nose and run down the slope, damp ground round both,
+  flicked drops; glossy, alpha-blended, linear on both renderers), spreading over
+  `SPREAD_SECONDS` (a staged car's is drawn `STAGED_AGE` 40 s on), `MAX_POOLS` 6 kept under the
+  level root (a tow takes the car and leaves the pool). The ray that finds the floor skips what is
+  not face up: the first version laid the pool INSIDE the lamp's collision box, edge on. And the
+  radiator STEAMS (`RadiatorSteam`, WeaponFX's smoke material, on the car) for `STEAM_SECONDS`.
+- **Pitch-black debris.** CrashDebris' pieces were linear colours sent raw (0.03), which
+  Compatibility drew as black paper cut-outs; now sRGB with `vertex_color_is_srgb` (Forward+ draws
+  exactly what it did).
+
+**Not done / known.** The lamp still bends at its foot (PropBreak's lean): a real post kinks at
+bumper height. In play a car over ~7 m/s FELLS a lamp (`FALL_AT`), so a bent post with the car on
+it is the slow-hit case. The pavement joint weeds (LawnsCloseup) stand in the foreground of any
+low eye. Fluids are a flat quad (no decal), so a pool that reaches a kerb edge floats over the drop.
+Stills on `shots/rc5-crash-closeup`; car alone: `DAMAGE=pole55` on car_shot.gd. Checks:
+`tests/rc5_crash_closeup_checks.gd` (24).
