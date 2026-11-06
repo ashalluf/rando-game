@@ -225,7 +225,16 @@ static func people_steps(lm: Dictionary, chunk: CityChunk) -> Array[Callable]:
 				for c in chunk.get_children():
 					if c is Pedestrian and lane_w.grow(1.0).has_point(Vector2(c.position.x, c.position.z)):
 						n += 1
-				print("PUEBLO lane walkers %d (base %d + extra %d), pedestrians in the city %d" % [n, PuebloLaneLook.LANE_BASE, extra, chunk.get_tree().get_nodes_in_group("pedestrian").size()]))
+				print("PUEBLO lane walkers %d (base %d + extra %d), pedestrians in the city %d" % [n, PuebloLaneLook.LANE_BASE, extra, chunk.get_tree().get_nodes_in_group("pedestrian").size()])
+				for wait: float in [5.0, 20.0, 60.0]:
+					chunk.get_tree().create_timer(wait).timeout.connect(func() -> void:
+						if not is_instance_valid(chunk):
+							return
+						var rows := []
+						for c in chunk.get_children():
+							if c is Pedestrian and lane_w.grow(1.0).has_point(Vector2(c.position.x, c.position.z)):
+								rows.append("%s %.1f,%.1f v%d" % [c.get_class() if c.get_script() == null else c.get_script().get_global_name(), c.position.x, c.position.z, int(c.is_visible_in_tree())])
+						print("PUEBLO at %.0f s: %s" % [wait, ", ".join(rows)])))
 	return steps
 
 
