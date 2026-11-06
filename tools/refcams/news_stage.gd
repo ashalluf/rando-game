@@ -126,6 +126,17 @@ static func stage(tree: SceneTree, scene: Node, cam: Camera3D, _player: Node3D, 
 		var n := p as Node3D
 		if n != null and n.global_position.distance_to(eye_l) < 1.6 and not (n is NewsCrew):
 			n.visible = false
+	# Who stands in the live shot (debug: should be nobody but the crew).
+	var shot_list := NewsLive.shots(tree)
+	print("REFCAM news: %d live shots" % shot_list.size())
+	for p in tree.get_nodes_in_group("pedestrian"):
+		var n := p as Pedestrian
+		if n == null or not n.visible:
+			continue
+		var w := WorldState.to_world(n.global_position)
+		var q := Vector2(w.x, w.z)
+		if q.distance_to(camp) < 8.0 or (not shot_list.is_empty() and NewsLive.in_shot(shot_list, q)):
+			print("REFCAM news:   %s %s at %s (%.1f m from the operator) watch %s act %d" % [n.name, n.get_script().get_global_name(), q, q.distance_to(camp), not n.watch.is_empty(), int(n._act)])
 	var van: Node3D = s.get("van")
 	print("REFCAM news: station %d, scene %s, reporter %s, operator %s, van %s, engine %s, eye %s" % [station, scn, rep, camp,
 			WorldState.to_world(van.global_position) if van else "none",
