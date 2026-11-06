@@ -34,7 +34,7 @@ static var enabled: bool = OS.get_environment("JET_TAKEOFF") != "0"
 
 ## The infield's tufts a square metre (the lawns' 1.9 thinned: mown, dry airfield grass) and the
 ## largest patch one _add_grass() call takes (its own cap per patch would thin a long strip).
-const TUFT_DENSITY := 1.1
+const TUFT_DENSITY := 0.7
 const TUFT_PATCH := 60.0
 ## An edge light's glow on the ground: radius (m) and strength, white and blue.
 const EDGE_POOL_RADIUS := 8.0

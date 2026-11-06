@@ -29933,3 +29933,62 @@ only gets shorter on a slow frame; nothing found).
 
 **Runs** (`SHARDS=3`, shuffled, ~32 min each, shards 3.2-3.7 GB RSS): 21101 (cut short by a tool
 limit at ~4,800 checks: the valet), 21202 PASSED 5,797, 21303 PASSED 5,797 (both on 7f68e37f). Final unshuffled gate on the branch merged with main (batch 53a): FINAL_HERE.
+
+## 9d?. The take-off from the infield (refcam5 jet_takeoff)
+
+Wave 8's `jet_takeoff` camera (`tools/refcams/cameras_w8.json`): an airliner rotating off 27R at
+19:15 clear, seen from the infield grass between the runways beside 27R's departure (west) end,
+1.1 m up next to an elevated edge light, looking east-north-east at the jet with the tower, the
+concourse and the downtown skyline behind. The row stages the take-off (`"air": "takeoff"`,
+`air_dist` -22: 22 m before lift-off, so the nose is coming up), and two new optional keys in
+`refcams_shot.gd`: `air_frames` (the aircraft is staged that many frames before the shot rather
+than the default 30 - a jet rolling at 56 m/s covered ~200 m in those frames on a slow box) and
+`air_flash` (the staged aircraft's strobes and beacons held at their flash: `flash_hold` on
+aircraft_lights.gdshader, default 0, never set in play). The log prints the staged jet's pitch,
+speed and every one of its lights' screen position (`REFCAM jet_takeoff air lights ...`).
+Nineteen-fifteen is night in this game (the sun sets at 18:00), so the view is a night take-off.
+
+What read as a game, worst first, and what was done (`JetTakeoff`,
+`scripts/vehicles/jet_takeoff.gd`; `JET_TAKEOFF=0` is the A/B for all of it):
+
+1. **The lower half of the frame was a black void.** The airfield's grass is a flat lawn slab
+   with no blades, and at night nothing lit it: the lens stood on featureless black. `infield()`
+   (one hook in `Airport.build_chunk()`, FULL chunks) plants the city's lawn tufts on every grass
+   rect (`TUFT_DENSITY` 0.7 a square metre, `TUFT_PATCH` 60 m patches so `_add_grass()`'s per-patch
+   cap does not thin a 600 m strip; the tufts carry a fully dry straw look through a stand-in
+   material's lawn metas, so they are the airfield's dry grass, not a watered lawn's green;
+   `_add_grass()` gained a `base_y`, default the old height, because the airfield's grass is at
+   `Airport.GRASS_TOP`, 19 cm under the pavement), and lays each elevated edge light's glow on the
+   ground round its foot (`Airport.edge_light_spots()`: white by the runways, blue by the taxiways;
+   one shadowless additive batch `jt_edge_pool`, instance custom alpha 0 - alpha 1 would make
+   light_pool.gdshader a NightLamps point source). The eye was also moved onto the grass beside an
+   edge light: the first framing stood on the west connector's asphalt.
+2. **The wingtip lights floated in the air.** The nav lights and strobes were hung at a fixed 36 m
+   span, 26 % of the model's height and 13 % of its length aft; measured off jet_airliner.glb's
+   vertices the tips are at +-15.9 m, 5.2 m up, 2.4 m aft. So from beside the runway the red / white
+   pair hung two metres off the near tip and 1.7 m under it. `fitted_span()` takes the model's own
+   span (`AmbientJet._build_model()`, the airliner and the private jet) and `AIRLINER_TIP` the
+   tip's height and station.
+3. **A rolling jet had no landing lights.** Only LINEUP switched them on, so a jet that starts out
+   rolling (every staged take-off) rolled dark, and `AirportNight.landing_pool()` threw
+   `float(null)` every tick on the unset parameter (25 SCRIPT ERRORs a still) and never laid its
+   pool. The roll turns the landing lights and strobes on; landing_pool() reads an unset parameter
+   as the shader's default.
+4. **The landing lights were glare dots with nothing coming out of them.** One additive cone a lamp
+   (`shaders/jet_beam.gdshader`, fog-free, `BEAM_*`), after dark only, faded where it reaches the
+   lens (a beam pointed at the camera filled half the frame with haze in the first try), drawn to
+   `BEAM_RANGE`.
+5. **The take-off shimmer was a per-pixel sparkle.** At full thrust the cones run `PLUME_GAIN`
+   (2.1x) their idle length and bend `BEND_GAIN` harder, and with jet_exhaust.gdshader's new `look`
+   (1 set by AmbientJet; 0 the old) the wobble is in cells of about a metre that grow with distance:
+   the runway's lamps behind the engines ripple instead of breaking into white speckle. At idle the
+   cones are what they were.
+
+Checked and not changed: the rotation. A 9 degree pitch about the body's origin looked like a tail
+strike in the first still, so the model was measured: its main gear stands 0.4 m ahead of the
+origin and the tail cone's underside is 4.4-5 m up, so the pivot is right and the low tail is
+perspective (the eye is 1.1 m up). Not touched (another area): the nightlife searchlight beam in
+the sky, the ridge sign at the left edge.
+
+Numbers (opengl3, 1280x720, the shot's own frame; GEO from the refcam report): see the table at
+the end of this section. Stills on `shots/rc5-jet-takeoff`.
