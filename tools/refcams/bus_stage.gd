@@ -139,7 +139,11 @@ static func stage(tree: SceneTree, scene: Node, _cam: Camera3D, place: Callable,
 	for i in 6:
 		await tree.process_frame
 		place.call()
-	print("REFCAM bus: %d of %d in the queue at %s" % [placed, want, str(mine.kerb)])
+	print("REFCAM bus: %d of %d in the queue at %s, rain %.2f" % [placed, want, str(mine.kerb), RainCrowd.rain_now()])
+	for ped: Pedestrian in queue:
+		var r: Variant = ped.get("rain")
+		print("REFCAM bus: queue %s near %s gear %s open %s" % [ped._model_path.get_file(), ped._life_near,
+			r.gear if r else -1, r.open if r else -1.0])
 
 
 static func unstage() -> void:
