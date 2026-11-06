@@ -30774,9 +30774,11 @@ end. No staging keys: the frame is what the load builds (people walk through it)
 **Frame cost** (the refcam's own GEO, opengl3 1280x720, `RC5_AUTO_ROW=0` against on, same load):
 before 5.85 M triangles / 3,156 draws (shadows 1.78 M); first after 6.54 M / 3,353 (shadows
 2.29 M: the real bodies cast); with the box cars as SHADOWS_ONLY proxies within REAL_NEAR (the real
-bodies cast nothing) see the final numbers below.
+bodies cast nothing): **6.08 M / 3,269 (shadows 1.82 M), +3.8 % triangles and +3.6 % draws on
+the view the change is for**. Every windscreen the load measured (RC5_AUTO_ROW_DEBUG=1 prints them):
+sedan, pickup, sports, crossover from the real Vehicles, none failed on the static bodies.
 
 **Not verified.** Forward+ (the Mac): the far twins' paint (car_park_car.gdshader, GLOSS) and the
 cards under AgX were seen only on opengl3. A body type whose profile has no clear bonnet-to-roof
-climb at x 0.42 gets no card (measured: none of the TYPES failed in the refcam load). The dealer's
+climb at x 0.42 gets no card (none failed in the refcam load; RC5_AUTO_ROW_DEBUG=1 says so). The dealer's
 LOD / far city is unchanged (boxes).
