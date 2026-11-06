@@ -623,6 +623,15 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   underside is stratocumulus cells (marine_layer.gdshader `look`, taking half the low haze).
   `Weather.settle_wet()` soaks a still at once. `MARINE_MORNING=0` is the A/B; checks
   `tests/rc2_marine_checks.gd`.
+- The evening fog bank from the beach (wave 8, refcam `marine_evening` in
+  `tools/refcams/cameras_w8.json`, docs/HANDOFF.md "The marine layer's evening bank from the beach"):
+  `MarineEvening` (`scripts/world/marine_evening.gd`): marine_layer.gdshader's `bank_look` makes the
+  bank a wall (foot sunk 8 m in the water, billowed crest lit by `rim()`'s afterglow, slate body),
+  drawn at render_priority -1, AFTER the deck planes (their huge bounds sorted the underside over
+  its face); clothed `BeachWalker.leaving` walkers head up the sand 17:24-19:48 (`add_leavers()`);
+  `twilight_shadow()` softens the directional light's shadows between sunset and full night (the
+  moon's crisp shadows lay across the sand at 18:30). `MARINE_EVENING=0` is the A/B; checks
+  `tests/rc5_marine_evening_checks.gd`.
 - Surf and beach (2026-10-04, owner: "the Pacific and the beach, AAA"). One wave model,
   `shaders/surf.gdshaderinc`, included by the ocean, the sand and the spray, mirrored in GDScript
   by `Surf` (`scripts/world/surf.gd`): crests parallel to the shore at `phi = TAU * ((s + wob) / L
@@ -2699,6 +2708,13 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   entry. Keep-clear hooks: `_park_car()`, Encampment, Micromobility. `CAR_PARKS=0` is the A/B;
   `tools/car_park/probe.gd`, `drive_shot.gd` (an autopilot drives up for stills); checks
   `tests/garage_drive_in_checks.gd`.
+- The car park's roof at 18:15 (wave 8, refcam `car_park_roof` in `tools/refcams/cameras_w8.json`,
+  docs/HANDOFF.md "The car park's roof deck at 18:15"): `RcCarParkRoof`
+  (`scripts/world/rc5_car_park_roof.gd`, hooks in CarParkBuild): parked cars in a real car park's
+  paint mix (`paint()`, metallic in INSTANCE_CUSTOM.a 2 under `PAINT_FROM_CUSTOM`), the core's
+  roof wall dressed, parapet joints and coping, round poles on pedestals, the roof deck's tee
+  joints / drains / ponding / rubber (car_park_deck `rc5`). `RC5_CAR_PARK_ROOF=0` is the A/B;
+  probe `tools/rc5_car_park_roof/probe.gd`; checks `tests/rc5_car_park_roof_checks.gd`.
 - Police stations (2026-10-05, "police stations the cruisers come out of"; HANDOFF 9bz):
   `PoliceStation` (`scripts/world/police_station.gd`, static). WHERE is worked out like
   FireStation's, never placed: `CELL` 1500 m squares, a hash of seed + cell, up to `TRIES` hashed
@@ -4143,6 +4159,14 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   it both ways (queues at the closure; `staged` for checks). `COAST_HIGHWAY=0` /
   `COAST_TRAFFIC=0` are the A/B; probe `tools/coast_highway/probe.gd`; checks
   `tests/coast_highway_checks.gd`.
+- The coast highway at 17:00 (wave 8, refcam `coast_highway` in `tools/refcams/cameras_w8.json`,
+  docs/HANDOFF.md "The coast highway at 17:00 from the seawall"): `CoastFlutes`
+  (`scripts/world/coast_flutes.gd`, one line after the carve in `MacroMap.height_at()`; names
+  nothing that needs an autoload) cuts hashed rain gullies down the cut bluff; `Rc5CoastHighway`
+  (`scripts/world/rc5_coast_highway.gd`): CoastTraffic's cars by the hour (`wanted()`) and a first
+  fill over the whole reach (`fill_slots()`), real slatted / sectional garage doors, planters with
+  agave and bird of paradise, palms and glazed end walls on the beach houses, a warmer apron and a
+  parapet coping. `RC5_COAST=0` is the A/B; checks `tests/rc5_coast_highway_checks.gd`.
 - The marina (VISUAL_ROADMAP #70, 2026-10-05, docs/HANDOFF.md 9cb): the small-craft marina
   between the beach town and the airport, the form of LA's big man-made one, names invented.
   **Data**: `Marina` (`scripts/world/marina.gd`, `MacroMap.marina`, built in `setup()` after the
@@ -4199,6 +4223,15 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   in it (Godot's f0 then drops the renderer's own reflection). Rigging is `BoatMesh.Region.WIRE`
   (centre line in the mesh), widened to a pixel in boat_body's vertex stage; jibs wear a UV cover;
   piles are round. `MARINA_GOLDEN=0` is the A/B; checks `tests/rc3_marina_golden_checks.gd`.
+- The marina at night (wave 8, refcam `marina_night` in `tools/refcams/cameras_w8.json`,
+  docs/HANDOFF.md "The marina at night"): `MarinaNight` (`scripts/world/marina_night.gd`, pushed by
+  MarinaGolden's node, so `MARINA_GOLDEN=0` turns it off too) hands marina_water.gdshader the
+  nearest lights (pedestals, anchor lights, lit cabins, quay lamps, nav lights; `ml_p` / `ml_c`) and
+  the restaurants' fronts (`mf_a` / `mf_b`); `shaders/marina_night.gdshaderinc` lays each light's
+  column (tight across the reflected ray, loose in height, broken by a steeper chop) and the fronts
+  past the bulkhead. Also: eateries on the quay (`name_pool`), `marina_seawall.gdshader` on the
+  bulkhead faces, `jib_soft`, `cabin_panes`. `MARINA_NIGHT=0` is the A/B; checks
+  `tests/rc5_marina_night_checks.gd`.
 - Ocean traffic (wave 3, docs/HANDOFF.md "Ocean traffic"): `OceanTraffic`
   (`scripts/world/ocean_traffic.gd`, a Node3D in city.tscn; its children's local space is true world)
   runs `Vessel`s (`scripts/vehicles/vessel.gd`, AnimatableBody3D on props, mask 0, `take_hit()`:
@@ -4364,6 +4397,16 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   `calm2_*` (set by CityStreamer) holds the crags off it. Probe: `tools/reservoir/probe.tscn`
   (level, dam, lake, trail, walls, timings; `OUT=` a contour map; `SEED=`); compile check
   `tools/reservoir/compile.gd`. Checks: `tests/reservoir_checks.gd`.
+- Lake Shallufer from its trail (wave 8, refcam `reservoir_dam` in `tools/refcams/cameras_w8.json`,
+  docs/HANDOFF.md "Lake Shallufer's dam from the lake trail"): `Rc5Reservoir`
+  (`scripts/world/rc5_reservoir.gd`): reservoir_water's `rc5` (no engine specular on Compatibility,
+  none over the traced ridge on Forward+; the dam's face, parapet and the intake towers mirrored), an
+  overlook in the dam's balustrade on the east trail (`overlook()`, pure; the fence open there), the
+  trail bench graded 1:1 cut / 2:1 fill in `Reservoir._carve()` on a 64-a-side tile (`tile_n()`, one
+  hook in `_sample_terrain()`: 5-8 m vertices drew the bench as green pillows), the DG trail
+  (`trail2`), scree off the trail, chain_link's `scale_uv` (LotFill's stretched panels drew the
+  weave 2-3x wide city-wide), hill_scatter's `rc5_edge` (torn clump outlines). `RC5_RESERVOIR=0` is
+  the A/B; probe `tools/rc5_reservoir/trail_probe.tscn`; checks `tests/rc5_reservoir_dam_checks.gd`.
 - The far ranges (2026-10-30, docs/HANDOFF.md "The far ranges"): the back and east ranges are
   crest lines (`FarRanges`, `scripts/world/far_ranges.gd`, from `MacroMap._range_heights_at()`:
   the old front face to the full line, a wandering crest, a few big summits, a long fall behind;
@@ -4700,6 +4743,12 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   poles, a StreetVendor seller and `YardSaleBrowser`s. FULL only. `YARD_SALES=0` is the A/B,
   `YARD_SALE=all` every candidate today; probe `tools/yard_sales/probe.tscn`; checks
   `tests/yard_sales_checks.gd`.
+- The yard sale from across the street (wave 8, refcam `yard_sale` in `tools/refcams/cameras_w8.json`,
+  its `yard_sale` key = YARD_SALE_DAY=6 / YARD_SALE_HOUR, `clear_cars` hides vehicles by the lens;
+  docs/HANDOFF.md "The yard sale from across the street"): `Rc5YardSale` (`scripts/world/rc5_yard_sale.gd`):
+  tables crammed in two rows with a stash underneath, new row kinds `canopy` (a pop-up shade over a
+  table) and `blanket` (things on the lawn), offered after the old kinds. `RC5_YARD_SALE=0` is the
+  A/B; checks `tests/rc5_yard_sale_checks.gd`.
 - Lawns: `PropFactory.lawn()` + `shaders/lawn.gdshader`, not a plain tiled texture - a 5 m tile
   mips down to one flat green rectangle from thirty metres up, and the grass-blade multimesh only
   reaches a few dozen metres. Dry/watered patches, mower stripes angled per lawn, worn dirt, and
@@ -5272,6 +5321,15 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   `tools/historic/steps.tscn` times them, `HISTORIC_TIME=1` prints each);
   LOD / far: the cornice and belt as plain far boxes. Hashes of seed + lot only. `HISTORIC_CORE=0`
   is the A/B; probe `tools/historic/probe.gd`; checks `tests/historic_core_checks.gd`.
+- Spring St at 16:00 (wave 8, refcam `historic_core` in `tools/refcams/cameras_w8.json`,
+  docs/HANDOFF.md "Spring St at 16:00"): `HistoricCore.look2` - the fronts' walls in the ornament's
+  stone (`Building.wall_set_force`, `wall_detail_force`: building.gdshader's `wall_detail` divides a
+  FLAT / BRICK wall's photo by its mean, as landmark_facade does; it was multiplied in, so the walls
+  drew ~2x darker than their own cornices; the far code takes such a wall as set 15), darker brick
+  (`PRESSED_BRICK_2`), weathering capped, fewer window units, the street wall closed (a front fills
+  its cell along the avenue where `closes_wall()`; no fire escape on the party walls,
+  `Building.escape_faces_off`), the pavement's stains soaked in (street_wear `stain_soft`).
+  `RC5_HISTORIC=0` is the A/B; checks `tests/rc5_historic_core_checks.gd`.
 - Westlake (owner, 2026-09-24: "MacArthur Park and a bunch of homeless tents up on random
   streets in downtown and people slumped over"): the first **replica area** on the street grid.
   **The park is ON** (`LandmarkMacArthurPark.enabled`, since 2026-09-24 evening; it was held off
@@ -5494,6 +5552,13 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   `tools/pueblo_lane/probe.tscn`, stalls alone `tools/pueblo_lane/stall_shot.gd`; checks
   `tests/pueblo_lane_checks.gd`. Trap: a per-piece seed in a vertex attribute must be a `flat`
   varying, or the hashes turn its interpolation noise into per-pixel colour.
+- The marketplace lane at 12:30 (wave 8, refcam `pueblo_lane` in `tools/refcams/cameras_w8.json`,
+  docs/HANDOFF.md "The marketplace lane at 12:30"): `PuebloLaneLook` (`scripts/world/pueblo_lane_look.gd`):
+  the lane's walkers by the hour (`LANE_KEYS`, extra walkers from `PuebloLane.people_steps()` on
+  their own stream), a seller in every second stall, browner worn brick (`albedo_desat`), grained
+  pergola timbers (the market's K_WOOD), weathered stall paint (pueblo_market `weather`, `foot_y`).
+  `PUEBLO_LANE_LOOK=0` is the A/B; `PUEBLO_DEBUG=1` prints the lane's walkers; checks
+  `tests/rc5_pueblo_lane_checks.gd`.
 - Masjid Omar ibn Al-Khattab (owner, 2026-09-24: "way more detailed and 1:1 accurate", six
   photos, "give it an interior", and "make it impossible for the character to shoot anything at
   it"): `LandmarkMasjidOmar` (`scripts/world/landmark_masjid_omar.gd`), a replica of the real
@@ -6285,6 +6350,14 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   no gore) placed by `Wildlife` (city.tscn, like Birds; `plan_cell()` pure: seed + 46 m cell + half
   hour, zone, block, `WildSpecies.activity()`). `WILDLIFE=0` the A/B; off in the smoke test but in
   its checks (`tests/wildlife_checks.gd`); stills `WILD=` on still_shot.gd, spots `tools/wildlife/probe.gd`.
+- Coyotes at 02:00 (wave 8, refcam `coyote_night` in `tools/refcams/cameras_w8.json`, its `wildlife`
+  key stages animals - `tools/refcams/wild_stage.gd`; docs/HANDOFF.md "Coyotes and raccoons at 02:00"):
+  `Rc5CoyoteNight` (`scripts/world/rc5_coyote_night.gd`): eyeshine sprites on every WildAnimal's head
+  bone (`shaders/wild_eyeshine.gdshader`: after dark, facing the lens, never under `MIN_PX`); suburban
+  house blocks keep `SMALL_HOURS_KEEP` of their walkers 01:00-04:30 (`keep_walker()` after the roll,
+  `crowd_gain()` in BusyStreets); landscape lights off from 00:30 (glow alpha + 2, house_glow /
+  house_lamp `timer_look`); no lamp shaft in clear air (night_shaft `clear_cut`). `RC5_COYOTE_NIGHT=0`
+  the A/B; eyes alone `tools/rc5_coyote_night/eye_shot.gd`; checks `tests/rc5_coyote_night_checks.gd`.
 - Street errands (2026-10-05, "the pavement's comings and goings"): `StreetErrands`
   (`scripts/npc/street_errands.gd`, static) gives walkers within `life_range` somewhere real to
   go, rolled from `Pedestrian._try_life()` on their own stream (`hash([seed, "errand"])`, never
@@ -6499,6 +6572,13 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   chunks keep the premiere beams. Nothing takes the kerb or a prop id. `NIGHTLIFE=0` is the A/B
   (`NIGHTLIFE_ODDS=1`, `NIGHTLIFE_PREMIERE=1` for stills); probe `tools/nightlife/probe.gd`;
   checks `tests/nightlife_checks.gd`.
+- A club's line at 23:30 (wave 8, refcam `club_line` in `tools/refcams/cameras_w8.json`, its
+  `club_line` key forces the openings and stages double-parked pickups; docs/HANDOFF.md "A club's
+  line at 23:30"): `RcClubLine` (`scripts/world/rc5_club_line.gd`): the searchlight shaft starts at
+  the lens, lens-wide, a core thinning up the sky (nightlife_beam `club_look`; the old 2 % ramp hid
+  the first 34 m with no fog to hand it to), a club's black fascia board and big name over its
+  shop's sign band, its colour along the line. `RC5_CLUB_LINE=0` is the A/B; small scene
+  `tools/rc5_club_line/club_shot.tscn`; checks `tests/rc5_club_line_checks.gd`.
 - Street performers (2026-10-30, HANDOFF "Street performers"): `Buskers`
   (`scripts/world/buskers.gd`, static; `plan_block()` pure: hashes of seed + block + face + the
   hour, one act a block, two on a plaza, breakdancers only on plazas) - guitar with an open case,
@@ -6552,6 +6632,15 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   omnis at night (desktop). People: `FilmCrew` (in black, StreetVendor), actors, `FilmExtra`
   (MarketShopper in holding), in the crowd cap. `FILM_SHOOT=0` is the A/B; probe
   `tools/film_shoot/probe.gd`; checks `tests/film_shoot_checks.gd`.
+- The film shoot at 22:00 (wave 8, refcam `film_shoot_night` in `tools/refcams/cameras_w8.json`,
+  docs/HANDOFF.md "The film shoot at 22:00"): `FilmShootNight` (`scripts/world/film_shoot_night.gd`,
+  one hook at the end of `FilmShootBuild.build()`): a SpotLight3D per HMI aimed at the action
+  (`FilmNightLights` sets their energy from `DayNight.lamp_now`: `lamp_light` casts to OmniLight3D),
+  the balloon's omni widened (`lamp_gain`), ONE additive mesh (`shaders/film_night.gdshader`: blooms,
+  haze shafts, pools in display numbers via fh_display), basecamp work lights, the set's pavement
+  cleared of scooters (`keep_clear_points()` in Micromobility), barricade sheeting `stripe_glow`, the
+  catering canvas `canvas_look`. `FILM_SHOOT_NIGHT=0` is the A/B; checks
+  `tests/rc5_film_shoot_night_checks.gd`.
 - Micromobility (2026-10-05, docs/HANDOFF.md "Micromobility": "the 2026 LA street"):
   `Micromobility` (`scripts/world/micromobility.gd`, static) lays out, from hashes only (seed +
   block / face / road / crossing, never a chunk or block rng; a FULL chunk's step after the
@@ -7618,6 +7707,16 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   (`shaders/fwd_review_h.gdshaderinc`), or add a broad light_pool in display numbers
   (`display_add_fwd`, `FwdReviewH.display_pool()`). Linear-on-both (cs_out) shaders are safe.
   `FWD_REVIEW_H=0` the A/B; checks `tests/fwd_review_h_checks.gd`.
+- And one more (fwd-review-i, 2026-11-06, HANDOFF "Forward+ review i"): **an unshaded `blend_add`
+  quad with ALPHA 1 is NEVER "the same numbers on both renderers"** - Compatibility adds them in
+  display space, Forward+ in linear (a 0.07 beam a solid rod, a 3 % glow tail an orange box round
+  the brush fire). Hand a soft amount over with `fi_add()` (`fi_add_hdr()` keeps an HDR core above 1
+  raw; `shaders/fwd_review_i.gdshaderinc`) or `FwdReviewI.display_pool()`. Small scenes on both
+  renderers: `tools/fwd_review_i/night_bits.gd SCENE=runway|fire`. `FWD_REVIEW_I=0` the A/B; checks
+  `tests/fwd_review_i_checks.gd`. And a
+  low Forward+ spot (CarLights' headlights; opengl3 has none) shows any roughness STEP in the road as
+  a lit box: road.gdshader's resurfacing patches were up to 30 % smoother inside a hard edge - never
+  make a hard-edged region smoother than what is round it.
 - Native screenshots without a browser: `tools/glshot/building_shot.gd` (one building),
   `tools/glshot/block_shot.tscn` (a few FULL city blocks alone, no far city: a block's ground and
   furniture) and `tools/glshot/city_shot.gd` (the city at a `--spawn`) render with the real

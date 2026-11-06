@@ -25,6 +25,10 @@ uniform float leaf_relief = 0.55;
 uniform vec2 near_fade = vec2(0.0, 0.0);
 uniform float roughness = 0.86;
 uniform float specular = 0.24;
+// Rc5Reservoir (0 = as before): the clump's outline torn into lobes of foliage where its surface
+// turns away (a smooth dome's rim read as a green balloon from 60-200 m), and lobe-sized light and
+// shade across it; both fade out once a lobe is under a couple of pixels.
+uniform float rc5_edge = 0.0;
 global uniform float wind_factor;
 
 varying vec3 wpos;
@@ -66,6 +70,17 @@ void fragment() {
 			discard;
 		}
 	}
+	float lobe = 0.5;
+	float lobe_k = 0.0;
+	if (rc5_edge > 0.5) {
+		vec3 q = wpos * 1.7;
+		lobe_k = 1.0 - smoothstep(0.3, 0.7, length(fwidth(q)));
+		lobe = vn3(q) * 0.65 + vn3(q * 2.3 + vec3(5.0, 1.0, 3.0)) * 0.35;
+		float rim = 1.0 - smoothstep(0.05, 0.6, abs(dot(NORMAL, VIEW)));
+		if (lobe < rim * 0.9 * lobe_k) {
+			discard;
+		}
+	}
 	vec3 p = wpos * leaf_scale;
 	float fw = length(fwidth(p));
 	// Leaf clumps resolved (a clump over ~2 pixels), the finer octave sooner.
@@ -84,6 +99,8 @@ void fragment() {
 	c *= mix(1.0, 0.6 + 0.4 * smoothstep(0.28, 0.62, leaf), amp) * mix(1.0, 0.9, 1.0 - amp);
 	// The base in its own shade.
 	c *= mix(0.5, 1.0, base_light);
+	// Lobes of foliage: their own light and the gaps between them.
+	c *= mix(1.0, 0.55 + 0.75 * smoothstep(0.25, 0.75, lobe), lobe_k);
 	ALBEDO = cs_out(c);
 	ROUGHNESS = roughness;
 	SPECULAR = specular;
