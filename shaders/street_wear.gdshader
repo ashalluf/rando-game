@@ -35,6 +35,10 @@ uniform float depth_pull = 0.0025;
 // Distance (m) the batch stops drawing at (StreetWear.DRAW_DISTANCE): everything thins out over
 // the last quarter of it, so nothing pops when the batch's own visibility range ends.
 uniform float fade_end = 120.0;
+// rc5-historic-core: a stain soaks into the slab - a feathered blot, a third as dense, a faint tide
+// mark - instead of a hard-edged disc of flat colour (from the pavement at a corner they read as
+// pale decals a metre wide). 0 the old stain.
+uniform float stain_soft = 0.0;
 uniform vec3 color_space_probe : source_color = vec3(0.5, 0.5, 0.5);
 
 // Second colours: outlines, and the colours tags come in. sRGB.
@@ -228,6 +232,12 @@ void fragment() {
 			float drop = (1.0 - smoothstep(0.1, 0.22, length(fract(dc) - 0.5))) * step(0.85, sw_hash(floor(dc))) * (1.0 - smoothstep(0.3, 0.7, r));
 			a = age * clamp(blot * 0.75 + tide * 0.5 + drop * 0.7, 0.0, 1.0);
 			alb = main_c * (1.0 - tide * 0.35);
+			if (stain_soft > 0.0) {
+				float soak = smoothstep(-0.12, 0.3, f);
+				float rim_t = smoothstep(-0.02, 0.04, f) * (1.0 - smoothstep(0.04, 0.16, f));
+				a = mix(a, age * clamp(soak * 0.3 + rim_t * 0.12 + drop * 0.35, 0.0, 1.0), stain_soft);
+				alb = mix(alb, main_c * (1.0 - rim_t * 0.2), stain_soft);
+			}
 			rough = mix(0.85, 0.6, blot);
 			grain = 0.8;
 		}

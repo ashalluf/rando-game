@@ -30,6 +30,8 @@ extends RefCounted
 ##   (aircraft_lights.gdshader `flash_hold`); in play they flash as before.
 ## Nothing rolls; every number is a constant here.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 static var enabled: bool = OS.get_environment("JET_TAKEOFF") != "0"
 
 ## The infield's tufts a square metre (the lawns' 1.9 thinned: mown, dry airfield grass) and the
@@ -69,8 +71,8 @@ static func infield(ch: CityChunk, area: Rect2, macro: MacroMap) -> void:
 			for j in nz:
 				var sub := Rect2(r.position + Vector2(r.size.x * i / nx, r.size.y * j / nz), Vector2(r.size.x / nx, r.size.y / nz))
 				ch._add_grass(sub, TUFT_DENSITY / ch.grass_per_sqm, 0.0, [], lawn, g, Airport.GRASS_TOP)
-	var white := PropFactory.light_pool(Color(1.0, 0.9, 0.72), EDGE_POOL_STRENGTH, 3.0)
-	var blue := PropFactory.light_pool(Color(0.35, 0.5, 1.0), TAXI_POOL_STRENGTH, 3.0)
+	var white := FwdReviewI.display_pool(PropFactory.light_pool(Color(1.0, 0.9, 0.72), EDGE_POOL_STRENGTH, 3.0))
+	var blue := FwdReviewI.display_pool(PropFactory.light_pool(Color(0.35, 0.5, 1.0), TAXI_POOL_STRENGTH, 3.0))
 	var flat := Basis(Vector3.RIGHT, -PI * 0.5).scaled_local(Vector3(EDGE_POOL_RADIUS * 2.0, EDGE_POOL_RADIUS * 2.0, 1.0))
 	for spec: Array in Airport.edge_light_spots(macro):
 		var p: Vector3 = spec[0]

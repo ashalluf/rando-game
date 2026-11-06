@@ -5,6 +5,8 @@ extends RefCounted
 ## frame, fixed in the systems that draw it, every number here. RC5_STORM=0 in the environment
 ## puts every one of them back exactly as it was (the A/B).
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 static var enabled: bool = OS.get_environment("RC5_STORM") != "0"
 
 
