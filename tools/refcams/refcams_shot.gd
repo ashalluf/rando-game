@@ -101,6 +101,7 @@ func _run() -> void:
 			day.call("_apply")
 		_port_clock(cam)
 		_freight_clock(cam, scene)
+		_fireworks_clock(cam)
 		Engine.time_scale = 1.0
 		# A "drive" row (cameras_w5.json, chase_cam): the player drives his own car and the shot is
 		# his chase camera (tools/refcams/chase_stage.gd), not the free eye.
@@ -179,6 +180,10 @@ func _run() -> void:
 			# cameras_w7.json's hospital_er: an ambulance backing into the ER bay (hospital_stage.gd).
 			_stager = load("res://tools/refcams/hospital_stage.gd")
 			await _stager.stage(self, scene, _eye_cam, player, func() -> void: _place(player, fov), cam)
+		# A "dog_walker" row (cameras_w8.json's suburb_night): a person walking a dog toward the lens.
+		if cam.has("dog_walker") and _stager == null:
+			_stager = load("res://tools/refcams/dog_stage.gd")
+			await _stager.stage(self, scene, _eye_cam, func() -> void: _place(player, fov), cam)
 		Engine.time_scale = 0.0005
 		for i in _env_int("SETTLE", 6):
 			await process_frame
@@ -190,6 +195,13 @@ func _run() -> void:
 			_clear_lens(cam.name)
 		if park and _eye_cam:
 			park.call("clear_people", self, _eye_cam.global_position)
+		# A row's optional "clear_people" (metres; wave 8's taco_truck_night): walkers that stray
+		# within it of the lens are hidden for the shot (a passer-by's shoulder filled the frame).
+		if cam.has("clear_people") and _eye_cam:
+			for p in get_nodes_in_group("pedestrian"):
+				var n := p as Node3D
+				if n and n.global_position.distance_to(_eye_cam.global_position) < float(cam.clear_people):
+					n.visible = false
 		for car in _fw_staged:
 			if is_instance_valid(car) and _eye_cam:
 				print("REFCAM %s: staged %s at %.1f m, visible %s, in tree %s" % [cam.name, car.name, (car as Node3D).global_position.distance_to(_eye_cam.global_position), (car as Node3D).is_visible_in_tree(), (car as Node).is_inside_tree()])
@@ -624,6 +636,36 @@ func _skate_clock(cam: Dictionary) -> void:
 	for n in get_root().find_children("*", "", true, false):
 		if n.get_script() == sl:
 			n.call("set_clock", float(cam.skate_t))
+
+
+## A row's optional "fireworks_t" (wave 8's fireworks_ballpark): a show staged at that show clock
+## (seconds) and held there for the shot, as FIREWORKS_T= / FIREWORKS_HOLD=1 do for a still;
+## "fireworks_site" picks the site ("stadium" by default, "beach", or "both"). Rows without the key
+## put the node back as it was (no staged show, the clock running).
+func _fireworks_clock(cam: Dictionary) -> void:
+	var fw := current_scene.get_node_or_null("Fireworks") if current_scene else null
+	if fw == null:
+		return
+	var staged: Dictionary = fw.get("staged")
+	var sites: Array = fw.get("sites")
+	if not cam.has("fireworks_t"):
+		if fw.get_meta("rc_fireworks", false):
+			staged.clear()
+			fw.set("hold", false)
+			fw.set_meta("rc_fireworks", false)
+		return
+	var which := String(cam.get("fireworks_site", "stadium"))
+	staged.clear()
+	for id in ["beach", "stadium"]:
+		if which == "both" or which == id:
+			staged[id] = float(cam.fireworks_t)
+	fw.set("hold", true)
+	fw.set_meta("rc_fireworks", true)
+	# A site already showing keeps its clock: set it, so the row's moment is what is drawn.
+	for s: Dictionary in sites:
+		if staged.has(s.id):
+			s.clock = float(staged[s.id])
+			s.prev = s.clock
 
 
 func _port_clock(cam: Dictionary) -> void:
