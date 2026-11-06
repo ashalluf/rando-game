@@ -27,6 +27,9 @@ uniform float rain_streaks = 0.9;
 // 0 the old cone exactly.
 uniform float look2 = 0.0;
 uniform float rain2_gain = 5.0;
+// Rc5CoyoteNight (refcam5 coyote_night): 1 draws no cone in clear air (a drawn shaft against a clear
+// night sky read as a pink column; the eye sees one only in mist, haze or rain); 0 the old cone.
+uniform float clear_cut = 0.0;
 
 varying float v_face;
 varying float v_h;
@@ -55,6 +58,7 @@ void vertex() {
 	float dist = length(cam - top);
 	float haze = clamp(night_atmos.x, 0.0, 1.0);
 	float amp0 = lamp_factor * night_atmos.z * INSTANCE_CUSTOM.r * pow(haze, 1.5) * (1.0 - smoothstep(reach * 0.6, reach, dist));
+	amp0 *= mix(1.0, smoothstep(0.32, 0.6, haze), clear_cut);
 	float amp = amp0 * night_atmos.y;
 	float ramp = look2 > 0.5 && rain_intensity > 0.02 ? amp0 : 0.0;
 	if (amp < 0.001 && ramp < 0.001) {

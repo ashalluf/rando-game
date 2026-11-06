@@ -462,6 +462,7 @@ static func build(ch: CityChunk, z0: float, z1: float, obstacles: Array, tower: 
 		return true)
 	# After dark, people still stroll the wet sand by a lit pier (rc4-pier-night-2).
 	RcPierNight.night_strollers(ch, z0, z1, hour, weather_factor(ch))
+	MarineEvening.add_leavers(ch, z0, z1, hour, dens)
 
 
 ## The batches of props: towels, umbrellas, chairs, coolers, bags, boards.
