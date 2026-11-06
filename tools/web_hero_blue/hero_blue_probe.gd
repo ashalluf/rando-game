@@ -154,6 +154,20 @@ func _run() -> void:
 						if e2: e2.fog_enabled = false
 					"env:glow":
 						if e2: e2.glow_enabled = false
+					"env:lut":
+						if e2:
+							print("AUTOPROBE_LUT %s" % [e2.adjustment_color_correction])
+							var lt := e2.adjustment_color_correction
+							if lt is GradientTexture1D:
+								var gr := (lt as GradientTexture1D).gradient
+								print("AUTOPROBE_LUT w=%d hdr=%s pts=%d first=%s last=%s mid=%s" % [(lt as GradientTexture1D).width, (lt as GradientTexture1D).use_hdr, gr.get_point_count(), gr.get_color(0), gr.get_color(gr.get_point_count() - 1), gr.sample(0.5)])
+							e2.adjustment_color_correction = null
+					"env:adj":
+						if e2: e2.adjustment_enabled = false
+					"env:bg":
+						if e2:
+							e2.background_mode = Environment.BG_COLOR
+							e2.background_color = Color(1, 0, 1)
 					"env:aerial":
 						if e2: e2.fog_aerial_perspective = 0.0
 					"env:skyrt":
@@ -189,6 +203,80 @@ func _run() -> void:
 					else:
 						gm.set_shader_parameter(kv2[0], kv2[1].to_float())
 					print("AUTOPROBE_GMAT %s was %s now %s" % [kv2[0], v0, gm.get_shader_parameter(kv2[0])])
+			elif h.begins_with("prop:"):
+				# prop:<node name>:<property>=<int>, the first node of that name anywhere.
+				var parts := h.substr(5).split(":")
+				var kv5 := parts[1].split("=")
+				var nd := get_tree().root.find_child(parts[0], true, false)
+				if nd:
+					nd.set(kv5[0], int(kv5[1]))
+				print("AUTOPROBE_PROP %s %s=%s found=%s" % [parts[0], kv5[0], kv5[1], nd != null])
+			elif h.begins_with("lay:"):
+				# lay:<substr>: render layers 0 on every match (a script that re-shows a node with
+				# `visible` does not undo it).
+				var nl2 := 0
+				for n in get_tree().root.find_children("*", "GeometryInstance3D", true, false):
+					if str(n.get_path()).contains(h.substr(4)):
+						(n as VisualInstance3D).layers = 0
+						nl2 += 1
+				print("AUTOPROBE_LAY %s %d" % [h.substr(4), nl2])
+			elif h.begins_with("canvas:"):
+				var nc := 0
+				for n in get_tree().root.find_children("*", "CanvasItem", true, false):
+					if str(n.get_path()).contains(h.substr(7)) and (n as CanvasItem).visible:
+						(n as CanvasItem).visible = false
+						nc += 1
+				print("AUTOPROBE_CANVAS %s %d" % [h.substr(7), nc])
+			elif h.begins_with("kids:"):
+				# kids:<from>:<to> zeroes the layers of every geometry under /root/City's direct
+				# children with index from..to-1 (sorted by name, the Chunk_ ones left out); prints them.
+				var ab := h.substr(5).split(":")
+				var kids: Array[String] = []
+				for c in get_tree().current_scene.get_children():
+					if not str(c.name).begins_with("Chunk_"):
+						kids.append(str(c.name))
+				kids.sort()
+				for k2 in range(int(ab[0]), mini(int(ab[1]), kids.size())):
+					var cn := get_tree().current_scene.get_node(NodePath(kids[k2]))
+					var ng := 0
+					for n in cn.find_children("*", "GeometryInstance3D", true, false):
+						(n as VisualInstance3D).layers = 0
+						ng += 1
+					if cn is GeometryInstance3D:
+						(cn as VisualInstance3D).layers = 0
+						ng += 1
+					print("AUTOPROBE_KID %d %s %d" % [k2, kids[k2], ng])
+				print("AUTOPROBE_KIDS total %d" % kids.size())
+			elif h.begins_with("shader:"):
+				# shader:<file>: layers 0 on every geometry whose material uses that shader.
+				var nsh := 0
+				for n in get_tree().root.find_children("*", "GeometryInstance3D", true, false):
+					var gi := n as GeometryInstance3D
+					var mats: Array = [gi.material_override]
+					if gi is MeshInstance3D and (gi as MeshInstance3D).mesh:
+						for si in (gi as MeshInstance3D).mesh.get_surface_count():
+							mats.append((gi as MeshInstance3D).get_active_material(si))
+					elif gi is MultiMeshInstance3D and (gi as MultiMeshInstance3D).multimesh and (gi as MultiMeshInstance3D).multimesh.mesh:
+						var mmm := (gi as MultiMeshInstance3D).multimesh.mesh
+						for si in mmm.get_surface_count():
+							mats.append(mmm.surface_get_material(si))
+					for m in mats:
+						if m is ShaderMaterial and (m as ShaderMaterial).shader and (m as ShaderMaterial).shader.resource_path.ends_with(h.substr(7)):
+							gi.layers = 0
+							nsh += 1
+							break
+				print("AUTOPROBE_SHADER %s %d" % [h.substr(7), nsh])
+			elif h == "mat:sky":
+				_dump_sky()
+			elif h.begins_with("gsky:"):
+				var we3 := get_tree().current_scene.find_child("WorldEnvironment", true, false) as WorldEnvironment
+				var sm3 := we3.environment.sky.sky_material as ShaderMaterial
+				var kv4 := h.substr(5).split("=")
+				if kv4[0].ends_with("_count"):
+					sm3.set_shader_parameter(kv4[0], int(kv4[1]))
+				else:
+					sm3.set_shader_parameter(kv4[0], kv4[1].to_float())
+				print("AUTOPROBE_GSKY %s=%s" % [kv4[0], kv4[1]])
 			elif h == "mat:ground":
 				_dump_ground()
 			elif h.begins_with("show:"):
@@ -393,3 +481,16 @@ func _dump_ground() -> void:
 			print("AUTOPROBE_MAT %s = %s" % [u.name, v])
 	for gname in ["sky_tint", "sun_direction", "night_factor", "lamp_factor", "wind_factor", "aerial_review", "night_flight"]:
 		print("AUTOPROBE_GLOB %s = %s" % [gname, RenderingServer.global_shader_parameter_get(gname)])
+
+
+## mat:sky: every uniform of the sky material.
+func _dump_sky() -> void:
+	var we := get_tree().current_scene.find_child("WorldEnvironment", true, false) as WorldEnvironment
+	var sm := we.environment.sky.sky_material as ShaderMaterial
+	for u in sm.shader.get_shader_uniform_list():
+		var v: Variant = sm.get_shader_parameter(u.name)
+		if v is Texture:
+			print("AUTOPROBE_SKY %s tex" % u.name)
+		else:
+			print("AUTOPROBE_SKY %s = %s" % [u.name, v])
+	print("AUTOPROBE_SKY process_mode = %d radiance = %d" % [we.environment.sky.process_mode, we.environment.sky.radiance_size])
