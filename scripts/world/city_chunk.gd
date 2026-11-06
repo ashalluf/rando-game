@@ -2962,8 +2962,11 @@ func _take_crowd_room(reserve: float = 0.0) -> bool:
 func _spawn_walker(rect: Rect2, sidewalk: float, rng: RandomNumberGenerator) -> void:
 	if not _take_crowd_room(Encampment.walker_reserve(plan, ix, iz)):
 		return
+	var walker_seed := rng.randi()
+	if not Rc5CoyoteNight.keep_walker(self, rect, walker_seed):
+		return
 	var ped := Pedestrian.new()
-	ped.setup(rect, sidewalk, rng.randi())
+	ped.setup(rect, sidewalk, walker_seed)
 	FashionDistrict.walker(self, ped)
 	PlazaCrowd.walker(self, ped, rect)
 	var start := ped._random_ring_point(sidewalk)

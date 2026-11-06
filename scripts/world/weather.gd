@@ -1145,6 +1145,7 @@ func _update_la(delta: float, _fog: float, _vol: float) -> void:
 	var glow := Color(0.075, 0.048, 0.024) * lamp * moon
 	if _marine_layer:
 		_marine_layer.deck = deck
+		_marine_layer.rim = MarineEvening.rim(horizon, sun_col, moon)
 		_marine_layer.drive(marine_weight, coast + LaWeather.edge_offset(hour), bank, lit, shade, glow, sun_dir,
 			_env.fog_light_color if _env else Color(0.6, 0.62, 0.65), delta)
 	# The Santa Ana.

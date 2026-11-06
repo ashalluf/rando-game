@@ -644,9 +644,14 @@ func _pick_style() -> Dictionary:
 		# late addition in this file - a new _rng call shifts every block downstream of it.
 		"pitch": pitch_by_style[window_style] * (0.86 + 0.34 * float(absi(hash([seed, "pitch"])) % 1000) * 0.001),
 		"floor": _rng.randf_range(3.1, 4.0),
-		"wall_set": _pick_wall_set(),
-		"weathering": _rng.randf_range(weathering_range.x, weathering_range.y),
+		"wall_set": _wall_set_after(_pick_wall_set()),
+		"weathering": minf(_rng.randf_range(weathering_range.x, weathering_range.y), weathering_cap),
 	}
+
+
+## The wall texture set rolled (the roll is always made), or wall_set_force where one is set.
+func _wall_set_after(rolled: Array) -> Array:
+	return rolled if wall_set_force.is_empty() else wall_set_force
 
 
 ## A part's window grid and bands, as the near walls draw them (`_build_part`) and the far boxes
@@ -837,6 +842,13 @@ func _part_material(style: Dictionary) -> ShaderMaterial:
 	mat.set_shader_parameter("caps_real_until", kit_mullion_distance if real_caps else 0.0)
 	mat.set_shader_parameter("facade_mid3", FacadeMid3.enabled)
 	_apply_wall_texture(mat, finish, shape == Shape.WAREHOUSE, style.wall_set, style.weathering)
+	if wall_detail_force >= 0.0 and finish <= Finish.BRICK and (style.wall_set as Array).size() == 2:
+		# The photographed wall as detail round the facade colour (landmark_facade's rule).
+		# The mean as this renderer hands the texture over (linear; raw sRGB on Compatibility).
+		var means: Array = WALL_TEXTURE_MEAN.get(style.wall_set[0], [Color(0.3, 0.3, 0.3), Color(0.55, 0.55, 0.55)])
+		var m: Color = means[1 if RenderingServer.get_current_rendering_method() == "gl_compatibility" else 0]
+		mat.set_shader_parameter("wall_texture_mean", Vector3(m.r, m.g, m.b))
+		mat.set_shader_parameter("wall_detail", wall_detail_force)
 	_part_mat = mat
 	return mat
 
@@ -1009,6 +1021,18 @@ var window_style_force: int = -1
 var allow_base_course: bool = true
 var roof_bands: bool = true
 var shop_frame_force: int = -1
+## The wall texture set forced ([set_key, metres per tile]; the roll is still made) and a cap on
+## the rolled weathering (rc5-historic-core: the beaux-arts fronts' walls in the ornament's stone).
+## Inert at their defaults.
+var wall_set_force: Array = []
+var weathering_cap: float = 1e9
+## A FLAT or BRICK wall's photographed texture as detail round the facade colour (divided by its mean, this
+## much of its contrast kept, like landmark_facade.gdshader) instead of multiplied into it; the far
+## boxes then take the wall at the facade colour (FarBuilding: set 15). -1 off (inert).
+var wall_detail_force: float = -1.0
+## Faces (0 +X, 1 -X, 2 +Z, 3 -Z) that may not take the fire escape the building rolls (a party
+## wall a neighbour stands against; the roll is still made). Inert when empty.
+var escape_faces_off: Array[int] = []
 ## Cap height of a shop sign, in metres.
 const SIGN_HEIGHT := 0.40
 ## How far out from the wall the sign sits, and how far a sign still draws.
@@ -1378,6 +1402,8 @@ func _add_facade_details(size: Vector3, center: Vector3, bottom: float, storefro
 	# Fire escapes belong on older brick blocks, on one face only, the way they actually run.
 	var has_escape := finish == Finish.BRICK and shape != Shape.WAREHOUSE and rows >= 3 and _rng.randf() < 0.7
 	var escape_face := _rng.randi() % 4
+	if escape_faces_off.has(escape_face):
+		has_escape = false
 	var escapes: Array[Transform3D] = []
 	# The kit's window surround for this building ("" for none), and its mesh.
 	var kit_surround := _kit_surround if _kit != null else ""
