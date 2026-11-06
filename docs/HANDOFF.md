@@ -30228,10 +30228,10 @@ AAA game; what the eye landed on, in order, and what was done:
    saturated gels, nothing blown.
 
 **Numbers** (refcams, opengl3 1280x720, the final camera; before = `LONG_BEACH_SAND=0
-RC5_OIL_ISLANDS=0`, i.e. main): p1/p5/p50/p95/p99 3/6/24/66/104 -> 5/13/36/65/105, crushed 3.4 %
--> 1.2 %, saturation 0.574 -> 0.528, CCT 12,591 -> 7,044 K (the navy plane gone, warm sand in);
-triangles 671 k -> 857 k (+28 %), draws 407 -> 457, shadow 101 k -> 197 k: the sand meshes and the
-palms (shadowed near the eye) - the before drew nothing at all on this shore.
+RC5_OIL_ISLANDS=0`, i.e. main): p1/p5/p50/p95/p99 3/6/24/66/104 -> 10/17/37/67/101, crushed 3.4 %
+-> 0.3 %, saturation 0.574 -> 0.517, CCT 12,591 -> 7,354 K (the navy plane gone, warm sand in);
+triangles 671 k -> 689 k (+2.6 %), draws 407 -> 431, shadow 101 k -> 109 k (the sand meshes and
+palms; with palms near the eye, an earlier placement, it was 857 k).
 
 **A/B**: `LONG_BEACH_SAND=0` (no Long Beach sand, its roads back), `RC5_OIL_ISLANDS=0` (no mirror,
 the old flood look). Checks: `tests/rc5_oil_islands_dusk_checks.gd`. Stills on
