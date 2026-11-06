@@ -16,6 +16,10 @@ uniform sampler2D screen_tex : hint_screen_texture, filter_linear_mipmap;
 uniform float strength : hint_range(0.0, 1.0) = 0.3;
 // How far the air bends the picture, in screen widths at full strength, close to.
 uniform float bend = 0.0055;
+// JetTakeoff (1, AmbientJet sets it; 0 the old shimmer): the wobble in cells of about a metre that
+// grow with distance, so a jet 100 m off bends the lights behind it in smooth ripples instead of
+// a per-pixel sparkle of the runway's lamps (refcam5 jet_takeoff), and a softer edge.
+uniform float look = 0.0;
 
 varying float v_along;
 varying vec3 v_world;
@@ -42,6 +46,13 @@ void fragment() {
 	float t = TIME * (3.0 + 5.0 * strength);
 	vec3 p = v_world * 1.9;
 	float flow = v_along * 22.0 - t;
+	if (look > 0.5) {
+		// A metre-sized wobble, never finer than about six pixels on screen.
+		float coarse = max(1.0, v_depth * 0.012);
+		p = v_world * (0.9 / coarse);
+		flow = v_along * 9.0 / coarse - t * 0.6;
+		mask *= 0.75;
+	}
 	vec2 wob = vec2(
 		sin(flow + p.y * 4.1 + p.x * 2.3) + 0.5 * sin(flow * 2.3 + p.z * 5.7),
 		cos(flow * 1.3 - p.x * 3.7 + p.z * 1.9) + 0.5 * sin(flow * 2.9 + p.y * 6.1));

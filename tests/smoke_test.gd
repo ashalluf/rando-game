@@ -2996,6 +2996,9 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	await load("res://tests/rc5_fireworks_ballpark_checks.gd").new().run(self, city)
 	# The taco truck at 23:00 (tests/rc5_taco_truck_checks.gd, TacoTruckNight): regulars, no bike lanes, lamps, steam.
 	load("res://tests/rc5_taco_truck_checks.gd").new().run(self, city)
+	# The jet_takeoff refcam (tests/rc5_jet_takeoff_checks.gd, JetTakeoff): the beams, the take-off
+	# shimmer, the edge lights' glow, the camera row.
+	load("res://tests/rc5_jet_takeoff_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()

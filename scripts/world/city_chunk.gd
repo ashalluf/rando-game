@@ -3662,7 +3662,7 @@ func _add_bush(at: Vector3, rng: RandomNumberGenerator) -> void:
 ## because testing twenty rects for each of twenty thousand blades costs more than the grass.
 ## Its own seeded rng, so adding grass never shifts the block's sequence and moves a building.
 ## `lawn` / `lawn_rect` are the lawn the grass stands on (LawnsCloseup: the blades take its field).
-func _add_grass(rect: Rect2, density: float = 1.0, keep_out: float = 0.0, blockers: Array[Rect2] = [], lawn: Material = null, lawn_rect: Rect2 = Rect2()) -> void:
+func _add_grass(rect: Rect2, density: float = 1.0, keep_out: float = 0.0, blockers: Array[Rect2] = [], lawn: Material = null, lawn_rect: Rect2 = Rect2(), base_y: float = SIDEWALK_TOP + 0.05) -> void:
 	var min_side := 1.0 if LawnsCloseup.enabled else 2.0
 	if level != Level.FULL or rect.size.x < min_side or rect.size.y < min_side:
 		return
@@ -3718,10 +3718,10 @@ func _add_grass(rect: Rect2, density: float = 1.0, keep_out: float = 0.0, blocke
 			keys[key] = true
 			if closeup:
 				var phase := rng.randf()
-				_batch.add(key, blade, Transform3D(basis, Vector3(p.x, SIDEWALK_TOP + 0.05, p.y)), LawnsCloseup.tuft_color(look, tint),
+				_batch.add(key, blade, Transform3D(basis, Vector3(p.x, base_y, p.y)), LawnsCloseup.tuft_color(look, tint),
 					LawnsCloseup.tuft_data(phase, look, LawnsCloseup.edge_distance(edge_rect, p)))
 			else:
-				_batch.add(key, blade, Transform3D(basis, Vector3(p.x, SIDEWALK_TOP + 0.05, p.y)), tint, Color(rng.randf(), 0.0, 0.0))
+				_batch.add(key, blade, Transform3D(basis, Vector3(p.x, base_y, p.y)), tint, Color(rng.randf(), 0.0, 0.0))
 		done[0] = stop
 		if stop < count:
 			return false

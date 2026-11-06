@@ -4705,3 +4705,12 @@ none of either.
   Compatibility); stars at half a kilometre read as radial trails, not dots; the show's light reaches
   the stands (falloff 0.75, not 1.2) and the smoke takes it strongly, plus the floodlit ground under
   it. RC5_FIREWORKS=0 is the A/B.
+- **2026-11-06 The take-off refcam: the infield, the jet's lights (rc5-jet-takeoff, HANDOFF "The
+  take-off from the infield").** A new reference camera (`jet_takeoff`, wave 8's table) watches an
+  airliner rotate off 27R at 19:15 from the grass beside an edge light. Decisions: the airfield's
+  grass gets the city's lawn tufts in a dry look and every elevated edge light's glow on the ground
+  (FULL chunks only); an aircraft's lights hang where the model really has its wingtips (measured
+  off the vertices, not a fixed span); a rolling jet has its landing lights and strobes on; landing
+  lights draw a faint fog-free beam after dark; the take-off shimmer grows with thrust in
+  metre-sized ripples. The rotation pivot was measured and left (the main gear is under the
+  origin). JET_TAKEOFF=0 is the A/B.
