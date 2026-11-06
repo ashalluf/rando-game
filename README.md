@@ -11,3 +11,5 @@ between Grand and Olive at 23:30 clear, from the north pavement across the stree
 - `02_after_club_line.jpg` - the same eye with RcClubLine: the searchlight shafts from the lens,
   the club's fascia board with its name over the sign band, its light along the line.
 - `03_club_front_before_after_crop.jpg` - the club front, before | after.
+- `04_forward_plus_small_scene_before_after.jpg` - `tools/rc5_club_line/club_shot.tscn` on Forward+
+  (lavapipe), before | after: the beams now leave the lens, the board keeps the club's amber.
