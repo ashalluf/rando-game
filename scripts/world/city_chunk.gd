@@ -518,6 +518,8 @@ func begin_build() -> void:
 		_steps.append(BoulevardSigns.build.bind(self))
 		# Speed limits, school zones, parking plates and yields along the block (StreetSigns).
 		_steps.append(StreetSigns.build.bind(self))
+		# A school's buses on the kerb this chunk owns but the school's block does not (Schools).
+		_steps.append(Schools.park_kerb_buses.bind(self))
 	_steps.append(_finish_build)
 
 

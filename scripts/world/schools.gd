@@ -1523,3 +1523,24 @@ static func park_buses(ch: CityChunk, pl: Dictionary) -> void:
 		holder.add_child(bus)
 		bus.visible = ch.visible
 		ch._cars.append(bus)
+
+
+## rc5-school-morning: the buses of a school whose loading zone is on its -x or -z kerb. That road
+## belongs to the chunk BEFORE the school's block (CityPlan.owned_rect()), which never runs the
+## school's steps, so those buses were never parked (half the schools had an empty loading zone).
+## Every FULL chunk asks the two blocks whose -x / -z road it owns (one hook line in
+## CityChunk.begin_build()); the school's own chunk still parks the spots in its own rect.
+static func park_kerb_buses(ch: CityChunk) -> void:
+	if not enabled or not RcSchoolMorning.enabled() or ch.capturing or not _full(ch) or ch.zone != MacroMap.Zone.CITY:
+		return
+	var own_cell: Variant = null
+	var own := ch.plan.block(ch.ix, ch.iz)
+	if own.has("school"):
+		own_cell = own.school
+	for k: Vector2i in [Vector2i(ch.ix + 1, ch.iz), Vector2i(ch.ix, ch.iz + 1)]:
+		var b := ch.plan.block(k.x, k.y)
+		if not b.has("school") or b.school == own_cell:
+			continue
+		var pl := plan_for(ch.plan, k.x, k.y)
+		if not pl.is_empty():
+			park_buses(ch, pl)
