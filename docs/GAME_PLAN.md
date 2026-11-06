@@ -4914,3 +4914,9 @@ none of either.
   term is never a uniform glow in its ripples (that reads as paving). The jetty nav lights stay
   out of this frame (occluded by boats from every headwalk spot that holds the restaurants).
   MARINA_NIGHT=0 is the A/B.
+- **2026-11-06 The coast highway's beach houses are Malibu houses (coast-houses, HANDOFF "The coast
+  highway's beach houses").** The plan keeps its lots and rolls; the new house's FORM, setback,
+  rails and furniture are hashes of the house's own seed, so the A/B (COAST_HOUSES=0) changes
+  nothing outside the houses' meshes. Big sea-facing glass goes on the hillside glass shader (a
+  room traced at its real size), never a 0..1 pane. LOD and the far city keep the old boxes: the
+  massing reads from the beach only within the FULL ring.

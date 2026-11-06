@@ -3076,6 +3076,9 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	load("res://tests/rc5_marina_night_checks.gd").new().run(self, city)
 	# The freight_trench refcam (tests/rc5_freight_trench_checks.gd, RcFreightTrench): the walls' look, the ballast, the conduit, the row.
 	load("res://tests/rc5_freight_trench_checks.gd").new().run(self, city)
+	# The coast highway's beach houses (tests/coast_houses_checks.gd, CoastHouses): forms by hash, setbacks,
+	# glass walls to the sea, footprints and collision kept, the plan unchanged.
+	load("res://tests/coast_houses_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()

@@ -32807,3 +32807,55 @@ shaded trench; the grime and soot show as darker patches, the fan guards are a f
 their defaults, the shader gates, a deep stretch lays the conduit and a shallow one none, the crib
 between the ties' top and bottom, the row's train where it says, the switch). Not verified on
 Forward+ (the wall and ballast blocks work in the shaders' existing linear paths).
+
+## 9ol. The coast highway's beach houses, 2026-11-06 (fleet wave 8, branch `wt/coast-houses`; VISUAL_ROADMAP "?")
+
+**What changed.** The coast highway's houses on pilings (CoastHighway's plan, CoastHighwayBuild)
+were one box per storey with a glazed sea face, a flat roof and a glass-railed deck. `CoastHouses`
+(`scripts/world/coast_houses.gd`) now builds every FULL house (one hook at the top of
+`CoastHighwayBuild._house()`; `COAST_HOUSES=0` puts the old house back):
+
+- **Form by hash** of the house's seed, weighted by its plan style (`form()`): MODERN (white,
+  stucco, some board: thin overhanging roof slabs, the upper floor set back 2.3-3.6 m from the sea
+  over a terrace and, on lots 10 m+, often 68-88 % wide and slid to one side), SHED (board, cedar:
+  standing-seam metal rising to the sea over a tall glass wall, rafter tails, solar on some), GABLE
+  (cedar: a shingled gable whose sea end is glazed to the ridge, a cantilevered balcony) and HIP
+  (stucco: a low clay hip). `massing()` is pure. Seed 1337's 15 houses: 7 modern, 3 shed, 4 gable,
+  1 hip.
+- **Glass walls to the sea** on every storey: piers, a head band, panes up to 2 m between dark
+  mullions on HillHomeKit's "hh_glass" (hill_glass.gdshader: UV in metres, a room traced at its real
+  size, lit warm after dark) - a 0..1 pane on house_glass smeared one room across a 12 m wall.
+- **Rails**: glass on the white and stucco houses, cable (timber or dark steel posts, a timber cap,
+  nine cables) on the cedar and most board ones (`cable_rails()`), on the deck, the terraces, the
+  balconies and the roof decks. Terraces in decking or pavers, a solid parapet to the highway on a
+  side strip. Deck and terrace furniture (loungers under an umbrella or a dining set), an outdoor
+  shower by the stair, pots, a rooftop unit and flue, solar.
+- **Kept**: the plan (lots, every roll), the floor slab, the skirt and the braced pilings (moved
+  into `CoastHighwayBuild._base()`, shared by both paths, unchanged), the street face's garage,
+  door and window exactly where the plan puts them (so the stalls and Rc5's planters stay off them),
+  the deck, its stair to the sand, the side windows to open beach, the street dressing. Collision:
+  boxes for the slab, every storey, the terraces, the balcony and the deck, the stair ramp (96 for
+  the 15 houses, the old 83). LOD chunks and the far city keep `_house_far()`'s box.
+
+**Numbers** (refcams opengl3 1280x720, COAST_HOUSES=0 -> on, same build; `tools/coast_houses/cameras.json`):
+
+| view | p5/p50/p95 | triangles | draws |
+|---|---|---|---|
+| coast_highway (the refcam) | 36/136/177 -> 36/136/177 | 2.01 M -> 2.03 M | 998 -> 1007 |
+| coast_houses_sand (17:00) | 41/133/197 -> 42/133/196 | 3.66 M -> 3.68 M | 1200 -> 1210 |
+| coast_houses_sea (17:00) | 36/131/183 -> 35/130/181 | 2.75 M -> 2.76 M | 993 -> 1000 |
+| coast_houses_dusk (19:45) | 8/29/98 -> 8/30/144 | 3.59 M -> 3.61 M | 1146 -> 1155 |
+
+The houses' own CPU geometry: 16.5 k -> 23.3 k triangles for all 15 (the checks build them into a
+bare Geo). Stills on `shots/coast-houses`.
+
+**Ten cameras** (cameras.json, COAST_HOUSES=0 -> on, same build): nine `ok`; `freeway` flags on
+live freeway traffic standing differently between the two loads (a box truck and a taxi in front of
+the lens; none of the ten is near the coast). **Gate:** SHARDS=3 on 1b1ed308 (main 7f062523 merged):
+6,520 checks passed, 0 failed, peak RSS 4,002 MB a shard.
+
+**Not done / not verified.** Forward+ (the Mac) not seen: hh_glass is the hillside houses' shader,
+already reviewed there, and the rest is HouseKit's materials. The far boxes do not follow the
+setbacks or the pitched roofs (one box a house, as before). The gable's sea glass reads grey by day
+from a grazing angle (the mirror). No HouseNights key on the street-side windows (house_glass's old
+night look).
