@@ -292,3 +292,9 @@ so the walk would otherwise build at the 13:30 fallback).
 Its optional `sea` key is SeaLife.stage_for_shot()'s spec ("dolphin@x,z[,lead];pelican@x,z", TRUE
 world), staged three frames before the shot with the sea clock held and cleared after it;
 `SEA_DEBUG=1` prints the surfers and swimmers BeachActivity has round the lens.
+
+## Wave 8: `bus_stop_rain`
+
+A Wilshire bus stop at 18:00 in rain. `"stage": "bus"` with a `bus` key (`at` [x, z] TRUE world: the
+stop nearest it; `dir`; `pull` metres short of the stop; `doors`; `queue` riders; `seed`) runs
+`bus_stage.gd`: the bus at its stop, doors open, the stop's StreetErrands queue filled.

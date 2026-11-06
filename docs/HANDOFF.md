@@ -32397,3 +32397,62 @@ view; see the follow-up below). Luminance p50 88 -> 88, saturation 0.291 -> 0.28
 not looked at on Forward+ (lavapipe cannot hold the city; a small scene would need the car park
 alone). Downtown's towers still read dark at 18:15 on this renderer - that is the city-wide grade
 and glass at that hour, not this view's to change. The lamps are off at 18:15 (lamp_factor 0).
+
+
+## 9d?. The bus stop in the rain (fleet wave 8, refcam5 `bus_stop_rain`, `wt/rc5-bus-stop-rain`)
+
+The task: a new reference view of a bus shelter in the rain at 18:00, eye level on the pavement:
+people under umbrellas and the shelter roof, a bus pulling in with its doors and destination sign,
+the wet street mirroring the lights. Judge it against a 2026 AAA game and fix the worst 3-5 things.
+
+**The camera.** `bus_stop_rain` in `tools/refcams/cameras_w8.json`: Wilshire Blvd in midtown, the
+eastbound line 204 stop at x 1141 (seed 1337), eye (1145.0, 1.7 AGL, 327.6) yaw 58 pitch 3, FOV 58,
+18:00 rain. Its new staging key `"stage": "bus"` with `bus: {at, dir, pull, doors, queue, seed}`
+(`tools/refcams/bus_stage.gd`) stands a bus at the stop nearest `bus.at` (BigVehicles.block_stop),
+doors open, kneeled, sign lit, that direction's other traffic retired, and fills the stop's own
+StreetErrands queue with `queue` new plain walkers (RainCrowd settles their gear). The log prints
+`REFCAM bus` lines, each rider's gear included. `tools/rc5_bus_stop/probe.gd -- --spawn=x,z` lists
+the bus stops round a point (line, destination, district).
+
+**What read fake, in the order the eye found it, and what changed:**
+
+1. **The whole frame was sepia** (CCT 3,040-3,290 K). DayNight painted a rain deck at sunset with the
+   clear evening's colours: `dusk_cloud` orange (only a STORM greyed the clouds), half the peach
+   horizon (rain's weather_darken is 0.5), a pink-brown fog, the GOLDEN grade, the twilight band and
+   the rays. The ambient is the sky, so every wall and face went brown. `RainDusk`
+   (`scripts/world/rain_dusk.gd`) weights `clamp(darken x 2) x max(dusk, golden) x (1 - moonlight)` -
+   0 at noon, after dark and in the dry, so noon rain, rainy nights and clear sunsets are bit for bit
+   - and pulls the sky top / horizon, `sky_tint` and the fog to slate at their own luma, the cloud
+   colour to a cool grey, cuts the GOLDEN grade to 15 % and (`dress_sky()`) the twilight band, the
+   rays and the warm floor. Hooks: three lines in DayNight._apply(). Probe in seconds, no city:
+   `tools/rc5_bus_stop/dusk_probe.gd` (DARK=, HOURS=; 18:00 horizon (0.63, 0.44, 0.36) -> (0.41,
+   0.45, 0.53)).
+2. **The wet street mirrored grey daylit walls under lit lamps.** RainDay's day mirror holds the
+   road's night mirror off until the photocells' own night level, so at a rainy 18:00 (lamps on by
+   the weather) the road showed the canyon of daylit fronts. `RainDay.publish()` takes a second
+   argument, RainDusk.mirror_lamps(): the road's mirror only (RainDay.night_lamp, the searchlights
+   and the helicopter's spot keep the photocell level).
+3. **Every lamp threw a string of white beads down the pavement.** night_wet's look2 rows are ~25 cm
+   apart along the streak and raised to the 2.6th power: at a pavement's grazing angle an evenly
+   spaced column of blobs. `look5` (set by RainStreetNight.dress_wet() when RainDusk is on): rows at a
+   few cm, contrast 1.5 not 2.6, the burnt-white core at a tenth, 0.7 of the gain - a broken sheen.
+   This is every rainy night's streak, not only this camera's.
+4. **People with no umbrella stood in the rain a metre from the shelter roof.** StreetErrands lines
+   its bus riders up along the kerb; `StopShelter` (`scripts/npc/stop_shelter.gd`, one hook in
+   `_start_bus()`) puts a rider with no umbrella or hood under the roof (1.75 m in, spread along the
+   bench by slot) once it rains past RainCrowd.SHELTER_LEVEL; umbrellas keep their kerb place.
+
+`RC5_BUS_STOP=0` puts all four back (RainDusk.enabled). Checks: `tests/rc5_bus_stop_rain_checks.gd`.
+
+**Numbers** (opengl3, the refcam, same load): before (RC5_BUS_STOP=0) p5/p50/p95 26/73/145, sat
+0.47, CCT 3,289 K, 5.18 M tris, 3,727 draws; after 24/72/144, sat 0.25, CCT 4,554 K, 5.21 M tris,
+3,743 draws (the queue's two umbrellas and the streak's own noise; nothing new drawn).
+
+**Stills** (`shots/rc5-bus-stop-rain`): `00_before_first_framing`, `01_before_bus_stop_rain`,
+`02_after_bus_stop_rain`, `03_ab_bus_stop_rain`.
+
+**Not done / not verified.** Not seen on Forward+ (lavapipe cannot hold the city; the colour work is
+DayNight's Color uniforms and the grade, renderer-neutral, and the probe's numbers are the same on
+both). The bus's windscreen is still a dark slab at dusk (the traced cabin is lit only after dark);
+the far deco facade top-left keeps its orange floodlit look (its own palette). The full ten-camera
+compare is in the session's report.

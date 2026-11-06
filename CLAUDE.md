@@ -2293,6 +2293,14 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   (`flash_color`); in a storm the lamps' wet streaks break up (night_wet `storm`), the curtain's night
   veil / sheets thin (`night_veil`, `night_sheets`, `thin`), the litter stays low. `RC5_STORM=0` is
   the A/B; checks `tests/rc5_storm_downtown_checks.gd`.
+- The bus stop in the rain (2026-11-06, refcam `bus_stop_rain` in `tools/refcams/cameras_w8.json`,
+  staged by `"stage": "bus"` -> `tools/refcams/bus_stage.gd`; docs/HANDOFF.md "The bus stop in the
+  rain"): `RainDusk` (`scripts/world/rain_dusk.gd`, hooks in DayNight) - under rain at dusk the sky,
+  clouds, sky_tint, fog and grade go slate (no twilight band or rays) and the road's mirror hands over
+  to the lit city's (`RainDay.publish()`'s dusk lamps); night_wet `look5` (lamp streaks a broken
+  sheen, not beads); `StopShelter` puts riders with no umbrella under the shelter roof.
+  `RC5_BUS_STOP=0` is the A/B; probe `tools/rc5_bus_stop/dusk_probe.gd`; checks
+  `tests/rc5_bus_stop_rain_checks.gd`.
 - The rainy night street (2026-10-31, docs/HANDOFF.md "The rainy night street, refcam review"):
   `RainStreetNight` (`scripts/world/rain_street_night.gd`): NightAtmos' lamp streak is a soft
   rippled column peaked at the mirror point (night_wet `look2`), `WetCarGlints` lays the same streak
