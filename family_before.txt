@@ -1,0 +1,50 @@
+day        n=13  median p1  18.0  p5  30.0  p50 126.0  p95 196.0  sat 0.338  mired   141
+   sea_life              8.00 clear     p1  27 p5  40 p50 153 p95 213 sat 0.238  7003K  << p50 +27, sat -0.100
+   farmers_market       10.00 clear     p1   9 p5  19 p50 125 p95 215 sat 0.338  6874K
+   port_gate            10.00 clear     p1  16 p5  27 p50  63 p95 173 sat 0.445 10956K  << p50 -63, sat +0.107, mired -50
+   macarthur            11.00 clear     p1  20 p5  34 p50 116 p95 206 sat 0.357  5020K  << mired +58
+   auto_row             11.00 clear     p1   7 p5  21 p50 126 p95 202 sat 0.371  7393K  << p1 -11
+   street_noon          12.00 clear     p1  15 p5  24 p50 126 p95 191 sat 0.295  7311K
+   downtown_aerial      12.50 clear     p1  24 p5  41 p50 140 p95 213 sat 0.314  6091K
+   freeway              13.00 clear     p1  18 p5  30 p50 151 p95 196 sat 0.243  6346K  << p50 +25, sat -0.095
+   crash_closeup        13.00 clear     p1  11 p5  18 p50  73 p95 186 sat 0.492  7672K  << p50 -53, sat +0.155
+   beach                14.00 clear     p1  78 p5  95 p50 149 p95 197 sat 0.241  8883K  << p50 +23, p5 +65, p1 +60, sat -0.097
+   hills                15.00 clear     p1  65 p5  95 p50 141 p95 185 sat 0.343  5680K  << p5 +65, p1 +47
+   backyard_pool        15.00 clear     p1   7 p5  18 p50  60 p95 165 sat 0.389  7796K  << p50 -66, p95 -31, p1 -11
+   skate_park           16.50 clear     p1  28 p5  51 p50 146 p95 185 sat 0.325  7071K  << p5 +21
+marine     n= 1  median p1  52.0  p5  64.0  p50 100.0  p95 149.0  sat 0.088  mired   158
+   cemetery_dawn         6.50 marine    p1  52 p5  64 p50 100 p95 149 sat 0.088  6340K
+golden     n= 6  median p1  26.0  p5  34.0  p50 103.5  p95 178.5  sat 0.367  mired   235
+   golden_aerial        17.20 clear     p1  30 p5  41 p50 137 p95 168 sat 0.332  5831K  << p50 +34, mired -64
+   rail_crossing        17.50 clear     p1  12 p5  23 p50  52 p95 159 sat 0.381  6604K  << p50 -52, p1 -14, mired -84
+   rush_hour            17.67 clear     p1  30 p5  47 p50 123 p95 226 sat 0.345  4132K  << p95 +48
+   speedboat_golden     17.75 clear     p1  16 p5  19 p50 133 p95 229 sat 0.422  3783K  << p50 +30, p5 -15, p95 +50
+   sunset               17.85 clear     p1  28 p5  35 p50  81 p95 178 sat 0.354  4375K  << p50 -22
+   wingsuit_golden      18.00 clear     p1  24 p5  33 p50  84 p95 179 sat 0.468  3588K  << sat +0.101
+dusk       n= 6  median p1   2.5  p5   5.5  p50  39.0  p95 108.5  sat 0.418  mired   151
+   brush_fire           18.50 santa_ana p1   3 p5   6 p50  39 p95 126 sat 0.371  5106K
+   construction_dusk    18.75 clear     p1   2 p5   5 p50  27 p95  92 sat 0.472  6374K
+   oil_islands_dusk     18.75 clear     p1  10 p5  17 p50  36 p95  67 sat 0.518  7391K  << p95 -42, sat +0.100
+   power_plant_dusk     18.83 clear     p1   7 p5  14 p50  39 p95  95 sat 0.375  6877K
+   hill_home_dusk       19.25 clear     p1   0 p5   4 p50  55 p95 154 sat 0.462  3996K  << p95 +46, mired +99
+   jet_takeoff          19.25 clear     p1   0 p5   4 p50  41 p95 122 sat 0.371  6989K
+night      n=12  median p1   1.0  p5   4.5  p50  33.0  p95 139.5  sat 0.431  mired   174
+   friday_lights        20.00 clear     p1   0 p5   1 p50  18 p95 123 sat 0.457  3665K  << mired +99
+   rail_aerial          20.00 clear     p1   3 p5  10 p50  31 p95 106 sat 0.464  7451K  << p95 -34
+   pier_night           21.00 clear     p1   4 p5  17 p50  36 p95  72 sat 0.570 12283K  << p95 -68, sat +0.139, mired -93
+   arena_night          21.00 clear     p1   2 p5  11 p50  34 p95 172 sat 0.438  4705K  << p95 +32
+   googie_motel         21.00 clear     p1   2 p5   7 p50  31 p95 156 sat 0.488  4591K
+   suburb_night         21.50 clear     p1   0 p5   3 p50  27 p95  67 sat 0.418  7617K  << p95 -72
+   fireworks_ballpark   21.50 clear     p1   6 p5  16 p50  32 p95  99 sat 0.424  7456K  << p95 -40
+   police_pursuit       22.00 clear     p1   1 p5   4 p50  62 p95 221 sat 0.317  6538K  << p50 +29, p95 +82, sat -0.114
+   lighthouse_night     22.00 clear     p1   0 p5   1 p50  25 p95  57 sat 0.416  7263K  << p95 -82
+   walk_of_fame_night   22.00 clear     p1   1 p5   4 p50  50 p95 176 sat 0.517  3904K  << p95 +36, mired +82
+   taco_truck_night     23.00 clear     p1   0 p5   3 p50  57 p95 187 sat 0.399  4869K  << p50 +24, p95 +48
+   gas_station_night    23.50 clear     p1   1 p5   5 p50  49 p95 223 sat 0.344  5118K  << p95 +84
+night_wet  n= 3  median p1   5.0  p5   9.0  p50  38.0  p95 134.0  sat 0.238  mired   225
+   storm_downtown       20.50 storm     p1  22 p5  30 p50  82 p95 165 sat 0.229  5524K  << p50 +44, p5 +21, p95 +31, p1 +17
+   street_night         21.50 rain      p1   5 p5   9 p50  38 p95 134 sat 0.487  3763K  << sat +0.250
+   driver_rain          22.00 rain      p1   0 p5   1 p50   8 p95  81 sat 0.238  4448K  << p50 -30, p95 -53
+
+32 shots out of family
+sheet build/refcams/family_before.jpg
