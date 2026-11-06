@@ -31821,6 +31821,13 @@ stucco fronts on the right, papel picado overhead. Seed 1337: (3287.0, -1543.0).
   joists are turned so it runs along them), each member its own weathered tone
   (`PuebloLaneLook.timber()`), in the casting `PuebloMarket` mesh instead of LandmarkGeo's flat box.
 
+- The goods at arm's length (the lead's note on the 03b close-up; stall frame lod 0 only): pots
+  with a rolled lip and a dark mouth on 18-20 sides (`_pot_lip()`), the pinata ball a 16-sided
+  sphere and its cones bellied with a crepe ruff at the foot, each tip's tassel five thin crepe
+  streamers fanned (one 8 cm sheet read as a striped plank), the candy boxes trays of wrapped
+  sweets (`_sweets_tray()`), the toy boxes spinning tops, the awning valance rounded scallops
+  (a half-disc fan) instead of a hard zigzag.
+
 **Numbers** (refcams, opengl3 1280x720): before p50 73, sat 0.507, 5.64 M tris / 2,795 draws /
 2.08 M shadow; after p50 69, sat 0.425, 6.13 M / 2,971 / 2.31 M (+0.49 M, +176 draws: the people).
 
@@ -31831,4 +31838,4 @@ stucco fronts on the right, papel picado overhead. Seed 1337: (3287.0, -1543.0).
 arithmetic through cs_srgb_to_linear / cs_out (the include's own rule), the brick through the
 road shader's existing desat path. Near-camera density varies run to run (walkers spread over the
 whole ring; the shoppers stand at random stalls). The adobe fronts are still clean (no wainscot,
-no foot grime on the LandmarkGeo walls). Goods (flat sombrero discs on the back walls) untouched.
+no foot grime on the LandmarkGeo walls). Not done among the goods: the sombreros on the back walls (lathes seen edge-on read as discs), the folded sarapes and blouses (boxes), the leather bags (boxes), the silver (slivers). The goods pass is not in the after refcam still that was measured (shot before it); its close-up is 05.

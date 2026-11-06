@@ -300,7 +300,20 @@ static func stall(solid: Acc, thin: Acc, xf: Transform3D, goods: int, s: int, lo
 		var drop := Vector3(0, -0.2, 0)
 		var mid := (pa + pb) * 0.5 + Vector3(0, -0.28, 0)
 		thin.quad(pa, pb, pb + drop, pa + drop, b * Vector3(0, 0, 1), Vector2(u0 * aw, 0.28), Vector2(u1 * aw, 0.28), Vector2(u1 * aw, 0.08), Vector2(u0 * aw, 0.08), 0.12, 0.12, 0.25, 0.25)
-		thin.tri(pa + drop, pb + drop, mid, b * Vector3(0, 0, 1), Vector2(u0 * aw, 0.08), Vector2(u1 * aw, 0.08), Vector2((u0 + u1) * 0.5 * aw, 0.0), Vector3.ZERO, Vector3.ZERO, Vector3.ZERO, 0.25, 0.25, 0.35)
+		if PuebloLaneLook.enabled and lod == 0:
+			# A rounded scallop (PuebloLaneLook: the hard zigzag read as cut card): a half-disc fan.
+			var c0 := (pa + pb) * 0.5 + drop
+			var half := (pb - pa) * 0.5
+			var um := (u0 + u1) * 0.5 * aw
+			var uh := (u1 - u0) * 0.5 * aw
+			for f in 6:
+				var t0 := PI * float(f) / 6.0
+				var t1 := PI * float(f + 1) / 6.0
+				var q0 := c0 + half * cos(t0) + Vector3(0, -0.08 * sin(t0), 0)
+				var q1 := c0 + half * cos(t1) + Vector3(0, -0.08 * sin(t1), 0)
+				thin.tri(c0, q1, q0, b * Vector3(0, 0, 1), Vector2(um, 0.08), Vector2(um + uh * cos(t1), 0.08 - 0.08 * sin(t1)), Vector2(um + uh * cos(t0), 0.08 - 0.08 * sin(t0)), Vector3.ZERO, Vector3.ZERO, Vector3.ZERO, 0.25, 0.3, 0.3)
+		else:
+			thin.tri(pa + drop, pb + drop, mid, b * Vector3(0, 0, 1), Vector2(u0 * aw, 0.08), Vector2(u1 * aw, 0.08), Vector2((u0 + u1) * 0.5 * aw, 0.0), Vector3.ZERO, Vector3.ZERO, Vector3.ZERO, 0.25, 0.25, 0.35)
 	solid.set_look(Color(0.12, 0.12, 0.12), K_IRON)
 	for px: float in [-hw, hw]:
 		var p := xf * Vector3(px, front_y - 0.18 - AWNING_DROP * 0.5, 0.13 + AWNING_OUT * 0.5)
@@ -350,7 +363,8 @@ static func _goods(solid: Acc, thin: Acc, xf: Transform3D, goods: int, s: int, l
 				var hgt := 0.16 + 0.22 * _rr(s, "h", i)
 				var rad := 0.07 + 0.06 * _rr(s, "r", i)
 				solid.set_look(_pot_color(s, i, glazed), K_GLAZE if glazed else K_CLAY, _rr(s, "pat", i))
-				solid.lathe(at.call(Vector3(x, top, -0.3 + (_rr(s, "z", i) - 0.5) * 0.15)), _pot_profile(rad, hgt, int(_rr(s, "shape", i) * 3.0)), 10 if lod == 0 else 6)
+				var near := lod == 0 and PuebloLaneLook.enabled
+				solid.lathe(at.call(Vector3(x, top, -0.3 + (_rr(s, "z", i) - 0.5) * 0.15)), _pot_lip(_pot_profile(rad, hgt, int(_rr(s, "shape", i) * 3.0))) if near else _pot_profile(rad, hgt, int(_rr(s, "shape", i) * 3.0)), (18 if near else 10) if lod == 0 else 6)
 			# Plates on the back wall, in rows.
 			for row in 2:
 				for i in 4:
@@ -360,7 +374,8 @@ static func _goods(solid: Acc, thin: Acc, xf: Transform3D, goods: int, s: int, l
 			# Big pots on the ground either side of the stall front.
 			for side: float in [-1.0, 1.0]:
 				solid.set_look(Color(0.66, 0.34, 0.2), K_CLAY, _rr(s, "big", int(side)))
-				solid.lathe(at.call(Vector3(side * (hw + 0.25), 0.0, 0.25)), _pot_profile(0.24, 0.62, 1), 10 if lod == 0 else 6)
+				var near_big := lod == 0 and PuebloLaneLook.enabled
+				solid.lathe(at.call(Vector3(side * (hw + 0.25), 0.0, 0.25)), _pot_lip(_pot_profile(0.24, 0.62, 1)) if near_big else _pot_profile(0.24, 0.62, 1), (20 if near_big else 10) if lod == 0 else 6)
 		Goods.PINATAS:
 			# Star pinatas from the awning: a ball and seven cones with paper tassels.
 			for i in 3:
@@ -372,6 +387,10 @@ static func _goods(solid: Acc, thin: Acc, xf: Transform3D, goods: int, s: int, l
 				solid.set_look(_dye(s, i), K_GLOSSY)
 				if i % 2 == 0:
 					solid.lathe(at.call(Vector3(x, top, -0.3)), [Vector2(0.0, 0.0), Vector2(0.012, 0.0), Vector2(0.012, 0.1), Vector2(0.045, 0.13), Vector2(0.05, 0.18), Vector2(0.035, 0.22), Vector2(0.0, 0.23)], 8)
+				elif lod == 0 and PuebloLaneLook.enabled:
+					# A wooden spinning top, painted in rings (PuebloLaneLook: the boxes read as blocks).
+					solid.lathe(at.call(Vector3(x, top, -0.28)), [Vector2(0.0, 0.0), Vector2(0.012, 0.012), Vector2(0.04, 0.05), Vector2(0.052, 0.075),
+						Vector2(0.046, 0.09), Vector2(0.012, 0.1), Vector2(0.008, 0.13), Vector2(0.0, 0.135)], 12)
 				else:
 					solid.box(at.call(Vector3(x, top + 0.06, -0.28)), Vector3(0.16, 0.12, 0.12))
 			# More pinatas on the back wall, smaller.
@@ -417,6 +436,8 @@ static func _goods(solid: Acc, thin: Acc, xf: Transform3D, goods: int, s: int, l
 					if (i + tier) % 2 == 0:
 						solid.set_look(_dye(s, tier * 10 + i), K_GLOSSY)
 						solid.lathe(at.call(Vector3(x, y - 0.01, z)), [Vector2(0.0, 0.0), Vector2(0.075, 0.0), Vector2(0.08, 0.15), Vector2(0.05, 0.17), Vector2(0.05, 0.2), Vector2(0.0, 0.2)], 8 if lod == 0 else 5)
+					elif lod == 0 and PuebloLaneLook.enabled:
+						_sweets_tray(solid, xf, Vector3(x, y - 0.01, z), s, tier * 10 + i)
 					else:
 						solid.set_look(_dye(s, 50 + tier * 10 + i), K_GLOSSY)
 						solid.box(at.call(Vector3(x, y + 0.04, z)), Vector3(0.22, 0.09, 0.16))
@@ -528,6 +549,43 @@ static func _pot_profile(rad: float, hgt: float, shape: int) -> Array:
 	return [Vector2(0.0, 0.0), Vector2(rad * 0.5, 0.0), Vector2(rad * 0.8, hgt * 0.3), Vector2(rad * 0.45, hgt * 0.7), Vector2(rad * 0.7, hgt), Vector2(rad * 0.6, hgt)]
 
 
+## A pot's profile with a rolled lip and the mouth turned in (PuebloLaneLook): the rim stands out
+## past the neck and the inside of the neck shows dark down the mouth.
+static func _pot_lip(prof: Array) -> Array:
+	var out := prof.duplicate()
+	var last: Vector2 = out[out.size() - 1]
+	var prev: Vector2 = out[out.size() - 2]
+	var r := maxf(last.x, prev.x)
+	var y := maxf(last.y, prev.y)
+	out.resize(out.size() - 1)
+	out.append(Vector2(r * 1.08, y - 0.006))
+	out.append(Vector2(r * 1.12, y + 0.004))
+	out.append(Vector2(r * 1.02, y + 0.01))
+	out.append(Vector2(r * 0.88, y + 0.002))
+	out.append(Vector2(r * 0.8, y - 0.05))
+	out.append(Vector2(0.0, y - 0.06))
+	return out
+
+
+## A low tray of wrapped sweets at `p` (stall frame): a rim and a heap of round sweets in twists of
+## coloured cellophane, each a squat ball (PuebloLaneLook: the boxes of sweets read as blocks).
+static func _sweets_tray(solid: Acc, xf: Transform3D, p: Vector3, s: int, i: int) -> void:
+	var b := xf.basis
+	solid.set_look(Color(0.55, 0.38, 0.22), K_WOOD)
+	solid.box(Transform3D(b, xf * (p + Vector3(0, 0.012, 0))), Vector3(0.24, 0.024, 0.18))
+	for side: float in [-1.0, 1.0]:
+		solid.box(Transform3D(b, xf * (p + Vector3(side * 0.115, 0.03, 0))), Vector3(0.012, 0.04, 0.18))
+		solid.box(Transform3D(b, xf * (p + Vector3(0, 0.03, side * 0.085))), Vector3(0.24, 0.04, 0.012))
+	for k in 14:
+		var rx := (_rr(s, "swx", i * 20 + k) - 0.5) * 0.19
+		var rz := (_rr(s, "swz", i * 20 + k) - 0.5) * 0.13
+		var ry := 0.03 + 0.03 * (1.0 - absf(rx) / 0.1) * _rr(s, "swy", i * 20 + k)
+		var rad := 0.016 + 0.006 * _rr(s, "swr", i * 20 + k)
+		solid.set_look(_dye(s, 70 + i * 3 + k % 3), K_GLOSSY)
+		var prof := [Vector2(0.0, -rad * 0.8), Vector2(rad * 0.75, -rad * 0.55), Vector2(rad, 0.0), Vector2(rad * 0.75, rad * 0.55), Vector2(0.0, rad * 0.8)]
+		solid.lathe(Transform3D(b * Basis(Vector3.FORWARD, PI * 0.5 + 0.6 * (_rr(s, "swa", i * 20 + k) - 0.5)), xf * (p + Vector3(rx, ry, rz))), prof, 7)
+
+
 ## A sombrero's profile [r, y], `rad` the brim's radius: crown, then the upturned brim.
 static func _sombrero(rad: float) -> Array:
 	return [Vector2(0.0, 0.22), Vector2(rad * 0.18, 0.21), Vector2(rad * 0.3, 0.12), Vector2(rad * 0.33, 0.03),
@@ -537,18 +595,41 @@ static func _sombrero(rad: float) -> Array:
 ## A star pinata: a ball with seven cones and a tassel of crepe at each tip, hanging on a cord.
 static func _pinata_star(solid: Acc, thin: Acc, c: Vector3, b: Basis, rad: float, s: int, lod: int) -> void:
 	solid.set_look(_dye(s, 0), K_CREPE, h01([s, "pin"]))
-	solid.lathe(Transform3D(b, c - Vector3.UP * rad * 0.9), [Vector2(0.0, 0.0), Vector2(rad * 0.7, rad * 0.35), Vector2(rad * 0.9, rad * 0.9), Vector2(rad * 0.7, rad * 1.45), Vector2(0.0, rad * 1.8)], 8 if lod == 0 else 5)
+	var round := lod == 0 and PuebloLaneLook.enabled
+	if round:
+		# A round paper ball (PuebloLaneLook): nine rings, sixteen sides.
+		var prof := []
+		for k in 9:
+			var a := PI * float(k) / 8.0
+			prof.append(Vector2(sin(a) * rad * 0.9, rad * 0.9 * (1.0 - cos(a))))
+		solid.lathe(Transform3D(b, c - Vector3.UP * rad * 0.9), prof, 16)
+	else:
+		solid.lathe(Transform3D(b, c - Vector3.UP * rad * 0.9), [Vector2(0.0, 0.0), Vector2(rad * 0.7, rad * 0.35), Vector2(rad * 0.9, rad * 0.9), Vector2(rad * 0.7, rad * 1.45), Vector2(0.0, rad * 1.8)], 8 if lod == 0 else 5)
 	var dirs := [Vector3(0, 1, 0), Vector3(1, 0.3, 0), Vector3(-1, 0.3, 0), Vector3(0.5, -0.8, 0.3), Vector3(-0.5, -0.8, 0.3), Vector3(0, 0.2, 1), Vector3(0.0, -0.2, -1)]
 	for i in dirs.size():
 		var d: Vector3 = b * (dirs[i] as Vector3).normalized()
 		var up := Vector3.UP if absf(d.y) < 0.95 else Vector3.RIGHT
 		var bas := Basis.looking_at(d, up) * Basis(Vector3.RIGHT, -PI * 0.5)
 		solid.set_look(_dye(s, i + 1), K_CREPE, h01([s, "cone", i]))
-		solid.lathe(Transform3D(bas, c + d * rad * 0.6), [Vector2(rad * 0.32, 0.0), Vector2(0.0, rad * 1.5)], 6 if lod == 0 else 4)
+		if round:
+			# A cone with a crepe ruff at its foot and a slight belly.
+			solid.lathe(Transform3D(bas, c + d * rad * 0.6), [Vector2(rad * 0.36, -0.02), Vector2(rad * 0.4, 0.01), Vector2(rad * 0.3, rad * 0.25), Vector2(rad * 0.16, rad * 0.9), Vector2(0.0, rad * 1.5)], 12)
+		else:
+			solid.lathe(Transform3D(bas, c + d * rad * 0.6), [Vector2(rad * 0.32, 0.0), Vector2(0.0, rad * 1.5)], 6 if lod == 0 else 4)
 		if lod == 0 and i > 0:
 			thin.set_look(_dye(s, i + 4), K_CREPE, h01([s, "tas", i]))
 			var tip := c + d * rad * 2.05
-			thin.sheet(tip - b * Vector3(0.04, 0, 0), b * Vector3(1, 0, 0), Vector3.DOWN, 0.08, 0.3, b * Vector3(0, 0, 1), 2, 0.2, 0.9)
+			if round:
+				# A tassel of crepe streamers, fanned a little (PuebloLaneLook: one 8 cm sheet read
+				# as a striped plank).
+				for k in 5:
+					var off := (float(k) - 2.0) * 0.016
+					var ax := (b * Vector3(1, 0, 0)).rotated(Vector3.UP, (float(k) - 2.0) * 0.5)
+					var dn := (Vector3.DOWN + b * Vector3(off * 4.0, 0, 0)).normalized()
+					thin.set_look(_dye(s, i * 5 + k + 4), K_CREPE, h01([s, "tas", i, k]))
+					thin.sheet(tip + b * Vector3(off, 0, 0) - ax * 0.006, ax, dn, 0.012, 0.24 + 0.08 * h01([s, "tl", i, k]), b * Vector3(0, 0, 1), 2, 0.2, 0.9)
+			else:
+				thin.sheet(tip - b * Vector3(0.04, 0, 0), b * Vector3(1, 0, 0), Vector3.DOWN, 0.08, 0.3, b * Vector3(0, 0, 1), 2, 0.2, 0.9)
 	solid.set_look(Color(0.2, 0.2, 0.2), K_IRON)
 	solid.box(Transform3D(b, c + Vector3.UP * (rad * 1.0 + 0.3)), Vector3(0.008, 0.6, 0.008))
 
