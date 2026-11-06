@@ -1659,6 +1659,7 @@ func _sample_terrain() -> bool:
 		# an eight-metre quad gives a mountain a faceted, folded-paper edge no shading can hide.
 		var has_road := _hill_segments().size() > 0
 		_tile_n = (terrain_subdiv_road if has_road else terrain_subdiv) if level == Level.FULL else terrain_subdiv_lod
+		_tile_n = Rc5Reservoir.tile_n(self, _tile_n)
 		_tile_heights.resize((_tile_n + 1) * (_tile_n + 1))
 		_tile_drains.resize((_tile_n + 1) * (_tile_n + 1))
 		_tile_rills.resize((_tile_n + 1) * (_tile_n + 1))

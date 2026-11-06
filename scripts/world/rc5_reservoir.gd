@@ -17,8 +17,15 @@ class_name Rc5Reservoir
 ##   borrow it are unscaled, so nothing else changes).
 ## - NO VIEW: the fence runs the whole trail, so nowhere on it does the lake open up. An OVERLOOK
 ##   (`overlook()`, pure) where the trail stands about 160 m off the dam on its east side: the fence
-##   stops, a semicircular concrete balcony on the bench with a low parapet and a steel pipe rail, a
-##   bench. The refcam stands on it.
+##   stops, a half-octagon concrete balcony on the bench in the dam's own dress (its pierced
+##   balustrade panels, posts and coping), a bench. The refcam stands on it.
+## - THE BANKS under the trail swelled into smooth green pillows along the lake: the bench was a
+##   smoothstep blend that lifted the bank's own humps to the trail's height. It is graded now
+##   (Reservoir._carve()): the bench, a steep rock fill down to the water and a 1:1 cut up the hill.
+##   The chunks the trail runs through also sample their terrain finer (`tile_n()`): at 5-8 m a
+##   vertex the bench fell between the vertices.
+## - THE CHAPARRAL on the banks: HillScatter's clumps are smooth domes, which from across the lake
+##   read as rows of green balloons; hill_scatter's `rc5_edge` tears their outline into lobes.
 ## - THE TRAIL was a flat pale ribbon with a boulder lying on it: decomposed granite now darker with
 ##   worn edges into the bank, a centre wear line, pebbles and rain runnels (reservoir_dam `trail2`);
 ##   RockBuild's scree keeps off the trail and the water like its outcrops (`scree_ok()`).
@@ -31,10 +38,21 @@ static var enabled: bool = OS.get_environment("RC5_RESERVOIR") != "0"
 ## The overlook: where on the trail (metres from the dam's middle, and the side it is on), its
 ## balcony's radius past the trail's lake edge, and how much fence it opens.
 const OVERLOOK_DIST := 160.0
-const OVERLOOK_R := 3.2
-const OVERLOOK_OPEN := 5.5
-const PARAPET_H := 0.55
-const RAIL_H := 1.07
+const OVERLOOK_R := 3.66
+const OVERLOOK_OPEN := 4.4
+
+## The trail's bench is graded (Reservoir._carve()): a 1:1 cut out to BANK_EASE past its edge and a
+## FILL_GRADE fill (rise per metre: a rock-faced bank, no further into the lake than the old blend)
+## out to FILL_EASE, both steeper after, nothing past BANK_REACH.
+const BANK_EASE := 8.0
+const FILL_GRADE := 2.0
+const FILL_EASE := 3.0
+const BANK_REACH := 14.0
+
+## A FULL hill chunk the lake trail runs through samples its terrain this finely: at the usual 32 to
+## 48 a side (5-8 m a vertex) the 3 m bench and its banks fell between the vertices and the lake
+## side drew as rounded lumps whatever the carve said.
+const TRAIL_TILE_N := 96
 
 static var _overlook_for: Reservoir = null
 static var _overlook: Dictionary = {}
@@ -118,6 +136,23 @@ static func overlook(res: Reservoir) -> Dictionary:
 	return _overlook
 
 
+## The terrain tile's subdivisions for chunk `ch` (`n` what it would use).
+static func tile_n(ch: CityChunk, n: int) -> int:
+	if not enabled or ch.level != CityChunk.Level.FULL or ch.plan == null or ch.plan.macro == null:
+		return n
+	var res: Reservoir = ch.plan.macro.reservoir
+	if res == null or res.trail.is_empty():
+		return n
+	var rect := ch.owned_rect()
+	if not rect.intersects(Reservoir.BOX):
+		return n
+	for line in res.trail:
+		for p in line:
+			if rect.has_point(p):
+				return maxi(n, TRAIL_TILE_N)
+	return n
+
+
 ## True where the fence is left out for the overlook (a fence segment's midpoint).
 static func fence_open(res: Reservoir, p: Vector2) -> bool:
 	var o := overlook(res)
@@ -126,9 +161,10 @@ static func fence_open(res: Reservoir, p: Vector2) -> bool:
 	return p.distance_to(o.centre) < OVERLOOK_OPEN
 
 
-## The balcony: a half disc of concrete out from the trail's lake edge on a battered wall down into
-## the bank, a low parapet round it with a steel pipe rail on posts, two end piers where the fence
-## stops and a bench against the uphill side. Into `g` ("dam" material; K_* of the dam shader).
+## The balcony, in the dam's own dress: a half octagon of concrete out from the trail's lake edge
+## on a wall down into the bank, each side one of the crest's pierced balustrade panels on a plinth
+## between posts under a coping (LandmarkReservoir's parapet, the same materials and sizes), the
+## fence ending either side, and a bench against the uphill edge. Into ctx.geo ("dam" and "rail").
 static func build_overlook(ctx: Dictionary) -> void:
 	var res: Reservoir = ctx.res
 	var o := overlook(res)
@@ -139,58 +175,75 @@ static func build_overlook(ctx: Dictionary) -> void:
 	var c: Vector2 = o.centre
 	var out: Vector2 = o.out
 	var along: Vector2 = o.dir
-	var r := OVERLOOK_R
-	var segs := 14
-	# Board-formed concrete like the dam's (not the smooth trim), a shade darker and warmer.
-	var trim := Color(0.86, 0.5, 0.82, float(LandmarkReservoir.K_FACE) / 16.0)
-	var face := Color(0.8, 1.0, 0.78, float(LandmarkReservoir.K_FACE) / 16.0)
-	var metal := LandmarkReservoir._k(LandmarkReservoir.K_METAL)
+	var panel: float = float(ctx.get("panel", 2.35))
+	var sides := 4
+	# Each side's chord is one panel plus a post.
+	var r := (panel + 0.45) / (2.0 * sin(PI / (2.0 * sides)))
+	var trim := LandmarkReservoir._k(LandmarkReservoir.K_TRIM)
+	var face := LandmarkReservoir._k(LandmarkReservoir.K_FACE, 0.5)
 	var pts: Array[Vector2] = []
-	for i in segs + 1:
-		var th := PI * float(i) / float(segs)
+	for i in sides + 1:
+		var th := PI * float(i) / float(sides)
 		pts.append(c + along * cos(th) * r + out * sin(th) * r)
 	var c3 := Vector3(c.x, y + 0.02, c.y)
-	var y_foot := y - 4.5
-	for i in segs:
+	var y_foot := y - 5.0
+	var ph := LandmarkReservoir.PLINTH_H
+	var rt := LandmarkReservoir.RAIL_TOP
+	var yc := y + ph + rt
+	var t := LandmarkReservoir.PARAPET_T
+	for i in sides:
 		var a := pts[i]
 		var b := pts[i + 1]
-		var a3 := Vector3(a.x, y + 0.02, a.y)
-		var b3 := Vector3(b.x, y + 0.02, b.y)
-		# The deck (a fan), its wall down into the bank, the parapet's two faces and top.
-		g.tri("dam", c3, a3, b3, Vector3.UP, Vector2(c.x, c.y), Vector2(a.x, a.y), Vector2(b.x, b.y), trim, true)
 		var m := (a + b) * 0.5 - c
 		var w := Vector3(m.x, 0.0, m.y).normalized()
-		var ua := float(i) * PI * r / float(segs)
-		var ub := float(i + 1) * PI * r / float(segs)
-		var a_in := c + (a - c) * ((r - 0.3) / r)
-		var b_in := c + (b - c) * ((r - 0.3) / r)
-		g.quad("dam", Vector3(a.x, y_foot, a.y), Vector3(b.x, y_foot, b.y), Vector3(b.x, y + PARAPET_H, b.y), Vector3(a.x, y + PARAPET_H, a.y), w,
-			Vector2(ua, y_foot), Vector2(ub, y_foot), Vector2(ub, y + PARAPET_H), Vector2(ua, y + PARAPET_H), face, true)
-		g.quad("dam", Vector3(a_in.x, y, a_in.y), Vector3(b_in.x, y, b_in.y), Vector3(b_in.x, y + PARAPET_H, b_in.y), Vector3(a_in.x, y + PARAPET_H, a_in.y), -w,
-			Vector2(ua, y), Vector2(ub, y), Vector2(ub, y + PARAPET_H), Vector2(ua, y + PARAPET_H), trim, true)
-		g.quad("dam", Vector3(a_in.x, y + PARAPET_H, a_in.y), Vector3(b_in.x, y + PARAPET_H, b_in.y), Vector3(b.x, y + PARAPET_H, b.y), Vector3(a.x, y + PARAPET_H, a.y), Vector3.UP,
-			Vector2(ua, 0.0), Vector2(ub, 0.0), Vector2(ub, 0.3), Vector2(ua, 0.3), trim, true)
-	# The pipe rail on posts over the parapet's middle line.
-	var rail_y := y + RAIL_H
-	for i in segs + 1:
-		var p := c + (pts[i] - c) * ((r - 0.15) / r)
-		if i % 2 == 0:
-			g.cylinder("dam", Vector3(p.x, y + PARAPET_H, p.y), 0.024, RAIL_H - PARAPET_H, 6, metal)
-		if i < segs:
-			var q := c + (pts[i + 1] - c) * ((r - 0.15) / r)
-			var mid := (p + q) * 0.5
-			var l := p.distance_to(q) + 0.02
-			var yaw := atan2(-(q - p).x, -(q - p).y)
-			g.box("dam", Vector3(mid.x, rail_y, mid.y), Vector3(0.05, 0.05, l), metal, Basis(Vector3.UP, yaw), 0.0, true)
-			g.box("dam", Vector3(mid.x, (rail_y + y + PARAPET_H) * 0.5 + 0.05, mid.y), Vector3(0.03, 0.03, l), metal, Basis(Vector3.UP, yaw))
-	# End piers where the fence stops, and a bench on the uphill edge of the trail facing the lake.
+		var w2 := Vector2(w.x, w.z)
+		var ua := float(i) * (panel + 0.45)
+		var ub := ua + panel + 0.45
+		var a_in := a - w2 * t
+		var b_in := b - w2 * t
+		var a_mid := a - w2 * t * 0.5
+		var b_mid := b - w2 * t * 0.5
+		# The deck (a fan), the wall into the bank and the plinth's outer face, its inner face, top.
+		g.tri("dam", c3, Vector3(a.x, y + 0.02, a.y), Vector3(b.x, y + 0.02, b.y), Vector3.UP, Vector2(c.x, c.y), Vector2(a.x, a.y), Vector2(b.x, b.y), trim, true)
+		g.quad("dam", Vector3(a.x, y_foot, a.y), Vector3(b.x, y_foot, b.y), Vector3(b.x, y + ph, b.y), Vector3(a.x, y + ph, a.y), w,
+			Vector2(ua, y_foot), Vector2(ub, y_foot), Vector2(ub, y + ph), Vector2(ua, y + ph), face, true)
+		g.quad("dam", Vector3(a_in.x, y, a_in.y), Vector3(b_in.x, y, b_in.y), Vector3(b_in.x, y + ph, b_in.y), Vector3(a_in.x, y + ph, a_in.y), -w,
+			Vector2(ua, y), Vector2(ub, y), Vector2(ub, y + ph), Vector2(ua, y + ph), trim, true)
+		g.quad("dam", Vector3(a_in.x, y + ph, a_in.y), Vector3(b_in.x, y + ph, b_in.y), Vector3(b.x, y + ph, b.y), Vector3(a.x, y + ph, a.y), Vector3.UP,
+			Vector2(ua, 0.0), Vector2(ub, 0.0), Vector2(ub, t), Vector2(ua, t), trim)
+		# The pierced panel between the posts (half a post in from each corner).
+		var dir := (b - a).normalized()
+		var pa := a_mid + dir * 0.225
+		var pb := b_mid - dir * 0.225
+		g.quad("rail", Vector3(pa.x, y + ph, pa.y), Vector3(pb.x, y + ph, pb.y), Vector3(pb.x, yc, pb.y), Vector3(pa.x, yc, pa.y), w,
+			Vector2(0.0, 0.0), Vector2(panel, 0.0), Vector2(panel, rt), Vector2(0.0, rt), Color(float(i % 7) * 0.13, 0.5, 0.0, 1.0), true)
+		# The coping: outer and inner faces, top and soffit.
+		var a_o := a + w2 * 0.06
+		var b_o := b + w2 * 0.06
+		var a_i := a_in - w2 * 0.06
+		var b_i := b_in - w2 * 0.06
+		for f in 2:
+			var aa := a_o if f == 0 else a_i
+			var bb := b_o if f == 0 else b_i
+			g.quad("dam", Vector3(aa.x, yc - 0.02, aa.y), Vector3(bb.x, yc - 0.02, bb.y), Vector3(bb.x, yc + LandmarkReservoir.COPING_H, bb.y), Vector3(aa.x, yc + LandmarkReservoir.COPING_H, aa.y), w if f == 0 else -w,
+				Vector2(ua, yc), Vector2(ub, yc), Vector2(ub, yc + 0.15), Vector2(ua, yc + 0.15), trim, true)
+		g.quad("dam", Vector3(a_i.x, yc + LandmarkReservoir.COPING_H, a_i.y), Vector3(b_i.x, yc + LandmarkReservoir.COPING_H, b_i.y), Vector3(b_o.x, yc + LandmarkReservoir.COPING_H, b_o.y), Vector3(a_o.x, yc + LandmarkReservoir.COPING_H, a_o.y), Vector3.UP,
+			Vector2(ua, 0.0), Vector2(ub, 0.0), Vector2(ub, 0.6), Vector2(ua, 0.6), trim, true)
+		g.quad("dam", Vector3(a_i.x, yc - 0.02, a_i.y), Vector3(b_i.x, yc - 0.02, b_i.y), Vector3(b_o.x, yc - 0.02, b_o.y), Vector3(a_o.x, yc - 0.02, a_o.y), Vector3.DOWN,
+			Vector2(ua, 0.0), Vector2(ub, 0.0), Vector2(ub, 0.6), Vector2(ua, 0.6), trim)
+	# The posts at the corners, the end ones heavier where the fence meets them.
+	for i in sides + 1:
+		var p := pts[i] - (pts[i] - c).normalized() * t * 0.5
+		var end := i == 0 or i == sides
+		var sz := Vector3(0.6, rt + 0.3, 0.6) if end else Vector3(0.45, rt, 0.62)
+		var yaw := atan2(-(pts[i] - c).x, -(pts[i] - c).y)
+		g.box("dam", Vector3(p.x, y + ph + sz.y * 0.5, p.y), sz, trim, Basis(Vector3.UP, yaw), 0.03, true)
+	# A bench on the uphill edge of the trail, facing the lake.
 	var yaw_t := atan2(-along.x, -along.y)
-	for s: float in [-1.0, 1.0]:
-		var e := c + along * s * (OVERLOOK_OPEN + 0.2) - out * 0.25
-		g.box("dam", Vector3(e.x, y + 0.6, e.y), Vector3(0.45, 1.2, 0.45), trim, Basis(Vector3.UP, yaw_t), 0.03, true)
+	var metal := LandmarkReservoir._k(LandmarkReservoir.K_METAL)
 	var bc: Vector2 = (o.at as Vector2) - out * 1.35
-	var bb := Basis(Vector3.UP, yaw_t)
-	for s: float in [-0.75, 0.75]:
-		var leg := bc + along * s
-		g.box("dam", Vector3(leg.x, y + 0.22, leg.y), Vector3(0.12, 0.44, 0.4), trim, bb, 0.02)
-	g.box("dam", Vector3(bc.x, y + 0.47, bc.y), Vector3(1.9, 0.07, 0.42), metal, bb, 0.01, true)
+	var bb2 := Basis(Vector3.UP, yaw_t)
+	for sgn: float in [-0.75, 0.75]:
+		var leg := bc + along * sgn
+		g.box("dam", Vector3(leg.x, y + 0.22, leg.y), Vector3(0.12, 0.44, 0.4), trim, bb2, 0.02)
+	g.box("dam", Vector3(bc.x, y + 0.47, bc.y), Vector3(1.9, 0.07, 0.42), metal, bb2, 0.01, true)
