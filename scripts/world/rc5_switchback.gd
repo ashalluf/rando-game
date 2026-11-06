@@ -102,7 +102,16 @@ static func chevrons(plan: CityPlan, area: Rect2) -> Array:
 				var o := -(d1 - d0).normalized()
 				var c := _point_at(pts, cum, st)
 				var p := c + o * (half + CHEVRON_OUT)
-				if reach.has_point(p) and area.has_point(p) and _clear(hr, p, drives, pts, _index_at(cum, st)):
+				# The window's outward direction is not the local piece's: pushed out until the post
+				# clears its own road's pieces round it by the full offset (in a hairpin the piece
+				# beside the station runs closer to the bend's outside than the station's own line).
+				var si2 := _index_at(cum, st)
+				for push in 3:
+					var dmin := _own_distance(pts, si2, p)
+					if dmin >= half + CHEVRON_OUT - 0.05:
+						break
+					p += o * (half + CHEVRON_OUT - dmin)
+				if reach.has_point(p) and area.has_point(p) and _own_distance(pts, si2, p) >= half + CHEVRON_OUT - 0.3 and _clear(hr, p, drives, pts, si2):
 					out.append({"pos": p, "y": plan.height_at(p), "t": t, "o": o})
 			st += STATION
 	return out
@@ -208,3 +217,11 @@ static func _point_at(pts: PackedVector2Array, cum: PackedFloat32Array, s: float
 	var i := _index_at(cum, s)
 	var l := maxf(cum[i + 1] - cum[i], 1e-4)
 	return pts[i].lerp(pts[i + 1], clampf((s - cum[i]) / l, 0.0, 1.0))
+
+
+## The distance from `p` to the road's own pieces within 5 of piece `i`.
+static func _own_distance(pts: PackedVector2Array, i: int, p: Vector2) -> float:
+	var d := INF
+	for k in range(maxi(0, i - 5), mini(pts.size() - 1, i + 6)):
+		d = minf(d, p.distance_to(Geometry2D.get_closest_point_to_segment(p, pts[k], pts[k + 1])))
+	return d
