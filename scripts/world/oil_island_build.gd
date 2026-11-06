@@ -60,6 +60,7 @@ static func material() -> ShaderMaterial:
 		_material = ShaderMaterial.new()
 		_material.shader = load("res://shaders/oil_island.gdshader")
 		_material.set_shader_parameter("pad_y", OilIslands.PAD_Y)
+		Rc5OilIslands.dress(_material)
 	return _material
 
 

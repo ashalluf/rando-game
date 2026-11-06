@@ -3496,6 +3496,15 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   loading screen (a crane pose is ~20 ms of GDScript). The ship (`cargo_ship`, now 7 m off the quay, not on it) is
   `PortKit.ship_mesh()`. Look at a change in seconds with `tools/glshot/port_shot.gd` (the kit
   alone; `SHIP=1`, `RAISED=1`, `LOD=n`, `WEAR`).
+- The oil islands at dusk (wave 8, refcam `oil_islands_dusk` in `tools/refcams/cameras_w8.json`,
+  docs/HANDOFF.md "The oil islands at dusk from the Long Beach sand"): `LongBeachSand`
+  (`scripts/world/long_beach_sand.gd`, one hook in CityChunk's BEACH arm) lays Long Beach's sand
+  along x with the sea to +z (the west beach builder skipped the bay's shore: only road strips and
+  the horizon plane were drawn), palms and towers, its road strips under the sand (SandRoads);
+  `Rc5OilIslands` mirrors the islands' towers, falls and walls in the bay
+  (`shaders/oil_island_mirror.gdshaderinc`, pushed with the piers' rows) and gives oil_island.gdshader
+  its `dusk_look` (floods as cones up the faces, dark crowns). `LONG_BEACH_SAND=0` /
+  `RC5_OIL_ISLANDS=0` the A/Bs; checks `tests/rc5_oil_islands_dusk_checks.gd`.
 - The harbour's lights (2026-10-29, docs/HANDOFF.md "The harbour's lights"): `Lighthouses`
   (`scripts/world/lighthouses.gd`, data: sites, the breakwater line in `SEG_LEN` pieces, the pad
   `carve()` in MacroMap.height_at(), `covers()` for the hills' planting) appends landmark entries

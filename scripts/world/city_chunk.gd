@@ -417,8 +417,11 @@ func begin_build() -> void:
 			for step in ArroyoBuild.build_steps(self):
 				_steps.append(_on_map_ground(step))
 		MacroMap.Zone.BEACH:
-			if replica_role == 0:
+			var long_beach: bool = LongBeachSand.claims(self)
+			if replica_role == 0 and not long_beach:
 				_steps.append(_build_roads.bind(block))
+			if long_beach:
+				_steps.append_array(LongBeachSand.steps(self))
 			if _owns_shoreline():
 				_steps.append(_build_beach.bind(block))
 				if OceanCloseup.enabled():

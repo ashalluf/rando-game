@@ -3005,6 +3005,9 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	# The rush_hour refcam (tests/rc5_rush_hour_checks.gd, RushHour): the jam by the hour, its slots,
 	# cap and standing gap, the stop-and-go wave, the camera row.
 	load("res://tests/rc5_rush_hour_checks.gd").new().run(self)
+	# The oil_islands_dusk refcam (tests/rc5_oil_islands_dusk_checks.gd, LongBeachSand, Rc5OilIslands):
+	# Long Beach's sand, the islands' floods in the bay and on their towers, the camera row.
+	load("res://tests/rc5_oil_islands_dusk_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()

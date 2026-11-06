@@ -351,6 +351,8 @@ func _push_pier_lights() -> void:
 	# The same rows lighting the water and the sand round each pier (rc4-pier-night-2).
 	RcPierNight.push(_ocean)
 	RcPierNight.push(PropFactory.beach_sand_material())
+	# The oil islands' floods mirrored in the bay (Rc5OilIslands).
+	Rc5OilIslands.push(_ocean)
 
 
 ## [[Vector4(ax, az, bx, bz), Vector4(lamp height, spacing, deck height, warmth)], ...].
