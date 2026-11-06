@@ -428,7 +428,7 @@ func _update_columns(dt: float) -> void:
 	for col: SmokeColumn in _columns:
 		col.fed = 0.0
 	for c: Dictionary in clusters:
-		if float(c.w) < column_weight:
+		if float(c.w) < NewsLive.column_min(column_weight):
 			continue
 		var best: SmokeColumn = null
 		var best_d := column_merge * 1.5

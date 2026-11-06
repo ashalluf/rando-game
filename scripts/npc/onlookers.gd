@@ -406,6 +406,7 @@ func _pick_spot(p: Pedestrian, s: Dictionary, c: Vector2) -> Vector2:
 	var best := Vector2.INF
 	var best_score := INF
 	var walk := maxf(p._sidewalk, 2.0)
+	var live_shots := NewsLive.shots(get_tree())
 	for i in 28:
 		var inset := rng.randf_range(0.8, maxf(walk - 0.8, 1.0))
 		var q: Vector2
@@ -421,6 +422,9 @@ func _pick_spot(p: Pedestrian, s: Dictionary, c: Vector2) -> Vector2:
 		var d := q.distance_to(c)
 		# Never closer than the band (the heat, the body); farther is only worse.
 		if d < band.x - 0.4:
+			continue
+		# Never in a news crew's live shot (NewsLive).
+		if not live_shots.is_empty() and NewsLive.in_shot(live_shots, q):
 			continue
 		var off := maxf(band.x - d, 0.0) * 4.0 + maxf(d - band.y, 0.0)
 		if off > 9.0:

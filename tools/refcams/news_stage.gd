@@ -133,6 +133,18 @@ static func stage(tree: SceneTree, scene: Node, cam: Camera3D, _player: Node3D, 
 
 
 static func unstage() -> void:
+	# The staged units out of the traffic's lists first: clear() frees them, and a freed car left
+	# in TrafficManager.cars is an error a tick in _drive_streets and Ambience._probe.
+	var traffic: Node = _nc.get("traffic") if _nc != null and is_instance_valid(_nc) else null
+	if traffic != null and is_instance_valid(traffic):
+		var units: Array = []
+		if _em != null and is_instance_valid(_em):
+			units.append_array(_em.get("units"))
+		units.append_array(_nc.get("vans"))
+		var cars: Array = traffic.get("cars")
+		for u in units:
+			if is_instance_valid(u):
+				cars.erase(u)
 	for p in _people:
 		if is_instance_valid(p):
 			(p as Node).queue_free()

@@ -115,6 +115,8 @@ func setup_crew(s: Node, v: NewsVan, r: Role, seed_value: int) -> void:
 ## a rig the role allows.
 static func pick_seed(r: Role, seed_value: int) -> int:
 	var allowed: Array = REPORTER_MODELS if r == Role.REPORTER else CAMERA_MODELS
+	if r == Role.CAMERA and NewsLive.enabled:
+		allowed = allowed.filter(func(m: String) -> bool: return m != "crowd_b") # overalls (NewsLive)
 	var available: Array[String] = []
 	for p in MODELS:
 		if ResourceLoader.exists(p):
@@ -145,6 +147,11 @@ func _add_model() -> bool:
 	if not super._add_model():
 		return false
 	# The life library for the reporter's talking (CrowdLife: added after fix_arm_pose).
+	if role == Role.CAMERA and NewsLive.enabled:
+		# Crew wear for the operator (NewsLive).
+		for mi: MeshInstance3D in _meshes:
+			if is_instance_valid(mi) and not is_hair(mi) and mi.material_override is ShaderMaterial:
+				mi.material_override = NewsLive.crew_material(mi.material_override)
 	if _anim and role == Role.REPORTER and life_enabled:
 		_talk_ok = CrowdLife.attach(_anim, _model_path) and _anim.has_animation(CrowdLife.TALK)
 	if _head_skel:

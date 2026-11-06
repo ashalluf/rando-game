@@ -87,6 +87,8 @@ func step(dt: float, rise: float, clear: float, wind: Vector2) -> void:
 	if fed > 0.0:
 		strength = minf(strength + dt / maxf(rise, 0.1), 1.0)
 		var want := clampf(BASE_HEIGHT + (fed - 2.0) * HEIGHT_PER_WEIGHT, BASE_HEIGHT * 0.7, MAX_HEIGHT)
+		if fed < 2.0 and NewsLive.enabled:
+			want = NewsLive.car_height(fed) # a lone car fire's plume (NewsLive)
 		_height = lerpf(_height, want, clampf(dt * 0.1, 0.0, 1.0))
 		_glow = minf(_glow + dt * 0.5, 1.0)
 	else:
@@ -102,7 +104,7 @@ func step(dt: float, rise: float, clear: float, wind: Vector2) -> void:
 		_mat.set_shader_parameter("strength", smoothstep(0.0, 1.0, strength))
 		_mat.set_shader_parameter("lean", _lean)
 		_mat.set_shader_parameter("glow", _glow * clampf(fed / 2.0, 0.0, 1.0))
-		_mat.set_shader_parameter("radius_top", clampf(shown * 0.17, 30.0, 110.0))
+		_mat.set_shader_parameter("radius_top", NewsLive.car_radius_top(shown) if fed < 2.0 and NewsLive.enabled else clampf(shown * 0.17, 30.0, 110.0))
 		_mat.set_shader_parameter("radius_base", clampf(3.0 + fed * 2.0, 5.0, 12.0))
 
 
