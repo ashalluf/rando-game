@@ -84,16 +84,15 @@ static func stage(tree: SceneTree, scene: Node, _cam: Camera3D, _player: Node3D,
 	var pc: Array = spec.get("paint", [0.55, 0.05, 0.03])
 	_car.setup(body, Color(float(pc[0]), float(pc[1]), float(pc[2])), Vehicle.Addon.NONE)
 	_car.name = "StuntCar"
-	_car.traffic = {"stunt_still": true}
+	# Foot off the brake (the lamps: a car in the air is on the throttle, not braking at a stop).
+	_car.traffic = {"stunt_still": true, "tb_foot": true}
 	_car.freeze_mode = RigidBody3D.FREEZE_MODE_KINEMATIC
 	_car.freeze = true
 	scene.add_child(_car)
 	_car.global_transform = Transform3D(basis, WorldState.to_local(pos))
 	_car.set_meta("stunt_still", true)
 	# The jump's own look at this age (StuntJumpFX, when it is in the game: the A/B is its switch).
-	var fx: GDScript = load("res://scripts/world/stunt_jump_fx.gd") if ResourceLoader.exists("res://scripts/world/stunt_jump_fx.gd") else null
-	if fx != null:
-		fx.call("stage", _car, site, speed, t, vel)
+	StuntJumpFX.stage(_car, site, speed, t, vel)
 	var xf := StuntBuild.xform(site)
 	var eye := xf * _vec(spec, "eye", "STUNT_EYE", Vector3(-8.0, 1.7, -6.0))
 	var look := xf * _vec(spec, "look", "STUNT_LOOK", xf.affine_inverse() * pos)
@@ -104,6 +103,7 @@ static func stage(tree: SceneTree, scene: Node, _cam: Camera3D, _player: Node3D,
 		await tree.process_frame
 		place.call()
 		_car.global_transform = Transform3D(basis, WorldState.to_local(pos))
+		StuntJumpFX.hang_pose(_car)
 	print("REFCAM stunt: %s %s at t %.2f s, %.0f m/s, car at %s (%.1f m over the lip), eye %s" % [site.id,
 		StuntRamps.Kind.keys()[int(site.kind)], t, speed, pos, pos.y - (xf * (StuntRamps.lips(site)[0][0] as Vector3)).y, eye_text])
 

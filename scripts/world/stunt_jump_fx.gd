@@ -30,8 +30,10 @@ const HANG := 0.17
 const HANG_SECONDS := 0.18
 ## Bursts alive at once (each is a few emitters).
 const MAX_BURSTS := 4
+## Seconds the wheels trail dust after the lip (play).
+const TRAIL_SECONDS := 0.7
 ## Dust colours: the right of way's dry dirt, lit; grit and rust flakes.
-const DUST := Color(0.70, 0.62, 0.50)
+const DUST := Color(1.12, 1.0, 0.82)
 const GRIT := Color(0.24, 0.20, 0.17)
 
 static var bursts_made: int = 0
@@ -145,6 +147,7 @@ static func _emitter(parent: Node, at: Vector3, amount: int, life: float, mesh: 
 	p.angle_min = 0.0
 	p.angle_max = 360.0
 	p.visibility_aabb = AABB(Vector3(-30.0, -6.0, -30.0), Vector3(60.0, 30.0, 60.0))
+	p.emitting = false
 	parent.add_child(p)
 	p.global_position = at
 	return p
@@ -174,13 +177,14 @@ static func _dust(parent: Node, at: Vector3, dir: Vector3, push: float, size: fl
 	p.color_ramp = WeaponFX._ramp([Color(1, 1, 1, 0.0), Color(1, 1, 1, 0.62), Color(1, 1, 1, 0.42), Color(1, 1, 1, 0.0)])
 	p.preprocess = age
 	p.emitting = true
+	p.restart()
 	return p
 
 
 static func _grit(parent: Node, at: Vector3, vel: Vector3, amount: int, age: float) -> CPUParticles3D:
 	if _grit_mesh == null:
 		var b := BoxMesh.new()
-		b.size = Vector3(0.035, 0.012, 0.028)
+		b.size = Vector3(0.09, 0.05, 0.075)
 		var m := StandardMaterial3D.new()
 		m.albedo_color = GRIT
 		m.roughness = 0.9
@@ -208,6 +212,7 @@ static func _grit(parent: Node, at: Vector3, vel: Vector3, amount: int, age: flo
 	p.color_initial_ramp = ramp
 	p.preprocess = age
 	p.emitting = true
+	p.restart()
 	return p
 
 
@@ -231,6 +236,7 @@ static func _sparks(parent: Node, at: Vector3, vel: Vector3, age: float) -> CPUP
 	p.scale_amount_max = 0.09
 	p.preprocess = age
 	p.emitting = true
+	p.restart()
 	return p
 
 
@@ -275,12 +281,83 @@ static func launch(car: Node3D, site: Dictionary, vel: Vector3, age := 0.0) -> A
 	# The trail down the run-up behind it, older the further back.
 	var trail := WorldState.to_local(xf * Vector3(0.0, 0.25, -9.0))
 	out.append(_dust(parent, trail, ride * 0.3, 2.5, 2.0, 30, Vector3(w * 0.42, 0.15, 8.0), t_foot + 0.25, axis))
-	# The lip: grit, rust and a puff shaken off the plate as the suspension unloads.
-	var lip_w := WorldState.to_local(xf * (lip[0] as Vector3) + Vector3.UP * 0.2)
-	out.append(_grit(parent, lip_w, vel, 60, age))
-	out.append(_dust(parent, lip_w, vel.normalized(), clampf(speed * 0.35, 3.0, 11.0), 2.4, 18, Vector3(w * 0.4, 0.1, 0.3), age, axis))
+	# The lip: a plume of the run-up's dirt shaken off the plate and the tyres as the springs
+	# unload, and clods of it thrown on with the car.
+	var lip_w := WorldState.to_local(xf * (lip[0] as Vector3) + Vector3.UP * 0.3)
+	out.append(_grit(parent, lip_w, vel, 70, age))
+	var plume := _dust(parent, lip_w, (ride + Vector3.UP * 0.4).normalized(), clampf(speed * 0.16, 2.5, 5.0), 3.0, 26, Vector3(w * 0.45, 0.2, 0.8), age, axis)
+	plume.color_ramp = WeaponFX._ramp([Color(1, 1, 1, 0.25), Color(1, 1, 1, 0.5), Color(1, 1, 1, 0.28), Color(1, 1, 1, 0.0)])
+	out.append(plume)
+	# The dust streaming off the wheels behind the car: along the arc flown so far (a still), or an
+	# emitter riding the car for TRAIL_SECONDS (play).
+	if age > 0.05:
+		var pts := PackedVector3Array()
+		var lip0 := xf * (lip[0] as Vector3) + Vector3.UP * 0.4
+		for i in 24:
+			var tau := age * float(i) / 23.0 * 0.92
+			pts.append(_arc(lip0, ride, vel, age, tau) - lip0)
+		out.append(_trail(parent, lip_w, pts, age, axis))
+	elif car is Vehicle:
+		var tr := _trail(car, Vector3.ZERO, PackedVector3Array(), 0.0, Basis())
+		tr.position = Vector3(0.0, -0.3, 1.1)
+		tr.one_shot = false
+		tr.emission_shape = CPUParticles3D.EMISSION_SHAPE_BOX
+		tr.emission_box_extents = Vector3(0.8, 0.1, 0.4)
+		car.get_tree().create_timer(TRAIL_SECONDS, false).timeout.connect(func() -> void:
+			if is_instance_valid(tr):
+				tr.emitting = false)
+		out.append(tr)
 	_keep(parent, out)
 	return out
+
+
+## Where the car was `tau` s after the lip, given where it is `age` s after it moving at `vel`.
+static func _arc(lip0: Vector3, _ride: Vector3, vel: Vector3, age: float, tau: float) -> Vector3:
+	# Back from the car along its parabola: v0 = vel + g age.
+	var v0 := vel + Vector3.UP * 9.8 * age
+	return lip0 + v0 * tau + Vector3.DOWN * 4.9 * tau * tau
+
+
+## A trail of thin dust off the wheels: at `pts` (offsets from `at`), or from the car it rides.
+static func _trail(parent: Node, at: Vector3, pts: PackedVector3Array, age: float, axis: Basis) -> CPUParticles3D:
+	var quad := QuadMesh.new()
+	quad.material = _dust_material()
+	var p := CPUParticles3D.new()
+	p.mesh = quad
+	p.amount = 46
+	p.lifetime = 2.2
+	p.lifetime_randomness = 0.3
+	p.local_coords = false
+	p.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	p.angle_min = 0.0
+	p.angle_max = 360.0
+	p.visibility_aabb = AABB(Vector3(-40.0, -10.0, -40.0), Vector3(80.0, 40.0, 80.0))
+	p.emitting = false
+	if not pts.is_empty():
+		p.explosiveness = 1.0
+		p.one_shot = true
+		p.emission_shape = CPUParticles3D.EMISSION_SHAPE_POINTS
+		p.emission_points = pts
+	p.direction = Vector3.UP
+	p.spread = 180.0
+	p.initial_velocity_min = 0.3
+	p.initial_velocity_max = 1.6
+	p.gravity = Vector3(0.0, -0.6, 0.0)
+	p.damping_min = 0.6
+	p.damping_max = 1.4
+	p.scale_amount_min = 1.1
+	p.scale_amount_max = 2.2
+	p.scale_amount_curve = DrivingFX._grow_curve(0.6)
+	p.color = DUST
+	p.color_ramp = WeaponFX._ramp([Color(1, 1, 1, 0.45), Color(1, 1, 1, 0.55), Color(1, 1, 1, 0.3), Color(1, 1, 1, 0.0)])
+	p.preprocess = age * 0.5
+	parent.add_child(p)
+	if not pts.is_empty():
+		p.global_position = at
+		p.global_basis = Basis()
+	p.emitting = true
+	p.restart()
+	return p
 
 
 ## A touch-down at `at` (true world) at `vel`: dust, and sparks off steel or concrete.

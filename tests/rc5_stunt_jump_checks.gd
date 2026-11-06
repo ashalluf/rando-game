@@ -102,11 +102,11 @@ func _bursts(city: Node3D) -> void:
 	StuntJumpFX.enabled = false
 	var none := StuntJumpFX.launch(stand, s, Vector3(0.0, 15.0, 25.0))
 	StuntJumpFX.enabled = was
-	var ok := made.size() == 4 and landed.size() == 2 and none.is_empty()
+	var ok := made.size() == 5 and landed.size() == 2 and none.is_empty()
 	for e: Variant in made + landed:
 		var p := e as CPUParticles3D
 		ok = ok and p != null and p.one_shot and p.emitting and p.is_inside_tree()
-	_t._check(ok, "stunt jump: a launch makes 4 one-shot emitters, a landing 2, the A/B none (%d, %d, %d)" % [made.size(), landed.size(), none.size()])
+	_t._check(ok, "stunt jump: a launch a moment ago makes 5 one-shot emitters (the wheels' trail too), a landing 2, the A/B none (%d, %d, %d)" % [made.size(), landed.size(), none.size()])
 	for e: Variant in made + landed:
 		if is_instance_valid(e):
 			(e as Node).queue_free()

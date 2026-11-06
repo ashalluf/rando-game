@@ -336,9 +336,12 @@ static func _framed(prof: Array, w: float, paint: Color, launch_side: bool) -> A
 	# The closed end: the launch's back, the landing's front, as a braced panel and a collision wall.
 	var z0: float = z_end if launch_side else z_start
 	var h0 := _y_at(prof, z0)
+	# The landing's front faces the launch across the freeway: hazard bands over its whole face, so
+	# from the run-up it reads as the landing and not a container (StuntJumpFX, the A/B).
+	var face := c(Color.WHITE, K_HAZARD) if not launch_side and StuntJumpFX.enabled else c(paint.darkened(0.15), K_PAINT)
 	g.quad(S, Vector3(-hw, 0.0, z0), Vector3(hw, 0.0, z0), Vector3(hw, h0, z0), Vector3(-hw, h0, z0),
 		Vector3(0.0, 0.0, 1.0 if launch_side else -1.0), Vector2(-hw, 0.0), Vector2(hw, 0.0), Vector2(hw, h0), Vector2(-hw, h0),
-		c(paint.darkened(0.15), K_PAINT), true)
+		face, true)
 	# Collision skins down the sides under the deck (the frame is not a place to park a car).
 	for sx: float in [-1.0, 1.0]:
 		for i in prof.size() - 1:

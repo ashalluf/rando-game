@@ -292,3 +292,12 @@ so the walk would otherwise build at the 13:30 fallback).
 Its optional `sea` key is SeaLife.stage_for_shot()'s spec ("dolphin@x,z[,lead];pelican@x,z", TRUE
 world), staged three frames before the shot with the sea clock held and cleared after it;
 `SEA_DEBUG=1` prints the surfers and swimmers BeachActivity has round the lens.
+
+## Wave 8's cameras (`cameras_w8.json`)
+
+`stunt_jump` (rc5-stunt-jump): `"stage": "stunt"` with a `stunt` key runs `stunt_stage.gd`: a car
+held mid-flight `t` s after a StuntRamps site's lip at `speed` m/s (`site` an id from
+`tools/stunt_ramps/probe.tscn`, `body`, `paint`, `pitch`, `roll`), the jump's look given that
+age by StuntJumpFX.stage() (dust, clods, hanging wheels), the free eye and its aim point in the
+RAMP's frame (`eye`, `look`: +Z the way it is ridden, origin at its foot). Env `STUNT_EYE=x,y,z`,
+`STUNT_LOOK=x,y,z`, `STUNT_T`, `STUNT_SPEED` override the row for framing.

@@ -4828,3 +4828,11 @@ none of either.
   streaks along their path, never camera-facing balls (they cut flat at the waterline); anything
   that breaks the surface leaves a ring that ages out. The surf's whitewater not reading from a
   pier end was left to the ocean's owners (shared by every beach view). SEA_SPRAY=0 is the A/B.
+- **2026-11-06 - The stunt jump (wave 8 refcam5 `rc5-stunt-jump`, docs/HANDOFF.md "The stunt
+  jump off the freeway pair").** A new reference camera (`stunt_jump`) holds a car mid-flight off
+  the freeway pair's launch kicker. Chosen over the car park's roof kicker because the pair has a
+  built landing; the landing's top is 5 m under the freeway's barriers, so no eye near the launch
+  sees it over the deck (it would take ~30 m up) - the camera shows it UNDER the deck, and its
+  front is now hazard-banded so it reads as the landing. The air a jump flies through is kept
+  clear of tree crowns, launches throw dust and clods, landings dust and sparks, airborne wheels
+  hang. RC5_STUNT_JUMP=0 is the A/B.

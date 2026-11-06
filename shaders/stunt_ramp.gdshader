@@ -120,7 +120,7 @@ void fragment() {
 			// Zinc spangle: crystals a few cm across, lighter and darker, and each sheet its own tone.
 			float spang = vnoise(uv * 22.0) * 0.6 + vnoise(uv * 7.0 + 5.0) * 0.4;
 			float sheet = hash12(floor(vec2(uv.x / 1.22 + 0.5, uv.y / 2.44)) + 17.0);
-			vec3 plate = vec3(0.50, 0.505, 0.50) * mix(0.82, 1.1, spang) * mix(0.9, 1.06, sheet) * mix(1.0, 1.12, lug * fade);
+			vec3 plate = vec3(0.52, 0.51, 0.49) * mix(0.82, 1.1, spang) * mix(0.9, 1.06, sheet) * mix(1.0, 1.12, lug * fade);
 			// Rubber: long streaks in two wheel paths, heaviest where the tyres load up at the foot.
 			float path = smoothstep(0.62, 0.12, abs(abs(uv.x) - 0.8));
 			float streak = smoothstep(0.35, 0.85, vnoise(vec2(uv.x * 9.0, uv.y * 0.18) + 3.0));
@@ -136,11 +136,19 @@ void fragment() {
 			c5 *= mix(1.0, 0.8, grime * 0.35);
 			col = c5;
 			rough = mix(0.5, 0.82, max(rubber, dirt)) - spang * 0.08;
-			metal = mix(0.62, 0.15, max(rubber, dirt));
+			metal = mix(0.45, 0.1, max(rubber, dirt));
 		}
 	} else if (k < 2.5) {
 		// Hazard bands.
 		float band = step(0.5, fract((uv.x + uv.y) / 0.36));
+		if (look5 > 0.5) {
+			// Box-filtered by the pixel's footprint: a whole hazard-banded face seen from across
+			// the freeway fades to its mean instead of crawling.
+			float bw = px * 1.6 + 1e-4;
+			float x = (uv.x + uv.y) / 0.36;
+			band = clamp((max(fract(x + bw / 0.72) - 0.5, 0.0) - max(fract(x - bw / 0.72) - 0.5, 0.0)
+				+ floor(x + bw / 0.72) * 0.5 - floor(x - bw / 0.72) * 0.5) / (bw / 0.36), 0.0, 1.0);
+		}
 		col = mix(vec3(0.95, 0.74, 0.06), vec3(0.06, 0.06, 0.06), band);
 		col = mix(col, vec3(0.45, 0.42, 0.38), smoothstep(0.6, 0.75, fbm(uv * 4.0)) * 0.6);
 		rough = 0.55;
