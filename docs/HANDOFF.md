@@ -30788,6 +30788,11 @@ RC5_OIL_ISLANDS=0`, i.e. main): p1/p5/p50/p95/p99 3/6/24/66/104 -> 10/17/37/67/1
 triangles 671 k -> 689 k (+2.6 %), draws 407 -> 431, shadow 101 k -> 109 k (the sand meshes and
 palms; with palms near the eye, an earlier placement, it was 857 k).
 
+**The ten original cameras** (cameras.json, one load each, before = the two switches off): 8 of 10
+identical within the noise (pixels 0.01-4.2 %); street_noon (8.3 %) and freeway (10.7 %, p50 +15)
+flagged only by the live traffic in them (another bus, another box truck in the lane ahead): the
+scene is the same - neither view has a Long Beach chunk or water at night. Peak 11.8 GB.
+
 **A/B**: `LONG_BEACH_SAND=0` (no Long Beach sand, its roads back), `RC5_OIL_ISLANDS=0` (no mirror,
 the old flood look). Checks: `tests/rc5_oil_islands_dusk_checks.gd`. Stills on
 `shots/rc5-oil-islands-dusk` (README lists them).
