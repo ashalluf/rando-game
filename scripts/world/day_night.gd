@@ -471,6 +471,8 @@ func _apply() -> void:
 			* (1.0 - marine_sun_cut * marine) * (1.0 + 0.06 * santa_ana) * RainDay.sun_gain(weather_darken, moonlight) + flash * 2.5
 		# Under the deck the light is the whole grey sky: shadows go soft and faint.
 		_sun.shadow_opacity = (1.0 - marine_shadow_cut * marine) * RainDay.shadow_gain(weather_darken, moonlight)
+		# No sun disc through the deck: no sharp highlight either (Rc5CemeteryDawn).
+		_sun.light_specular = Rc5CemeteryDawn.sun_specular(marine)
 		# A rainy night's haze is lit by the street lamps, not by a moon behind the cloud. Rain
 		# thickens the volumetric fog seventy-fold, and lit by the moonlight fill it hung over
 		# the whole street as a pale grey veil, so a rainy night read as a grey dusk.
@@ -617,16 +619,19 @@ func _apply() -> void:
 			_env.fog_light_color = BrushFireLook.fog(_env.fog_light_color, santa_ana, dusk, moonlight)
 		if marine > 0.0:
 			_env.fog_light_color = _env.fog_light_color.lerp(marine_fog.lerp(night_storm_fog, moonlight), marine)
+		Rc5CemeteryDawn.tick(hour, marine, weather_darken, santa_ana, _env.fog_light_color)
 	# Street lamps. Setting hundreds of lights every frame is wasteful, but only refreshing when
 	# the value moves leaves every lamp that streamed in since the last change sitting at zero,
 	# which is why the streets stayed black the first time. Refresh on a slow tick instead, so
 	# newly loaded chunks pick the level up within a third of a second.
 	# At dawn the photocells switch the lamps off before the sunrise (DawnReview.lamp_factor()).
 	var nf_lamps := DawnReview.lamp_factor(night_factor, hour, elevation)
-	var lamp_factor := maxf(nf_lamps, weather_darken * 0.85)
+	# Under the deck the photocells hold the lamps past the sunrise (Rc5CemeteryDawn).
+	var lamp_hold := Rc5CemeteryDawn.lamp_hold(marine, elevation)
+	var lamp_factor := maxf(maxf(nf_lamps, lamp_hold), weather_darken * 0.85)
 	# The lights themselves come in on the square of the level: a lamp's pool switched on at sunset
 	# is not seen against the daylight (SunsetReview, rc-sunset). Weather's share is as it was.
-	var want := maxf(SunsetReview.light_level(nf_lamps), weather_darken * 0.85) * lamp_energy * lamp_scale
+	var want := maxf(SunsetReview.light_level(maxf(nf_lamps, lamp_hold)), weather_darken * 0.85) * lamp_energy * lamp_scale
 	# _apply() is also called from _ready(), where there is no delta parameter to use.
 	_lamp_timer -= get_process_delta_time()
 	if _lamp_timer <= 0.0 or absf(want - _lamp_level) > 0.04:

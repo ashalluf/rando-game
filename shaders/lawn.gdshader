@@ -36,6 +36,9 @@ uniform float normal_depth = 0.7;
 // Field grass gone to straw (AirportApron: the airport's infield): the texture's green taken to
 // its own luminance in a warm straw before the tints. 0 (every lawn) leaves it as it was.
 uniform float straw : hint_range(0.0, 1.0) = 0.0;
+// How glossy the morning's watering leaves the turf (0.32 a fresh sprinkler film; dew on a
+// mown lawn under a deck is beaded and duller: Rc5CemeteryDawn sets the memorial park's).
+uniform float spray_rough = 0.32;
 
 global uniform float ground_detail;
 // Night. Roads and pavements are lit by street lamps; open grass is not - it gets skylight only,
@@ -159,7 +162,7 @@ void fragment() {
 		spray = max(spray, rain_wet);
 		col = mix(col, vec3(dot(col, vec3(0.3, 0.55, 0.15))), 0.25 * rain_wet);
 		col *= 1.0 - 0.18 * spray;
-		rough = mix(rough, 0.32, spray);
+		rough = mix(rough, spray_rough, spray);
 		vec3 lit = alb * col;
 		float nf = clamp(night_factor, 0.0, 1.0) * night_darken;
 		float grey = dot(lit, vec3(0.299, 0.587, 0.114));
