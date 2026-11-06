@@ -5193,7 +5193,8 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   drew ~2x darker than their own cornices; the far code takes such a wall as set 15), darker brick
   (`PRESSED_BRICK_2`), weathering capped, fewer window units, the street wall closed (a front fills
   its cell along the avenue where `closes_wall()`; no fire escape on the party walls,
-  `Building.escape_faces_off`). `RC5_HISTORIC=0` is the A/B; checks `tests/rc5_historic_core_checks.gd`.
+  `Building.escape_faces_off`), the pavement's stains soaked in (street_wear `stain_soft`).
+  `RC5_HISTORIC=0` is the A/B; checks `tests/rc5_historic_core_checks.gd`.
 - Westlake (owner, 2026-09-24: "MacArthur Park and a bunch of homeless tents up on random
   streets in downtown and people slumped over"): the first **replica area** on the street grid.
   **The park is ON** (`LandmarkMacArthurPark.enabled`, since 2026-09-24 evening; it was held off

@@ -31237,7 +31237,13 @@ shots branch): mid-block put a street lamp, a share-bike dock and (some runs) a 
    building rolls is dropped there (`Building.escape_faces_off`, the roll still made).
 4. **Weathering and window units**: grime capped at 0.35 (`weathering_cap`; rolled 0.2-0.9), window
    ACs 0.02 (0.07): a bank's front on Spring St is kept, the boxes read as kit.
-5. **Framing**: the eye at the corner (above).
+5. **The pavement's stains** (the lead's note: the nearest thing in the frame, pale blotches a
+   metre wide across the slabs): StreetWear's pavement stains (`_pavement()`, SPOT_STAIN) were a
+   hard-edged blot at 0.75 of a flat colour, one of them tan. street_wear.gdshader's `stain_soft`
+   (0 the old stain; StreetWear sets it 1 unless `RC5_HISTORIC=0`) soaks them in: a feathered blot
+   at 0.3, a faint tide mark, fewer drops. City-wide (StreetWear is another area's: a uniform, the
+   placement and rolls untouched).
+6. **Framing**: the eye at the corner (above).
 
 **Shared files touched**: building.gd (inert hooks: `wall_set_force`, `weathering_cap`,
 `wall_detail_force`, `escape_faces_off`), building.gdshader (`wall_detail`, off by default),

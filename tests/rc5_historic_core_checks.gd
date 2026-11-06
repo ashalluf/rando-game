@@ -62,6 +62,10 @@ func _shader() -> void:
 	var src := FileAccess.get_file_as_string("res://shaders/building.gdshader")
 	_t._check(src.contains("uniform float wall_detail = -1.0") and src.contains("wall_detail >= 0.0 && use_wall_texture"),
 		"building.gdshader: a FLAT wall's texture as detail round its colour, off by default")
+	var sw := FileAccess.get_file_as_string("res://shaders/street_wear.gdshader")
+	var swg := FileAccess.get_file_as_string("res://scripts/world/street_wear.gd")
+	_t._check(sw.contains("uniform float stain_soft = 0.0") and sw.contains("if (stain_soft > 0.0)") and swg.contains("\"stain_soft\""),
+		"street_wear.gdshader: the pavement's stains soak in (stain_soft), the old stain at 0")
 
 
 ## A Spring St block whose plan has two fronts touching in one column (the stretch's middle first).
