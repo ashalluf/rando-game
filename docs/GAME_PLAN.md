@@ -4807,3 +4807,7 @@ none of either.
   a promise about what is behind it: a VACANCY box over striped asphalt read as set dressing.
   Lit windows key their rolls on a rounded integer, never on an interpolated varying. MOTELS=0
   and MOTEL_SIGN_GLOW=0 are the A/Bs.
+- 2026-11-06 (fleet wave 8, gate-flakes-3): debris (ragdolls, rubble, torn wheels) ages on seconds
+  of physics, not the wall clock (PHYSICS_CLOCK=0 the A/B): a slow frame no longer frees a body
+  before it has lain its 12 s. Talk groups, rain shelter and staged onlookers take only the plain
+  crowd, so a valet or vendor keeps its job.

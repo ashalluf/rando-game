@@ -31786,3 +31786,62 @@ gap, a TV flicker in some); no pool in the court, no ice machine, no guests at t
 itself still faces up and down the street (seen edge-on from the opposite pavement); the far city
 keeps both heads of a double-motel corner. A motel on a sloping lot stands at its centre's height
 (the body runs 0.6 m below the floor to hide it).
+
+## 9d?. The gate's intermittent failures, wave 8 third pass (fleet wave 8, `gate-flakes-3`, branch `wt/gate-flakes-3`)
+
+The task: what batches 53-63 still hit (valets, car_crash_3's torn wheel, ragdoll_feel's stairs,
+explosions_2, downtown_street_closeup) plus the lead's CI 429 (pedestrian_flow's passing pair) and
+batch 63's onlookers stragglers. Method: `SHARDS=3 SMOKE_SHUFFLE=<seed>` gates in a separate worktree
+(`/home/user/gate-wt`, one at a time, ~21 min each, shards 3.4-4.0 GB), every failure read from its
+shard's trace, fixed, and the same seed run again: a shuffled deal is deterministic enough that seed
+803 reproduced the follower to the centimetre twice.
+
+**Found and fixed at the source (game code):**
+- **Debris aged on the wall clock.** `PhysicsBudget` freed debris `debris_life` (12 s) after its
+  `spawn_time`, both `Time.get_ticks_msec()`: in a loaded shard 12 wall seconds are a few hundred
+  physics ticks, so a ragdoll, rubble or a torn wheel could be freed mid-check (the class behind
+  car_crash_3's torn-wheel count and the rifle-body pool comment in smoke_test.gd). Debris now ages
+  on `PhysicsBudget.now()`, seconds of physics (`clock`, advanced in `_physics_process`, stops while
+  paused, slows under time_scale); every `spawn_time` setter and reader (crate, trash can, physics
+  prop, ragdoll, vehicle, service fleet's tow, onlookers', emergency's body scans, car damage's hold)
+  uses it. `PHYSICS_CLOCK=0` is the A/B.
+- **Job-holders recruited by `_lives()`.** After the lead's Onlookers fix (batch 61) three more
+  places took a valet / vendor / diner for the plain crowd: `Pedestrian._plan_talk()` pulled any
+  `_life_free()` walker on the ring into a talk group (a valet walking to a car is free for a
+  moment), `RainCrowd` sent them into shelter or indoors and ended their act (`_end_act`) when a
+  downpour settled in, and `Onlookers.stage()` (stills and checks) staged them. All now ask
+  `StreetErrands.plain()`.
+
+**Hardened checks (no game bug; each still proves what it was written to prove):**
+- explosions_4 "pops leave a volume" (seed 801: 4 volumes, 0 pops): earlier blasts' fireballs held
+  every slot. It now empties Blast3's volume list first.
+- ragdoll_feel stairs: the fling's tumble is the GLOBAL rng (`RagdollJoints.fling`, RagdollFeel),
+  whose state is whatever earlier files left - one spin rolls to the foot, another stops on step 5
+  (batch 61). The knock is `seed(8104)`ed, `randomize()`d after. The same for emergency's body.
+- ground_contact "ground_drop() a metre up" (seed 803: 0.73): the reference ray started at the
+  player's +0.4, under a kerb top he stood sunk beside; it now starts 3 m up.
+- the shotgun pump (seed 803: 0.84 seen): the stroke runs on frame time and stands fully back for
+  0.03 s; long frames stepped over it. Seen live must pass 0.5, the peak is read off the curve.
+- pedestrian_flow's follower (seed 803, twice, mean 2.13 m): two of the city's walkers walked between
+  the leader and its follower at the leader's pace and the follower fell in behind them (CrowdFlow's
+  "close ahead, the same way: fall in behind", by design). The trace now names CrowdFlow's
+  neighbours; the check clears the city's walkers off its stretch (`_clear_strip`).
+- pedestrian_flow's passing pair (CI 429: the player's camera 18.6 m off at the start, CrowdFlow's
+  89.9 m at the meeting): a Camera3D of the check's own over the meeting point, current for the walk.
+- speedboats "flat out she stays on the water" (seed 803: 3.12 m): the storm left her turned; the
+  flat-out leg is re-placed on the open sea and re-pointed west first.
+- car_radio "asks for the station card": the card's age runs on the (capped) frame time while a
+  loaded shard started the stream; it is read the frame the radio takes the car.
+- emergency "the stretcher": the medic pushing the cot stood 0.6 m under the body's pavement (a
+  street across a slope); the spot must also have a kerb under 0.3 m.
+- weather_la "under the deck at 06:30" (0.61): the file is not awaited, so no `stage_home()` ran and
+  the camera was wherever the last part left it; it puts up a street-level camera of its own.
+- explosion_aftermath "a rebuilt chunk draws the burnt tree charred again" (seed 801): the gate
+  reset's `reset_destruction()` clears WorldState.charred while a standing chunk's TreeFire record
+  keeps an earlier file's charred trees; the check counts what WorldState remembers.
+- onlookers stragglers (batch 63): the lead's narrowing to the closed scene's watchers is kept as
+  merged; not reproduced here.
+
+**Runs:** on main 6f5af3d2: 801 (1 fail), 802 PASSED, 803 (3 fails). On the branch: 803 (2), 803
+merged with batch 63 (5, a new deal), 801 (1), 803 PASSED all checks on b8844515 but emergency_checks
+did not parse (fixed), then the final runs listed in the report below.
