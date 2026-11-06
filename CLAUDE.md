@@ -153,6 +153,15 @@ seconds: `Ragdoll.PHYSICS_TICK`); a spawn PhysicsBudget refuses still draws its 
 built at the body cap is another block: `CityChunk.BUDGET_ROLLS`); "the plain crowd" is `StreetErrands.plain()` (the script), never
 `_lives()` (valets, vendors, buskers ... say true); stage what CrowdFlow must see well inside its
 35 m `RANGE` of the camera.
+**Wave 8, third pass** (docs/HANDOFF.md "The gate's intermittent failures, wave 8 third pass"):
+debris ages on `PhysicsBudget.now()` (physics seconds; `PHYSICS_CLOCK=0` the A/B) - every
+`spawn_time` meta is set and read with it, never the wall clock; anything that RECRUITS walkers
+(talk groups, rain shelter, onlookers, doors) takes `StreetErrands.plain()` ones only; a check whose
+outcome draws on the global rng (a ragdoll's fling) `seed()`s it first and `randomize()`s after;
+a check of a capped pool (Blast3's volumes) empties it first; a check about walkers near the camera
+puts up a Camera3D of its own and clears the city's walkers off its stretch; a check that reads a
+frame-timed animation's peak reads it off the curve; a check that drives a vehicle re-places and
+re-points it before each leg.
 
 Download a Linux headless-capable build with:
 
