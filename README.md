@@ -16,3 +16,8 @@ stunt pair's launch kicker over the 105 at 16:30 clear. opengl3 (Compatibility) 
   clods thrown with it, the wheels hanging to their stops, the landing's front hazard-banded so
   it reads as the landing, the plate as welded zinc sheets with rubber and dirt.
 - `04_after_car_and_dust_crop.jpg` / `05_before_car_crop.jpg` - 2x crops of the car and the lip.
+- `06_ten_cameras_compare_off_vs_on.jpg` - the ten original cameras, RC5_STUNT_JUMP=0 over on:
+  7 ok; street_noon, street_night and freeway flagged on pixels only.
+- `07_diff_street_night_live_traffic.jpg` - that flag's difference: buses, walkers and raindrops
+  placed differently run to run (and the wet street's reflections of them); nothing of this
+  branch is in the view.
