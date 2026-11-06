@@ -31842,8 +31842,10 @@ It must be a scene, not `--script`: SkyBeam compiles against autoloads. In refca
 named by name (PropFactory) breaks the `--script` compile: load it by path.
 
 **Numbers** (refcams, opengl3): club_line p1/p5/p50/p95/p99 RC5=0 0/2/23/151/217 -> 0/2/25/158/216;
-GEO 4,720,664 tris / 2,157 draws -> 4,722,238 / 2,160. The ten original cameras: see the report in
-the final message (ten_on vs ten_off).
+GEO 4,720,664 tris / 2,157 draws -> 4,722,238 / 2,160. The ten original cameras (cameras.json,
+RC5_CLUB_LINE=0 vs on, one run each, `compare`): nine ok; street_night (21:30 rain, clubs open)
+dp50 -1, 4.6 mean |d| px; freeway flagged (p50 +22) by the load's own traffic - a black car on the
+lens in the off run; nothing of this draws by day.
 
 **Not done / not verified.** Forward+ seen only in the small scene under lavapipe (no volumetric
 fog there: the HIGH hand-over is unchanged code). The canopy still carries its own small name under
