@@ -28954,7 +28954,18 @@ groups at street_noon 10.65 -> 9.64 M true (-9.5 %), golden_aerial 4.57 -> 3.40 
 golden_aerial, hills, freeway, macarthur: cuts off twice (A/A) and on once; see the table below
 and `shots/perf-audit-6`.
 
-STRICT_TABLE
+| camera | pixels changed, A/A (any / > 8 levels) | pixels changed, off / on |
+|---|---|---|
+| street_noon | 897 / 54 | 1,125 / 289 |
+| golden_aerial | 443 / 0 | 2,840 / 292 |
+| hills | 1,813 / 825 | 5,264 / 711 |
+| freeway | 22 / 9 | 5 / 1 |
+| macarthur | 446 / 85 | 1,010 / 79 |
+
+(of 921,600.) `refcams.py compare` flags none of the five, A/A or off / on. The extra changed
+pixels are scattered singles along the far city's skyline band (the canopies' coarse level
+switching in under a pixel) and a few shadow texels of rooftop AC units; at 3x the far city reads
+the same (`shots/perf-audit-6` 11-14).
 
 ### Memory
 
