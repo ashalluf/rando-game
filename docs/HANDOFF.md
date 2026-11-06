@@ -30885,7 +30885,18 @@ any beach eye north-west of the plant their lower half is behind it (the middle 
    relief is calmed 75 % and its film roughened to 0.42, so the moon lays a soft path. Every beach
    at night takes it (pier_night, bonfire_night): see the ten-camera compare.
 
-**Numbers** (opengl3, the refcam): see shots/rc5-power-plant-dusk's README for the final table.
+**Numbers** (opengl3, the refcam, switch off -> on): p5 / p50 / p95 14 / 38 / 86 -> 14 / 39 / 95,
+4.06 M tris / 1,686 draws -> 4.05 M / 1,675 (flat: the lighting is shader-only, no OmniLights
+added). The ten original cameras, switch off vs on: only street_noon and freeway flagged, by live
+traffic alone (diffs checked: a bus, freeway cars).
+
+**Not done / not verified.** Forward+ not seen: fwd_block_shot round the plant was OOM-killed on
+lavapipe twice (also with one worker thread). The emission goes through to_lit() x fh_level() and
+the windows through fh_display(), the pattern Forward+ review h settled, but the wash's strength on
+the Mac wants eyes. The tower of the line leaving inland stands behind palms at the frame's left
+edge from this eye; the stacks' lower halves (and their middle aviation ring and the new uplights'
+pools) are behind the boiler house from any beach eye north-west of the plant. No moving plumes off
+the old stacks, no traffic through the gate.
 
 **Tools.** `tools/rc5_power_plant/coast_probe.tscn` (headless, seconds: coast_x and beach width
 round the plant, the 105's deck segments, the line's towers, the stacks) for framing.
