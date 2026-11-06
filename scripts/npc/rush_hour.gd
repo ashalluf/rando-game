@@ -29,11 +29,6 @@ const EVENING := [15.25, 16.5, 18.75, 19.75]
 const RUSH_GAP := 19.0
 ## FreewayFill.CAP_GAIN at the peak (1.5 off peak).
 const RUSH_CAP_GAIN := 2.6
-## FreewayFill.shares()' far_weight at level `lv`.
-static func far_weight(lv: float) -> float:
-	return lerpf(FreewayFill.FAR_WEIGHT, RUSH_FAR_WEIGHT, clampf(lv, 0.0, 1.0))
-
-
 ## The follow rule's standing gap at the peak, metres between two cars' centres less their
 ## lengths past 4.8 m (TrafficManager._fw_follow(): freeway_gap * 0.6, 20.4 m, off peak).
 const RUSH_STAND := 8.5
@@ -53,12 +48,20 @@ const WAVE_SLOW := 0.42
 ## driving away from the lens fills from behind it as it would in life.
 const LOOK_ALONG := 0.5
 const BEHIND := 90.0
+## ...and none kept more than AHEAD metres ahead (FreewayFill.retire_reach() is 580): at the cap a
+## carriageway driving away from the lens kept its cars for 670 m and the one coming at it for 470,
+## so the lanes leaving the camera ran thin; past ~470 m a car is a few pixels and the far decks'
+## own traffic carries on.
+const AHEAD := 470.0
 
 ## FreewayFill.FAR_WEIGHT at the peak: a route the player is not on gets less of the cap.
 const RUSH_FAR_WEIGHT := 0.1
 
 ## The level the TrafficManager worked out at its last upkeep (so the per-car calls are cheap).
 static var now_level := 0.0
+## 1 while the player is on or over a route (within FreewayFill.NEAR_ROUTE) and the camera looks
+## along it at a jam, else 0 (RcRushHour's traffic haze reads it).
+static var now_view := 0.0
 
 
 ## Whether the freeway upkeep may spawn although PhysicsBudget is at its cap. Freeway cars are
@@ -80,9 +83,12 @@ static func look_sign(lv: float, eye_fwd: Vector3, d: Vector2) -> int:
 
 
 ## Whether a car (or a slot) `t` metres along, the camera at `anchor` looking `look`, is too far
-## behind the camera to spend a car on.
+## behind the camera (or too far ahead of it) to spend a car on.
 static func behind(t: float, anchor: float, look: int) -> bool:
-	return look != 0 and (t - anchor) * float(look) < -BEHIND
+	if look == 0:
+		return false
+	var d := (t - anchor) * float(look)
+	return d < -BEHIND or d > AHEAD
 
 
 ## Whether a free slot is offered: the old rule (`filling` the whole window, else the far inflow

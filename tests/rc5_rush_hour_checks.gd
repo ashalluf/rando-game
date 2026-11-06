@@ -13,6 +13,7 @@ func run(t: Node) -> void:
 	_level()
 	_scales()
 	_wave()
+	_look()
 	_row()
 
 
@@ -71,6 +72,25 @@ func _wave() -> void:
 			var d := absf(a - b)
 			up = up and minf(d, 1.0 - d) < 1e-4
 	_t._check(up and RushHour.WAVE_SPEED > 0.0, "rush hour: the slow band runs upstream at %.1f m/s" % RushHour.WAVE_SPEED)
+
+
+func _look() -> void:
+	var lv := RushHour.now_level
+	var vw := RushHour.now_view
+	RushHour.now_level = 1.0
+	RushHour.now_view = 1.0
+	var on := RcRushHour.traffic_haze(1.0)
+	var wet := RcRushHour.traffic_haze(0.0)
+	RushHour.now_view = 0.0
+	var away := RcRushHour.traffic_haze(1.0)
+	RushHour.now_level = lv
+	RushHour.now_view = vw
+	_t._check(RcRushHour.enabled and on > 0.2 and wet == 0.0 and away == 0.0,
+		"rush hour: the jam shimmers over the carriageway the camera looks down (%.2f), not in rain or looking away" % on)
+	var mat := FreewayCloseup.deck_material()
+	_t._check(float(mat.get_shader_parameter("patch_aged")) == 1.0
+		and FileAccess.get_file_as_string("res://shaders/freeway_deck.gdshader").contains("uniform float patch_aged = 0.0;"),
+		"rush hour: the deck's patches are aged (RC5_RUSH_LOOK=0 leaves the shader's old default)")
 
 
 func _row() -> void:

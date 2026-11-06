@@ -1323,7 +1323,8 @@ func _maintain_freeway() -> void:
 				or (RushHour.now_level > 0.0 and RushHour.behind(t, float(anchors[ri]), int(looks[ri])) and not car.traffic.get("placed", false)):
 			freeway_cars.erase(car)
 			_retire(car)
-	if freeway_cars.size() >= _fw_cap() or not (PhysicsBudget.can_spawn() or RushHour.freeway_room(self)):
+	var full := freeway_cars.size() >= _fw_cap() or not (PhysicsBudget.can_spawn() or RushHour.freeway_room(self))
+	if full and RushHour.now_level <= 0.0:
 		return
 	# Which routes are close enough to bother with, and where along each the player is.
 	var live: Array[Vector2i] = []
@@ -1333,7 +1334,14 @@ func _maintain_freeway() -> void:
 		if float(near[1]) < freeway_range:
 			live.append(Vector2i(ri, int(near[0])))
 			dists.append(float(near[1]))
+	RushHour.now_view = 0.0
 	if live.is_empty():
+		return
+	if RushHour.now_level > 0.0:
+		for k in live.size():
+			if float(dists[k]) < FreewayFill.NEAR_ROUTE and RushHour.look_sign(RushHour.now_level, eye_fwd, fw.point_at(live[k].x, float(live[k].y))[1]) != 0:
+				RushHour.now_view = 1.0
+	if full:
 		return
 	var per_route := maxi(1, max_freeway_cars / live.size())
 	var route_shares: Array[int] = FreewayFill.shares(dists, _fw_cap(), freeway_range, RushHour.far_weight(RushHour.now_level))
