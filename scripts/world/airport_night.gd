@@ -144,7 +144,7 @@ static func landing_pool(jet: Node3D, above: float, fwd: Vector3) -> void:
 	if pool == null:
 		pool = MeshInstance3D.new()
 		pool.name = "LandingPool"
-		pool.mesh = PropFactory.light_pool(Color(1.0, 0.95, 0.84), LANDING_POOL_STRENGTH, 1.4)
+		pool.mesh = FwdReviewH.display_pool(PropFactory.light_pool(Color(1.0, 0.95, 0.84), LANDING_POOL_STRENGTH, 1.4))
 		pool.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		pool.top_level = true
 		jet.add_child(pool)

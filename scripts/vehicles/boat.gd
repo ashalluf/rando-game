@@ -186,6 +186,7 @@ func _ready() -> void:
 	_fx = BoatWake.new()
 	_fx.boat = self
 	add_child(_fx)
+	BoatSea.add(self)
 	# A body near the camera is simulated; moored boats far off freeze (set_script_active()).
 	contact_monitor = true
 	max_contacts_reported = 4
@@ -573,6 +574,11 @@ func _ground_rule(plane: Array) -> void:
 
 
 ## Keel drag, hull drag, the turn's lean and the righting moment, while wet.
+## Over the open sea (the ocean shader's water, where BoatSea draws the wake), last tick.
+func on_sea() -> bool:
+	return _kind == SwimWater.Kind.SEA
+
+
 func _near_marina() -> bool:
 	var m := _macro()
 	if m == null or m.marina == null:
@@ -757,5 +763,6 @@ func _leave_rider() -> void:
 
 
 func _exit_tree() -> void:
+	BoatSea.remove(self)
 	_leave_rider()
 	_set_ground_exception(false)

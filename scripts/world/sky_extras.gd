@@ -62,6 +62,7 @@ func setup(sky: ShaderMaterial, seed_value: int) -> void:
 		_sky.set_shader_parameter("painted_night_gain", 1.0)
 		_sky.set_shader_parameter("painted_city_light", 0.0)
 	FwdReviewG.apply_sky(_sky)
+	FwdReviewH.apply()
 	_sky.set_shader_parameter("cloud_base", cloud_base / 1000.0)
 	_sky.set_shader_parameter("cloud_depth", cloud_depth / 1000.0)
 	if textures():

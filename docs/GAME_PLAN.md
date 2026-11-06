@@ -4018,6 +4018,11 @@ none of either.
   cause, not tuned per renderer - the traced room behind every window is display numbers and is
   decoded on Forward+ like the wall and the glass round it; and a closed cloud deck on Forward+
   runs into its own haze at the horizon like the painted one on the web. FWD_REVIEW_G=0 is the A/B.
+- 2026-11-05 (Forward+ review h, wave 8): a light a shader works out itself (a falloff, a pool's
+  coverage) lives in the same space as the colours it multiplies - a display-number or
+  renderer-space shader hands its light level over decoded on Forward+, and a broad additive pool
+  tuned on the stills adds in display numbers there - so a fall-off judged on the opengl3 stills
+  falls off the same on the Mac. FWD_REVIEW_H=0 is the A/B.
 - **2026-10-31 The first minute is part of the load (loading-first-frame, HANDOFF "The first
   minute").** Whatever play would build in its first seconds - the traffic, the streamer's own
   window, wave 3's first-use pipelines - is built behind the shade, and nothing the loading screen
@@ -4579,3 +4584,24 @@ none of either.
   flash's share in the sky's cubemap pass (ambient, mirrors, aerial fog) is cut, its colour cold;
   a storm breaks the lamps' wet-road reflections into short runs (plain rain keeps the long ones);
   a storm's night curtain draws its streaks, not an even warm veil. RC5_STORM=0 is the A/B.
+- **2026-11-05 The arena_night refcam: an event plaza is lit by its own screens and walls
+  (rc5-arena-night, HANDOFF "STARLIGHT PLAZA on an event night").** A new reference camera
+  (`arena_night`, wave 8's table) stands in STARLIGHT PLAZA's crowd at 21:00 looking at the screen
+  wall, the theatre and HOTEL ALTAIR. Decisions: a landmark's blank wall gets architectural light
+  (LED blades, parapet coves, its name lit) rather than staying a dark box; a giant screen lights
+  the ground in front of it in the colour it is showing, worked out by the screen's own shader
+  maths (never a second clock); a hotel's crown is lit from inside; LED is a dull line by day; an
+  event night (a hash per night, ARENA_EVENT forces it) brings searchlights and a fuller plaza.
+  ARENA_NIGHT=0 is the A/B.
+- **2026-11-05 The speedboat refcam: a boat under way writes its wake into the sea (rc5-speedboat,
+  HANDOFF "The speedboat at golden hour").** A new reference camera (`speedboat_golden`, wave 8's
+  table) chases the SALTRUNNER at 60 km/h into the 17:45 sun path. Decisions: the player's boats hand
+  their wakes to the ocean shader exactly as the scripted vessels do (one list, nearest first), never
+  as particle quads on the water; a wake's foam is braided lines on an aerated sheet that emits the
+  evening's light, not a lit white band; spray is a low sheet off the chines; a boat's transom carries
+  its invented name. BOAT_SEA=0 is the A/B.
+- 2026-11-05 (fleet wave 8, gate-flakes-2): the gate's last open flakes. A jointed doll's settle and
+  freeze clocks run on the physics step (a long frame froze dolls mid-fall, in play too on a slow
+  frame); shop doors and far-walker borrowing take only the plain crowd by script (a valet was sent
+  through a door for good); the crowd-flow passing check meets nearest the camera. RAGDOLL_PHYSICS_TICK=0
+  is the A/B.

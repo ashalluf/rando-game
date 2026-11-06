@@ -39,6 +39,7 @@ func _initialize() -> void:
 	_golf_group()
 	_bonfire_lit()
 	_lowrider_meet()
+	_arena_event()
 	# OCCLUSION=0: occlusion culling off (still_shot's switch), to tell what is culled in plain sight.
 	if OS.get_environment("OCCLUSION") == "0":
 		get_root().use_occlusion_culling = false
@@ -106,6 +107,12 @@ func _run() -> void:
 			drive = load("res://tools/refcams/chase_stage.gd").new()
 			await drive.call("run", self, cam, player)
 			fov = player.get("camera").fov
+		elif cam.has("boat"):
+			# A "boat" row (cameras_w8.json, speedboat_golden): the player at the helm under way
+			# off the coast, a free chase eye on the hull (tools/refcams/boat_stage.gd).
+			OS.set_environment("EYE", "")
+			drive = load("res://tools/refcams/boat_stage.gd").new()
+			await drive.call("run", self, cam, player)
 		else:
 			_place(player, fov)
 			# The marine layer's morning damp (MarineMorning) wants the hour and the eye: soaked at once.
@@ -388,6 +395,18 @@ func _bonfire_lit() -> void:
 	for cam: Dictionary in _cameras().get("cameras", []):
 		if cam.has("bonfire_lit") and (only.is_empty() or String(cam.name) in only):
 			OS.set_environment("BONFIRE_LIT", str(int(cam.bonfire_lit)))
+
+
+## A row's optional "arena_event" (wave 8's arena_night): 1 makes tonight an event night at the
+## arena (ArenaNight, as ARENA_EVENT=1: searchlights, the fuller plaza), 0 a quiet one. Set before the
+## city loads, when a camera of this run asks (the plaza is planned as its chunk builds).
+func _arena_event() -> void:
+	if OS.get_environment("ARENA_EVENT") != "":
+		return
+	var only := OS.get_environment("ONLY").split(",", false)
+	for cam: Dictionary in _cameras().get("cameras", []):
+		if cam.has("arena_event") and (only.is_empty() or String(cam.name) in only):
+			OS.set_environment("ARENA_EVENT", str(int(cam.arena_event)))
 
 
 func _bonfire_lit_for(cam: Dictionary) -> void:

@@ -40,6 +40,7 @@ static func mesh(kind: int, level: int, accent: int) -> ArrayMesh:
 		_jetski(acc, ac)
 	else:
 		_speedboat(acc, ac)
+		BoatSea.transom(acc, _hull_of(kind), accent, ac)
 	var m := acc.commit()
 	_cache[key] = m
 	return m
