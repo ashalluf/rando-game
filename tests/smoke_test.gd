@@ -114,7 +114,7 @@ const PART_COST := {
 	"marina_checks": 0.2, "ref_cameras_checks": 0.2, "rooftops_checks": 0.2, "web_build_checks": 0.2, "web_review_3_checks": 0.1,
 	"far_corners_checks": 0.1, "weather_la_checks": 0.1, "color_grade_checks": 0.0,
 	"fwd_review_a_checks": 0.0, "fwd_review_b_checks": 0.0, "garments_2_checks": 0.0,
-	"memory_audit_checks": 0.0, "offshore_island_checks": 0.0, "perf_audit_checks": 0.0,
+	"memory_audit_checks": 0.0, "memory_audit_w8_checks": 0.0, "offshore_island_checks": 0.0, "perf_audit_checks": 0.0,
 	"shop_vinyl_checks": 0.0, "sky_checks": 0.0, "bonfires_checks": 3.0,
 	"cinematic_review_checks": 0.1, "sunset_clouds_checks": 0.0, "night_street_review_checks": 0.1,
 	"downtown_street_closeup_checks": 1.5, "golden_hour_review_checks": 0.1,
@@ -3008,6 +3008,8 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	# The oil_islands_dusk refcam (tests/rc5_oil_islands_dusk_checks.gd, LongBeachSand, Rc5OilIslands):
 	# Long Beach's sand, the islands' floods in the bay and on their towers, the camera row.
 	load("res://tests/rc5_oil_islands_dusk_checks.gd").new().run(self, city)
+	# Memory after wave 8 (tests/memory_audit_w8_checks.gd): a teleport frees what it leaves first.
+	await load("res://tests/memory_audit_w8_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()

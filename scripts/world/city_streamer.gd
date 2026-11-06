@@ -465,18 +465,24 @@ func _advance_retiring(delta: float) -> void:
 			_free_retired(k)
 
 
-## Every chunk still standing for its dissolve, freed now (not queue_free(): the frame's end is
-## after the builds this call makes, which is the peak this exists to cut). Out of the tree first,
-## so _exit_tree() drops its parked cars and nothing that walks the scene meets it again.
+## Every chunk still standing for its dissolve goes now. Its NODES are queue_free()d as before
+## (freed at the frame's end: a wheel's ground contact or a deferred call may still name one of its
+## bodies this frame, and a node freed mid-frame was a "previously freed" error there), but its
+## meshes are dropped at once, hidden: the frame's end is after the builds this call makes, and the
+## meshes are what made every teleport peak at two areas.
 func _free_retiring_now() -> void:
 	for k in _retiring.keys():
 		var entry: Array = _retiring[k]
 		var chunk: CityChunk = entry[0]
 		_free_retired(k)
-		if is_instance_valid(chunk) and chunk.is_queued_for_deletion():
-			if chunk.get_parent() != null:
-				chunk.get_parent().remove_child(chunk)
-			chunk.free()
+		if is_instance_valid(chunk):
+			chunk.visible = false
+			for n in chunk.find_children("*", "MeshInstance3D", true, false):
+				(n as MeshInstance3D).mesh = null
+			for n in chunk.find_children("*", "MultiMeshInstance3D", true, false):
+				var mm := (n as MultiMeshInstance3D).multimesh
+				if mm != null:
+					mm.mesh = null
 			teleport_freed += 1
 
 
