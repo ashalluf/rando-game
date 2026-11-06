@@ -207,7 +207,7 @@ func _follower(city: Node3D, chunk: Node3D) -> void:
 			trace.append("%d L %s v%.2f F %s v%.2f gap %.2f lead %s act %d/%d pause %.1f/%.1f stride %d/%d kin %s/%s slot %s hd %.2f lyaw %.2f" % [i, Vector2(l.position.x, l.position.z) - at, l._speed,
 				Vector2(f.position.x, f.position.z) - at, f._speed, Vector2(f.position.x, f.position.z).distance_to(Vector2(l.position.x, l.position.z)),
 				f.flow.get("leader") != null, l._act, f._act, l._pause_left, f._pause_left, l._lod_stride, f._lod_stride, l._kinematic, f._kinematic,
-				str(f.flow.get("slot")), float(f.flow.get("hd", 0.0)), l._visual.rotation.y] + " fw %.2f lw %.2f piv %s rain %s/%s cross %d/%d ring %s/%s" % [f.walk_speed, l.walk_speed, f._pivoting, l.rain != null, f.rain != null, f._cross, l._cross, f.ring, l.ring] + " near " + _solid_near(f))
+				str(f.flow.get("slot")), float(f.flow.get("hd", 0.0)), l._visual.rotation.y] + " fw %.2f lw %.2f piv %s rain %s/%s cross %d/%d ring %s/%s" % [f.walk_speed, l.walk_speed, f._pivoting, l.rain != null, f.rain != null, f._cross, l._cross, f.ring, l.ring] + " near " + _solid_near(f) + " walkers " + _walkers_near(f))
 	var moved := Vector2(l.position.x, l.position.z).distance_to(start)
 	var mean := sum / maxf(float(n), 1.0)
 	_check(f.flow.get("leader") != null and mean < 1.6 and moved > 6.0,
@@ -224,6 +224,24 @@ func _follower(city: Node3D, chunk: Node3D) -> void:
 		await _tree.physics_frame
 	_check(f.flow.get("leader") == null, "a follower whose leader is gone walks on alone")
 	f.queue_free()
+
+
+## Who CrowdFlow sees round a walker (its own group left out): the count within DENSITY_REACH and
+## LOOK, and the nearest few (offset from it, speed, script) - the follower trace's second suspect.
+func _walkers_near(p: Pedestrian) -> String:
+	var g := p.global_position
+	var near := CrowdFlow._neighbours(Vector2(g.x, g.z), p, int(p.flow.get("gid", 0)))
+	var dense := 0
+	var look := 0
+	var list: Array = []
+	for o: Array in near:
+		var d := (o[0] as Vector2).distance_to(Vector2(g.x, g.z))
+		if d < CrowdFlow.DENSITY_REACH:
+			dense += 1
+		if d < CrowdFlow.LOOK:
+			look += 1
+			list.append("%s v%.2f" % [(o[0] as Vector2) - Vector2(g.x, g.z), (o[1] as Vector2).length()])
+	return "%d dense %d look %s" % [dense, look, ", ".join(list.slice(0, 4))]
 
 
 ## What stands within 1.2 m of a walker at knee height (the follower trace: pavement clutter that

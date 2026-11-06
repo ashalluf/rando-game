@@ -101,7 +101,10 @@ func _people(city: Node3D) -> void:
 			# A metre over the surface the player's ray hits, not over his origin: half on a kerb (or
 			# still settling) his feet stood 0.19 m under the pavement top it found, which ground_drop
 			# clamps to 0, and the probe read 0.81 (shuffled gate 2303).
-			var q := PhysicsRayQueryParameters3D.create(player.global_position + Vector3.UP * 0.4, player.global_position + Vector3.DOWN * 6.0, 1)
+			# From well above him (3 m): his own +0.4 start can be under a kerb or step he is sunk
+			# beside, and the probe's ray (from 1.4 m over the ground found) then met that top first
+			# (shuffled gate 803: 0.73). From above, the first surface is the one the probe meets.
+			var q := PhysicsRayQueryParameters3D.create(player.global_position + Vector3.UP * 3.0, player.global_position + Vector3.DOWN * 6.0, 1)
 			q.exclude = [(player as CollisionObject3D).get_rid()]
 			var hit := space.intersect_ray(q)
 			var ground_y: float = (hit.position as Vector3).y if not hit.is_empty() else player.global_position.y - under

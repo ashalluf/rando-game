@@ -3904,7 +3904,14 @@ func _test_weapons(player: Player) -> void:
 		for i in 40:
 			await _ticks(1)
 			pumped = maxf(pumped, gun.pump_amount())
-		_check(pumped > 0.9, "the pump strokes back after the shot (%.2f of its travel)" % pumped)
+		# Watched live it must go most of the way back; its full travel is the curve's peak. The
+		# stroke runs on the frame time and stands fully back for 0.03 s: a loaded shard's long
+		# frames stepped over that (shuffled gate 803: 0.84 seen), so the peak is read off the curve.
+		var since: float = gun.get("_since_shot")
+		gun.set("_since_shot", gun.pump_delay + gun.pump_stroke + gun.pump_hold * 0.5)
+		var peak := gun.pump_amount()
+		gun.set("_since_shot", since)
+		_check(pumped > 0.5 and peak > 0.99, "the pump strokes back after the shot (%.2f of its travel seen, %.2f at the top of the stroke)" % [pumped, peak])
 		_check(gun.pump_amount() == 0.0, "and slides home again")
 		_check(get_tree().get_nodes_in_group("spent_shell").size() > shells_before, "the pump throws a spent shell")
 		var shoved := crate.global_position.distance_to(crate_at)
