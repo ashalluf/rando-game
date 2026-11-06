@@ -32538,6 +32538,12 @@ the same (`shots/perf-audit-6` 11-14).
   peaks 3,200 / 3,959 / 3,510 MB - shard 1 is 41 MB under the 4,000 MB budget now: the next part
   added to it (or more memory in city_streaming / garage_drive_in / freeway_incidents) will fail
   memory_audit_checks there; re-deal PART_COST or stage those parts nearer stage_home().
+- **After merging main again (230 more commits)**: 6,513 checks; shards 1 and 2 passed (2,041 /
+  2,384), shard 0 failed 4 of 2,092 - all in street_errands' parked-car door sequence ("a walker
+  opens a parked car's driver door ...", then the three that follow from it), which pass run alone
+  (`SMOKE_PARTS=city_crowd`: 113 / 113, all 28 errands checks): an intermittent of the live
+  errands, not these cuts. Peaks 3,262 / **3,998** / 3,977 MB: shards 1 and 2 are now at the
+  4,000 MB budget's edge - the gate's memory needs a re-deal before the next wave adds anything.
 - **A city load, rendered** (refcams, opengl3, 1280x720): the first launch after the import,
   cold shader caches, 10.5 GB for one camera; warm runs of all ten cameras 9.1-9.2 GB (off / on).
   Headless the load is the gate's 2.2-3.1 GB above.
