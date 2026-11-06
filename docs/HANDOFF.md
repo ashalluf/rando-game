@@ -33361,3 +33361,10 @@ site is no longer busy (`Worshipper._still_busy()`) leaves by the gate, goes in 
 the street and is freed, so a chunk built before Mass empties after it - but nobody new comes to a
 chunk that was built while the site was quiet (a player waiting outside from 08:00 sees no one
 arrive for 09:00 Mass until the chunk is rebuilt).
+
+**Status (wrap-up, 2026-11-06).** Done: everything above, pushed. Gate: `SHARDS=3
+tests/headless_check.sh` on the merge with main `987da767` PASSED (6628 checks, 0 failed, peak
+RSS 3.9 GB); the later commits (the leave-home change, docs, uid files) re-checked with
+`SMOKE_PARTS=worship_checks,rc5_church_sunday_checks` (76 passed), not a second full gate.
+Main `a870978b` is merged. Open: the Forward+ check of the lime wash and the glass (lavapipe
+OOM on this box), the church's interior, arrivals into a chunk built while its site was quiet.
