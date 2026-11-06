@@ -57,6 +57,7 @@ static func material() -> ShaderMaterial:
 	if _material == null:
 		_material = ShaderMaterial.new()
 		_material.shader = load("res://shaders/roadside.gdshader")
+		RcCarWash.apply(_material)
 	return _material
 
 

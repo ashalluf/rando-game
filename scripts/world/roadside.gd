@@ -351,10 +351,13 @@ static func _mass(s: Site, c: Vector3, size: Vector3, col: Color) -> void:
 
 
 ## A static parked car (ArenaGrounds' code car, LotFill's batch) at frame XZ, facing `yaw`.
-static func _car(s: Site, p: Vector2, yaw: float, paint: Color = Color(-1, 0, 0), y: float = 0.0) -> void:
+## `place` false makes the rolls only (RcCarWash: a stall the hand-dry area took).
+static func _car(s: Site, p: Vector2, yaw: float, paint: Color = Color(-1, 0, 0), y: float = 0.0, place: bool = true) -> void:
 	var v := 0 if s.rng.randf() < 0.55 else (2 if s.rng.randf() < 0.6 else 1)
 	if paint.r < 0.0:
 		paint = ArenaGrounds.CAR_PAINTS[s.rng.randi() % ArenaGrounds.CAR_PAINTS.size()]
+	if not place:
+		return
 	var key := "apark_car_%d" % v
 	_inst(s, key, ArenaGrounds.car_mesh(v), Transform3D(Basis(Vector3.UP, yaw), Vector3(p.x, s.dy(p.x, p.y) + y + 0.005, p.y)), Color.BLACK, paint)
 	s.ch._batch.set_shadow_distance(key, LotFill.CAR_SHADOW_DISTANCE)
@@ -751,7 +754,7 @@ static func _car_wash(s: Site) -> void:
 		pen.box(Vector3(wx - L / nwin * 0.5, 2.4, tunnel.position.y - 0.05), Vector3(0.4, 2.2, 0.1), K.c(Color(0.7, 0.71, 0.72), K.K_STEEL), K.RM_STEEL)
 		pen.box(Vector3(wx, 1.36, tunnel.position.y - 0.08), Vector3(L / nwin, 0.08, 0.16), K.c(Color(0.7, 0.71, 0.72), K.K_STEEL), K.RM_STEEL)
 	# Floor: the conveyor and guide rail, wet concrete.
-	_ground(s, Rect2(tunnel.position.x - 6.0, tunnel.position.y + 0.3, L + 10.0, tw - 0.6), K.c(Color(0.55, 0.56, 0.56), K.K_CONCRETE))
+	_ground(s, Rect2(tunnel.position.x - 6.0, tunnel.position.y + 0.3, L + 10.0, tw - 0.6), K.c(Color(0.55, 0.56, 0.56), K.K_CONCRETE), GROUND_LIFT, Vector2.ZERO, RcCarWash.wet_u2(0.75))
 	pen.box(Vector3(tc.x, 0.08, tc.y - 1.0), Vector3(L + 4.0, 0.12, 0.35), K.c(Color(0.6, 0.62, 0.64), K.K_STEEL), K.RM_STEEL)
 	pen.box(Vector3(tc.x, 0.18, tc.y - 1.3), Vector3(L + 4.0, 0.25, 0.08), K.c(Color(0.85, 0.75, 0.1), K.K_FIXED), K.RM_PAINT)
 	# Inside, from the entrance (-x end): an LED arch, the mitter curtain, wraparound brushes, the
@@ -822,18 +825,29 @@ static func _car_wash(s: Site) -> void:
 	var vz := -hd + 5.5
 	var vx0 := lane_x + 5.5
 	var nvac := clampi(int((hw - 1.5 - vx0) / 6.0), 1, 6)
+	# RcCarWash (the car_wash refcam): the stations the hand-dry area takes are left out and the
+	# cars at the others are real (empty) Vehicles; every roll is still made.
+	var dry := RcCarWash.dry_rect(s, tunnel)
 	for k in nvac:
 		var vx := vx0 + 3.0 + k * 6.0
-		_inst(s, "rs_vac", RoadsideKit.vacuum(), Transform3D(Basis(), Vector3(vx, s.dy(vx, vz), vz)), Color(accent.r, accent.g, accent.b, 0.6))
-		s.ch._add_shape(Vector3(0.7, 1.2, 0.7), s.at(Vector3(vx, 0.6, vz)), s.yaw)
+		var keep := not dry.has_point(Vector2(vx, vz))
+		if keep:
+			_inst(s, "rs_vac", RoadsideKit.vacuum(), Transform3D(Basis(), Vector3(vx, s.dy(vx, vz), vz)), Color(accent.r, accent.g, accent.b, 0.6))
+			s.ch._add_shape(Vector3(0.7, 1.2, 0.7), s.at(Vector3(vx, 0.6, vz)), s.yaw)
 		for sd: float in [-1.0, 1.0]:
-			_line(s, Vector2(vx + sd * 3.0, vz - 2.0), Vector2(vx + sd * 3.0, vz + 3.0), 0.1)
+			if keep:
+				_line(s, Vector2(vx + sd * 3.0, vz - 2.0), Vector2(vx + sd * 3.0, vz + 3.0), 0.1)
 			if s.rng.randf() < 0.35:
-				_car(s, Vector2(vx + sd * 1.5, vz + 0.5), PI if s.rng.randf() < 0.5 else 0.0)
+				var cyaw := PI if s.rng.randf() < 0.5 else 0.0
+				if not keep:
+					_car(s, Vector2.ZERO, 0.0, Color(-1, 0, 0), 0.0, false)
+				elif not RcCarWash.stall_car(s, Vector2(vx + sd * 1.5, vz + 0.5), cyaw):
+					_car(s, Vector2(vx + sd * 1.5, vz + 0.5), cyaw)
 	_frontage(s, [Vector2(lane_x - 2.5, lane_x + 2.5), Vector2(hw - 9.0, hw - 2.0)])
 	_pool(s, Vector2(tc.x, tc.y), Vector2(L + 8.0, tw + 6.0), Color(0.85, 0.92, 1.0, 1.0))
 	_pool(s, Vector2((vx0 + hw) * 0.5, vz), Vector2(hw - vx0 + 4.0, 8.0), Color(1.0, 0.97, 0.9, 0.8))
 	_light(s, Vector3(tc.x, th - 1.0, tc.y), 14.0, Color(0.85, 0.92, 1.0))
+	RcCarWash.dress(s, tunnel, th, accent)
 
 
 ## An LED arch across the tunnel (the coloured light show at the entrance and in the middle).

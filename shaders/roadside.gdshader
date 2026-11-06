@@ -49,6 +49,10 @@ uniform float bulb_night = 7.0;
 uniform float canopy_under = 4.86;
 uniform float forecourt_light = 0.55;
 uniform float forecourt_gloss = 1.0;
+// RcCarWash (the car_wash refcam): how much sky a car wash's wet concrete mirrors (emitted), and
+// the traced tunnel's brushes (`wash_look` 1; 0 the old flat cloth panels).
+uniform float wet_mirror = 0.4;
+uniform float wash_look = 0.0;
 
 varying vec3 v_world;
 varying vec3 v_wnormal;
@@ -189,12 +193,54 @@ vec3 rs_room(float s0, float h0, float ds, float dh, float dd, float depth, int 
 			sb += ds > 0.0 ? pitch : -pitch;
 		}
 	}
+	// The car wash's tunnel (wash_look): wraparound brushes as cylinders of cloth (r 0.62 m) in
+	// two rows, a near and a far, every 2.6 m, 0.25-3.0 m up; the ray meets the nearest.
+	vec2 bn = vec2(0.0);
+	float bcell = 0.0;
+	if (kind == 4 && wash_look > 0.5) {
+		for (int row = 0; row < 2; row++) {
+			float dc = row == 0 ? 1.6 : depth - 1.6;
+			float off = row == 0 ? 0.0 : 1.3;
+			float sat = s0 + ds * (dc / max(dd, 1e-3));
+			float ci = floor((sat - off) / 2.6 + 0.5);
+			for (int k = -1; k <= 1; k++) {
+				float sc = (ci + float(k)) * 2.6 + off;
+				vec2 o = vec2(s0 - sc, -dc);
+				vec2 dv = vec2(ds, dd);
+				float a = dot(dv, dv);
+				float b = dot(o, dv);
+				float c = dot(o, o) - 0.62 * 0.62;
+				float disc = b * b - a * c;
+				if (disc > 0.0) {
+					float tt = (-b - sqrt(disc)) / a;
+					float hb = h0 + dh * tt;
+					if (tt > 0.0 && tt < t && hb > 0.25 && hb < 3.0) {
+						t = tt;
+						surf = 6;
+						bn = (o + dv * tt) / 0.62;
+						bcell = ci + float(k) + float(row) * 17.0;
+					}
+				}
+			}
+		}
+	}
 	float s = s0 + ds * t;
 	float h = h0 + dh * t;
 	float d = dd * t;
 	vec3 col;
 	lit = 1.0;
-	if (surf == 1) {
+	if (surf == 6) {
+		// A brush: strands of coloured cloth round it, foam caught in them, lit from the glass side.
+		float hh = rs_hash(vec2(bcell, 5.0));
+		vec3 cloth = hh < 0.33 ? vec3(0.12, 0.32, 0.8) : (hh < 0.66 ? vec3(0.8, 0.22, 0.45) : vec3(0.85, 0.7, 0.15));
+		float ang = atan(bn.x, bn.y);
+		float strands = 0.6 + 0.4 * rs_noise(vec2(ang * 9.0, h * 1.2 + bcell));
+		float foam = smoothstep(0.55, 0.8, rs_noise(vec2(ang * 3.0 + bcell, h * 2.5)));
+		float shade = 0.3 + 0.7 * clamp(-bn.y, 0.0, 1.0);
+		col = mix(cloth * strands, vec3(0.85, 0.88, 0.9), foam * 0.7) * shade;
+		col *= 0.6 + 0.4 * smoothstep(0.25, 0.6, h) * smoothstep(3.0, 2.6, h);
+		lit = 0.85;
+	} else if (surf == 1) {
 		// Floor: tiles (a checkerboard in the diner, big greys elsewhere, oily concrete in a bay).
 		vec2 ft = vec2(s, d);
 		if (kind == 1) {
@@ -216,6 +262,10 @@ vec3 rs_room(float s0, float h0, float ds, float dh, float dd, float depth, int 
 			vec2 c = fract(ct / vec2(1.9, 1.6)) - 0.5;
 			float pend = 1.0 - smoothstep(0.08, 0.12, length(c * vec2(1.9, 1.6)));
 			col = mix(vec3(0.25, 0.18, 0.12), vec3(4.0, 3.2, 2.2), pend);
+		} else if (kind == 4 && wash_look > 0.5) {
+			// The tunnel's soffit: dark, an LED strip down its length every 1.4 m across.
+			float strip = 1.0 - smoothstep(0.04, 0.07, abs(fract(d / 1.4) - 0.5));
+			col = mix(vec3(0.12, 0.13, 0.14), vec3(2.6, 2.9, 3.2), strip);
 		} else {
 			vec2 c = abs(fract(ct / vec2(2.4, 1.2)) - 0.5);
 			float panel = step(c.x, 0.3) * step(c.y, 0.18) * step(0.5, rs_hash(floor(ct / vec2(2.4, 1.2))));
@@ -268,6 +318,15 @@ vec3 rs_room(float s0, float h0, float ds, float dh, float dd, float depth, int 
 			float strip = step(1.9, h) * step(h, 2.5);
 			col = mix(vec3(0.6, 0.58, 0.55), rs_menu(vec2(fract(s / 3.0), (h - 1.9) / 0.6), floor(s / 3.0)), strip);
 			lit = 1.0 + strip * 0.8;
+		} else if (kind == 4 && wash_look > 0.5) {
+			// The tunnel's far wall: dark wet stainless panels with runs of water, the conveyor's
+			// lit sign strip along the top.
+			float panel = smoothstep(0.0, 0.03, fract(s / 1.2)) * smoothstep(1.0, 0.97, fract(s / 1.2));
+			float runs = rs_noise(vec2(s * 7.0, h * 0.4)) * smoothstep(0.4, 1.0, rs_noise(vec2(s * 1.3, 2.0)));
+			col = vec3(0.16, 0.17, 0.18) * (0.75 + 0.25 * panel) * (0.85 + 0.5 * runs);
+			float strip = step(3.4, h) * step(h, 3.65);
+			col = mix(col, vec3(0.4, 0.8, 1.0) * 1.6, strip);
+			lit = 1.0;
 		} else if (kind == 4) {
 			// The tunnel: wraparound brushes and curtains of coloured cloth in a row, foam on
 			// them, the conveyor's lit sign strip along the top.
@@ -302,6 +361,10 @@ vec3 rs_room(float s0, float h0, float ds, float dh, float dd, float depth, int 
 			col = vec3(0.8, 0.76, 0.7);
 		}
 		lit *= 0.9;
+	}
+	// Spray and steam in the car wash's tunnel: what is deeper in fades to a pale blue-grey haze.
+	if (kind == 4 && wash_look > 0.5) {
+		col = mix(col, vec3(0.5, 0.56, 0.62), 0.45 * smoothstep(0.5, depth, d));
 	}
 	return col;
 }
@@ -379,6 +442,21 @@ void fragment() {
 		base *= 1.0 - 0.45 * oil;
 		rough = mix(rough, 0.35, oil * 0.6);
 		rough = mix(rough, 0.12, clamp(road_wetness, 0.0, 1.0) * 0.8);
+		// A car wash's wet concrete (RcCarWash: UV2.y = -wetness): a dark soaked film, standing
+		// water in the low spots and the joints mirroring the sky (emitted by Fresnel), drips.
+		float wet = clamp(-metal, 0.0, 1.0);
+		if (wet > 0.0) {
+			metal = 0.0;
+			float pud = smoothstep(0.64, 0.74, rs_fbm(UV * 0.45 + 31.0) + 0.2 * joint) * wet;
+			float film = wet * (0.6 + 0.4 * rs_noise(UV * 1.7 + 5.0));
+			base *= 1.0 - 0.5 * film;
+			base = mix(base, base * 0.6, pud);
+			// Damp, not glazed: a mirror-smooth film at a grazing look reads as white paint.
+			rough = mix(rough, 0.42, film);
+			rough = mix(rough, 0.1, pud);
+			float fres = 0.02 + 0.98 * pow(1.0 - clamp(-V.y, 0.0, 1.0), 5.0);
+			emit += sky * fres * pud * wet_mirror * (1.0 - 0.6 * lamp);
+		}
 		if (forecourt && lamp > 0.001) {
 			emit += gas_forecourt(UV, UV2, V, base, rough, lamp);
 		}
@@ -404,8 +482,16 @@ void fragment() {
 		float dd = dot(V, -N);
 		float s0 = dot(v_world, along);
 		float lit;
-		vec3 room = rs_room(s0, UV.y, ds, dh, max(dd, 0.05), max(UV2.x, 1.0), int(UV2.y + 0.5), lit);
+		int rk = int(UV2.y + 0.5);
+		vec3 room = rs_room(s0, UV.y, ds, dh, max(dd, 0.05), max(UV2.x, 1.0), rk, lit);
 		float fres = 0.04 + 0.96 * pow(1.0 - clamp(dd, 0.0, 1.0), 5.0);
+		if (rk == 4 && wash_look > 0.5) {
+			// The tunnel's glass is wet from inside: runs of water and a fogged band at the foot.
+			float run = smoothstep(0.55, 0.85, rs_noise(vec2(UV.x * 26.0, UV.y * 1.6)));
+			float fog = smoothstep(2.0, 1.4, UV.y) * 0.5 + run * 0.35;
+			room = mix(room, vec3(0.55, 0.6, 0.64), fog);
+			fres = mix(fres, max(fres, 0.12), run);
+		}
 		emit = room * lit * mix(room_day, room_night, lamp) * (1.0 - fres);
 		emit += sky * glass_mirror * fres * (1.0 - 0.7 * lamp);
 		base = vec3(0.02);
