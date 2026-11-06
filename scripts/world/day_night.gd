@@ -525,6 +525,13 @@ func _apply() -> void:
 		# The mirrors (sky_tint) see what the sky draws at the horizon, the weather's too.
 		_horizon_now = NightStreetReview.sky_tint(_horizon_now, storm_horizon, weather_darken)
 		_sky.set_shader_parameter("cloud_color", day_cloud.lerp(DawnReview.color(dusk_cloud, DawnReview.CLOUD, dawn_w), dusk).lerp(StormDrama.CLOUD, storm * (1.0 - moonlight) * 0.75))
+		# A rain deck at dusk is slate, not the clear sunset's peach (RainDusk, refcam bus_stop_rain).
+		var rain_dusk := RainDusk.weight(weather_darken, dusk, golden, moonlight)
+		if rain_dusk > 0.0:
+			_sky.set_shader_parameter("sky_top", RainDusk.sky(_sky.get_shader_parameter("sky_top"), rain_dusk))
+			_sky.set_shader_parameter("sky_horizon", RainDusk.sky(_sky.get_shader_parameter("sky_horizon"), rain_dusk))
+			_sky.set_shader_parameter("cloud_color", RainDusk.cloud(_sky.get_shader_parameter("cloud_color"), rain_dusk))
+			_horizon_now = RainDusk.sky(_horizon_now, rain_dusk)
 		_sky.set_shader_parameter("cloud_coverage", clampf(cloud_coverage + 0.12 * sin(hour * 0.9) + cloud_extra + 0.5 * marine - 0.32 * santa_ana + StormDrama.COVER * storm, 0.0, 0.98))
 		_sky.set_shader_parameter("cloud_shadow", day_cloud_shadow.lerp(DawnReview.color(dusk_cloud_shadow, DawnReview.CLOUD_SHADOW, dawn_w), dusk).lerp(Color(0.2, 0.2, 0.24), weather_darken))
 		# After dark: moonlit cloud on a clear night, the city's own light on an overcast one.
@@ -568,6 +575,7 @@ func _apply() -> void:
 		_sky.set_shader_parameter("dawn", dawn_w)
 		# Under the horizon is the far haze the ground plane fades into, not a grey floor.
 		_sky.set_shader_parameter("ground_color", horizon.lerp(Color(0.32, 0.34, 0.37), 0.30))
+		RainDusk.dress_sky(_sky, rain_dusk)
 		# The ground follower's horizon has to wash out into the same colour the sky meets it
 		# with, or the land ends in a hard line however good the haze is.
 		var streamer := get_parent()
@@ -588,7 +596,7 @@ func _apply() -> void:
 		_env.glow_intensity = lerpf(day_glow_intensity, night_glow_intensity, moonlight)
 		_env.glow_hdr_threshold = lerpf(day_glow_threshold, night_glow_threshold, moonlight)
 		if grade:
-			grade.update(elevation, DawnReview.golden_grade(golden, dawn_w), weather_darken, marine, santa_ana)
+			grade.update(elevation, RainDusk.golden(DawnReview.golden_grade(golden, dawn_w), RainDusk.weight(weather_darken, dusk, golden, moonlight)), weather_darken, marine, santa_ana)
 		_env.sdfgi_energy = lerpf(day_gi_energy * GiTuning.gi_scale, night_gi_energy, moonlight)
 		# At golden hour the distance goes the smog's brown-grey rather than dusk_fog's orange:
 		# the orange belongs to the air toward the sun, which fog_sun_scatter already adds.
@@ -621,6 +629,7 @@ func _apply() -> void:
 			_env.fog_light_color = BrushFireLook.fog(_env.fog_light_color, santa_ana, dusk, moonlight)
 		if marine > 0.0:
 			_env.fog_light_color = _env.fog_light_color.lerp(marine_fog.lerp(night_storm_fog, moonlight), marine)
+		_env.fog_light_color = RainDusk.fog(_env.fog_light_color, RainDusk.weight(weather_darken, dusk, golden, moonlight))
 		Rc5CemeteryDawn.tick(hour, marine, weather_darken, santa_ana, _env.fog_light_color)
 	# Street lamps. Setting hundreds of lights every frame is wasteful, but only refreshing when
 	# the value moves leaves every lamp that streamed in since the last change sitting at zero,
@@ -659,7 +668,7 @@ func _apply() -> void:
 	# The clock, for what changes with the hour after dark (the far traffic, lit offices).
 	RenderingServer.global_shader_parameter_set("city_hour", hour)
 	lamp_now = lamp_factor
-	RainDay.publish(nf_lamps)
+	RainDay.publish(nf_lamps, RainDusk.mirror_lamps(RainDusk.weight(weather_darken, dusk, golden, moonlight)))
 	# Published for anything that needs to reflect the sky without owning a copy of it (the
 	# ocean, and whatever else wants it): the colour the sky meets the horizon with, and the
 	# direction back toward the sun.
