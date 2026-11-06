@@ -3082,6 +3082,9 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	# The stunt_jump refcam (tests/rc5_stunt_jump_checks.gd, StuntJumpFX): the flight box, the hanging
 	# wheels, the launch's dust and grit, the tread plate.
 	await load("res://tests/rc5_stunt_jump_checks.gd").new().run(self, city)
+	# The bus_stop_rain refcam (tests/rc5_bus_stop_rain_checks.gd, RainDusk): the camera row, the
+	# rainy dusk's slate sky and grade, the road's mirror handed over, the lamp streak's look5.
+	load("res://tests/rc5_bus_stop_rain_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()

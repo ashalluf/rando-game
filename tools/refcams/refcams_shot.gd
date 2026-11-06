@@ -201,6 +201,10 @@ func _run() -> void:
 		if cam.has("dog_walker") and _stager == null:
 			_stager = load("res://tools/refcams/dog_stage.gd")
 			await _stager.stage(self, scene, _eye_cam, func() -> void: _place(player, fov), cam)
+		if stage == "bus" and _stager == null:
+			# cameras_w8.json's bus_stop_rain: a bus at its stop, doors open, its queue (bus_stage.gd).
+			_stager = load("res://tools/refcams/bus_stage.gd")
+			await _stager.stage(self, scene, _eye_cam, func() -> void: _place(player, fov), cam)
 		if stage == "crash" and _stager == null:
 			# cameras_w8.json's crash_closeup: a sedan wrapped round a bent lamp pole (crash_stage.gd).
 			_stager = load("res://tools/refcams/crash_stage.gd")

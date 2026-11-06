@@ -4928,3 +4928,9 @@ none of either.
   front is now hazard-banded so it reads as the landing. The air a jump flies through is kept
   clear of tree crowns, launches throw dust and clods, landings dust and sparks, airborne wheels
   hang. RC5_STUNT_JUMP=0 is the A/B.
+- **2026-11-06 The bus stop in the rain: a rain deck at dusk is grey (rc5-bus-stop-rain, HANDOFF
+  "The bus stop in the rain").** Under rain at sunset the sky, the fog and the grade lose the clear
+  evening's warmth (an overcast dusk is slate with the city's warm lights in it), weighted by the
+  overcast times the dusk so noon rain, rainy nights and clear sunsets do not move; the wet road
+  mirrors the lit city as soon as the lamps are on; a rider with nothing over their head waits under
+  the shelter. RC5_BUS_STOP=0 is the A/B.

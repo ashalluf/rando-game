@@ -312,3 +312,9 @@ held mid-flight `t` s after a StuntRamps site's lip at `speed` m/s (`site` an id
 age by StuntJumpFX.stage() (dust, clods, hanging wheels), the free eye and its aim point in the
 RAMP's frame (`eye`, `look`: +Z the way it is ridden, origin at its foot). Env `STUNT_EYE=x,y,z`,
 `STUNT_LOOK=x,y,z`, `STUNT_T`, `STUNT_SPEED` override the row for framing.
+
+## Wave 8: `bus_stop_rain`
+
+A Wilshire bus stop at 18:00 in rain. `"stage": "bus"` with a `bus` key (`at` [x, z] TRUE world: the
+stop nearest it; `dir`; `pull` metres short of the stop; `doors`; `queue` riders; `seed`) runs
+`bus_stage.gd`: the bus at its stop, doors open, the stop's StreetErrands queue filled.
