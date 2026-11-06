@@ -101,6 +101,7 @@ func _run() -> void:
 			day.call("_apply")
 		_port_clock(cam)
 		_freight_clock(cam, scene)
+		_fireworks_clock(cam)
 		Engine.time_scale = 1.0
 		# A "drive" row (cameras_w5.json, chase_cam): the player drives his own car and the shot is
 		# his chase camera (tools/refcams/chase_stage.gd), not the free eye.
@@ -628,6 +629,36 @@ func _skate_clock(cam: Dictionary) -> void:
 	for n in get_root().find_children("*", "", true, false):
 		if n.get_script() == sl:
 			n.call("set_clock", float(cam.skate_t))
+
+
+## A row's optional "fireworks_t" (wave 8's fireworks_ballpark): a show staged at that show clock
+## (seconds) and held there for the shot, as FIREWORKS_T= / FIREWORKS_HOLD=1 do for a still;
+## "fireworks_site" picks the site ("stadium" by default, "beach", or "both"). Rows without the key
+## put the node back as it was (no staged show, the clock running).
+func _fireworks_clock(cam: Dictionary) -> void:
+	var fw := current_scene.get_node_or_null("Fireworks") if current_scene else null
+	if fw == null:
+		return
+	var staged: Dictionary = fw.get("staged")
+	var sites: Array = fw.get("sites")
+	if not cam.has("fireworks_t"):
+		if fw.get_meta("rc_fireworks", false):
+			staged.clear()
+			fw.set("hold", false)
+			fw.set_meta("rc_fireworks", false)
+		return
+	var which := String(cam.get("fireworks_site", "stadium"))
+	staged.clear()
+	for id in ["beach", "stadium"]:
+		if which == "both" or which == id:
+			staged[id] = float(cam.fireworks_t)
+	fw.set("hold", true)
+	fw.set_meta("rc_fireworks", true)
+	# A site already showing keeps its clock: set it, so the row's moment is what is drawn.
+	for s: Dictionary in sites:
+		if staged.has(s.id):
+			s.clock = float(staged[s.id])
+			s.prev = s.clock
 
 
 func _port_clock(cam: Dictionary) -> void:

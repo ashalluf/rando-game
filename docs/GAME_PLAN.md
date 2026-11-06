@@ -4688,3 +4688,12 @@ none of either.
   must win over it; anything that says whether a window is lit says it from HouseNights' key and the
   pane's own 8-bit roll, on the GPU, so the light on the yard always matches the glass; a lantern's
   wall light is a point source's falloff with the cap's cut, never a soft disc. SUBURB_NIGHT=0 is the A/B.
+- **2026-11-06 The fireworks_ballpark refcam: a firework is its streaks and the air it lights
+  (rc5-fireworks-ballpark, HANDOFF "Fireworks over the ballpark from Stadium Way").** A new reference
+  camera (`fireworks_ballpark`, wave 8's table) looks from Stadium Way over the south lots at a show
+  over SUNRIDGE BALLPARK at 21:30, its clock held by the new `fireworks_t` row key. Decisions: a break
+  never draws its white-hot instant as 96 stars stacked on one point (a solid disc); the flash and the
+  lit air are one soft glow quad per break in its colour (bloom's job on the Mac, the only glow on
+  Compatibility); stars at half a kilometre read as radial trails, not dots; the show's light reaches
+  the stands (falloff 0.75, not 1.2) and the smoke takes it strongly, plus the floodlit ground under
+  it. RC5_FIREWORKS=0 is the A/B.

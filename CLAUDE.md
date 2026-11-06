@@ -496,6 +496,13 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   water's brightest breaks. `FIREWORKS=0` the A/B, `=1` forces them, `FIREWORKS_T=` /
   `FIREWORKS_HOLD=1` / `FIREWORKS_SITE=` for stills; probe `tools/fireworks/probe.tscn` (EYEs);
   checks `tests/fireworks_checks.gd`.
+- Fireworks over the ballpark (wave 8 refcam `fireworks_ballpark` in `tools/refcams/cameras_w8.json`,
+  its `fireworks_t` key stages and holds the show clock; docs/HANDOFF.md "Fireworks over the ballpark
+  from Stadium Way"): the shaders' `look5` - no white disc at a break (a glow quad, the shell's idle
+  trail quad 0, carries the flash and the lit air), radial star trails, willow glitter, brighter
+  climbing comets, smoke lit by the show and the floodlit ground; the flash light's falloff 0.75.
+  `RC5_FIREWORKS=0` is the A/B; small scene `tools/rc5_fireworks/fw_shot.gd` (either renderer);
+  checks `tests/rc5_fireworks_ballpark_checks.gd`.
 - Weather: `Weather` node in the city scene (`scripts/world/weather.gd`): states clear, overcast,
   rain, storm; drives DayNight (`cloud_extra`, `weather_darken`), fog, rain particles, wet roads
   (`PropFactory.set_wetness`), the `wind_factor`, `wave_scale` and `tsunami_scale` shader globals,
