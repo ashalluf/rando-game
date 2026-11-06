@@ -20,7 +20,10 @@ uniform float sky_mirror = 0.55;
 // runs of car_glass_wet.gdshaderinc, each bead a little lens refracting (and flipping) the street
 // behind it out of the screen texture, the film between them blurring it, the wipers' arcs clear.
 uniform float rain_inside = 0.0;
-uniform float bead_refract = 0.03;
+uniform float bead_refract = 0.008;
+// Seen from the seat the beads are drawn this much bigger (the glass is an arm's length from the
+// eye: at 720 lines a real 3 mm bead is two pixels and the rain on the screen read as nothing).
+uniform float bead_scale = 1.8;
 uniform float film_blur = 2.2;
 uniform sampler2D open_screen : hint_screen_texture, filter_linear_mipmap;
 
@@ -122,7 +125,7 @@ void fragment() {
 			vec3 wa = vec3(0.0);
 			float wr = 0.0;
 			vec3 we = vec3(1.0);
-			vec3 slope = glass_wet(lp, n, screen, ms, px, TIME, wa, wr, we);
+			vec3 slope = glass_wet(lp, n, screen, ms / bead_scale, px / bead_scale, TIME, wa, wr, we);
 			float cover = clamp((1.0 - we.x) / 0.45, 0.0, 1.0);
 			float wet = ws_wet(0.25);
 			vec3 sv = (VIEW_MATRIX * (MODEL_MATRIX * vec4(slope, 0.0))).xyz;
@@ -131,6 +134,9 @@ void fragment() {
 			vec2 off = sv.xy * bead_refract * vec2(1.0, -1.0) * cover;
 			float lod = film_blur * wet * (0.35 + 0.65 * cover);
 			vec3 behind = textureLod(open_screen, SCREEN_UV + off, lod).rgb;
+			// A bead's rim bends the light away from the eye: a dark ring round a bright core.
+			float rim = smoothstep(0.7, 1.4, length(slope)) * cover;
+			behind *= 1.0 - 0.55 * rim;
 			float own = clamp(cover * 0.9 + wet * 0.25, 0.0, 0.95) * (1.0 - smoothstep(0.6, 1.0, f));
 			// The bright lights behind (signals, lamps, shop fronts) bloom in the water film.
 			vec3 hot = max(textureLod(open_screen, SCREEN_UV, 4.0).rgb - vec3(0.5), vec3(0.0));

@@ -1735,6 +1735,15 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   Headless has no mesh data: stand-in doors. `CAR_CABINS=0` the A/B; stills `CABIN=1 DOOR=` on
   car_shot.gd, `CABIN_STAGE=` on still_shot.gd; probe `tools/car_cabins/split_probe.tscn`; checks
   `tests/car_cabins_checks.gd`.
+- The driver's seat in the rain (wave 8, refcam `driver_rain` in `tools/refcams/cameras_w8.json`,
+  staged by its `cabin` key -> `tools/refcams/cabin_stage.gd`; docs/HANDOFF.md "The driver's seat in
+  the rain"): `DriverRain` (`scripts/vehicles/driver_rain.gd`, one hook in CarInterior) - the open
+  glass carries car_glass_wet's beads, runs and wiper arcs (`rain_inside`), each bead a small lens on
+  the screen texture, lights blooming in the film; the cabin catches the street light at night
+  (car_interior `night_fill`) and the screens go to night mode (`night_screens`); car lamp halos fade
+  within `halo_near` 12 m (car_lights.gdshader, set in `PropFactory.vehicle_light_material()`).
+  `DRIVER_RAIN=0` is the A/B (`CABIN_AB=1` saves it from the same load); checks
+  `tests/rc5_driver_rain_checks.gd`.
 - Car glass and drivers (2026-09-28: "every car on the street reads as a sealed toy, and traffic
   drives itself"): `CarCabin` (`scripts/vehicles/car_cabin.gd`). Every body with a glass slot
   (the road_* bodies, the exotics; the Meshy sports car has its glass in the paint and stays
