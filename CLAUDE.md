@@ -5222,6 +5222,16 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   deck shaded (ballpark_seats `night2`); players on the field; shrub medians (`planting2`); the far
   copy's palms. From that eye the city draws the FAR copy. `STADIUM_NIGHT=0` is the A/B; the park
   alone in a minute `tools/stadium_night/park_shot.tscn`; checks `tests/rc3_stadium_night_checks.gd`.
+- Friday night lights (2026-11-06, refcam `friday_lights` in tools/refcams/cameras_w8.json,
+  docs/HANDOFF.md "Friday night lights"): `FridayLights` (`scripts/world/friday_lights.gd`, hooks in
+  `Schools._track_kit()` and its "parking" arm): on a high school's game night each lit standard
+  throws a real SpotLight3D onto the field (`FridayRig`: energy off `DayNight.lamp_now` x lamp_scale,
+  none on the web) and blooms (stadium_bank_glow); players at a line of scrimmage, both benches and
+  officials (`line_up()`, pure) and seated fans on the home stands, baked crowd rigs in
+  BeachFigureMeshes; a school car park across a chunk border is built whole by the chunk owning its
+  centre (it was bare asphalt), full on a game night (`LotFill._car_park(..., fill_at)`).
+  `RC5_FRIDAY_LIGHTS=0` is the A/B; probe `tools/rc5_friday_lights/probe.gd`; checks
+  `tests/rc5_friday_lights_checks.gd`.
 
 - Historic core (2026-10-05, docs/HANDOFF.md "The historic core"): `HistoricCore`
   (`scripts/world/historic_core.gd`) dresses every Building fronting Spring St or Main St between

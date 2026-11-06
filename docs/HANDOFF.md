@@ -31669,3 +31669,57 @@ it is the slow-hit case. The pavement joint weeds (LawnsCloseup) stand in the fo
 low eye. Fluids are a flat quad (no decal), so a pool that reaches a kerb edge floats over the drop.
 Stills on `shots/rc5-crash-closeup`; car alone: `DAMAGE=pole55` on car_shot.gd. Checks:
 `tests/rc5_crash_closeup_checks.gd` (24).
+
+## 9nt. Friday night lights (wave 8 refcam5, rc5-friday-lights)
+
+New reference camera `friday_lights` (tools/refcams/cameras_w8.json): Harbor Crest High (Schools
+cell (6, -6), a game-night high school in the valley, x 4188-4264, z -3487..-3251 on seed 1337) at
+20:00 clear, from the north-east corner of its car park over the lot's low wall, looking NNW at
+the stadium (eye 4258, -3333, 1.7 m over the ground, yaw 26, pitch 6, fov 60). In frame: a parked
+car, people walking in past a hot dog cart (StreetVendors' own), the lit field and its players, the
+home stands on the far side of the track, three of the six light standards. `tools/rc5_friday_lights/probe.gd`
+lists every high school, its game night and its facilities.
+
+What gave it away (main, `01_before_friday_lights.jpg` on shots/rc5-friday-lights), worst first:
+
+1. **The car park did not exist.** Schools built a lot only where ONE chunk held the whole rect;
+   Harbor Crest's 30 x 36 m lot straddles the chunk border at z ~ -3330, so it was plain asphalt -
+   no stalls, no cars, no poles, no edge wall - and every school whose lot crosses a border had the
+   same hole. `FridayLights.car_park()` (the "parking" arm's `else`): the chunk owning the lot's
+   centre lays the whole lot (LotFill._car_park, as a `_run_last` step so the lot's poles take prop
+   ids after everything the chunk had), the other chunk lays its part of the asphalt 3 cm lower,
+   underneath (no hole if the owner is not built yet). On a game night every school lot is filled to
+   `LOT_FILL` 95 % (`LotFill._car_park(..., fill_at)`, after the roll: nothing else moves).
+2. **The lights lit nothing.** The six standards glowed and laid six additive pools on the turf: a
+   dim field with brighter blotches, the players' side of the stands black. Each lit standard now
+   throws a real SpotLight3D (58 degrees, 150 m, no shadow) from its head at its aim point
+   (`FridayLights.standard()`), so the turf, the track, the players, the stands, the posts are lit
+   by the renderer the way floods light them. `FridayRig` (one node a chunk) sets their energy from
+   `DayNight.lamp_now` x DayNight's `lamp_scale` (0 below MEDIUM) every 0.4 s and hides them at zero;
+   none on the web (the pools carry it there). They are not in `lamp_light` (DayNight casts those to
+   OmniLight3D). Spots fade out from 420 m.
+3. **Nobody was there.** No players, empty bleachers. Now: two teams at a line of scrimmage (seven
+   on the line, four back each side; the linemen bent into a set stance), both benches along the
+   sidelines, three officials (`line_up()`, pure: hashes of the school's cell) - crowd rigs posed
+   once and baked like the bonfire people (BeachGoer + CampFigure._bake) in a uniform recolour
+   (`_uniform()`: the school's colour over white, white over the colour, black over white for the
+   officials; character.gdshader's cloth / pants region colours, like the police and the crews); and
+   the home stands filled ~55 % (fuller at the 50) with BonfireFigure's clothed people in the camp
+   chair pose on the foot boards, 12 % standing. The beach chair pose was tried first: it reclines,
+   and every fan looked to be sliding down the rows. Both are BeachFigureMeshes (near bodies within
+   42 m, far bodies to 320 m, shadows to 60 m). No children: adult crowd rigs only.
+4. **The lamps did not read as on.** A bloom over each bank of lenses (StadiumNight's
+   stadium_bank_glow shader, 9 m, energy 0.85): the hot core and soft skirt that say "floodlights"
+   from the car park.
+
+Numbers (opengl3 refcam, this eye, merged with batch 58): p50 20 -> 26, p95 138 -> 143, crush
+17.5 % -> 11.1 %; triangles 4.57 M -> 5.08 M, draws 3058 -> 3201 (the fans' and players' looks a draw
+each per 32 m cell; the player rigs cut to three for it). Forward+ (lavapipe, the stadium's block
+alone from the south end of the track, 90 frames): luma p5/p50/p95 12/26/58 -> 26/49/135, nothing
+clipped. The ten original cameras off vs on: two flagged (street_noon, freeway), both only moving
+traffic (a bus, cars); every building pixel identical. `RC5_FRIDAY_LIGHTS=0` is the A/B (exactly
+main). The valley block round this school OOMs lavapipe at BLOCKS=1 (13 GB): use BLOCKS=home.
+
+Not done: the baked people do not react to gunfire (they have no bodies: a CampFigure body each
+would be ~460 nodes); the players stand still (no play runs); no visitors' stands (a school has one
+grandstand); no cars parked along the streets round the school on a game night.
