@@ -6,6 +6,8 @@ extends AnimatableBody3D
 ## round, a blast or a car finds it like anyone; then the rider becomes a live BeachGoer that takes
 ## the hit (and falls), and the bike goes tumbling on as debris.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 ## The meshes, frame by frame (one for a skater).
 var frames: Array = []
 ## Who it is (BeachFigure / BeachGoer: seed, crowd rig, suit) and the bike's paint.

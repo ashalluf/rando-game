@@ -8,6 +8,8 @@ extends RefCounted
 ## owned like a parked car: under the city root, in the chunk's `_cars`, freed with the chunk
 ## unless the player drove it off. `BOATS=0` (Boat.enabled): none.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 ## The two boats' places: [kind, metres south (+z) of the aisle's middle, metres out
 ## from the headwalk's water edge to the hull's side].
 ## How far over the water a boat is put down (m): its collision box clear of y 0.

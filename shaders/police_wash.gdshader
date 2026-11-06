@@ -54,7 +54,22 @@ varying float v_kind;
 varying float v_bank;
 varying vec3 v_cam;
 
+// PursuitLook's LED triple flash (police_lights.gdshader `pattern`; 0 = the old double flash).
+uniform float pattern = 0.0;
+// PursuitLook's pool (0 = the old soft dot): the light a bar `point_h` metres up throws on the road,
+// E ~ (1 + r^2/h^2)^-1.5 with r in metres (`pool_metres` the quad's size), so it is the colour round
+// the car fading within a few metres - the old dot was flat out to 13 m and, lit, drowned the frame
+// round a cruiser beside the camera.
+uniform float point_pool = 0.0;
+uniform float point_h = 2.6;
+uniform float point_gain = 0.12;
+uniform float pool_metres = 30.0;
+
 float strobe(float t, float start) {
+	if (pattern > 0.5) {
+		float u = t - start;
+		return step(0.0, u) * step(u, 0.42) * step(mod(u, 0.15), 0.12);
+	}
 	float a = step(start, t) * step(t, start + 0.09);
 	float b = step(start + 0.15, t) * step(t, start + 0.24);
 	return max(a, b);
@@ -125,6 +140,11 @@ void fragment() {
 			if (rc_soft > 0.0) {
 				pool = mix(pool, exp(-d * d * 3.2) * (1.0 - smoothstep(0.7, 1.0, d)) * rc_pool_gain, rc_soft);
 			}
+			if (point_pool > 0.5) {
+				vec2 m = (p - lean * 0.35) * pool_metres;
+				float e = pow(1.0 + dot(m, m) / (point_h * point_h), -1.5);
+				pool = e * (1.0 - smoothstep(0.2, 0.45, length(p))) * point_gain;
+			}
 			// Grows a little in the rain: the light carries in the wet air and on the wet road.
 			col = c * pool * pool_gain * (1.0 + 0.6 * road_wetness) * gain;
 			// The bar in the wet road: its mirror image at (0, -h, 0) seen from the camera lands on
@@ -158,6 +178,14 @@ void fragment() {
 			float across = exp(-q.x * q.x * 3.0) - exp(-3.0);
 			float up = UV.y;
 			float fall = max(across, 0.0) * exp(-max(up - 0.12, 0.0) * 3.2) * smoothstep(0.0, 0.06, up) * smoothstep(1.0, 0.8, up);
+			if (point_pool > 0.5) {
+				// PursuitLook: a lamp at bar height on a wall - bright at the foot level with the car,
+				// gone well inside the quad's sides and top, and a third as strong (on Forward+ the old
+				// one clipped to a flat red rectangle once the bank was lit most of the time).
+				float ax = max(1.0 - q.x * q.x, 0.0);
+				fall = ax * ax * ax * exp(-max(up - 0.05, 0.0) * 4.5) * smoothstep(0.0, 0.08, up);
+				fall *= 0.35;
+			}
 			col = c * fall * facing * wall_gain * (1.0 + 0.4 * rain_intensity) * gain;
 		}
 	}

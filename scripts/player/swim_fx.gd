@@ -9,6 +9,8 @@ extends RefCounted
 ## Built in code; the sounds are synthesized here (noise bursts and bubble chirps), since no CC0
 ## water recording is in the project and the sources are out of this build's reach.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 const DROP_COLOR := Color(0.86, 0.92, 0.96, 0.85)
 const FOAM_COLOR := Color(0.92, 0.95, 0.97, 0.9)
 const MIX_RATE := 22050

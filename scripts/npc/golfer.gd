@@ -18,6 +18,8 @@ extends Pedestrian
 ##   WAIT          standing by with a club (the idle clip, playing)
 ##   RIDE          seated in a golf cart (GolfLife's carts)
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 enum Role { DRIVE, IRON, PUTT, WAIT, RIDE }
 enum Club { DRIVER, IRON, PUTTER }
 

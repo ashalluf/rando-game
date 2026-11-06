@@ -16,6 +16,8 @@ extends RefCounted
 ## Nothing here rolls anything: every pattern is a hash of TRUE world position in the shader, so
 ## no seed's layout moves. BEACH_GOLDEN=0 is the A/B (the sand and the towers exactly as before).
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 static var enabled: bool = OS.get_environment("BEACH_GOLDEN") != "0"
 
 ## The tower's vertex-alpha codes (beach_props.gdshader: round(alpha * 20)).

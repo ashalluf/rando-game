@@ -12,6 +12,8 @@ extends RefCounted
 ## LaTrees' broad crown starts a metre over its fork - a lollipop, not a mound. Built once per
 ## variant and cached; warmed on the loading screen with LaTrees (warm()).
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 const VARIANTS := 3
 ## Native height (metres, the leaves' top); instances are scaled to the planted height. The dome
 ## is grown to CROWN_TOP and its sprigs stand out over it to about this.

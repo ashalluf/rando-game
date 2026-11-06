@@ -23,6 +23,8 @@ extends RefCounted
 ## ground), so their y is the pavement's top less a little, like the pumpjacks'. OIL_PLANTING=0 is
 ## the A/B.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 static var enabled: bool = OS.get_environment("OIL_PLANTING") != "0"
 
 ## Metres of bare ground kept from a lease road's edge (the pipe rack at 1 m, the poles at 3.2 m),

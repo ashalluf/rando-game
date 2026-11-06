@@ -12,6 +12,8 @@ extends RefCounted
 ## Same shape of data as HillRoads: seeded polylines with a smoothed height profile, a cell
 ## index for "what passes through this chunk", and everything in true world XZ.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 ## Deck width (both carriageways plus the median) and how far above the ground it rides.
 const DECK_WIDTH := 34.0
 const DECK_THICKNESS := 1.4

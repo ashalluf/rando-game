@@ -50,20 +50,31 @@ func _process(_delta: float) -> void:
 	if not _running:
 		return
 	var t0 := Time.get_ticks_msec()
+	LoadPulse.compile_total = _order.size()
 	while _next < _order.size() and Time.get_ticks_msec() - t0 < BUDGET_MS:
 		var a := Time.get_ticks_msec()
+		LoadPulse.compile_base = _next
+		LoadPulse.compiled_count = 0
+		LoadPulse.compile_mark()
 		load(_order[_next])
 		var ms := Time.get_ticks_msec() - a
 		if ms > 2000:
-			print("LOADING compile: %s took %d ms (the game's big dependency cycle)" % [_order[_next].get_file(), ms])
+			print("LOADING compile: %s took %d ms (the game's big dependency cycle: %d scripts, a frame between each; longest step %d ms)" % [_order[_next].get_file(), ms, LoadPulse.compiled_count, LoadPulse.compile_max_gap_us / 1000])
 		_next += 1
-	LoadPulse.note("%d / %d scripts" % [_next, _order.size()])
+	LoadPulse.compile_progress(_next, _order.size())
 	LoadPulse.paint()
 	if _next < _order.size():
 		return
 	_running = false
+	LoadPulse.compile_total = 0
 	LoadPulse.note("")
 	LoadClock.stop("compile the game")
+	# BOOT_QUIT=1 (tools/load_time/load_time.sh boot): stop here and report the boot's frames.
+	if OS.get_environment("BOOT_QUIT") == "1":
+		print("LOADING boot frames: %d presented inside loops, longest gap between frames %d ms in '%s'" % [
+				LoadPulse.pulses, LoadPulse.max_gap_ms, LoadPulse.max_gap_stage])
+		get_tree().quit()
+		return
 	# Every spatial shader compiled now, one a frame with the picture moving (LoadPulse
 	# .compile_shaders: Godot compiles a material shader the first time a surface uses it and the
 	# main thread waits for it there - during the city build that was a 2-15 s frozen frame per new

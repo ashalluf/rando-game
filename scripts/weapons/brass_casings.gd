@@ -11,6 +11,8 @@ extends MultiMeshInstance3D
 ## fires ten a second, and ten physics bodies a second is not what a cartridge case is worth.
 ## The node lives under the scene root, so the origin re-centre shifts it with everything else.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 ## How many cases can be in the world at once (the oldest is reused past this).
 @export var max_cases: int = 48
 ## Seconds a case lies on the ground before it shrinks away.

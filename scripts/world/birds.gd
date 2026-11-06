@@ -19,6 +19,8 @@ extends Node3D
 ## (Pedestrian.alarm) startles every flock in reach. A shot bird drops in a puff of feathers and
 ## lies where it falls; the police do not care.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 enum Mode { STAND, WALK, PECK, SQUABBLE, TAKEOFF, FLY, LAND, PERCH, DEAD }
 enum FlockState { GROUND, AIR, PERCHED }
 

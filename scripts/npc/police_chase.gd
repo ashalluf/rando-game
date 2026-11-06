@@ -25,6 +25,8 @@ extends Node
 ## Nothing here rolls a random number from a seed stream: roles are by distance, sides by geometry,
 ## the radio's babble is a hash of a counter. `POLICE_CHASE=0` in the environment is the A/B.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 enum Role { NONE, BOX, PIT, FLANK }
 
 static var enabled: bool = OS.get_environment("POLICE_CHASE") != "0"

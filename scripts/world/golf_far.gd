@@ -7,6 +7,8 @@ extends RefCounted
 ## bunkers, the range and the pond, lifted a little over the plate; the course's trees as
 ## canopies standing on the real ground; the clubhouse comes with the capture (HouseKit's boxes).
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 ## Far colours (linear, like CityChunk.far_tint()).
 const ROUGH_FAR := Color(0.105, 0.17, 0.065)
 const FAIRWAY_FAR := Color(0.16, 0.27, 0.085)

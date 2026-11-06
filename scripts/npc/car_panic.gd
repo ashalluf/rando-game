@@ -29,6 +29,8 @@ extends RefCounted
 ## person hit. Kinds are rolled from a hash of the car and the alarm, never the traffic's rng.
 ## `CAR_PANIC=0` in the environment turns it off (the A/B).
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 static var enabled: bool = OS.get_environment("CAR_PANIC") != "0"
 
 enum Kind { BRAKE, SWERVE, KERB, REVERSE, ABANDON, FLOOR, ROUND, YIELD }

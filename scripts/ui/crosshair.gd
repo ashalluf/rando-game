@@ -4,6 +4,8 @@ extends Control
 ## holds a lock (Player.lock_on). A hit marker flashes on it when a round lands: four short
 ## diagonal strokes, white on a car or a thing, red on a person (`mark_hit()`, called by the guns).
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 @export var color: Color = Color(1, 1, 1, 0.9)
 @export var lock_color: Color = Color(1.0, 0.22, 0.18, 1.0)
 @export var radius: float = 7.0

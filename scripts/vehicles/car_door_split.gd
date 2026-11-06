@@ -19,6 +19,8 @@ extends RefCounted
 ## is not kept by the headless dummy renderer: there a job finishes at once with no doors
 ## (`real` false), and CarInterior builds its cabin and door cards without the skin.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 ## Door outlines in (along, height) metres, per body type: "front" the front shut line from the
 ## belt down to the sill, "rear" the rear shut line's along (the B-pillar), "sill" its foot; or
 ## "poly" a whole outline (the van's cab door, whose groove runs up its frame to the roof).

@@ -18,6 +18,8 @@ extends RefCounted
 ## the chunk (DecoBoulevard.frame_xform()). Every roll is the plan's (DecoBoulevard), so nothing
 ## here draws a random number.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 const ORN_SHADER := preload("res://shaders/deco_ornament.gdshader")
 
 ## Ornament kinds (shaders/deco_ornament.gdshader).

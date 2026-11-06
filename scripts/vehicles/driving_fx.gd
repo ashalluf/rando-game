@@ -21,6 +21,8 @@ extends Node3D
 ## segments, faded over `mark_life` seconds in the shader. Flat quads, not Decals: one draw for
 ## every mark in the city, the same on both renderers, and at a grazing angle a 2 cm lift holds.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 ## The node (one a scene). Tests and stills read it.
 static var _inst: DrivingFX = null
 ## Turns the whole layer off (`DRIVING_FX=0` in the environment is the A/B).

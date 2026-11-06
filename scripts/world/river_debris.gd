@@ -10,6 +10,8 @@ class_name RiverDebris
 ## wheels' notice), one batch per kind: `rv_tuft_<v>` / `rv_mustard` (VacantKit's weeds, shadowless) and `rv_litter_<piece>`. Off with
 ## RIVER_LOOK=0 (RiverLook.enabled()).
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 ## Bed joints across the river every PANEL metres (river_concrete.gdshader panel_pitch) and along it
 ## every LANE metres from the bed's edge (the shader's 6 m lines).
 const PANEL := 9.2

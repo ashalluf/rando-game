@@ -18,6 +18,8 @@ extends Node3D
 ##
 ## Out of range, or out, it stops emitting and hides; the ring itself is the chunk's batch.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 ## Seconds between looks at the clock and the camera.
 const CHECK_SECONDS := 0.8
 ## The particles burn only within this of the camera (m); the stack and the pool draw further.

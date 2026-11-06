@@ -21,6 +21,8 @@ extends RefCounted
 ## cruiser its crew, the car the player drives the player; parked cars are empty, and a car that
 ## catches fire is abandoned (Vehicle._cabin_seats()).
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 const GLASS_SHADER := preload("res://shaders/car_glass.gdshader")
 const PANE_CAP := 16
 ## The pane kinds (pane[3]; the damage shader reads them too): tempered side and rear glass, the

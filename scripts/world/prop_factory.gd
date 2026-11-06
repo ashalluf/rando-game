@@ -4,6 +4,8 @@ extends RefCounted
 ## repeated bits (dashes, stripes, lamps, trees), real CC0 models (Poly Haven, see
 ## docs/ASSETS.md) for the things the player gets close to: model_* below.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 static var _cache: Dictionary = {}
 
 
@@ -1094,6 +1096,7 @@ static func light_pool(tint: Color = Color(1.0, 0.84, 0.58), strength: float = 1
 	mat.set_shader_parameter("tint", tint)
 	mat.set_shader_parameter("strength", strength)
 	mat.set_shader_parameter("falloff", falloff)
+	mat.set_shader_parameter("street_compat", NightGround.pool_compat())
 	mesh.material = mat
 	_cache[key] = mesh
 	return mesh

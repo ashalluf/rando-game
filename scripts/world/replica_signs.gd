@@ -7,6 +7,8 @@ extends RefCounted
 ## limit plates and a couple of bus stops. Designs are generic road-sign shapes and wording; no
 ## real agency's marks. Everything is a breakable prop (CityChunk._add_prop) seeded by position.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 ## Height of the plates' centres above the pavement.
 const PLATE_Y := 2.35
 ## Where the roundabout warning stands ahead of the ring, metres of path.

@@ -10,6 +10,8 @@ extends RefCounted
 ## paint, lettering, collision and the trucks; LOD and the far city: the canopy, booths and office
 ## as boxes. The terminal's name is invented.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 const LANES := 8
 const OUT_LANES := 2
 const NAME := "BASIN HARBOR TERMINAL"

@@ -31,6 +31,8 @@ extends Node
 ## NIGHT_HAZE=<0..1> holds the haze for stills. NIGHT_ATMOS=0 in the environment is the A/B: no halo or shaft instances, no car halo quads, no
 ## fog change, the global's halo gain 0.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 static var enabled: bool = OS.get_environment("NIGHT_ATMOS") != "0"
 
 const HALO_KEY := "atmos_glow_halo"

@@ -33,6 +33,8 @@ extends RefCounted
 ## car park and the ROUNDWOOD block letters; drop RD_PLANK_STEP, RD_RAIL_POST_STEP or
 ## RD_ARC_STEPS to claw any of it back.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 # --- Shared ----------------------------------------------------------------------------------
 
 ## Seed salt so both piers' random detail is stable for a given anchor.

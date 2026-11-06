@@ -16,6 +16,8 @@ extends RefCounted
 ## Pedestrian._random_ring_point() / _ring_route() (`open_ground`). Every roll is the walker's own
 ## stream. PLAZA_CROWD=0 in the environment is the A/B (the crowd exactly as before).
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 static var enabled: bool = OS.get_environment("PLAZA_CROWD") != "0"
 
 ## A crowd rect narrower than this either way is a strip (a forecourt, a station's walk): its

@@ -15,6 +15,8 @@ extends RefCounted
 ## IndustrialKit.place(). Every roll is a hash of the plan seed, the block, the run, the side and
 ## the face (Alleys._rng), never a chunk or block rng.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 ## Door, lamp and stencil colours (sRGB).
 const DOOR_PAINT := [Color(0.42, 0.43, 0.43), Color(0.30, 0.22, 0.16), Color(0.46, 0.14, 0.11), Color(0.16, 0.30, 0.30), Color(0.17, 0.22, 0.38), Color(0.62, 0.60, 0.55)]
 const CART_PAINT := [Color(0.10, 0.26, 0.55), Color(0.07, 0.07, 0.08), Color(0.13, 0.33, 0.15)]

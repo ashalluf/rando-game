@@ -7,6 +7,8 @@ extends Node3D
 ## swimmer's), CPUParticles3D in world space; emitters ride the water's surface under the hull.
 ## One node per boat; nothing runs past `fx_range` of the camera or while the boat is still.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 ## Beyond this distance from the camera no particles are emitted.
 const FX_RANGE := 160.0
 ## Kelvin's wake half-angle (radians).

@@ -11,6 +11,8 @@ class_name OceanCloseup
 ##
 ## apply(mat) is called by Weather when it pushes the coast to the ocean material.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 ## The most pile grids the shader takes (ocean_closeup.gdshaderinc PILE_GRIDS).
 const MAX_GRIDS := 12
 

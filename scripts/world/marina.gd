@@ -21,6 +21,8 @@ extends RefCounted
 ## basin's west wall out past the waterline. The coast highway crosses the channel on a bridge
 ## (MarinaBuild; its own strip has a gap there, `pch_gap()`).
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 ## The site, in road terms: the roads nearest these lines bound it (they stay open; everything
 ## between them is the marina's). Between Venice's boardwalk and the airport fence, behind the sand.
 const SITE_WEST_X := -824.0

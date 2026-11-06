@@ -6,6 +6,8 @@ extends Node
 ## `min_seconds`, once it lies still, at most `max_seconds`. No damage: the hero is overpowered,
 ## the fall is the show. Off for the duration: his input, his gun, his collision.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 ## Seconds the body tumbles at least and at most before he is back on his feet.
 @export var min_seconds: float = 1.3
 @export var max_seconds: float = 4.0

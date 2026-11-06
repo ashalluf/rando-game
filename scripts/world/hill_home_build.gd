@@ -8,6 +8,8 @@ extends HouseBuild
 ## cantilever, the deck and its cable rail, the pool, stairs down the bank, terraced gardens, the
 ## garage on stilts at the road, trees.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 ## The pad's top plus HouseKit.FLOOR_LIFT: every wing's `y` is over this.
 var g0: float = 0.0
 var top: float = 0.0

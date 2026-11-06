@@ -14,6 +14,8 @@ extends RefCounted
 ##
 ## Frame: +z is the road (the podium's lettered face), x along the kerb, y up from the pavement.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 ## The operators (invented), one per stand by hash.
 const OPERATORS := ["GOLDLINE VALET", "SILVER KEY", "CURBSIDE COURT", "BRASS & KEY", "ORCHID VALET"]
 ## The posted rates a sign can carry (dollars).

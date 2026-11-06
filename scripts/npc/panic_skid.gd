@@ -6,6 +6,8 @@ extends Node3D
 ## car; it frees itself once the car is slow, out of its panic, pooled or wrecked. Traffic cars
 ## are kinematic and have no wheels for DrivingFX to read, so this is the stop's only rubber.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 var car: Vehicle
 var strength: float = 0.8
 var _voice: AudioStreamPlayer3D

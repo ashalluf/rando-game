@@ -8,6 +8,8 @@ class_name Rc4Canals
 ##   mirrored house was washed out. canal_water.gdshader's `rc4` turns the engine's specular off
 ##   there, calms the ruffle to a glassy mirror and makes the body murky green-brown.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 ## The whole pass (`RC4_CANALS=0` turns it off).
 static var enabled: bool = OS.get_environment("RC4_CANALS") != "0"
 

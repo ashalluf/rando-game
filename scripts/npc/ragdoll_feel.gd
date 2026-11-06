@@ -21,6 +21,8 @@ extends RefCounted
 ## The cap, the range and the freeze are RagdollJoints' and unchanged. RAGDOLL_FEEL=0 in the
 ## environment is the A/B (the joints' own fling and nothing per step).
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 ## Off with RAGDOLL_FEEL=0.
 static var enabled: bool = OS.get_environment("RAGDOLL_FEEL") != "0"
 

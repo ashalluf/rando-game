@@ -24,6 +24,8 @@ extends Vehicle
 ## zero it blows up (Explosion.blast), throws the driver out, burns and sinks stern first, and
 ## goes once it is under. `BOATS=0` in the environment: no boats (the A/B, BoatMoorings).
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 @export_group("Boat")
 ## Thrust at full throttle as an acceleration (m/s^2); boost multiplies it (nitro_multiplier).
 @export var thrust_accel: float = 7.0

@@ -56,6 +56,11 @@ uniform float smear2_share = 0.4;
 uniform float smear2_max = 6.0;
 uniform float gain2 = 0.62;
 uniform float gain2_forward = 0.28;
+// RcStorm (the storm_downtown refcam): 0..1 a storm's rain beating the water. The column is broken
+// into short pitted runs and dimmed - a wind-whipped, rain-pocked road never holds a lamp's long
+// bright streak. 0 the streak exactly as before.
+uniform float storm = 0.0;
+uniform float storm_gain = 0.5;
 
 varying float v_amp;
 varying float v_peak;
@@ -100,6 +105,9 @@ void vertex() {
 		vec2 pw = l2 ? foot.xz + u * rd : p0;
 		float w = l2 ? max(width2_min, width2_share * length(vec3(pw.x, foot.y, pw.y) - cam))
 			: max(width_min, width_share * length(vec3(p0.x, foot.y, p0.y) - cam));
+		if (l2) {
+			w *= 1.0 + 0.7 * storm;
+		}
 		if (!l2) {
 			w *= 1.0 + flare * clamp((s - rd) / max(s1 - rd, 1e-3), 0.0, 1.0);
 		}
@@ -146,7 +154,7 @@ void fragment() {
 	if (look2 > 0.5) {
 		// A soft column with a narrower hot core; the peak a little short of the mirror point's
 		// far side, a short rise from the lamp's end and a long fall toward the eye.
-		float core = exp(-across * across * 16.0);
+		float core = exp(-across * across * 16.0) * (1.0 - 0.6 * storm);
 		float body = exp(-across * across * 3.2);
 		float along2 = t < pk ? smoothstep(0.0, 1.0, t / pk) * (0.35 + 0.65 * t / pk) : exp(-2.6 * (t - pk) / max(1.0 - pk, 1e-3));
 		along2 *= smoothstep(1.0, 0.8, t) * smoothstep(0.0, 0.12, t);
@@ -161,6 +169,11 @@ void fragment() {
 		float rag = 0.75 + 0.5 * rows;
 		body = exp(-across * across * 3.2 / (rag * rag));
 		a = (body * 0.5 + core * 0.7) * along2 * mix(1.0, glint * patch, 0.9);
+		if (storm > 0.0) {
+			float pits = nw_noise(vec2(v_sm.y * 6.0 + 1.7, v_sm.x * 2.4 + TIME * 3.1));
+			float runs = smoothstep(0.25, 0.75, nw_noise(vec2(v_sm.y * 0.9, v_sm.x * 0.55 - TIME * 0.8)));
+			a *= mix(1.0, storm_gain * (0.3 + 1.4 * pits) * (0.35 + 0.9 * runs), storm);
+		}
 		// The hot middle washes toward white, the way a bright light burns through its own colour.
 		float m = max(max(v_col.r, v_col.g), max(v_col.b, 1e-3));
 		col = mix(v_col, vec3(m) * vec3(1.0, 0.93, 0.82), 0.35 * core * along2);
