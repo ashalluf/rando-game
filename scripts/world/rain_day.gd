@@ -77,9 +77,11 @@ static var _pushed: float = -1.0
 
 
 ## DayNight's one call a frame: the after-dark lamp level and the road's day weight.
-static func publish(night_lamps: float) -> void:
+## `dusk_lamps` (RainDusk.mirror_lamps(), refcam bus_stop_rain): under a rain deck at dusk the street
+## already mirrors the lit city, not the canyon of daylit fronts; it moves the road's mirror only.
+static func publish(night_lamps: float, dusk_lamps: float = 0.0) -> void:
 	night_lamp = night_lamps
-	var w := day_weight(night_lamps)
+	var w := day_weight(maxf(night_lamps, dusk_lamps))
 	if absf(w - _pushed) > 0.0005 or (w == 0.0 and _pushed != 0.0):
 		_pushed = w
 		RenderingServer.global_shader_parameter_set("rain_day", w)

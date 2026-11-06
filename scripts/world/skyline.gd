@@ -41,7 +41,8 @@ extends Node3D
 static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
 
 ## Blocks per tile edge. Bigger means fewer draw calls and coarser culling granularity.
-const TILE_BLOCKS := 6
+## FAR_TILE_BLOCKS=n tries another size (perf audit 6).
+static var TILE_BLOCKS: int = int(OS.get_environment("FAR_TILE_BLOCKS")) if OS.get_environment("FAR_TILE_BLOCKS") != "" else 6
 ## Points a hill block tries a planting at (HillPlanting reads what the terrain paints there: a
 ## hollow on a gentle canyon floor gets an oak or a sycamore, everything else nothing). At full
 ## cover, falling to zero at the rock line.
@@ -679,6 +680,7 @@ func _planting_node(node_name: String, mesh: Mesh, veg: Array, veg_colors: Array
 	node.name = node_name
 	node.multimesh = mm
 	node.material_override = _canopy
+	PerfSix.planting_bias(node, mesh, veg)
 	node.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	node.gi_mode = GeometryInstance3D.GI_MODE_DISABLED
 	# The shader moves every clump by up to tens of metres, so the MultiMesh's own bounds (built

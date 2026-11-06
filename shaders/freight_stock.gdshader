@@ -29,6 +29,11 @@ uniform float board_energy = 2.2;
 uniform float rc4 = 0.0;
 uniform sampler2D tag_atlas : filter_linear_mipmap, repeat_disable;
 uniform float tag_odds = 0.8;
+// The freight trench refcam (RcFreightTrench; 0 with RC5_FREIGHT_TRENCH=0, the old look bit for
+// bit): a locomotive's top seen from a bridge - the sun fade held off its red (faded red went
+// salmon pink under AgX), diesel soot round the stacks and blown back along the roof, the roofs
+// and the nose top grimed, the radiator fans drawn as guards over blades.
+uniform float rc5 = 0.0;
 
 varying vec3 mp;
 varying vec3 mn;
@@ -160,6 +165,12 @@ void fragment() {
 		metal = 0.05;
 	} else if (part == 12 || part == 7) {
 		rough = 0.55;
+		if (rc5 > 0.5 && lamps > -0.5) {
+			// A locomotive's red and sand deepened to a worn oxide and a dusty tan: the bright
+			// livery went salmon pink and cream in the sun under AgX.
+			float redness = smoothstep(0.08, 0.35, vc.r - vc.g);
+			alb = vc * mix(0.82, 0.6, redness);
+		}
 	} else if (part == 1) {
 		// Dark steel, rusted where the weather sits.
 		float r = vn(mp.xz * 3.0 + mp.y * 2.0 + seed * 9.0);
@@ -223,6 +234,23 @@ void fragment() {
 		// Grilles and louvres: dark slats.
 		float slat = smoothstep(0.35, 0.65, fract(mp.y * 22.0 + mp.z * 0.0));
 		alb = vc * (0.6 + 0.6 * slat);
+		if (rc5 > 0.5 && lamps > -0.5 && mn.y > 0.9) {
+			// A roof fan (radius 0.78, centred on x 0, z 7.5 or 9.25): a guard of rings and
+			// spokes over dark blades, the hub; its average past a pixel.
+			float zc = mp.z < 8.375 ? 7.5 : 9.25;
+			vec2 d = vec2(mp.x, mp.z - zc);
+			float r = length(d);
+			float fwr = fwidth(r) + 1e-4;
+			float ring = 1.0 - smoothstep(0.012, 0.012 + fwr, abs(fract(r / 0.09) - 0.5) * 0.09);
+			float ang = atan(d.y, d.x);
+			float spoke = 1.0 - smoothstep(0.015, 0.015 + fwr, abs(fract(ang / 6.2832 * 8.0) - 0.5) * r * 6.2832 / 8.0);
+			float blade = smoothstep(0.2, 0.5, fract(ang / 6.2832 * 4.0 + r * 0.4));
+			float det = 1.0 - smoothstep(0.02, 0.08, fwr);
+			vec3 fan = mix(vec3(0.012), vec3(0.035), blade * det);
+			fan = mix(fan, vec3(0.09, 0.09, 0.085), max(ring, spoke) * det * 0.9 + (1.0 - det) * 0.25);
+			fan = mix(fan, vec3(0.06), 1.0 - smoothstep(0.14, 0.16, r));
+			alb = fan;
+		}
 		rough = 0.6;
 		metal = 0.4;
 	} else if (part == 9) {
@@ -263,6 +291,9 @@ void fragment() {
 			alb = mix(alb, rust_color, streak * from_top * wear * 0.75);
 			// Sun-faded: lighter and greyer with wear, more on top.
 			float fade = wear * (0.18 + 0.25 * up);
+			if (rc5 > 0.5 && lamps > -0.5) {
+				fade *= 0.35;
+			}
 			alb = mix(alb, vec3(dot(alb, vec3(0.33))) * 1.35, fade);
 			// Soot and dust on the roof.
 			alb = mix(alb, grime_color * 1.3, up * (0.25 + 0.5 * vn(mp.xz * 1.3 + seed * 5.0)) * (0.4 + wear));
@@ -274,6 +305,22 @@ void fragment() {
 				rough = mix(rough, 0.8, spill);
 			}
 		}
+	}
+
+	if (rc5 > 0.5 && lamps > -0.5 && part != 3 && part != 4 && part != 13 && part != 14 && part != 6) {
+		// A locomotive's top: grimed, and diesel soot from the stacks (z 1.0-2.6) blown back along
+		// the roof over the radiators, the long hood's sides darkened under them.
+		float up = smoothstep(0.4, 0.9, mn.y);
+		float hi = smoothstep(3.6, 4.4, mp.y);
+		float gr = up * (0.5 + 0.35 * vn(mp.xz * 2.1 + seed * 7.0)) * (0.7 + 0.3 * wear);
+		alb = mix(alb, grime_color * 0.42, clamp(gr, 0.0, 0.78));
+		float zr = mp.z - 1.0;
+		float plume = smoothstep(-0.4, 0.4, zr) * (1.0 - smoothstep(1.6, 9.5, zr));
+		float width = 0.45 + 0.08 * zr;
+		float core = 1.0 - smoothstep(width * 0.5, width, abs(mp.x + 0.12 * sin(zr * 0.9 + seed * 6.0)));
+		float soot = plume * core * hi * (0.55 + 0.45 * vn(vec2(mp.x * 3.0, mp.z * 1.2) + seed * 3.0));
+		alb = mix(alb, vec3(0.012, 0.011, 0.010), clamp(soot * 1.1, 0.0, 0.92));
+		rough = mix(rough, 0.9, soot);
 	}
 
 	vec3 n_tilt = vec3(0.0);

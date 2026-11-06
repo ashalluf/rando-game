@@ -32,6 +32,10 @@ uniform float stone_relief = 0.65;
 // flat-faced stones of varied size with dark crevices between them - instead of round domes, which
 // from eye height read as a cobbled street.
 uniform float rc4 = 0.0;
+// The freight trench refcam (RcFreightTrench, 1 unless RC5_FREIGHT_TRENCH=0): the mainline's ballast
+// (UV2.y 1: the trench and the median) keeps its crevices' shadow once the stones are under a pixel
+// (their mean had none: a pale flat field), is mottled at 0.3-2 m and fouled brown by the traffic.
+uniform float rc5 = 0.0;
 
 varying vec3 tw;
 varying vec3 wn;
@@ -174,6 +178,18 @@ void fragment() {
 			stone = mix(stone, base * 0.18, crevice * 0.85);
 			// Under a pixel, the stones' mean with the crevices' share of shadow.
 			vec3 mean_col = base * 0.86;
+			bool main_bed = rc5 > 0.5 && UV2.y > 0.95;
+			if (main_bed) {
+				// The crevices' share of shadow in the mean, clumps of stone and fines, and the
+				// mainline's fouling: brown from brake dust and spilled grain, darker toward the rails.
+				float clump = vnoise(tw.xz * 3.1) * 0.55 + vnoise(tw.xz * 0.7 + 4.2) * 0.45;
+				mean_col = base * (0.42 + 0.3 * clump);
+				stone *= 0.78 + 0.3 * clump;
+				float foul = smoothstep(0.3, 0.8, vnoise(tw.xz * vec2(0.5, 0.18) + 1.3));
+				vec3 fouled = mix(base, dust_color * 1.9, 0.45 + 0.35 * foul);
+				mean_col = mix(mean_col, fouled * (0.55 + 0.3 * clump), 0.45);
+				stone = mix(stone, stone * fouled / max(base, vec3(0.001)), 0.3);
+			}
 			vec3 rk_col = mix(mean_col, stone, det);
 			rk_col = mix(rk_col, dust_color, clamp(near_rail * (0.35 + 0.4 * n1) * UV2.y, 0.0, 0.8));
 			rk_col = mix(rk_col, oil_color, clamp(mid * smoothstep(0.35, 0.8, n1 * 0.7 + n2 * 0.3) * 0.7 * UV2.y, 0.0, 0.85));
