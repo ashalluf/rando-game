@@ -31848,8 +31848,13 @@ gone); triangles 1.68 M -> 2.26 M (camera 1.16 -> ~1.52 M, shadows 0.52 -> 0.74 
 688. The rise is the trail chunks' finer terrain (the hill shells draw the same mesh in layers) and
 only where the trail's chunks are FULL; elsewhere nothing changes. Load peak 3.7 GB.
 
-**Stills** (shots/rc5-reservoir-dam): 01 before at the camera's eye (main), 02 after; 03 before
-from the trail 3 m back (the fence's stretched weave, the flat trail), the after set.
+**Stills** (shots/rc5-reservoir-dam): 03 before at the camera's eye (main: no overlook, the eye
+over the bank), 04 after; 01 / 05 the water fix alone from a first overlook site; 02 the trail and
+its fence on main; 06 the graded bank without the pillows.
+
+**The ten original cameras** (cameras.json, main c2fcfcef against this branch): nine within every
+tolerance (pixel MAD 0.01-1.52); `freeway` flagged (p50 -7) for its live traffic only - different
+cars on the deck in each run, the road, barriers and towers identical.
 
 **Tools.** `tools/rc5_reservoir/trail_probe.tscn` prints the trail every few metres with its
 distance and bearing to the dam, and the overlook with the camera's EYE (headless, seconds).
