@@ -3816,6 +3816,12 @@ already mapped so milestone 2 is script-only.
   be drawn on it too. Beads seen from the seat are drawn larger than outside (bead_scale): true size
   is under the pixel there. Car lamp halos are the air between lamp and eye, so they fade out within
   12 m rather than 5. DRIVER_RAIN=0 is the A/B.
+- **2026-11-06 The Alameda trench at noon (rc5-freight-trench, HANDOFF "The Alameda trench at
+  noon").** A trench is judged from a bridged cross street, where its walls, floor and the trains'
+  roofs fill the frame: the walls carry their construction (panels, tie holes, weep holes) and its
+  use (diesel soot, dust, graffiti), the ballast reads as stone at any distance, and a locomotive's
+  top is as finished as its side. A one-sided wall that is buried must still cast (double-sided).
+  RC5_FREIGHT_TRENCH=0 is the A/B.
 
 - **2026-11-06, Spring St at 16:00 (rc5-historic-core).** A building's wall photo is detail round
   its colour, never a second albedo multiplied in: the historic fronts' walls drew at half the
@@ -4222,6 +4228,14 @@ none of either.
   material are merged (the knee-high plants: sunset -37 % draws); palm shadow twins follow the
   trees' shadow LOD rule (the one cut that moves pixels: frond-shadow speckle at 100+ m). All
   behind HORIZON_TILES / FAR_COVER_HIDE / PLANT_MERGE / PALM_SHADOW_LOD =0.
+- **2026-11-06 Perf audit 6: count what the GPU draws, not what the counter says (perf-audit-6,
+  HANDOFF "Perf audit 6").** All 44 refcams measured after wave 7. The renderer's counter counts a
+  MultiMesh with LODs once per draw, so foliage, props, the facade kit and the roof units were
+  invisible to every earlier audit; `TRUE=1` counts them per instance. Decisions: the far city's
+  canopies get a sub-pixel coarse level; the rooftop AC units (4.7k triangles each, no lighter
+  caster) cast from their proxy; non-foliage shadow twins take the shadow LOD scale; splitting
+  foliage batches into LOD cells saves the most triangles of all (-15 to -40 % of the foliage) but
+  costs +8-50 % draws, so it ships off (`FOLIAGE_CELLS=1`) until it is judged on the Mac.
 - **2026-11-02 Perf audit 5: what casts a shadow is lighter than what is drawn (perf-audit-5,
   HANDOFF "Perf audit 5").** Wave 4 put the frame back over Perf audit 4's numbers mostly through
   shadows: the near car wheel (12-14k triangles, no LODs, every cascade) on a freeway now full of
@@ -4872,6 +4886,67 @@ none of either.
   Vehicle.PAINTS: a lot of cars side by side is where a third saturated reads as toys. The roof
   is precast double tees with sealed joints, so the deck shader draws that structure rather than a
   noise. RC5_CAR_PARK_ROOF=0 is the A/B.
+- 2026-11-06 (rc5-yard-sale): a yard sale must read as one from across the street - the tables
+  crammed in two rows with a stash underneath, a pop-up canopy over a table on a share of sales
+  (the silhouette), a blanket of things on the lawn. The new kinds join the row after the old ones,
+  so nothing else of a sale's plan or of the street moves. RC5_YARD_SALE=0 is the A/B.
+- **2026-11-06 A club takes its sign band; a searchlight starts at its lens (rc5-club-line, HANDOFF
+  "A club's line at 23:30").** A new reference camera (`club_line`, wave 8's table) across 6th St
+  from AFTERGLOW at 23:30. A venue that dresses a shop owns that shop's sign band (a club's fascia
+  board stands over Building's, hiding its name), and a beam is drawn from the lamp: a shaft fades
+  up into the sky, never in from a start 34 m up. RC5_CLUB_LINE=0 is the A/B.
+- **2026-11-06 The reservoir_dam refcam: a lake mirrors what stands round it (rc5-reservoir-dam,
+  HANDOFF "Lake Shallufer's dam from the lake trail").** A new reference camera (`reservoir_dam`,
+  wave 8's table) on an overlook of the east lake trail at 10:30, looking at the arch dam.
+  Decisions: a traced water mirror owns the reflection - the engine's own sky reflection is off
+  where the trace draws something (all of it on Compatibility), or the sky is added twice and the
+  lake turns into a cyan pool; what stands at the water (the dam's face, its towers) is traced as
+  geometry, not as a ridge table; a 3 m bench needs terrain vertices finer than 3 m (the trail's
+  chunks sample at 64 a side) and graded banks, never a smooth blend; the lake fence gets an overlook
+  where the view is, built in the dam's own balustrade; chain-link UVs are true metres whatever an
+  instance's stretch (a city-wide fix). RC5_RESERVOIR=0 is the A/B.
+- **2026-11-06 The film_shoot_night refcam: a set's lamps light the night (rc5-film-shoot-night,
+  HANDOFF "The film shoot at 22:00").** A new reference camera (`film_shoot_night`, wave 8's table)
+  behind the north barricades of the Crest Ave shoot, a 26 degree lens down the closed street. A lamp
+  that is part of a scene must LIGHT it, not only glow: the HMIs were bright lenses lighting nothing,
+  so each now carries a SpotLight3D aimed at the action (driven off DayNight.lamp_now by its own
+  node: `lamp_light` is OmniLight3D-only), a bloom, a faint haze shaft and the pool it throws, the
+  balloon's light is a balloon's (wide, several street lamps), the basecamp has work lights; the
+  location crew clears the set's pavement of scooters; retroreflective sheeting is not a lightbox.
+  FILM_SHOOT_NIGHT=0 is the A/B.
+- **2026-11-06 The marina at night: water that carries the lights (rc5-marina-night, HANDOFF "The
+  marina at night").** A new reference camera (`marina_night`, wave 8's table) on the east
+  headwalk at 21:00. Still water at night is judged by the lights in it: every light near it
+  is mirrored as a column narrow across and long down the view, broken by the chop, and lit
+  fronts across the water are mirrored past what stands in front of them; a water body's night
+  term is never a uniform glow in its ripples (that reads as paving). The jetty nav lights stay
+  out of this frame (occluded by boats from every headwalk spot that holds the restaurants).
+  MARINA_NIGHT=0 is the A/B.
+- **2026-11-06 The coast highway's beach houses are Malibu houses (coast-houses, HANDOFF "The coast
+  highway's beach houses").** The plan keeps its lots and rolls; the new house's FORM, setback,
+  rails and furniture are hashes of the house's own seed, so the A/B (COAST_HOUSES=0) changes
+  nothing outside the houses' meshes. Big sea-facing glass goes on the hillside glass shader (a
+  room traced at its real size), never a 0..1 pane. LOD and the far city keep the old boxes: the
+  massing reads from the beach only within the FULL ring.
+- **2026-11-06 - The stunt jump (wave 8 refcam5 `rc5-stunt-jump`, docs/HANDOFF.md "The stunt
+  jump off the freeway pair").** A new reference camera (`stunt_jump`) holds a car mid-flight off
+  the freeway pair's launch kicker. Chosen over the car park's roof kicker because the pair has a
+  built landing; the landing's top is 5 m under the freeway's barriers, so no eye near the launch
+  sees it over the deck (it would take ~30 m up) - the camera shows it UNDER the deck, and its
+  front is now hazard-banded so it reads as the landing. The air a jump flies through is kept
+  clear of tree crowns, launches throw dust and clods, landings dust and sparks, airborne wheels
+  hang. RC5_STUNT_JUMP=0 is the A/B.
+- **2026-11-06 The bus stop in the rain: a rain deck at dusk is grey (rc5-bus-stop-rain, HANDOFF
+  "The bus stop in the rain").** Under rain at sunset the sky, the fog and the grade lose the clear
+  evening's warmth (an overcast dusk is slate with the city's warm lights in it), weighted by the
+  overcast times the dusk so noon rain, rainy nights and clear sunsets do not move; the wet road
+  mirrors the lit city as soon as the lamps are on; a rider with nothing over their head waits under
+  the shelter. RC5_BUS_STOP=0 is the A/B.
+- 2026-11-06 (web-review-5): the web build after wave 8 needs no shader or code change: twelve
+  bookmarks load clean, budgets hold (pck 619.8 MB of 650). The bonfire's flames do not draw in the
+  SwiftShader browser and are left as they are (not root-caused, unverified on a real GPU, a
+  web-only workaround would be blind); the probe tools stay for the next pass. The web bookmarks
+  now include four wave 5-8 night / weather views.
 - **2026-11-06 The school run (rc5-school-morning, HANDOFF "The school drop-off at 07:50").** A new
   reference camera (`school_morning`, wave 8's table): an elementary school's front at 07:50. A
   feature placed on a road belongs to the chunk that owns that road, not the block it serves: the

@@ -292,6 +292,32 @@ so the walk would otherwise build at the 13:30 fallback).
 Its optional `sea` key is SeaLife.stage_for_shot()'s spec ("dolphin@x,z[,lead];pelican@x,z", TRUE
 world), staged three frames before the shot with the sea clock held and cleared after it;
 `SEA_DEBUG=1` prints the surfers and swimmers BeachActivity has round the lens.
+`yard_sale` (rc5-yard-sale): a suburb Saturday 09:30 from the far pavement. Its `yard_sale` key (1)
+builds every yard sale for a Saturday at the row's hour (YARD_SALE_DAY / YARD_SALE_HOUR), its
+`clear_cars` (metres) hides the vehicles that near the lens.
+
+`marina_night` (rc5-marina-night): the marina at 21:00 clear from the north end of the east
+headwalk, west down the lane along the north quay (no staging keys). `MARINA_NIGHT=0` is its A/B.
+`freight_trench` (rc5-freight-trench): the Alameda trench at 12:00 clear from the south edge of the
+Spring Blvd bridge looking south, a northbound stack train coming on under the bridges. Its optional
+`freight_s` key ("<s>[:<dir>[:<seconds before>]]", FREIGHT_S) holds the freight line's clock with a
+train's leading end at s (dir 0 north), `freight_kind` (0 stack, 1 manifest, 2 autorack) picks the
+consist (FREIGHT_KIND). `tools/freight/probe.gd` prints the junctions' s.
+
+## Wave 8's cameras (`cameras_w8.json`)
+
+`stunt_jump` (rc5-stunt-jump): `"stage": "stunt"` with a `stunt` key runs `stunt_stage.gd`: a car
+held mid-flight `t` s after a StuntRamps site's lip at `speed` m/s (`site` an id from
+`tools/stunt_ramps/probe.tscn`, `body`, `paint`, `pitch`, `roll`), the jump's look given that
+age by StuntJumpFX.stage() (dust, clods, hanging wheels), the free eye and its aim point in the
+RAMP's frame (`eye`, `look`: +Z the way it is ridden, origin at its foot). Env `STUNT_EYE=x,y,z`,
+`STUNT_LOOK=x,y,z`, `STUNT_T`, `STUNT_SPEED` override the row for framing.
+
+## Wave 8: `bus_stop_rain`
+
+A Wilshire bus stop at 18:00 in rain. `"stage": "bus"` with a `bus` key (`at` [x, z] TRUE world: the
+stop nearest it; `dir`; `pull` metres short of the stop; `doors`; `queue` riders; `seed`) runs
+`bus_stage.gd`: the bus at its stop, doors open, the stop's StreetErrands queue filled.
 `school_morning` (rc5-school-morning): LIVE OAK ELEMENTARY (Schools cell (-1, -1) on seed 1337) at
 07:50 clear from the pavement across its front street. No staging key: the buses, the parents' cars
 in the drop-off lane and the adults at the gate come from the build hour (RcSchoolMorning,

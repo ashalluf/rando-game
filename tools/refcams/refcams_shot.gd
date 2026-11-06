@@ -41,7 +41,9 @@ func _initialize() -> void:
 	_pump_car()
 	_lowrider_meet()
 	_arena_event()
+	_club_line()
 	_market_day()
+	_yard_sale()
 	# OCCLUSION=0: occlusion culling off (still_shot's switch), to tell what is culled in plain sight.
 	if OS.get_environment("OCCLUSION") == "0":
 		get_root().use_occlusion_culling = false
@@ -156,6 +158,8 @@ func _run() -> void:
 			if i == stage_at:
 				_stage_rail(cam, scene)
 				traffic_staged = _stage_street_cars(cam, scene, plan)
+				if _stage_club_pickups(cam, scene, plan):
+					traffic_staged = true
 				_stage_storm_flash(cam, weather)
 				# A "park_car" row (cameras_w6.json, car_closeup): a parked car and the eye round it.
 				if cam.has("park_car"):
@@ -197,9 +201,17 @@ func _run() -> void:
 		if cam.has("dog_walker") and _stager == null:
 			_stager = load("res://tools/refcams/dog_stage.gd")
 			await _stager.stage(self, scene, _eye_cam, func() -> void: _place(player, fov), cam)
+		if stage == "bus" and _stager == null:
+			# cameras_w8.json's bus_stop_rain: a bus at its stop, doors open, its queue (bus_stage.gd).
+			_stager = load("res://tools/refcams/bus_stage.gd")
+			await _stager.stage(self, scene, _eye_cam, func() -> void: _place(player, fov), cam)
 		if stage == "crash" and _stager == null:
 			# cameras_w8.json's crash_closeup: a sedan wrapped round a bent lamp pole (crash_stage.gd).
 			_stager = load("res://tools/refcams/crash_stage.gd")
+			await _stager.stage(self, scene, _eye_cam, player, func() -> void: _place(player, fov), cam)
+		if stage == "stunt" and _stager == null:
+			# cameras_w8.json's stunt_jump: a car mid-flight off a stunt ramp (stunt_stage.gd).
+			_stager = load("res://tools/refcams/stunt_stage.gd")
 			await _stager.stage(self, scene, _eye_cam, player, func() -> void: _place(player, fov), cam)
 		# A "wildlife" row (cameras_w8.json's coyote_night): animals staged where the row says.
 		if cam.has("wildlife") and _stager == null:
@@ -223,9 +235,24 @@ func _run() -> void:
 				var n := p as Node3D
 				if n and n.global_position.distance_to(_eye_cam.global_position) < float(cam.clear_people):
 					n.visible = false
+		# A row's optional "clear_cars" (metres; wave 8's yard_sale): vehicles within it of the lens
+		# are hidden for the shot (the eye stands on a pavement behind the kerb's parked cars).
+		if cam.has("clear_cars") and _eye_cam:
+			for v in get_nodes_in_group("vehicle"):
+				var n := v as Node3D
+				if n and n.global_position.distance_to(_eye_cam.global_position) < float(cam.clear_cars):
+					n.visible = false
 		for car in _fw_staged:
 			if is_instance_valid(car) and _eye_cam:
 				print("REFCAM %s: staged %s at %.1f m, visible %s, in tree %s" % [cam.name, car.name, (car as Node3D).global_position.distance_to(_eye_cam.global_position), (car as Node3D).is_visible_in_tree(), (car as Node).is_inside_tree()])
+				var tr: Variant = car.get("traffic")
+				if tr is Dictionary and (tr as Dictionary).has("dp_at"):
+					print("REFCAM %s: pickup %s v %.2f sig %d along %.1f" % [cam.name, car.name, float(tr.get("v", 0.0)), int(tr.get("sig", 0)), float(tr.get("along", 0.0))])
+					# The still catches the hazards on their lit half (shader TIME is held at 0 here,
+					# where a car's blink phase bucket below 0.5 is dark).
+					var nl: Variant = car.get("_night_lights")
+					if int(tr.get("sig", 0)) == 2 and nl is GeometryInstance3D:
+						(nl as GeometryInstance3D).material_override = (load("res://scripts/world/prop_factory.gd") as GDScript).call("vehicle_light_material", false, 2, 2, false)
 		_fw_staged.clear()
 		await process_frame
 		if not _hero.is_empty():
@@ -241,6 +268,10 @@ func _run() -> void:
 		if OS.get_environment("NIGHT_AB") == "1":
 			await _night_ab(scene, png)
 		var c: Array = await _geo_report("GEO_%s" % cam.name)
+		# TRUE=1: the MultiMeshes the renderer's counter counts once per draw (any surface with
+		# LODs: CLAUDE.md measurement trap 3) counted per instance, by group (tools/perf_audit_6).
+		if OS.get_environment("TRUE") == "1":
+			load("res://tools/perf_audit_6/true_groups.gd").call("report", self, cam.name)
 		# SPLIT=1 (OSPLIT=1 too): still_shot's cost table for this camera's frame, every category
 		# hidden in turn (tools/perf_audit_4/split_table.py ranks them from the log).
 		if OS.get_environment("SPLIT") == "1":
@@ -535,6 +566,19 @@ func _market_day() -> void:
 			OS.set_environment("MARKET_DAY", str(int(cam.market_day)))
 			if cam.has("hour") and OS.get_environment("MARKET_HOUR") == "":
 				OS.set_environment("MARKET_HOUR", str(float(cam.hour)))
+
+
+## A row's optional "yard_sale" (wave 8's yard_sale): 1 builds every yard sale for a Saturday at
+## the row's "hour" (YardSales.force_day / force_hour, as YARD_SALE_DAY=6 YARD_SALE_HOUR=h): a chunk
+## built during the load would otherwise take the load's hour and day. Set before the city loads.
+func _yard_sale() -> void:
+	if OS.get_environment("YARD_SALE_DAY") != "":
+		return
+	var only := OS.get_environment("ONLY").split(",", false)
+	for cam: Dictionary in _cameras().get("cameras", []):
+		if int(cam.get("yard_sale", 0)) == 1 and (only.is_empty() or String(cam.name) in only):
+			OS.set_environment("YARD_SALE_DAY", "6")
+			OS.set_environment("YARD_SALE_HOUR", str(float(cam.get("hour", 9.5))))
 
 
 ## A row's optional "golf_group" ("hole:stage[:tee[:count]]", wave 6's golf_morning) puts a group
@@ -915,7 +959,7 @@ func _freight_clock(cam: Dictionary, scene: Node) -> void:
 	var sys := scene.get_node_or_null("FreightRail") if scene else null
 	if sys == null:
 		return
-	if not cam.has("freight_into"):
+	if not cam.has("freight_into") and not cam.has("freight_s"):
 		sys.set("hold", OS.get_environment("FREIGHT_HOLD") == "1")
 		return
 	var line: Variant = sys.get("line")
@@ -924,7 +968,18 @@ func _freight_clock(cam: Dictionary, scene: Node) -> void:
 		line = sys.get("line")
 	if line == null:
 		return
-	load("res://scripts/world/freight_rail.gd").set("clock", float(line.call("clock_at_yard", float(cam.freight_into))))
+	var clock := 0.0
+	if cam.has("freight_s"):
+		# Wave 8's freight_trench: "<s>[:<dir 0 north|1 south>[:<seconds before>]]" as FREIGHT_S, and
+		# an optional "freight_kind" (0 stack, 1 manifest, 2 autorack) as FREIGHT_KIND.
+		if cam.has("freight_kind"):
+			OS.set_environment("FREIGHT_KIND", str(int(cam.freight_kind)))
+		var fs := String(cam.freight_s).split(":", false)
+		clock = float(line.call("clock_at_s", fs[0].to_float(), fs[1].to_int() if fs.size() > 1 else 0, fs[2].to_float() if fs.size() > 2 else 0.0))
+	else:
+		clock = float(line.call("clock_at_yard", float(cam.freight_into)))
+	load("res://scripts/world/freight_rail.gd").set("clock", clock)
+	print("REFCAM %s: freight clock %.1f" % [cam.name, clock])
 	sys.set("hold", true)
 	sys.call("step")
 
@@ -954,3 +1009,56 @@ func _release_storm_flash(cam: Dictionary, weather: Node) -> void:
 	if drama:
 		drama.set("_holding", false)
 		drama.set("_hold", 0.0)
+
+
+## A row's optional "club_line" (wave 8's club_line): {"opening": 1, "pickups": {"axis": "z", "at": road
+## coordinate, "dir": +1 / -1, "cars": [[stand_along, kind], ...]}}. "opening" puts tonight's club
+## openings on (NIGHTLIFE_PREMIERE=1: the searchlights at the kerb; set before the city loads, the
+## venue is planned as its chunk builds). "pickups" places street cars in the kerb lane a little
+## up the road from where each is to stand (TRUE world along the road, `kind` a Vehicle.BodyType
+## name or "") and gives each that spot as its double-park (TrafficManager's dp_at: it pulls over
+## on its hazards and waits), the upkeep held while the camera is shot.
+func _club_line() -> void:
+	if OS.get_environment("NIGHTLIFE_PREMIERE") != "":
+		return
+	var only := OS.get_environment("ONLY").split(",", false)
+	for cam: Dictionary in _cameras().get("cameras", []):
+		if cam.get("club_line", null) is Dictionary and (only.is_empty() or String(cam.name) in only):
+			if int((cam.club_line as Dictionary).get("opening", 0)) == 1:
+				OS.set_environment("NIGHTLIFE_PREMIERE", "1")
+
+
+func _stage_club_pickups(cam: Dictionary, scene: Node, plan: Variant) -> bool:
+	var cl: Variant = cam.get("club_line")
+	var traffic := scene.get_node_or_null("Traffic")
+	if not cl is Dictionary or not (cl as Dictionary).get("pickups", null) is Dictionary or traffic == null or plan == null:
+		return false
+	var spec: Dictionary = cl.pickups
+	var axis := 1 if String(spec.get("axis", "z")) == "z" else 0
+	var at := float(spec.get("at", 0.0))
+	var probe := Vector2(0.0, at) if axis == 1 else Vector2(at, 0.0)
+	var start: Vector2i = plan.block_index_at(probe)
+	var i0 := start.y if axis == 1 else start.x
+	var best := i0
+	for i in range(i0 - 1, i0 + 3):
+		if absf(float(plan.road_pos(axis, i)) - at) < absf(float(plan.road_pos(axis, best)) - at):
+			best = i
+	var dir := int(spec.get("dir", 1))
+	var lanes := 2 if float(plan.road_width(axis, best)) > float(plan.street_width) + 1.0 else 1
+	traffic.set("staged", true)
+	var types: Dictionary = (load("res://scripts/vehicles/vehicle.gd") as GDScript).get_script_constant_map().get("BodyType", {})
+	var placed := 0
+	for c: Array in spec.get("cars", []):
+		var stand := float(c[0])
+		var kind := int(types.get(String(c[1]), -1)) if c.size() > 1 and String(c[1]) != "" else -1
+		var car: Variant = traffic.call("place_car", axis, best, dir, lanes - 1, stand - float(dir) * 7.0, 2.5, false, kind)
+		if car == null:
+			continue
+		var t: Dictionary = car.get("traffic")
+		t.dp_at = stand
+		t.dp = 9999.0
+		t.sig = 1
+		placed += 1
+		_fw_staged.append(car)
+	print("REFCAM %s: %d club pickups on road %d" % [cam.name, placed, best])
+	return true

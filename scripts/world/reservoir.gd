@@ -358,7 +358,18 @@ func _carve(pos: Vector2, h: float, lv: float, full: bool, terms: PackedFloat32A
 		var fill := shelf - minf(beyond, 36.0) * FILL_SLOPE - maxf(beyond - 36.0, 0.0) * 2.5 - lat * 2.5
 		r = maxf(r, fill)
 	# The trail's bench.
-	if _trail_on and up > 3.0:
+	if _trail_on and up > 3.0 and Rc5Reservoir.enabled:
+		# Graded (Rc5Reservoir): the bench, then a 1:1 rock cut above it and a steep rock fill (2:1)
+		# below it, both steepening further out so they meet any ground within BANK_REACH. The old smoothstep
+		# blend lifted the bank's own shape into rounded lips along the lake side (green pillows).
+		var td := trail_distance(pos)
+		if td < TRAIL_HALF + Rc5Reservoir.BANK_REACH:
+			var bench := level + TRAIL_RISE
+			var e := maxf(td - TRAIL_HALF, 0.0)
+			var cut := e + maxf(e - Rc5Reservoir.BANK_EASE, 0.0) * 3.0
+			var fill := e * Rc5Reservoir.FILL_GRADE + maxf(e - Rc5Reservoir.FILL_EASE, 0.0) * 4.0
+			r = clampf(r, bench - fill, bench + cut)
+	elif _trail_on and up > 3.0:
 		var td := trail_distance(pos)
 		if td < TRAIL_HALF + TRAIL_BLEND:
 			var bench := level + TRAIL_RISE

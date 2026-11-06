@@ -158,6 +158,8 @@ static func _outcrops(ch: CityChunk, rect: Rect2, tors: Array, state: Dictionary
 				var q: Vector2 = p + down * lerpf(3.0, 9.0 + s * 3.0, _h01(hs + ["sd", k])) + down.orthogonal() * lerpf(-4.0, 4.0, _h01(hs + ["so", k]))
 				if not rect.has_point(q) or ch._near_hill_road(q, segs, 2.0) or ch._near_pad(q, pads, 3.0):
 					continue
+				if not Rc5Reservoir.scree_ok(ch, q):
+					continue
 				var qk := RockKit.BOULDER_C if _h01(hs + ["sk", k]) < 0.6 else RockKit.BOULDER_A
 				var qs := lerpf(0.6, 1.8, _h01(hs + ["ss", k])) * (1.6 if qk == RockKit.BOULDER_C else 0.6)
 				_place(ch, qk, q, ch._terrain_height(q), _h01(hs + ["sy", k]) * TAU, qs, slope, hs + ["s", k], qk != RockKit.BOULDER_C)
