@@ -2996,6 +2996,18 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	await load("res://tests/rc5_fireworks_ballpark_checks.gd").new().run(self, city)
 	# The taco truck at 23:00 (tests/rc5_taco_truck_checks.gd, TacoTruckNight): regulars, no bike lanes, lamps, steam.
 	load("res://tests/rc5_taco_truck_checks.gd").new().run(self, city)
+	# The jet_takeoff refcam (tests/rc5_jet_takeoff_checks.gd, JetTakeoff): the beams, the take-off
+	# shimmer, the edge lights' glow, the camera row.
+	load("res://tests/rc5_jet_takeoff_checks.gd").new().run(self, city)
+	# The port's truck gate at 10:00 (tests/rc5_port_gate_checks.gd, RcPortGate): the camera row,
+	# the booth / canopy / portal kit, the queue, the gate's asphalt.
+	load("res://tests/rc5_port_gate_checks.gd").new().run(self, city)
+	# The rush_hour refcam (tests/rc5_rush_hour_checks.gd, RushHour): the jam by the hour, its slots,
+	# cap and standing gap, the stop-and-go wave, the camera row.
+	load("res://tests/rc5_rush_hour_checks.gd").new().run(self)
+	# The oil_islands_dusk refcam (tests/rc5_oil_islands_dusk_checks.gd, LongBeachSand, Rc5OilIslands):
+	# Long Beach's sand, the islands' floods in the bay and on their towers, the camera row.
+	load("res://tests/rc5_oil_islands_dusk_checks.gd").new().run(self, city)
 	# The Googie motel refcam (tests/rc5_googie_motel_checks.gd, Motels): the motor court behind a
 	# motel pole sign, the camera row, the sign's light.
 	load("res://tests/rc5_googie_motel_checks.gd").new().run(self, city)

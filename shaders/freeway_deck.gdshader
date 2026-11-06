@@ -78,6 +78,11 @@ uniform vec3 rumble = vec3(0.30, 0.18, 0.40);
 // (pixels per groove pitch, from .x to .y) and the rumble strip as rounded scoops.
 uniform vec2 tine_fade = vec2(0.35, 1.0);
 uniform bool rumble_scoop = false;
+// The rush_hour refcam (RcRushHour; RC5_RUSH_LOOK=0 leaves it 0): an asphalt patch as it looks
+// after years in the lanes - binder worn grey and polished by the tyres (it shines into a low sun
+// like the concrete round it; at 0.05 albedo and 0.8 roughness every patch was a black tile),
+// a ragged outline cut by a coarser noise, a mottle inside.
+uniform float patch_aged = 0.0;
 
 varying vec3 w_pos;
 
@@ -269,13 +274,27 @@ void fragment() {
 		vec2 hs = vec2(0.6 + 1.4 * h01(slab_key + 10u), 0.5 + 0.9 * h01(slab_key + 11u));
 		vec2 q = abs(vec2(t_in, lc) - c0) - hs;
 		float dq = max(q.x, q.y) + (vnoise(vec2(t_in, lc) * 3.0) - 0.5) * 0.12;
+		if (patch_aged > 0.0) {
+			// Rounded corners and a ragged, coarser edge.
+			dq = length(max(q, 0.0)) + min(max(q.x, q.y), 0.0) - 0.25 * patch_aged
+				+ (vnoise(vec2(t_in, lc) * 0.9 + 3.7) - 0.5) * 0.45 * patch_aged
+				+ (vnoise(vec2(t_in, lc) * 3.0) - 0.5) * 0.12;
+		}
 		patch_m = 1.0 - smoothstep(-px, px, dq);
 		float seam = aa_line(dq, 0.035, px);
-		alb = mix(alb, patch_color * mix(1.0, atl, 0.7), patch_m);
+		vec3 p_col = patch_color * mix(1.0, atl, 0.7);
+		float p_rough = 0.8;
+		if (patch_aged > 0.0) {
+			float mot = vnoise(vec2(t_in, lc) * 1.7 + 11.0);
+			p_col = mix(p_col, overlay_color * 1.35 * mix(0.85, 1.12, mot) * mix(1.0, atl, 0.6), patch_aged);
+			p_rough = mix(0.8, 0.6, patch_aged);
+			seam *= 1.0 - 0.5 * patch_aged;
+		}
+		alb = mix(alb, p_col, patch_m);
 		alb = mix(alb, sealant_color, seam * 0.8);
 		slope = mix(slope, an.xy * 0.5, patch_m);
 		tine *= 1.0 - patch_m;
-		rough = mix(rough, 0.8, patch_m);
+		rough = mix(rough, p_rough, patch_m);
 	}
 	alb = mix(alb, sealant_color, max(joint * 0.6, crack * 0.75));
 

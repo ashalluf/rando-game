@@ -2002,6 +2002,14 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   light keeps `landing_side` of its glare off axis; a patrol helicopter's shaft is `PATROL_BEAM` of a
   pursuit's. A refcam row's staged aircraft prints `REFCAM <name> air at x,y,z`. `AIRPORT_NIGHT=0`
   is the A/B; `jet_shot.gd NIGHT=1 [AN=0]` both renderers; checks `tests/rc3_airport_night_checks.gd`.
+- The take-off at night (wave 8, refcam `jet_takeoff` in `tools/refcams/cameras_w8.json`, staged by
+  its `air` / `air_frames` / `air_flash` keys; docs/HANDOFF.md "The take-off from the infield"):
+  `JetTakeoff` (`scripts/vehicles/jet_takeoff.gd`): the infield grass gets tufts and each edge light's
+  glow (`infield()`, one hook in `Airport.build_chunk()`; `_add_grass()` takes a `base_y`), the
+  landing lights throw beams (`shaders/jet_beam.gdshader`), the take-off shimmer is longer and
+  coarse (jet_exhaust `look`), wingtip lights hang at the model's span (`fitted_span()`), a rolling
+  jet has its landing lights and strobes on. `JET_TAKEOFF=0` is the A/B; checks
+  `tests/rc5_jet_takeoff_checks.gd`.
 - The terminal's departures kerb (wave 7, refcam `terminal_curb` in `tools/refcams/cameras_w7.json`,
   docs/HANDOFF.md "The terminal's departures kerb"): `TerminalCurb` (`scripts/world/terminal_curb.gd`,
   one hook at the end of `Landmarks._build_dropoff()`, near copy only) lays a kerb stone with a white
@@ -3497,6 +3505,15 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   loading screen (a crane pose is ~20 ms of GDScript). The ship (`cargo_ship`, now 7 m off the quay, not on it) is
   `PortKit.ship_mesh()`. Look at a change in seconds with `tools/glshot/port_shot.gd` (the kit
   alone; `SHIP=1`, `RAISED=1`, `LOD=n`, `WEAR`).
+- The oil islands at dusk (wave 8, refcam `oil_islands_dusk` in `tools/refcams/cameras_w8.json`,
+  docs/HANDOFF.md "The oil islands at dusk from the Long Beach sand"): `LongBeachSand`
+  (`scripts/world/long_beach_sand.gd`, one hook in CityChunk's BEACH arm) lays Long Beach's sand
+  along x with the sea to +z (the west beach builder skipped the bay's shore: only road strips and
+  the horizon plane were drawn), palms and towers, its road strips under the sand (SandRoads);
+  `Rc5OilIslands` mirrors the islands' towers, falls and walls in the bay
+  (`shaders/oil_island_mirror.gdshaderinc`, pushed with the piers' rows) and gives oil_island.gdshader
+  its `dusk_look` (floods as cones up the faces, dark crowns). `LONG_BEACH_SAND=0` /
+  `RC5_OIL_ISLANDS=0` the A/Bs; checks `tests/rc5_oil_islands_dusk_checks.gd`.
 - The harbour's lights (2026-10-29, docs/HANDOFF.md "The harbour's lights"): `Lighthouses`
   (`scripts/world/lighthouses.gd`, data: sites, the breakwater line in `SEG_LEN` pieces, the pad
   `carve()` in MacroMap.height_at(), `covers()` for the hills' planting) appends landmark entries
@@ -3901,6 +3918,14 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   barriers, never the deck top (`DECK_LAYER`, out of their cull mask); freeway cars' lamps reach
   `FAR_LIGHTS`. refcams' `freeway_cars` key stages freeway traffic. `FREEWAY_NIGHT=0` is the A/B;
   checks `tests/rc3_freeway_night_checks.gd`.
+- The freeway at rush hour (wave 8, refcam `rush_hour` in `tools/refcams/cameras_w8.json`,
+  docs/HANDOFF.md "The freeway at rush hour"): `RushHour` (`scripts/npc/rush_hour.gd`): `level(hour)`
+  shortens FreewayFill's slots, grows the cap (spent ahead of the camera when it looks along the
+  route: `behind()`, `offer()`), closes the standing gap and runs a stop-and-go wave upstream
+  (`wave_cap()`: brake lamps in clusters); freeway spawns no longer wait on PhysicsBudget's cap
+  (`freeway_room()`). `RcRushHour` (`scripts/world/rc5_rush_hour.gd`): aged deck patches
+  (`patch_aged`), a heat-haze floor over a jam (`traffic_haze()`). `RUSH_HOUR=0` / `RC5_RUSH_LOOK=0`
+  the A/Bs; probe `tools/rc5_rush_hour/probe.tscn`; checks `tests/rc5_rush_hour_checks.gd`.
 - The stack from the air (wave 7, refcam `stack_aerial` in `tools/refcams/cameras_w7.json`,
   docs/HANDOFF.md "The four-level stack from the air"): `RcStack` (`scripts/world/rc4_stack.gd`):
   a deck's shade on the right of way falls off with its clearance (`bareness()`: bare only under
@@ -4200,6 +4225,13 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   MultiMeshBatch instance's default custom is Color.BLACK (alpha 1), which light_pool.gdshader
   takes as a NightLamps point source - a pool needs `Color(0, 0, 0, 0)` (`POOL_CUSTOM`).
   `PORT_NIGHT=0` is the A/B; checks `tests/rc4_port_night_checks.gd`.
+- The port's truck gate at 10:00 (wave 8, refcam `port_gate` in `tools/refcams/cameras_w8.json`,
+  docs/HANDOFF.md "The port's truck gate at 10:00"): `RcPortGate` (`scripts/world/rc5_port_gate.gd`,
+  hooks in PortLifeKit's booth / canopy / portal meshes and `PortGate.build()`): glazed booths whose
+  glass shows a lit cabin (port_steel part 15), driver pedestals, boom barriers, canopy steel on
+  crash plinths, louvred detector housings, the gate chunk paved in asphalt (`yard()`), a third
+  queue slot that is always a bobtail (a whole rig ran into the street). `RC5_PORT_GATE=0` is the
+  A/B; checks `tests/rc5_port_gate_checks.gd`.
 - The refinery's road at night (wave 7, refcam `refinery_night`, docs/HANDOFF.md "The refinery's road
   at night"): `RcRefineryRoad` (`scripts/world/rc4_refinery_road.gd`): road.gdshader's
   `shaders/refinery_road.gdshaderinc` (behind `rr_on`, 0 on every other road) lights the roads and

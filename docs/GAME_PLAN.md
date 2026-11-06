@@ -4705,6 +4705,38 @@ none of either.
   Compatibility); stars at half a kilometre read as radial trails, not dots; the show's light reaches
   the stands (falloff 0.75, not 1.2) and the smoke takes it strongly, plus the floodlit ground under
   it. RC5_FIREWORKS=0 is the A/B.
+- **2026-11-06 The take-off refcam: the infield, the jet's lights (rc5-jet-takeoff, HANDOFF "The
+  take-off from the infield").** A new reference camera (`jet_takeoff`, wave 8's table) watches an
+  airliner rotate off 27R at 19:15 from the grass beside an edge light. Decisions: the airfield's
+  grass gets the city's lawn tufts in a dry look and every elevated edge light's glow on the ground
+  (FULL chunks only); an aircraft's lights hang where the model really has its wingtips (measured
+  off the vertices, not a fixed span); a rolling jet has its landing lights and strobes on; landing
+  lights draw a faint fog-free beam after dark; the take-off shimmer grows with thrust in
+  metre-sized ripples. The rotation pivot was measured and left (the main gear is under the
+  origin). JET_TAKEOFF=0 is the A/B.
+
+- 2026-11-06 (wave 8, rc5-port-gate): a new reference camera, `port_gate` (cameras_w8.json), looks
+  along the container terminal's booth row at 10:00. Decisions: the camera stands by the booths,
+  not where the quay cranes show (from eye level the canopy and the yard's 3-4 tier stacks hide
+  them; only their tops show from the street); a gate is busy at 10:00 (fuller lanes, a queue);
+  the queue slot north of the portal is a bobtail so nothing runs into the street; the gate is
+  paved in asphalt, the yard keeps its concrete. RC5_PORT_GATE=0 is the A/B.
+- **2026-11-06 The rush_hour refcam: the freeway jams at the rushes (rc5-rush-hour, HANDOFF "The
+  freeway at rush hour").** A new reference camera (`rush_hour`, wave 8's table) looks west down
+  the 105 from a footbridge at 17:40. Decisions: freeway cars, kinematic and placed, never wait on
+  PhysicsBudget's cap (a busy city sits at it and the freeway stayed empty); the hour sets how
+  jammed the freeway is (shorter slots, a bigger cap, a closer standing gap) and a stop-and-go wave
+  - a speed limit that runs back up the traffic - makes the brake lamps, never a per-car random
+  brake; at the rushes the cap goes where the camera looks along the route. RUSH_HOUR=0 and
+  RC5_RUSH_LOOK=0 are the A/Bs.
+- **2026-11-06 The oil_islands_dusk refcam: every shore is a beach (rc5-oil-islands-dusk, HANDOFF
+  "The oil islands at dusk from the Long Beach sand").** A new reference camera (`oil_islands_dusk`,
+  wave 8's table) on the Long Beach sand at 18:45. A BEACH zone must build sand whichever way its
+  shore runs: the bay's north shore had none (the beach builder assumes the west coast), so
+  LongBeachSand lays it along x with the sea to +z and buries the chunk's road strips (SandRoads);
+  lit structures standing in water mirror their light in it (the islands' towers as columns in the
+  bay); a flood is light thrown up a face from its foot, not a face painted the gel's colour.
+  LONG_BEACH_SAND=0 / RC5_OIL_ISLANDS=0 are the A/B.
 - **2026-11-06 A motel sign stands over a motel (rc5-googie-motel, HANDOFF "The Googie motel at
   21:00").** A Googie pole sign at a surface car park's corner now claims that lot for the motor
   court it advertises (Motels, after every roll; the far city gets its wings as boxes). A sign is

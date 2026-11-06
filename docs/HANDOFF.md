@@ -30846,6 +30846,363 @@ lists a truck's cook, regulars and queue spots round a point after a real load.
 - The lamp post in the camera's frame stands between the eye and the queue (the street's own).
 - The ten original cameras were not re-shot with this branch (time); the change is limited to
   vendor trucks, the vendor shader and the trucks' placement rules.
+
+## 9ng. The take-off from the infield (refcam5 jet_takeoff)
+
+Wave 8's `jet_takeoff` camera (`tools/refcams/cameras_w8.json`): an airliner rotating off 27R at
+19:15 clear, seen from the infield grass between the runways beside 27R's departure (west) end,
+1.1 m up next to an elevated edge light, looking east-north-east at the jet with the tower, the
+concourse and the downtown skyline behind. The row stages the take-off (`"air": "takeoff"`,
+`air_dist` -22: 22 m before lift-off, so the nose is coming up), and two new optional keys in
+`refcams_shot.gd`: `air_frames` (the aircraft is staged that many frames before the shot rather
+than the default 30 - a jet rolling at 56 m/s covered ~200 m in those frames on a slow box) and
+`air_flash` (the staged aircraft's strobes and beacons held at their flash: `flash_hold` on
+aircraft_lights.gdshader, default 0, never set in play). The log prints the staged jet's pitch,
+speed and every one of its lights' screen position (`REFCAM jet_takeoff air lights ...`).
+Nineteen-fifteen is night in this game (the sun sets at 18:00), so the view is a night take-off.
+
+What read as a game, worst first, and what was done (`JetTakeoff`,
+`scripts/vehicles/jet_takeoff.gd`; `JET_TAKEOFF=0` is the A/B for all of it):
+
+1. **The lower half of the frame was a black void.** The airfield's grass is a flat lawn slab
+   with no blades, and at night nothing lit it: the lens stood on featureless black. `infield()`
+   (one hook in `Airport.build_chunk()`, FULL chunks) plants the city's lawn tufts on every grass
+   rect (`TUFT_DENSITY` 0.7 a square metre, `TUFT_PATCH` 60 m patches so `_add_grass()`'s per-patch
+   cap does not thin a 600 m strip; the tufts carry a fully dry straw look through a stand-in
+   material's lawn metas, so they are the airfield's dry grass, not a watered lawn's green;
+   `_add_grass()` gained a `base_y`, default the old height, because the airfield's grass is at
+   `Airport.GRASS_TOP`, 19 cm under the pavement), and lays each elevated edge light's glow on the
+   ground round its foot (`Airport.edge_light_spots()`: white by the runways, blue by the taxiways;
+   one shadowless additive batch `jt_edge_pool`, instance custom alpha 0 - alpha 1 would make
+   light_pool.gdshader a NightLamps point source). The eye was also moved onto the grass beside an
+   edge light: the first framing stood on the west connector's asphalt.
+2. **The wingtip lights floated in the air.** The nav lights and strobes were hung at a fixed 36 m
+   span, 26 % of the model's height and 13 % of its length aft; measured off jet_airliner.glb's
+   vertices the tips are at +-15.9 m, 5.2 m up, 2.4 m aft. So from beside the runway the red / white
+   pair hung two metres off the near tip and 1.7 m under it. `fitted_span()` takes the model's own
+   span (`AmbientJet._build_model()`, the airliner and the private jet) and `AIRLINER_TIP` the
+   tip's height and station.
+3. **A rolling jet had no landing lights.** Only LINEUP switched them on, so a jet that starts out
+   rolling (every staged take-off) rolled dark, and `AirportNight.landing_pool()` threw
+   `float(null)` every tick on the unset parameter (25 SCRIPT ERRORs a still) and never laid its
+   pool. The roll turns the landing lights and strobes on; landing_pool() reads an unset parameter
+   as the shader's default.
+4. **The landing lights were glare dots with nothing coming out of them.** One additive cone a lamp
+   (`shaders/jet_beam.gdshader`, fog-free, `BEAM_*`), after dark only, faded where it reaches the
+   lens (a beam pointed at the camera filled half the frame with haze in the first try), drawn to
+   `BEAM_RANGE`.
+5. **The take-off shimmer was a per-pixel sparkle.** At full thrust the cones run `PLUME_GAIN`
+   (2.1x) their idle length and bend `BEND_GAIN` harder, and with jet_exhaust.gdshader's new `look`
+   (1 set by AmbientJet; 0 the old) the wobble is in cells of about a metre that grow with distance:
+   the runway's lamps behind the engines ripple instead of breaking into white speckle. At idle the
+   cones are what they were.
+
+Checked and not changed: the rotation. A 9 degree pitch about the body's origin looked like a tail
+strike in the first still, so the model was measured: its main gear stands 0.4 m ahead of the
+origin and the tail cone's underside is 4.4-5 m up, so the pivot is right and the low tail is
+perspective (the eye is 1.1 m up). Not touched (another area): the nightlife searchlight beam in
+the sky, the ridge sign at the left edge.
+
+Numbers (opengl3, 1280x720, the shot's own frame, from the refcam report; same eye and staging):
+
+| run | p5 | p50 | p95 | p99 | crush % | triangles | draws |
+|---|---|---|---|---|---|---|---|
+| JET_TAKEOFF=0 | 5 | 40 | 109 | 191 | 5.4 | 3,481,635 | 1,259 |
+| on | 5 | 41 | 123 | 194 | 6.6 | 3,970,126 | 1,289 |
+
+The +0.49 M triangles are the infield tufts inside their 86 m draw range (at 1.1 a square metre they
+were +0.76 M; `TUFT_DENSITY` is the knob), the +30 draws the tuft cells, the pools and the beams.
+p95 rises with the lit shoulder round the edge light in the foreground. Stills on
+`shots/rc5-jet-takeoff`. Not verified: Forward+ (no lavapipe pass for the beams' and pools'
+additive strength on the Mac's renderer; the beams use a fog-free display-ish add with a low
+strength, the pools light_pool.gdshader's own path).
+
+The ten original cameras (cameras.json) were shot on this branch with JET_TAKEOFF=0 and with it on
+(every change here is behind the switch or inert by default, so the off run stands in for main):
+eight of ten within tolerance; `freeway` and `street_noon` flagged only for the live traffic (a
+taxi in the freeway lens in one run, the bus at another spot in the other) - their roads, buildings
+and sky are the same pixels. Gate on the branch merged with main 901e9325 (batch 58): SHARDS=3, 6,187 checks
+passed, 0 failed, peak RSS 3.8 GB a shard.
+
+## 9nh. The port's truck gate at 10:00 (fleet wave 8, refcam5 `port_gate`, branch `wt/rc5-port-gate`)
+
+A new reference camera, `port_gate` in `tools/refcams/cameras_w8.json`: the container terminal's
+truck gate (PortGate, the north-west port chunk) at 10:00 clear, eye level (1.7 m) by the west
+booth island at (2777, 5971), looking east (yaw -110, fov 64) along the row of booths under the
+canopy, the OCR / radiation portal at the left, a semi at the booths and the bobtails leaving.
+Stills on `shots/rc5-port-gate`.
+
+**Framing, and why not the cranes.** The task asked for the cranes behind. They are 500 m south on
+the quay, 80 m tall to the apex (a raised boom ~100 m), so 8-11 degrees up from the gate; every
+eye-level spot round the booths has the canopy (9.4 m at 10-40 m) or the yard's 3-4 tier stacks
+(10-12 m, 40-60 m off, PortFill) higher than that in the way. Scouted from the street north of the
+gate (z 5930, 5938) only their lattice tops show over the stacks, and the booths are 50 m off and
+tiny; from 30 m up they are all there. I chose the view by the booths (what the task named first)
+and kept the wider north-west view as a still on the shots branch; a refcam that must show the
+cranes would need an eye ~25 m up, or the stacks next to the gate kept low (PortFill's rolls).
+
+**What read as fake, worst first, and what changed** (`RcPortGate`, `scripts/world/rc5_port_gate.gd`):
+1. *The booths*: grey boxes with mirror-black glass. Now a stainless plinth, a glazed cab on corner
+   posts and mullions whose glass shows a lit cabin behind it (port_steel.gdshader part 15: back
+   wall, desk, screens, ceiling panel, emitted less the Fresnel share, brighter after dark), an
+   overhanging white roof cap with a teal drip band, a roof AC unit, a door and step, yellow kerb
+   faces on the island with hazard-striped noses, taller bollards with a band, a lane light, and a
+   driver pedestal (card reader, screen, intercom) at cab height on each lane side.
+2. *The portal's detector panels*: blank white 4 m blocks. Now louvred housings (port_steel
+   S_HOUSE: seams and louvre bands) on a hazard-striped base, a cap and a status lamp.
+3. *The canopy*: a flat slab on bare posts. Now steel under it - a beam over every column line,
+   purlins every 1.6 m, a coping and a drip edge - and the columns on striped crash plinths.
+4. *The ground*: the yard's cracked concrete read as a dry lake bed under the whole gate. The gate's
+   chunk is paved in worn asphalt (`yard()`, the neutral `asphalt_aerial` set; Asphalt033 drew
+   tan there), with lane arrows on the approach and yellow chevron hatching at the island noses.
+5. *Empty lanes*: the trucks' odds 70 / 55 % -> 92 / 82 %, and a third slot queued north of the
+   portal - always a bobtail (`bobtail()` keeps the hash's odds roll): a whole rig there ran 5 m
+   past the gate's north edge, into a road works' excavator on the default seed. Red-and-white
+   boom barriers past every inbound stop bar (and before the street on the outbound lanes) are one
+   `port_gate_barrier` batch.
+
+Hooks: PortLifeKit's `booth_mesh()` / `canopy_mesh()` / `portal_mesh()` pick the new builders (new
+cache keys), `PortGate.build()` calls `RcPortGate.build()` and takes its odds and slots,
+`CityChunk._port_yard()` passes its slab material through `RcPortGate.yard()`. No roll anywhere
+else moves (the trucks are PortGate's own hash). `RC5_PORT_GATE=0` is the A/B: PortGate exactly as
+before (old meshes, odds, two slots, concrete).
+
+**Numbers** (refcams opengl3, the port_gate frame): before 1,896,687 triangles / 1,480 draws /
+786 k shadow; after ~1.99 M / 1,544 / 836 k (+5 % triangles, +64 draws: mostly the six extra
+trucks, each a Vehicle). Kit: booth 184 -> 548 triangles, canopy 428 -> 918, portal 1,056 ->
+1,398, barrier 142 (`tools/rc5_port_gate/mesh_probe.gd`, headless, seconds, also prints the
+default seed's truck rolls). Luminance p50 79 -> 63 (the darker asphalt).
+
+Not verified: Forward+ (no lavapipe render of the gate: the booth glass emission and the asphalt
+tint were judged on opengl3 only; port_steel's colours go through its own `col()`, so the glass is
+decoded on Forward+ like the shader's other constants). The far city keeps the old gate boxes.
+Checks: `tests/rc5_port_gate_checks.gd`.
+
+## 9ni. The hero in the rain on the web, third pass (wave 8 resume, branch `wt/web-hero-blue`; not fixed)
+
+**Result: no fix.** On current main (after batch 50) the hero is **not blue** in the browser at the
+rain bookmark (`?spawn=2359.4,880,0,12,2&hour=13&weather=rain`): 23 runs of the probe, frames 2 to
+~80, hero region dark (~60,56,48), no blue pixels. What the web draws wrong there instead is a
+**lime-green far range in two straight-edged wedges** that converge on the vanishing point ahead
+(the "pale wedges" of 9lh; the old web-build-5 still `01_` has a pale wedge AND the blue hero in
+the same frame, so they are probably one bug whose colour changes build to build). Native opengl3
+at the same eye, hour and weather draws neither (`05_`). Stills on `shots/web-hero-blue`.
+
+**Established (each a browser run of the probe, one change a report, read one report late):**
+- Not there at frame 2, there from frame ~5 on, and it stays (`02_`).
+- Dims with every DirectionalLight hidden (`03_`); not the sun's shadows (shadow off, PSSM off:
+  unchanged), not the lightning light.
+- Not any of these alone or together: the horizon plane (`/Ground/`) and FarRing (layers 0), the
+  chunks' FarGround, LightRail, Skyline, every FarLandmark, Ridges wires, RockFar, Weather (rain
+  curtain included), the canvas layers (rain lens, vignette), ContactShadows, Traffic, the
+  colour-correction LUT (HourGrade), aerial-perspective fog, all fog (stronger without it), the
+  sky background (forced to a flat colour: the lime stays), sky REALTIME, contrails off,
+  ballpark_glow / street_wear / mural (the screen- and depth-readers in view).
+- Every geometry under `/root/City` at layers 0: gone. All chunks at layers 0: still there. All
+  ~180 non-chunk children of City at layers 0: still there (`04_`, strip `06_strip_p21`). So it
+  needs geometry from BOTH sides, or two things draw it.
+- The horizon plane's material and both bake textures read back the same on web and native
+  (`mat:ground`), as do all 120 sky uniforms but `cloud_detail` (0 on the web), the contrail
+  segments and the sky's process mode (web QUALITY, native INCREMENTAL at that moment).
+- Lime pixels are ~(109,203,44): grass-photo green, not the bake. Swapping the plane's
+  `near_albedo` for solid red changed nothing.
+
+**Not proven, next steps.** (1) Bisect the chunk side and the non-chunk side TOGETHER (hide all
+of one side, then halves of the other: the probe's `kids:a:b` does the non-chunk half; add the
+same for chunk children by name). (2) Note `visible` hides are undone by scripts that set
+`visible` every frame (Weather's curtain, the far landmarks, the plane): use `lay:` / `shader:` /
+`kids:`. (3) Look at the web-only engine limits found in Godot 4.7.2's GLES3 source: the scene
+shader reserves texture units down to -11 (`ltc_lut2`, area lights) and the LTC LUTs are bound
+at the start of every colour pass, so on WebGL2's 16 units a material only owns units 0-4, not the
+9 `tests/web_build_checks.gd` assumes (`WEB_SAMPLERS`); terrain.gdshader has 8 and hero_skin 6.
+Not shown to be the cause here, but the check's number is wrong. (4) Everything here is
+SwiftShader; a real GPU browser may not show it at all.
+
+**Update, same session, after merging main at batch 56 (`c0c77a59`): the wedges are gone.** Two
+clean browser runs of the rebuilt export at the same bookmark (frames 3-22 and 3-19, one with no
+change at all) draw no lime and no wedge, and the hero stays dark (`07_`). Every one of the 23
+runs on the older main (merged at `d3aafc52`) had them from frame ~5, so something merged in
+batches 51-56 removed them. Not bisected. The likeliest candidate is batch 53's "Mac launch" work on
+the load-time shader prime (`bbc4fa4a` "the prime draws no geometry", `191e45dc` no pipelines queued
+while the city is built, the boot compile): drawn geometry left over from the prime would fit
+"needs geometry from both the chunks and the rest" and "dims with the sun". To prove it, export
+`d3aafc52` with `bbc4fa4a` / `191e45dc` reverted and look for the wedges. **Status: the hero is not
+blue and the wedges no longer show on current main. Nothing was changed in the game for it.**
+A separate open point: `WEB_SAMPLERS` (above) is still 9.
+`chunks:<from%>:<to%>` (sorted chunk children) was added to the probe for this pass.
+
+**Tools** (`tools/web_hero_blue/`, the autoload `hero_blue_probe.gd`, exported by
+`export_probe.sh` into build/web_hero_blue, ~20 s; one run ~15-20 min): steps on top of web-build-5's
+(`ap_hide=` one per report): `lay:<path substr>` (layers 0, scripts do not undo it),
+`shader:<file>`, `kids:<from>:<to>` (City's non-chunk children by sorted index), `show:<substr>`,
+`canvas:<substr>`, `gmat:<uniform>=<v>` / `gtex:<sampler>=red|blue` (horizon material),
+`gsky:<uniform>=<v>`, `prop:<node>:<prop>=<int>`, `mat:ground` / `mat:sky` (dumps; diff a web
+log against a native run of the same probe: add the autoload to project.godot, `AP_*` in the
+environment, `AP_OUT=` saves frames; put project.godot back), `env:bg|lut|adj|aerial|skyrt`,
+`sun:noshadow|shadow|pssm<n>`, `q:<level>` (Quality.apply_level, which the web never runs),
+`hero:list|cloth=flat|...`. `decode_probe.py <log> <dir>` writes the frames and a strip. Traps:
+kill the previous `node webshot.js` before a run (it holds port 8123 while it waits for its
+screenshot; the next run dies with EADDRINUSE and writes no log); never run a native city while a
+tab is open (OOM on 15 GB).
+
+## 9nj. The freeway at rush hour: the rush_hour refcam (fleet wave 8, `rc5-rush-hour`, branch `wt/rc5-rush-hour`)
+
+The task: a new reference view, `rush_hour` (`tools/refcams/cameras_w8.json`): the freeway at 17:40
+clear from a footbridge, looking down the carriageways into the low sun - dense rush-hour traffic,
+brake lights, heat haze, the gantries. Judge it against a 2026 game, fix the worst three to five
+things. Stills on `shots/rc5-rush-hour` (README there).
+
+**The camera.** `Footbridges` puts freeway bridges on every route; the 105 runs east-west south of
+downtown, so a bridge on it looks straight into the setting sun. Two were shot (`fb_f_1_3` by the
+coast, `fb_f_1_213` in Vernon east of the 110); the coast one ends at the beach, the Vernon one runs
+a kilometre and a half straight into the sun past the industrial blocks with downtown's skyline to
+the right, so it is the row: eye (3209.6, 28.9, 2882.5), yaw 86.2 (west, down the route), pitch
+-5, fov 55, 17:40 (17.667) clear, `shot_frames` 90 (the jam needs ~12 s of physics to build). The
+eye stands 2.5 m west of the span's centre line and 5 m north of the median, just outside the cage
+(a lens poked through the chain-link: looking along the freeway from the walkway is looking through
+the cage's side), so the median's light standards stand off the middle of the frame.
+
+**What gave it away, in the order the eye lands on it:**
+1. **An EMPTY freeway at 5:40 pm** (`01_before`): not one car within 400 m. Not a hour thing: the
+   freeway upkeep (`TrafficManager._maintain_freeway()`) returned before spawning whenever
+   `PhysicsBudget.can_spawn()` was false, and a busy city sits at the body cap (BusyStreets already
+   let street traffic through: `traffic_room()`). Freeway cars are kinematic and placed, never
+   simulated. A headless probe at the eye: 26 cars at load, 0 after 300 frames, `can_spawn false`
+   throughout. Every freeway view near a busy spot was empty on main at any hour.
+2. **Even filled, it was a quiet Sunday**: FreewayFill's lanes held a car per 42 m slot at 26 m/s,
+   nobody braking - the hour only changed how many slots stayed empty.
+3. **Black tiles in the concrete**: the deck's asphalt patches (`patched` slabs) at 0.05 albedo and
+   roughness 0.8 in a concrete deck that shines into a low sun - crisp black rectangles.
+4. **No heat in the air**: HeatHaze's strength is the afternoon sun's (`LaWeather.afternoon_heat()`),
+   0.08 by 17:40; a jammed freeway's exhaust still shimmers. (Forward+ only, see below.)
+
+**What changed:**
+- `RushHour` (`scripts/npc/rush_hour.gd`, `RUSH_HOUR=0` is main's freeway exactly). `level(hour)`
+  0..1 (`MORNING` 6:15-10:00, full 7:15-9:00; `EVENING` 15:15-19:45, full 16:30-18:45; 0 at noon and
+  night, 0 while TrafficManager is `staged`), worked out once an upkeep into `now_level`. By that
+  level: lane slots `gap()` 42 -> `RUSH_GAP` 19 m (`FreewayFill.slot_t()`/`candidates()` take the gap;
+  a short slot slides less, so a lane's cars keep 10 m between centres; a truck is not spawned
+  within 26 m of another car of its lane), the cap `cap_gain()` 1.5 -> `RUSH_CAP_GAIN` 2.6 x
+  max_freeway_cars (Quality still scales it), far routes' share `RUSH_FAR_WEIGHT` 0.1, the follow
+  rule's standing gap 20.4 -> `RUSH_STAND` 8.5 m, and a **stop-and-go wave** (`wave_cap()`): a speed
+  limit along each carriageway, slow bands `WAVE_LEN` 420 m apart (12 % of the freeway speed in a
+  band's middle, 62 % between), running UPSTREAM at `WAVE_SPEED` 4.5 m/s, smooth (~1.5 m/s2 into a
+  band: the brake lamps' 0.8 m/s2 rule lights them in clusters and lets them go as a car drives out).
+  While the camera looks along a jammed route (`look_sign()`, |cos| > 0.5) the cap is spent where it
+  looks: no car kept past `BEHIND` 90 m behind or `AHEAD` 470 m ahead (`behind()`), and the
+  out-of-view stretch 40-90 m behind it is a source of new cars like the far inflow band (`offer()`),
+  so the carriageway driving away from the lens fills from behind it. `freeway_room()`: the upkeep no
+  longer waits on PhysicsBudget's cap (BusyStreets.traffic_room()'s rule; with RUSH_HOUR=0 it waits
+  as before). Hooks: a few lines in `_maintain_freeway()`, `_spawn_freeway_car()`, `_drive_freeway()`
+  (the wave on cars not `placed`), `_fw_follow()`, `_fw_cap()` / `_fw_crowded()` new.
+- `RcRushHour` (`scripts/world/rc5_rush_hour.gd`, `RC5_RUSH_LOOK=0` the A/B): the deck's patches
+  (`patch_aged` in freeway_deck.gdshader, default 0 = the old look) aged grey (overlay x1.35 mottled)
+  and tyre-polished (roughness 0.6), a rounded, ragged outline, a softer seam; set from
+  `FreewayCloseup.deck_material()`. And a heat-haze floor (`traffic_haze()`, one line in Weather):
+  `TRAFFIC_HAZE` 0.32 x the jam's level x `RushHour.now_view` (the player within 120 m of a route
+  the camera looks along) x the clear / Santa Ana weight.
+
+**Numbers.** Headless probe at the eye (`tools/rc5_rush_hour/probe.tscn`, `Y=28.9`), 560 frames:
+RUSH_HOUR=0 - 0 freeway cars; on - 180 (cap 182), 119-132 within 400 m of the eye on the 105, mean
+8-10 m/s, 12-61 braking. TrafficManager's tick (`drive_usec`, this 4-core cloud box): 10.6 ms -> 15.1
+ms (+4.5 ms for 180 freeway cars, ~25 us a car; the Mac is several times faster). Frame (refcams GEO,
+opengl3 1280x720): before 4.82 M triangles / 3,939 draws (p5/p50/p95 50/124/225), after 5.27 M /
+3,381 (45/120/226). The ten original cameras before / after: see the end of this section.
+
+**Not done / not verified.** The heat haze is Forward+ desktop only and was NOT rendered (no
+lavapipe run): its strength is reasoned from the afternoon value (0.5), not judged. The jam is
+denser but not bumper-to-bumper all the way (the cap binds: 182 cars over ~560 m of eight lanes); the
+LOD decks past the real cars carry the far city's day traffic only past the LOD ring (the LOD chunks'
+own traffic skin is night-only), not checked from this eye. Cars changing lanes in a crawl nose ~10
+degrees across. Oncoming cars carry no daytime running lamps (head lamps follow `lamp_factor`).
+
+**The ten original cameras** (`refcams.py run` on cameras.json, one tree, before = `RUSH_HOUR=0
+RC5_RUSH_LOOK=0`): 9 of 10 within noise (triangles -1.1 % .. +0.2 %, draws -0.6 % .. +1.2 %, pixel
+MAD <= 2.1); `freeway` (13:00) flagged on its traffic only - the before had a semi filling the lens,
+the after more cars now that freeway spawns do not wait on the physics cap (triangles -1.3 %, draws
+-4.4 %). The jam itself is off at 13:00 (level 0).
+
+**Gate** (`SHARDS=3`, merged with origin/main 2026-11-06): 6,212 checks, 0 failed, 1,484 s; shard
+peaks 3,274 / 3,806 / 3,592 MB.
+
+## 9nk. The oil islands at dusk from the Long Beach sand (wave 8, refcam5 `rc5-oil-islands-dusk`)
+
+Task: a new reference view, `oil_islands_dusk` (tools/refcams/cameras_w8.json): the decorated oil
+islands (OilIslands, 9gc) at 18:45 clear from the Long Beach sand - eye 1.7 m over the plan's ground
+at (4660, 6274), yaw 127 (west-south-west down the bay), pitch 4, fov 50: CORVINA, HALCYON and
+KESTREL against the afterglow, the bay, the port's quay cranes on the right. Judged against a 2026
+AAA game; what the eye landed on, in order, and what was done:
+
+1. **There was no beach.** MacroMap calls the strip `bay_beach_depth` (70 m) north of `bay_z` BEACH,
+   but `CityChunk._build_beach()` lays sand for the WEST coast (rows of constant z running inland
+   along +x from `coast_x()`) and `_owns_shoreline()` is false on an east-west shore, so a Long Beach
+   chunk built its two road strips (the +Z one ON the waterline, dashes and all) and nothing else:
+   the rest was the horizon plane, which the bake calls water at height 0 - half the frame was flat,
+   glossy, square sheets of "sea" with a dark rim (stills 00_*). **`LongBeachSand`**
+   (`scripts/world/long_beach_sand.gd`, one hook in CityChunk's BEACH arm): for a BEACH block on the
+   bay's north shore between the port and `bay_east_x` (`claims_block()`, pure), the chunk lays its
+   sand the other way round - rows of constant x every 9 m, the sea to +z, the west beach's profile
+   (`SAND_*` numbers and tones: the drowned toe to the chunk's seaward edge, the step, the waterline at
+   `bay_z` where the ocean's surf breaks, the swash, the berm, the lip dipping 4 cm under the
+   beachfront road at the relief's height), on `beach_sand_material()` (UV2.x = metres landward of the
+   waterline, which is all its swash reads), collision in bands; it lays no road strips (SandRoads
+   now calls such a chunk's roads under the sand: `kind 1`, so traffic turns at the beachfront road);
+   palms in twos and threes on the back half of the sand (`PALM_STEP` slots, `PALM_ODDS`, a hash of
+   the seed and the slot) and a lifeguard tower facing the sea in `TOWER_ODDS` of every 240 m. A
+   slice of sea of its own (the west beach's `_build_water(true)`, cut to the strip) was tried: it
+   stood up as a wall of mirrored sky over the shore and hid the cranes (the surf's vertex stage on
+   a plane landward of the bay's shore table) - left out; the sand's toe under the next chunk's
+   water is enough. LOD chunks lay the sand and palms; the far city keeps its plate.
+2. **The bay was dead.** The islands' gelled floods lit nothing in the water: the ocean mirrors the
+   piers' lamp rows and a generic city front, not the islands (9gc's "not done"). **`Rc5OilIslands`**
+   (`scripts/world/rc5_oil_islands.gd`) pushes 16 sources with the piers' rows (one line in
+   `Weather._push_pier_lights()`): each rig tower (centre, half width 6.5 m, foot and top, its two
+   gels at the dusk look's energy), each waterfall and each sound wall's pools.
+   `shaders/oil_island_mirror.gdshaderinc` (in ocean.gdshader, after the emission) meets the
+   reflected ray with the vertical plane through each source square to the ray's heading, lights
+   the hit inside the slab (brightest at the foot, as the floods are), smeared down the water by
+   `isl_smear` per metre travelled - a broken column of each tower's colour - on the near AND the
+   painted water (the islands are 600-900 m out, past `handover_end`), at the water's fresnel,
+   after dark only (`isl_count` 0 by day costs nothing). LINEAR, handed over like the far haze
+   (`cs_linear_renderer()`).
+3. **The towers were glowing pastel slabs.** The floods washed every face foot to crown at an
+   energy AgX took to near white: candy blocks, not lit structures. The island shader's
+   `dusk_look` (0 = the old look bit for bit; `Rc5OilIslands.dress()` from
+   `OilIslandBuild.material()`): a cone of light up from each lamp along the foot (every 7.5 m,
+   narrowing and fading with height, `exp(-h / 13)`), a low afterglow between cones, the crowns
+   falling into the dusk so the derricks and screen tops read as silhouettes against the
+   afterglow; the gel's hue held (the face's own tint taken 60 % to grey under it); the falls a
+   lamp-lit sheet, not a white block. Proved on Forward+ (lavapipe,
+   `tools/glshot/far_landmark_shot.gd IDS=oil_island_0 NIGHT=1`, still 05): darker crowns, more
+   saturated gels, nothing blown.
+
+**Numbers** (refcams, opengl3 1280x720, the final camera; before = `LONG_BEACH_SAND=0
+RC5_OIL_ISLANDS=0`, i.e. main): p1/p5/p50/p95/p99 3/6/24/66/104 -> 10/17/37/67/101, crushed 3.4 %
+-> 0.3 %, saturation 0.574 -> 0.517, CCT 12,591 -> 7,354 K (the navy plane gone, warm sand in);
+triangles 671 k -> 689 k (+2.6 %), draws 407 -> 431, shadow 101 k -> 109 k (the sand meshes and
+palms; with palms near the eye, an earlier placement, it was 857 k).
+
+**The ten original cameras** (cameras.json, one load each, before = the two switches off): 8 of 10
+identical within the noise (pixels 0.01-4.2 %); street_noon (8.3 %) and freeway (10.7 %, p50 +15)
+flagged only by the live traffic in them (another bus, another box truck in the lane ahead): the
+scene is the same - neither view has a Long Beach chunk or water at night. Peak 11.8 GB.
+
+**Gate** (SHARDS=3, merged with main at 5262a043): 6,212 checks passed, 0 failed, peak RSS 3,833 MB
+a shard.
+
+**A/B**: `LONG_BEACH_SAND=0` (no Long Beach sand, its roads back), `RC5_OIL_ISLANDS=0` (no mirror,
+the old flood look). Checks: `tests/rc5_oil_islands_dusk_checks.gd`. Stills on
+`shots/rc5-oil-islands-dusk` (README lists them).
+
+**Not done / seen but not mine.** The palms near the eye are lit a bright green at 18:45 (the
+fronds' sky-through emission or the moon key; TreeLight / foliage.gdshader, the same on every
+beach) - so the Long Beach palms stand on the back half of the sand, mostly out of this frame; a
+lighthouse's horizontal beam draws as a long flat green band along the horizon (Lighthouses); the
+sand's 2 m footprint tile reads as dark blots at a grazing dusk look (beach_sand.gdshader). The
+Long Beach sand has no BeachLife (people, path, courts: its planner walks the west coast) and its
+swash noise runs along z, not along the shore (beach_sand.gdshader's along-shore axis is world z).
+The mirror is an emitted billboard per source: it does not know the islands' own silhouettes (a
+tower behind another mirrors through it). Forward+ seen only for the towers, not the mirror.
 ## 9d?. The Googie motel at 21:00 (fleet wave 8, refcam5 `googie_motel`, branch `wt/rc5-googie-motel`)
 
 **The view.** New row `googie_motel` in `tools/refcams/cameras_w8.json`: Highland Blvd in midtown

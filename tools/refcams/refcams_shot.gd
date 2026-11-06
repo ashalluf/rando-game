@@ -138,11 +138,15 @@ func _run() -> void:
 		# the default count before the shot, so it is where the row says whatever the wait.
 		var frames := 0 if drive else maxi(_env_int("SHOT_FRAMES", 30), int(cam.get("shot_frames", 0)))
 		var stage_at := frames - _env_int("SHOT_FRAMES", 30)
+		# "air_frames" (cameras_w8.json, jet_takeoff): the aircraft staged that many frames before
+		# the shot instead (a jet rolling at 56 m/s covers ~200 m in the default 30 frames).
+		var air_at := frames - int(cam.get("air_frames", frames - stage_at)) if cam.has("air_frames") else stage_at
 		var traffic_staged := false
 		var park: RefCounted = null
 		for i in frames:
-			if i == stage_at:
+			if i == air_at:
 				_stage_air(scene, cam)
+			if i == stage_at:
 				_stage_rail(cam, scene)
 				traffic_staged = _stage_street_cars(cam, scene, plan)
 				_stage_storm_flash(cam, weather)
@@ -249,6 +253,17 @@ func _run() -> void:
 			# tuned from this line.
 			var at: Vector3 = _air_staged.get("world_pos") if _air_staged.get("world_pos") != null else (_air_staged as Node3D).global_position
 			print("REFCAM %s air at %.1f,%.1f,%.1f" % [cam.name, at.x, at.y, at.z])
+			if _air_staged.get("pitch") != null:
+				print("REFCAM %s air pitch %.1f deg, speed %.1f" % [cam.name, rad_to_deg(float(_air_staged.get("pitch"))), float(_air_staged.get("speed"))])
+			var lights := _air_staged.get_node_or_null("Lights") as MeshInstance3D
+			if lights and _eye_cam:
+				var arr := lights.mesh.surface_get_arrays(0)
+				var vs: PackedVector3Array = arr[Mesh.ARRAY_VERTEX]
+				var pts := []
+				for k in range(0, vs.size(), 6):
+					var wp := lights.global_transform * vs[k]
+					pts.append("%s%s" % [str(_eye_cam.unproject_position(wp).round()), "" if not _eye_cam.is_position_behind(wp) else "B"])
+				print("REFCAM %s air lights visible %s at %s" % [cam.name, lights.is_visible_in_tree(), " ".join(pts)])
 		_air_staged = null
 	print("REFCAMS done, %d shots in %d ms" % [shots.size(), Time.get_ticks_msec() - started])
 	quit()
@@ -364,6 +379,12 @@ func _stage_air(scene: Node, cam: Dictionary) -> void:
 	var placed: Node = air.call("stage", kind, lens, float(cam.get("air_dist", 300.0)), float(cam.get("air_side", 0.0)))
 	print("REFCAM %s: staged %s (%s)" % [cam.name, kind, placed.name if placed else "nothing"])
 	_air_staged = placed
+	# "air_flash" (cameras_w8.json, jet_takeoff): the staged aircraft's strobes and beacons held at
+	# their flash for the still (aircraft_lights.gdshader `flash_hold`).
+	if placed and bool(cam.get("air_flash", false)):
+		var lm: ShaderMaterial = placed.get("_light_mat")
+		if lm:
+			lm.set_shader_parameter("flash_hold", 1.0)
 
 
 ## A traffic car the shot's clock left with the lens inside or just against its body (the freeway

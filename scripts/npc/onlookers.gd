@@ -302,7 +302,9 @@ func _recruit() -> void:
 		var cands: Array = []
 		for n in peds:
 			var p := n as Pedestrian
-			if p == null or not p.is_inside_tree() or not p._lives() or not _free(p):
+			# The plain crowd only: a valet or vendor has life clips (_lives()) but a job to keep;
+			# recruited, the valet walked off its stand to gawk (batch 61 shard 0, valets_checks).
+			if p == null or not p.is_inside_tree() or not p._lives() or not StreetErrands.plain(p) or not _free(p):
 				continue
 			var d2 := p.global_position.distance_squared_to(at)
 			if d2 < RECRUIT_REACH * RECRUIT_REACH:

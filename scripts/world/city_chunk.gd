@@ -417,8 +417,11 @@ func begin_build() -> void:
 			for step in ArroyoBuild.build_steps(self):
 				_steps.append(_on_map_ground(step))
 		MacroMap.Zone.BEACH:
-			if replica_role == 0:
+			var long_beach: bool = LongBeachSand.claims(self)
+			if replica_role == 0 and not long_beach:
 				_steps.append(_build_roads.bind(block))
+			if long_beach:
+				_steps.append_array(LongBeachSand.steps(self))
 			if _owns_shoreline():
 				_steps.append(_build_beach.bind(block))
 				if OceanCloseup.enabled():
@@ -822,7 +825,7 @@ func _port_yard(st: Dictionary) -> void:
 	var area := owned_rect()
 	var c := area.get_center()
 	_port_lift = _gy(c.x, c.y)
-	_add_slab(Vector3(c.x, 0.1, c.y), Vector3(area.size.x, 0.2, area.size.y), style.concrete, level == Level.FULL, PropFactory.road("concrete", 5.0, PORT_YARD_TINT, hash([plan.seed, ix, iz, "yard"]), 6.0, PortFill.YARD_WEAR if PortFill.enabled else 0.6))
+	_add_slab(Vector3(c.x, 0.1, c.y), Vector3(area.size.x, 0.2, area.size.y), style.concrete, level == Level.FULL, RcPortGate.yard(plan, ix, iz, PropFactory.road("concrete", 5.0, PORT_YARD_TINT, hash([plan.seed, ix, iz, "yard"]), 6.0, PortFill.YARD_WEAR if PortFill.enabled else 0.6)))
 	var rng := RandomNumberGenerator.new()
 	rng.seed = block.seed
 	var kit := RandomNumberGenerator.new()
@@ -3665,7 +3668,7 @@ func _add_bush(at: Vector3, rng: RandomNumberGenerator) -> void:
 ## because testing twenty rects for each of twenty thousand blades costs more than the grass.
 ## Its own seeded rng, so adding grass never shifts the block's sequence and moves a building.
 ## `lawn` / `lawn_rect` are the lawn the grass stands on (LawnsCloseup: the blades take its field).
-func _add_grass(rect: Rect2, density: float = 1.0, keep_out: float = 0.0, blockers: Array[Rect2] = [], lawn: Material = null, lawn_rect: Rect2 = Rect2()) -> void:
+func _add_grass(rect: Rect2, density: float = 1.0, keep_out: float = 0.0, blockers: Array[Rect2] = [], lawn: Material = null, lawn_rect: Rect2 = Rect2(), base_y: float = SIDEWALK_TOP + 0.05) -> void:
 	var min_side := 1.0 if LawnsCloseup.enabled else 2.0
 	if level != Level.FULL or rect.size.x < min_side or rect.size.y < min_side:
 		return
@@ -3721,10 +3724,10 @@ func _add_grass(rect: Rect2, density: float = 1.0, keep_out: float = 0.0, blocke
 			keys[key] = true
 			if closeup:
 				var phase := rng.randf()
-				_batch.add(key, blade, Transform3D(basis, Vector3(p.x, SIDEWALK_TOP + 0.05, p.y)), LawnsCloseup.tuft_color(look, tint),
+				_batch.add(key, blade, Transform3D(basis, Vector3(p.x, base_y, p.y)), LawnsCloseup.tuft_color(look, tint),
 					LawnsCloseup.tuft_data(phase, look, LawnsCloseup.edge_distance(edge_rect, p)))
 			else:
-				_batch.add(key, blade, Transform3D(basis, Vector3(p.x, SIDEWALK_TOP + 0.05, p.y)), tint, Color(rng.randf(), 0.0, 0.0))
+				_batch.add(key, blade, Transform3D(basis, Vector3(p.x, base_y, p.y)), tint, Color(rng.randf(), 0.0, 0.0))
 		done[0] = stop
 		if stop < count:
 			return false
