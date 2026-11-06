@@ -22,6 +22,10 @@ uniform float halo_tail = 0.26;
 uniform float halo_core = 2.4;
 uniform float halo_glow = 0.5;
 uniform float halo_streak = 0.5;
+// DriverRain: a halo is the light scattered by the air between the lamp and the eye, so a lamp a
+// few metres away has almost none (m: the halo is gone under 0.35 of this, whole past it; 0 = the
+// old 2-5 m fade alone). At 3 m the brake-lit halos were salmon disks wider than the car.
+uniform float halo_near = 0.0;
 varying vec4 v_halo;
 varying vec2 v_hq;
 uniform vec3 tint : source_color = vec3(1.0);
@@ -63,6 +67,9 @@ void vertex() {
 		float st = (1.0 - tail) * nh_streak(c, dist) * face;
 		float ex = st > 0.002 ? 6.0 : 1.0;
 		float fade = smoothstep(2.0, 5.0, dist) * nh_far(dist) * night_atmos.z * face;
+		if (halo_near > 0.0) {
+			fade *= smoothstep(halo_near * 0.35, halo_near, dist);
+		}
 		if (fade < 0.002) {
 			VERTEX = vec3(0.0);
 		} else {

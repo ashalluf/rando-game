@@ -239,6 +239,8 @@ static func atmos_material(kind: String) -> ShaderMaterial:
 	NightLamps.dress_material(kind, mat)
 	if kind == "wet" or kind == "shaft":
 		RainStreetNight.dress_wet(mat)
+	if kind == "shaft":
+		Rc5CoyoteNight.dress_shaft(mat)
 	_meshes[key] = mat
 	return mat
 

@@ -37,6 +37,7 @@ static func deck_material() -> ShaderMaterial:
 		_deck_mat.set_shader_parameter("outer_inset", Freeway.LANE_OUTER_INSET)
 		_deck_mat.set_shader_parameter("lanes", float(Freeway.LANES))
 		FreewayLook.apply_deck(_deck_mat)
+		RcRushHour.dress_deck(_deck_mat)
 	return _deck_mat
 
 

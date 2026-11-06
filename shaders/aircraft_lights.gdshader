@@ -54,6 +54,9 @@ uniform float landing_on : hint_range(0.0, 1.0) = 1.0;
 // white strobes only once it enters the runway; parked, both are off).
 uniform float beacon_on : hint_range(0.0, 1.0) = 1.0;
 uniform float strobe_on : hint_range(0.0, 1.0) = 1.0;
+// Stills only (refcams' "air_flash", JetTakeoff): 1 holds the strobes and beacons at their flash,
+// so a staged frame shows them whatever the clock (0, every aircraft in play, the old flashing).
+uniform float flash_hold : hint_range(0.0, 1.0) = 0.0;
 // Airfield lights by day (kinds 4-7): a field's edge lights are off or low in daylight, and a
 // billboard dot on the apron at noon reads as a glowing bug, not a lamp.
 uniform float field_day : hint_range(0.0, 1.0) = 0.0;
@@ -117,14 +120,14 @@ void fragment() {
 	if (v_kind > 0.5 && v_kind < 1.5) {
 		// Strobe: a double flash every 1.3 s.
 		float f = fract(TIME / 1.3 + v_phase);
-		on = (step(f, 0.03) + step(abs(f - 0.10), 0.015)) * strobe_on;
+		on = max(step(f, 0.03) + step(abs(f - 0.10), 0.015), flash_hold) * strobe_on;
 		level = max(lamp_factor, day_level * 2.0);
 	} else if (v_kind > 1.5 && v_kind < 2.5) {
 		// Beacon: a red pulse a second; with the night pass each light at its own rate, 30-50 a
 		// minute from its phase (towers' lights out of step, NightSkyline).
 		float rate = mix(1.0, 0.5 + 0.35 * fract(v_phase * 7.31), night_skyline);
 		float f = fract(TIME * rate + v_phase);
-		on = pow(max(sin(f * 6.2832), 0.0), 5.0) * beacon_on;
+		on = max(pow(max(sin(f * 6.2832), 0.0), 5.0), flash_hold) * beacon_on;
 	} else if (v_kind > 2.5 && v_kind < 3.5) {
 		on = landing_on;
 		level = max(lamp_factor, day_landing);

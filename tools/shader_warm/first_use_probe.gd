@@ -36,6 +36,13 @@ const WAVE3 := ["enter_car", "crash", "police_night", "umbrellas", "wildlife"]
 ## troop truck, troopers and the gunship (wanted-escalation), gibs and stumps (blood-gore-2), blood
 ## on the hero. "wave4" = all of them.
 const WAVE4 := ["blast3", "burst", "crash_hard", "spikes", "troop", "officers", "gunship", "gore", "hero_blood"]
+## Waves 5-8's first uses (first-use-w8, 2026-11-06): a car going up (explosions-4's fuel fireball,
+## burning pool, fuel trail, flames up the wreck, tongues, pit, ring, ground flash, hot core,
+## ribbons), a petrol pump's gas blast, the newer bodies (cars 3 and 4, lowriders, motorcycles,
+## service vehicles, the school bus), the wingsuit opened (look2's inflated wing, vapour), a boat
+## under way (BoatWake, BoatSea's chine sheets), a jet's landing-light beams (jet-takeoff), a lit
+## beach bonfire (its glow), a pursuit cruiser's LED bar at night. "wave8" = all of them.
+const WAVE8 := ["new_cars", "wingsuit", "boat", "jet_beams", "bonfire", "pursuit_night", "fuel_blast", "gas_blast"]
 
 var _frames_per_event := 12
 var _base_ms := 0.0
@@ -122,8 +129,9 @@ func _ready() -> void:
 	base.sort()
 	_base_ms = base[base.size() / 2]
 	print("BASE median frame %.0f ms" % _base_ms)
+	_snapshot()
 	var list: Array = EVENTS if _env("EVENTS", "all") == "all" else (WAVE3 if _env("EVENTS", "") == "wave3" else (WAVE4 if _env("EVENTS", "") == "wave4" \
-			else Array(_env("EVENTS", "").split(",", false))))
+			else WAVE8 if _env("EVENTS", "") == "wave8" else Array(_env("EVENTS", "").split(",", false))))
 	for ev in list:
 		await _event(String(ev))
 	_spikes.sort_custom(func(a, b): return a[0] > b[0])
@@ -207,8 +215,27 @@ func _cleanup() -> void:
 	if _holder and is_instance_valid(_holder):
 		_holder.queue_free()
 		_holder = null
+	# What an event's effects parented to the scene (blast volumes, smoke, burning pools: a pool burns
+	# for 15-24 s and slowed every later event's frames) goes too (first-use-w8).
+	for root: Node in [get_tree().current_scene, _world]:
+		if root == null:
+			continue
+		for c in root.get_children():
+			if not _before.has(c.get_instance_id()) and (c.get_script() == null or c is BlastPool):
+				c.queue_free()
 	for i in 3:
 		await get_tree().process_frame
+
+
+## The scene's children before the events (first-use-w8's cleanup keeps these).
+var _before := {}
+
+
+func _snapshot() -> void:
+	for root: Node in [get_tree().current_scene, _world]:
+		if root != null:
+			for c in root.get_children():
+				_before[c.get_instance_id()] = true
 
 
 func _ahead(dist: float, up: float = 0.0) -> Vector3:
@@ -527,3 +554,104 @@ func _ev_hero_blood() -> void:
 	for i in 3:
 		HeroBlood.splash(at, _cam.global_basis.z, 2.0)
 		await get_tree().process_frame
+
+
+## Waves 5-8 (first-use-w8). A car blown up for real: CarDamage.explode() -> Explosion.blast() with
+## a fuel fireball (Blast4.after_blast: the pool, the trail, the side flames, the pops).
+func _ev_fuel_blast() -> void:
+	var car := _car(0)
+	car.position = _ahead(14.0) + Vector3(0.0, 0.9, 0.0)
+	_hold().add_child(car)
+	for i in 3:
+		await get_tree().process_frame
+	car.call("take_hit", 0, 900.0, Vector3.FORWARD, car.global_position - Vector3(0.0, 0.0, 3.0), Vehicle.HIT_BLAST)
+	await get_tree().process_frame
+	var dmg: Node = car.call("damage_state")
+	if dmg:
+		dmg.call("explode")
+
+
+func _ev_gas_blast() -> void:
+	Blast4.gas_next = true
+	Explosion.blast(_hold(), _ahead(16.0, 0.9), Blast4.gas_radius, 26.0, 18.0)
+	Blast4.gas_next = false
+
+
+func _ev_new_cars() -> void:
+	_player.get("camera_rig").call("set_look", 0.0, -8.0)
+	var i := 0
+	for t: int in Vehicle.BodyType.values():
+		if t < 20 or t == Vehicle.BodyType.FIRE_ENGINE or t == Vehicle.BodyType.AMBULANCE:
+			continue
+		var car: Vehicle
+		if BigVehicles.is_big(t):
+			car = BigVehicles.make(t, 0)
+		elif Motorcycle.is_moto(t):
+			car = Motorcycle.make(t, 0)
+		else:
+			car = Vehicle.new()
+			car.setup(t, Color(0.6, 0.1, 0.1), 0)
+		if car == null:
+			continue
+		car.position = _ahead(14.0 + (i / 6) * 9.0) + Vector3(float(i % 6 - 2.5) * 5.5, 0.9, 0.0)
+		_hold().add_child(car)
+		i += 1
+
+
+func _ev_wingsuit() -> void:
+	var suit: Node = _player.get("wingsuit")
+	if suit == null:
+		return
+	var home := _player.global_position
+	_player.global_position = home + Vector3.UP * 220.0
+	_player.set("velocity", -_cam.global_basis.z * 30.0 + Vector3.DOWN * 8.0)
+	await get_tree().physics_frame
+	suit.call("open")
+	for i in 14:
+		await get_tree().process_frame
+	suit.call("close", false)
+	_player.global_position = home
+	_player.set("velocity", Vector3.ZERO)
+
+
+func _ev_boat() -> void:
+	var b: Node3D = load("res://scripts/vehicles/boat.gd").new()
+	b.call("setup_boat", 0, 3)
+	b.position = _ahead(12.0) + Vector3(0.0, 0.6, 0.0)
+	_hold().add_child(b)
+	await get_tree().process_frame
+	for p in b.find_children("*", "CPUParticles3D", true, false):
+		(p as CPUParticles3D).emitting = true
+		(p as CPUParticles3D).visible = true
+
+
+func _ev_jet_beams() -> void:
+	RenderingServer.global_shader_parameter_set("night_factor", 1.0)
+	RenderingServer.global_shader_parameter_set("lamp_factor", 1.0)
+	var at := _ahead(30.0, 6.0)
+	var beams := JetTakeoff.build_beams(_hold(), [[at, -_cam.global_basis.z], [at + Vector3(3.0, 0.0, 0.0), -_cam.global_basis.z]])
+	JetTakeoff.show_beams(beams, true)
+
+
+func _ev_bonfire() -> void:
+	RenderingServer.global_shader_parameter_set("night_factor", 1.0)
+	RenderingServer.global_shader_parameter_set("lamp_factor", 1.0)
+	var f := BonfireFire.new()
+	f.position = _ahead(8.0)
+	_hold().add_child(f)
+	f.call("_build")
+	for p in f.find_children("*", "CPUParticles3D", true, false):
+		(p as CPUParticles3D).emitting = true
+	for n in f.find_children("*", "MeshInstance3D", true, false):
+		(n as Node3D).visible = true
+
+
+func _ev_pursuit_night() -> void:
+	RenderingServer.global_shader_parameter_set("night_factor", 1.0)
+	RenderingServer.global_shader_parameter_set("lamp_factor", 1.0)
+	for k in 2:
+		var car: Node3D = PoliceCar.make(k == 1, RandomNumberGenerator.new())
+		car.set("police", null)
+		car.set("_stolen", true)
+		car.position = _ahead(10.0 + k * 6.0) + Vector3(float(k) * 3.0, float(car.call("road_lift")), 0.0)
+		_hold().add_child(car)

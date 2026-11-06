@@ -1316,6 +1316,7 @@ static func vehicle_light_material(brake: bool = false, signal_side: int = 0, ph
 	mat.set_shader_parameter("signal_side", float(signal_side))
 	mat.set_shader_parameter("blink_phase", float(phase) * 0.25)
 	mat.set_shader_parameter("reverse", 1.0 if reverse else 0.0)
+	mat.set_shader_parameter("halo_near", DriverRain.halo_near())
 	_cache[key] = mat
 	return mat
 
@@ -2514,6 +2515,7 @@ static func beach_sand_material() -> ShaderMaterial:
 	mat.set_shader_parameter("tile_m", 2.0)
 	BeachGolden.dress_sand(mat)
 	mat.set_shader_parameter("night_look", 0.0 if OS.get_environment("RC4_BONFIRE") == "0" else 1.0)
+	mat.set_shader_parameter("moon_band_soft", 1.0 if RcPowerPlant.enabled else 0.0)
 	_cache["beach_sand_mat"] = mat
 	return mat
 

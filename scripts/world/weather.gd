@@ -351,6 +351,8 @@ func _push_pier_lights() -> void:
 	# The same rows lighting the water and the sand round each pier (rc4-pier-night-2).
 	RcPierNight.push(_ocean)
 	RcPierNight.push(PropFactory.beach_sand_material())
+	# The oil islands' floods mirrored in the bay (Rc5OilIslands).
+	Rc5OilIslands.push(_ocean)
 
 
 ## [[Vector4(ax, az, bx, bz), Vector4(lamp height, spacing, deck height, warmth)], ...].
@@ -1143,6 +1145,7 @@ func _update_la(delta: float, _fog: float, _vol: float) -> void:
 	var glow := Color(0.075, 0.048, 0.024) * lamp * moon
 	if _marine_layer:
 		_marine_layer.deck = deck
+		_marine_layer.rim = MarineEvening.rim(horizon, sun_col, moon)
 		_marine_layer.drive(marine_weight, coast + LaWeather.edge_offset(hour), bank, lit, shade, glow, sun_dir,
 			_env.fog_light_color if _env else Color(0.6, 0.62, 0.65), delta)
 	# The Santa Ana.
@@ -1160,7 +1163,8 @@ func _update_la(delta: float, _fog: float, _vol: float) -> void:
 	heat = LaWeather.afternoon_heat(hour) * (1.0 - moon) \
 		* (heat_clear * weight_of(State.CLEAR) + heat_santa_ana * santa_ana_weight + heat_marine * marine_weight * (1.0 - cover))
 	if _haze:
-		_haze.strength = heat
+		# (Over a jammed freeway the exhaust and hot asphalt shimmer at any hour of the rush: RcRushHour.)
+		_haze.strength = maxf(heat, RcRushHour.traffic_haze(weight_of(State.CLEAR) + santa_ana_weight))
 	if _roof_rain:
 		_roof_rain.rain = rain_level
 		_roof_rain.low_detail = _low_detail

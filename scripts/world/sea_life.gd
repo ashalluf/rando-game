@@ -67,6 +67,12 @@ const KINDS := ["dolphin", "sea_lion", "pelican", "whale", "buoy"]
 const SPRAY_SPLASH := 0.0
 const SPRAY_PLUNGE := 1.0
 const SPRAY_BLOW := 2.0
+## A ring on the sea where a back broke the surface or a bird sat down (rc5-sea-life; the spray's
+## flat look, SEA_SPRAY=0 leaves them out).
+const SPRAY_RING := 3.0
+## rc5-sea-life: the spray's second look (white water lying flat on the sea, streaked throws, the
+## rings). SEA_SPRAY=0 is the A/B: the old camera-facing clumps and no rings.
+static var spray_look: bool = OS.get_environment("SEA_SPRAY") != "0"
 const SPRAY_RANGE := 2600.0
 const GRAVITY := 9.8
 
@@ -210,6 +216,7 @@ static func material(k: String) -> ShaderMaterial:
 			m.set_shader_parameter("beat_wave", 1.4)
 			m.set_shader_parameter("eye_pos", Vector3(0.1, 0.025, -0.985))
 			m.set_shader_parameter("eye_r", 0.017)
+			m.set_shader_parameter("skin2", 1.0 if spray_look else 0.0)
 		"sea_lion":
 			m.set_shader_parameter("neck", Vector3(0.0, SeaLifeMesh.SEA_LION_NECK_Y, SeaLifeMesh.SEA_LION_NECK))
 			m.set_shader_parameter("jaw_hinge", Vector3(0.0, 0.2, -SeaLifeMesh.SEA_LION_LEN * 0.5 + 0.1 * SeaLifeMesh.SEA_LION_LEN))
@@ -237,6 +244,7 @@ static func spray_material() -> ShaderMaterial:
 	if _spray_mat == null:
 		_spray_mat = ShaderMaterial.new()
 		_spray_mat.shader = load("res://shaders/sea_spray.gdshader")
+		_spray_mat.set_shader_parameter("look2", 1.0 if spray_look else 0.0)
 	return _spray_mat
 
 
@@ -552,8 +560,8 @@ func dolphins_at(e: Dictionary, t: float, out_splash: Array = [], sounds: Array 
 		var period: float = m[3]
 		var phase: float = m[4]
 		if e.has("sync"):
-			# Staged: every dolphin is a few tenths into a leap at the staged moment.
-			phase = fposmod(0.75 + 0.1 * float(j) - float(e.sync), period)
+			# Staged: the dolphins come up one after another round the staged moment (a third of a second apart).
+			phase = fposmod(0.75 + 0.33 * float(j) - float(e.sync), period)
 		var local := u + phase
 		var cyc := int(floor(local / period))
 		var tau := local - float(cyc) * period - 0.6
@@ -583,6 +591,8 @@ func dolphins_at(e: Dictionary, t: float, out_splash: Array = [], sounds: Array 
 				var cp: Vector3 = base + fwd * ((vh - v) * crossing - v * age)
 				if age >= 0.0 and age < 1.5:
 					out_splash.append({"pos": Vector3(cp.x, sy, cp.z), "age": age, "kind": SPRAY_SPLASH, "size": 1.0 if crossing > 0.0 else 0.7})
+				if spray_look and age >= 0.0 and age < 4.0:
+					out_splash.append({"pos": Vector3(cp.x, sy, cp.z), "age": age, "kind": SPRAY_RING, "size": 1.0 if crossing > 0.0 else 0.8})
 				var t_cross: float = t - age
 				if t_prev < t_cross and t_cross <= t:
 					sounds.append({"pos": Vector3(cp.x, sy, cp.z), "name": "splash", "pitch": 0.9 + hj * 0.3})
@@ -594,6 +604,11 @@ func dolphins_at(e: Dictionary, t: float, out_splash: Array = [], sounds: Array 
 			var t_blow := t - (tau - tr * 0.45)
 			if t_prev < t_blow and t_blow <= t:
 				sounds.append({"pos": base, "name": "puff", "pitch": 0.85 + hj * 0.3})
+			# The back breaking the surface leaves a ring and a slick behind it as the pod swims on.
+			var ring_age := tau - tr * 0.2
+			if spray_look and ring_age >= 0.0 and ring_age < 4.0:
+				var rp := base - fwd * v * ring_age
+				out_splash.append({"pos": Vector3(rp.x, sy, rp.z), "age": ring_age, "kind": SPRAY_RING, "size": 0.9})
 		if body_y < -1.6:
 			continue
 		var pos := base + fwd * fwd_extra + Vector3(0.0, body_y, 0.0)
@@ -672,6 +687,9 @@ func pelicans_at(e: Dictionary, t: float, out_splash: Array = [], sounds: Array 
 				if tau < t_sit:
 					along = sit_along
 					on_water = true
+					if spray_look and tau < 5.0:
+						var rp := coast_point(zc + dir * sit_along, s - lat)
+						out_splash.append({"pos": Vector3(rp.x, sea_y(rp), rp.y), "age": tau - 1.0, "kind": SPRAY_RING, "size": 0.7})
 					fold = 1.0
 					amp = 0.0
 					pitch = lerpf(-0.6, 0.0, smoothstep(1.0, 1.8, tau))
@@ -743,6 +761,9 @@ func whale_at(e: Dictionary, t: float, out_splash: Array = [], sounds: Array = [
 			continue
 		var x := tau / dur
 		var y := -3.2 + 2.6 * 4.0 * x * (1.0 - x)
+		# Its back through the surface leaves a slick (a "footprint") on the sea.
+		if spray_look and x > 0.25 and x < 0.75:
+			out_splash.append({"pos": Vector3(c.x, SeaSurface.MESH_Y, c.y), "age": (x - 0.25) * dur, "kind": SPRAY_RING, "size": 3.0})
 		var pitch := atan2(2.6 * 4.0 * (1.0 - 2.0 * x) / dur, float(e.v) + 1.5) * 1.4
 		var lift := 0.0
 		if last:

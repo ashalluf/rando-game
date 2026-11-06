@@ -3805,6 +3805,23 @@ already mapped so milestone 2 is script-only.
   make it faster, and Quality no longer judges the machine by the loading screen. Shader baking
   stays off while Godot 4.7.2's baked Metal exports crash (godot#123266, #124539). No loader
   threads: the codebase's cyclic preloads broke under one.
+- **2026-11-06, the memorial park at dawn (rc5-cemetery-dawn).** Under a full marine deck the sun
+  has no disc: it keeps its diffuse share but loses its highlight, and the photocells keep the
+  lamps on (fading) until the sun is about a dozen degrees up. A mist's damp beads on leaves and
+  dulls a lawn; only rain glazes them. Morning ground mist is a volume cut by the scene's depth over
+  the park, not more global fog (which would grey every other view). RC5_CEMETERY_DAWN=0 the A/B.
+- **2026-11-06 The driver's seat in the rain (rc5-driver-rain, HANDOFF "The driver's seat in the
+  rain").** The view from inside the player's car is judged with the real cabin (a body CarInteriors
+  builds), so its glass is the see-through one: anything the outside glass draws (rain, wipers) must
+  be drawn on it too. Beads seen from the seat are drawn larger than outside (bead_scale): true size
+  is under the pixel there. Car lamp halos are the air between lamp and eye, so they fade out within
+  12 m rather than 5. DRIVER_RAIN=0 is the A/B.
+
+- **2026-11-06, Spring St at 16:00 (rc5-historic-core).** A building's wall photo is detail round
+  its colour, never a second albedo multiplied in: the historic fronts' walls drew at half the
+  brightness of their own ornament in the same stone. The historic core is a continuous street wall
+  (fronts meet where their neighbours are fronts), not banks standing apart with slots between.
+  RC5_HISTORIC=0 is the A/B.
 
 ## Correction: what build 135 (0ce833f) actually contained
 
@@ -4631,6 +4648,14 @@ none of either.
   as particle quads on the water; a wake's foam is braided lines on an aerated sheet that emits the
   evening's light, not a lit white band; spray is a low sheet off the chines; a boat's transom carries
   its invented name. BOAT_SEA=0 is the A/B.
+- **2026-11-06 The taco truck refcam: a truck at night brings its people (rc5-taco-truck-night,
+  HANDOFF "The taco truck at 23:00").** A new reference camera (`taco_truck_night`, wave 8's table)
+  stands in a midtown taco truck's queue at 23:00. Decisions: a working truck is never empty - it
+  brings its regulars (1-3 by the hour) rather than waiting for walkers to happen by, and the cook
+  works at the counter; a truck never parks in a bike lane or a bus stop's kerb zone (both asked
+  after the truck's roll, so nothing else on the block moves); a truck runs its clearance and tail
+  lamps and steams off its stack; a lightbox burns near 1, not 2.4 (AgX made it a white card).
+  RC5_TACO=0 is the A/B.
 - 2026-11-05 (fleet wave 8, gate-flakes-2): the gate's last open flakes. A jointed doll's settle and
   freeze clocks run on the physics step (a long frame froze dolls mid-fall, in play too on a slow
   frame); shop doors and far-walker borrowing take only the plain crowd by script (a valet was sent
@@ -4683,3 +4708,175 @@ none of either.
   starts at a trimmed glide's speed and takes the sky's and the sun's light; the museum roof under
   the glide gets its skylight lattice, the concert hall's steel reads by face-to-face contrast under
   a low sun, and the lit crowns wait for dusk (night_factor is 0.7 at the sunset). A refcam row's fov is vertical. WINGSUIT_LOOK=0 / RC5_WINGSUIT=0 are the A/Bs.
+- 2026-11-06 (wave 8, rc5-rail-crossing): a new reference camera, `rail_crossing`
+  (cameras_w8.json), waits at a Coral Line crossing at 17:30 as a train passes. Decisions: thin
+  wires (catenary as well as utility lines) are drawn as camera-facing ribbons, never as tubes that
+  fall between pixels; a red warning lamp is held to green at 0.1 of red so AgX keeps it red; a
+  train's windows are tinted glass with people behind them, lit neutral, not the sky's colour.
+  RC5_RAIL_CROSSING=0 is the A/B.
+
+- **2026-11-05 The suburban street at night: the moon is a residential street's dimmer, a lit window
+  lights its yard (rc5-suburb-night, HANDOFF "The suburban street at 21:30").** A new reference
+  camera (`suburb_night`, wave 8's table) stands on the suburb_morning pavement at 21:30. Decisions:
+  the city's one moon, set for a lit downtown, is cut to 0.3 of itself over SUBURBS and BEACHTOWN
+  (off the coast, deep in the night only) because a suburb's own light - lamps, porches, windows -
+  must win over it; anything that says whether a window is lit says it from HouseNights' key and the
+  pane's own 8-bit roll, on the GPU, so the light on the yard always matches the glass; a lantern's
+  wall light is a point source's falloff with the cap's cut, never a soft disc. SUBURB_NIGHT=0 is the A/B.
+- **2026-11-06 The fireworks_ballpark refcam: a firework is its streaks and the air it lights
+  (rc5-fireworks-ballpark, HANDOFF "Fireworks over the ballpark from Stadium Way").** A new reference
+  camera (`fireworks_ballpark`, wave 8's table) looks from Stadium Way over the south lots at a show
+  over SUNRIDGE BALLPARK at 21:30, its clock held by the new `fireworks_t` row key. Decisions: a break
+  never draws its white-hot instant as 96 stars stacked on one point (a solid disc); the flash and the
+  lit air are one soft glow quad per break in its colour (bloom's job on the Mac, the only glow on
+  Compatibility); stars at half a kilometre read as radial trails, not dots; the show's light reaches
+  the stands (falloff 0.75, not 1.2) and the smoke takes it strongly, plus the floodlit ground under
+  it. RC5_FIREWORKS=0 is the A/B.
+- **2026-11-06 The take-off refcam: the infield, the jet's lights (rc5-jet-takeoff, HANDOFF "The
+  take-off from the infield").** A new reference camera (`jet_takeoff`, wave 8's table) watches an
+  airliner rotate off 27R at 19:15 from the grass beside an edge light. Decisions: the airfield's
+  grass gets the city's lawn tufts in a dry look and every elevated edge light's glow on the ground
+  (FULL chunks only); an aircraft's lights hang where the model really has its wingtips (measured
+  off the vertices, not a fixed span); a rolling jet has its landing lights and strobes on; landing
+  lights draw a faint fog-free beam after dark; the take-off shimmer grows with thrust in
+  metre-sized ripples. The rotation pivot was measured and left (the main gear is under the
+  origin). JET_TAKEOFF=0 is the A/B.
+
+- 2026-11-06 (wave 8, rc5-port-gate): a new reference camera, `port_gate` (cameras_w8.json), looks
+  along the container terminal's booth row at 10:00. Decisions: the camera stands by the booths,
+  not where the quay cranes show (from eye level the canopy and the yard's 3-4 tier stacks hide
+  them; only their tops show from the street); a gate is busy at 10:00 (fuller lanes, a queue);
+  the queue slot north of the portal is a bobtail so nothing runs into the street; the gate is
+  paved in asphalt, the yard keeps its concrete. RC5_PORT_GATE=0 is the A/B.
+- **2026-11-06 The rush_hour refcam: the freeway jams at the rushes (rc5-rush-hour, HANDOFF "The
+  freeway at rush hour").** A new reference camera (`rush_hour`, wave 8's table) looks west down
+  the 105 from a footbridge at 17:40. Decisions: freeway cars, kinematic and placed, never wait on
+  PhysicsBudget's cap (a busy city sits at it and the freeway stayed empty); the hour sets how
+  jammed the freeway is (shorter slots, a bigger cap, a closer standing gap) and a stop-and-go wave
+  - a speed limit that runs back up the traffic - makes the brake lamps, never a per-car random
+  brake; at the rushes the cap goes where the camera looks along the route. RUSH_HOUR=0 and
+  RC5_RUSH_LOOK=0 are the A/Bs.
+- **2026-11-06 The oil_islands_dusk refcam: every shore is a beach (rc5-oil-islands-dusk, HANDOFF
+  "The oil islands at dusk from the Long Beach sand").** A new reference camera (`oil_islands_dusk`,
+  wave 8's table) on the Long Beach sand at 18:45. A BEACH zone must build sand whichever way its
+  shore runs: the bay's north shore had none (the beach builder assumes the west coast), so
+  LongBeachSand lays it along x with the sea to +z and buries the chunk's road strips (SandRoads);
+  lit structures standing in water mirror their light in it (the islands' towers as columns in the
+  bay); a flood is light thrown up a face from its foot, not a face painted the gel's colour.
+  LONG_BEACH_SAND=0 / RC5_OIL_ISLANDS=0 are the A/B.
+- **2026-11-06 The power_plant_dusk refcam: an industrial plant at night is lit by its own lamps
+  (rc5-power-plant-dusk, HANDOFF "The power plant at dusk from the beach").** A lamp box that
+  lights nothing is a sticker; every lamp the plant carries (wall packs, landing lamps, eave
+  floods, stack uplights, yard masts) lights the walls round it through the shader (a TRUE-world
+  source table, no OmniLights), and glazing set into cladding stands well clear of the depth
+  buffer's step at the distance it is seen from. RC5_POWER_PLANT=0 is the A/B.
+
+
+- 2026-11-06 (wave 8, rc5-lighthouse-night): a new reference camera, `lighthouse_night`
+  (cameras_w8.json), looks at Gull Point light from the breakwater at 22:00. Decisions: a light beam
+  is drawn as light scattered by the air (a volume integrated along the eye ray), never as a lit
+  solid - it is brightest at its source and looking back up it, and fades and breaks up with
+  distance; a light's point glare is drawn in front of whatever housing holds it (the lantern's lamp
+  was hidden behind its own lens); at night surge foam is a grey lace, not white sheets. The harbour
+  gate light stays out of this frame (behind the eye: no eye on the stones holds both lights).
+  RC5_LIGHTHOUSE=0 is the A/B.
+
+- 2026-11-06 (wave 8, rc5-auto-row): a new reference camera, `auto_row` (cameras_w8.json), at a
+  new-car dealer from the kerb at 11:00. Decisions: a dealer lot shows real car bodies wherever a
+  player on foot can see them (the box cars only past 48 m); a price card sits on the glass of the
+  body it is drawn on, measured from that body, never a table of guesses; a dealership keeps its
+  frontage clear of kerb trees (palms stay). RC5_AUTO_ROW=0 is the A/B.
+
+- 2026-11-06 (wave 8, rc5-walk-of-fame-night): a new reference camera, `walk_of_fame_night`
+  (cameras_w8.json), stands on Canyon Blvd's stars at 22:00 toward THE GRAND CELESTE. Decisions:
+  the palace's marquee advertises a world premiere, so the premiere is there every evening
+  (19:30-01:00) rather than on a hashed night - the marquee's text is fixed, and the scene should
+  match it; the walk's costumed characters, the premiere's first fans and a few tourists a face are
+  the scene and spawn even with the crowd cap full (still counted, never trimmed), as NightLife's
+  door people already do; a tourist strip is busiest after dark. RC5_WALK_OF_FAME=0 is the A/B.
+- **2026-11-06 The back yard pool refcam: pools have depth, Saturdays have barbecues (rc5-backyard-pool,
+  HANDOFF "The back yard pool on a Saturday").** A new reference camera (`backyard_pool`, wave 8's
+  table) stands on a valley patio at 15:00 on a Saturday. Decisions: a yard pool is traced in its
+  shader under one quad at the coping (never real tank geometry: the yard's lawn slab is above where
+  the water would be, and a trace costs no triangles); the week has a weekend - on a Saturday or
+  Sunday most grill owners cook a late lunch, so a weekend afternoon smells of barbecue; lounger pairs
+  get their own umbrella by hash, inside their prop. RC5_BACKYARD=0 is the A/B.
+- **2026-11-06 The crash refcam: a crash reads by what it hit and what it leaks (rc5-crash-closeup,
+  HANDOFF "The crash at arm's length").** A new reference camera (`crash_closeup`, wave 8's table)
+  stages a sedan wrapped round a street lamp at 13:00. Decisions: what the car hit shapes the crush
+  (a pole a narrow deep V, a wall the wide flat crush), told to CrashDeform by a one-frame hint from
+  whoever knows (PropBreak's smash, the stager), never guessed from the contact; a bonnet only flies
+  open past the fly-off speed, below it it pops and buckles; a front crush leaks oil and coolant onto
+  the ground and steams for a couple of minutes; the stager is a camera-row key (`"stage": "crash"`),
+  never a change to the city. CRASH_AFTERMATH=0 is the A/B.
+- 2026-11-06 (fleet wave 8, rc5-friday-lights): a school stadium on its game night is lit by real
+  spotlights from its standards (not additive pools), and its game is baked figures (players, officials,
+  seated fans) rather than live people: ~460 people in view must cost like scenery. A facility rect
+  that crosses a chunk border is built by the chunk owning its centre (the school car park was bare
+  asphalt). RC5_FRIDAY_LIGHTS=0 is the A/B.
+- **2026-11-06 A motel sign stands over a motel (rc5-googie-motel, HANDOFF "The Googie motel at
+  21:00").** A Googie pole sign at a surface car park's corner now claims that lot for the motor
+  court it advertises (Motels, after every roll; the far city gets its wings as boxes). A sign is
+  a promise about what is behind it: a VACANCY box over striped asphalt read as set dressing.
+  Lit windows key their rolls on a rounded integer, never on an interpolated varying. MOTELS=0
+  and MOTEL_SIGN_GLOW=0 are the A/Bs.
+- **2026-11-06 First uses after waves 5-8 (first-use-w8, HANDOFF "First uses after waves 5-8").**
+  Every system that makes and draws a new kind of surface in the same frame (a boat, a lit bonfire,
+  a fuel fireball, the wingsuit, a crash's fluids) gets a stage in the loading screen's rehearsal;
+  scenery a chunk builds hidden does not. A first use is told from a draw cost by running the event
+  twice in one process. The rehearsal stages the LOOK only: no Explosion.blast, no chain fuse, no
+  delayed pops, everything it lights swept. WARM_WAVE8=0 is the A/B.
+- **2026-11-06 The rail_aerial refcam: a structure at night carries its own light (rc5-rail-aerial,
+  HANDOFF "The Coral Line's aerial structure at night").** A new reference camera (`rail_aerial`,
+  wave 8's table) under the Coral Line's flyover over the 110 at 20:00. Anything a few millimetres
+  thick (overhead wires) is drawn as a camera-facing ribbon never under a pixel, never as a
+  prism a tenth of a pixel wide; an elevated structure at night is lit by its own fixtures (walkway
+  lamps on the poles, downlights under the girder with pools on the street), and what those
+  fixtures would light (columns, soffit, poles, the wires near each pole) carries that light as
+  emission, on the rail's own copy of a shared material so the freeway is untouched.
+  RC5_RAIL_AERIAL=0 is the A/B.
+- **2026-11-06 The sea_life refcam: water that is touched (rc5-sea-life, HANDOFF "Life in the
+  water from the end of the pier").** A new reference camera (`sea_life`, wave 8's table) on the
+  straight pier's head at 08:00. A splash is white water lying ON the sea plus drops flying as
+  streaks along their path, never camera-facing balls (they cut flat at the waterline); anything
+  that breaks the surface leaves a ring that ages out. The surf's whitewater not reading from a
+  pier end was left to the ocean's owners (shared by every beach view). SEA_SPRAY=0 is the A/B.
+
+- 2026-11-06 (Forward+ review i, wave 8): "the same numbers on both renderers" is never true for an
+  additive quad - Compatibility adds them in display space, Forward+ in linear, where a 3 % tail
+  shows ~19 %. A soft additive amount tuned on the opengl3 stills goes through fi_add() (fi_add_hdr()
+  for an HDR emitter: only the part under 1 is decoded) or a light_pool display add. FWD_REVIEW_I=0
+  is the A/B.
+- **2026-11-06 The marine_evening refcam: a fog bank is a wall, and twilight has no hard shadows
+  (rc5-marine-evening, HANDOFF "The marine layer's evening bank from the beach").** A new reference
+  camera (`marine_evening`, wave 8's table) on the beach-town sand at 18:30 under the marine weather.
+  The evening bank is drawn as a standing wall in front of the deck it rolls into (billows, a lit
+  crest, its foot in the water), people go home up the sand at the end of the day, and between
+  sunset and full night the directional light (by then the low moon) keeps a quarter of its shadow:
+  the blue-hour sky lights the ground. MARINE_EVENING=0 is the A/B.
+- **2026-11-06 The pueblo_lane refcam: a market is its crowd (rc5-pueblo-lane, HANDOFF "The marketplace
+  lane at 12:30").** A new reference camera (`pueblo_lane`, wave 8's table) in the marketplace lane's
+  east aisle at 12:30. Decisions: a landmark's crowd follows the hour like a plaza's (the lane is too
+  narrow for PlazaCrowd's open ground, so PuebloLaneLook adds walkers to its ring from its own
+  stream); every second stall is staffed; painted things outdoors are weathered (faded, chipped,
+  dirty at the foot), never factory-new; timber is grained. PUEBLO_LANE_LOOK=0 is the A/B.
+- **2026-11-06 The coast_highway refcam: a cut bluff is fluted, a closed road turns its cars round
+  (rc5-coast-highway, HANDOFF "The coast highway at 17:00 from the seawall").** A new reference
+  camera on the seawall's apron at 17:00. A cut face of any height reads as sculpted until rain
+  gullies are cut into it (CoastFlutes, applied after the carve so everything follows the same
+  ground); a traffic system that only spawns out of sight and deletes at a dead end leaves the road
+  in view empty, so the coast highway fills its whole reach at load and its cars U-turn at the
+  slide. RC5_COAST=0 is the A/B.
+- **2026-11-06, coyotes and raccoons at 02:00 (rc5-coyote-night).** At night an animal is seen
+  first by its eyes: the tapetum throws light back toward the viewer, so wild animals carry an
+  eyeshine sprite pair, lit only after dark and only while the eye faces the lens, sized never under
+  a couple of pixels (the eye itself is under one at street distance). A residential street at
+  2 a.m. is empty: suburban house blocks keep an eighth of their walkers in the small hours, decided
+  by a hash after each walker's roll so no other roll moves. Landscape lighting is on timers that
+  end by 00:30; porch lights stay. A lamp's light cone is not drawn in clear air (it read as a
+  coloured column against the sky); only haze, mist and rain show one. RC5_COYOTE_NIGHT=0 the A/B.
+- 2026-11-06, the car park roof refcam (rc5-car-park-roof): a parked car's colour is dealt for a
+  car park (mostly neutrals, metallic where the finish is), not the street's flat pick of
+  Vehicle.PAINTS: a lot of cars side by side is where a third saturated reads as toys. The roof
+  is precast double tees with sealed joints, so the deck shader draws that structure rather than a
+  noise. RC5_CAR_PARK_ROOF=0 is the A/B.

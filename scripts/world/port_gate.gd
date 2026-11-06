@@ -68,21 +68,24 @@ static func build(ch: CityChunk, area: Rect2) -> void:
 		_lettering(ch, "OUT" if outbound else "IN", 0.5, Color(0.95, 0.8, 0.2), Vector3(lx, y + 6.0 + 1.4, pz - 0.17), PI)
 	_lettering(ch, NAME, 0.75, Color(0.95, 0.95, 0.92), Vector3(cx, y + PortLifeKit.CANOPY_Y + 0.75, cz - 7.08), PI)
 	_lettering(ch, "GATE OFFICE", 0.6, Color(0.95, 0.95, 0.92), Vector3(ox - 6.1, y + 6.4, oz), -PI * 0.5)
+	RcPortGate.build(ch, area)
 	# The trucks, a build step each (a semi is ~35 ms to build).
 	for i in LANES:
-		for slot in 2:
+		for slot in RcPortGate.slots():
 			var h := absi(hash([ch.plan.seed, "gate_truck", i, slot]))
 			var outbound := i < OUT_LANES
-			if outbound and slot == 1:
+			if outbound and slot >= 1:
 				continue
-			var odds := 70 if slot == 0 else 55
+			var odds := RcPortGate.odds(slot)
 			if h % 100 >= odds:
 				continue
-			var z := cz + 2.0 - slot * 21.5
+			var z := cz + 2.0 - slot * 21.5 if slot < 2 else cz + RcPortGate.QUEUE_Z
 			var yaw := PI
 			if outbound:
 				z = cz - 14.0
 				yaw = 0.0
+			if slot == 2:
+				h = RcPortGate.bobtail(h)
 			var at := Vector3(lane_x(area, i), y + ch._pgy(0.0, 0.0), z)
 			ch._run_or_defer(_spawn_truck.bind(ch, at, yaw, h))
 

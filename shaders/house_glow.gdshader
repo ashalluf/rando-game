@@ -17,6 +17,23 @@ global uniform float lamp_factor;
 // 3 a lamp's halo (a camera-facing sprite never drawn smaller than `halo_px` pixels).
 uniform int shape = 0;
 uniform float halo_px = 3.4;
+// SuburbNight (refcam5 suburb_night): 1 draws a lantern's scallop as a point source's falloff on
+// the wall with the cap's cut above the lamp; 0 the old soft disc.
+uniform float suburb_night = 0.0;
+
+// Rc5CoyoteNight (refcam5 coyote_night): 1 reads the landscape timers - an instance whose alpha
+// carries Rc5CoyoteNight.TIMER_FLAG (2) is a path light or an uplight, off from 00:30 until morning
+// (Rc5CoyoteNight.timer_level(), the same numbers); 0 the old look.
+uniform float timer_look = 0.0;
+global uniform float city_hour;
+
+float rc5_timer_level(float hour) {
+	float h = mod(hour, 24.0);
+	h += h < 12.0 ? 24.0 : 0.0;
+	return 1.0 - clamp((h - 23.5) / (24.5 - 23.5), 0.0, 1.0);
+}
+
+varying vec2 quad_m;
 
 varying float halo_scale;
 
@@ -40,6 +57,7 @@ void vertex() {
 		POSITION = PROJECTION_MATRIX * vec4(p, 1.0);
 	} else {
 		halo_scale = 1.0;
+		quad_m = vec2(length(MODEL_MATRIX[0].xyz), length(MODEL_MATRIX[1].xyz));
 		POSITION = PROJECTION_MATRIX * (MODELVIEW_MATRIX * vec4(VERTEX, 1.0));
 	}
 }
@@ -57,6 +75,20 @@ void fragment() {
 		float half_w = 0.10 + 0.38 * up;
 		float across = 1.0 - smoothstep(half_w * 0.35, half_w, abs(q.x));
 		a = across * pow(1.0 - up, 1.4) * smoothstep(0.0, 0.06, up);
+	} else if (shape == 2 && suburb_night > 0.5) {
+		// A lantern at (0.5, 0.29) of the quad (the lens, HouseNights.dress()), off the wall: the wall's light falls off as
+		// a point source's (d0 / (d0^2 + r^2)^1.5, d0 the lamp's effective size off the wall), the
+		// cap shades everything over the lamp's top but a faint glow, and the light spreads wider
+		// going down. In metres from the quad's own size, so a carriage lamp and a porch lantern
+		// keep the same falloff.
+		vec2 p = vec2(q.x, 0.29 - UV.y) * quad_m;
+		float d0 = 0.42;
+		float r2 = dot(p, p);
+		float fall = pow(d0 * d0 / (d0 * d0 + r2), 1.5);
+		float cap = mix(0.12, 1.0, smoothstep(0.16, -0.06, p.y - abs(p.x) * 0.35));
+		float tail = exp(-abs(p.x) / (0.35 + max(-p.y, 0.0) * 0.45)) * smoothstep(-2.4, -0.2, p.y) * step(p.y, 0.0) * 0.4;
+		float edge = smoothstep(0.0, 0.08, UV.x) * smoothstep(1.0, 0.92, UV.x) * smoothstep(0.0, 0.06, UV.y) * smoothstep(1.0, 0.94, UV.y);
+		a = (fall * 1.5 + tail) * cap * edge;
 	} else if (shape == 2) {
 		// A lantern at (0.5, 0.22): a bright scallop under it, a faint one over it.
 		vec2 d = vec2(q.x, (UV.y - 0.22) * (UV.y > 0.22 ? 0.62 : 1.6));
@@ -67,7 +99,11 @@ void fragment() {
 		float core = 1.0 - smoothstep(0.0, 0.18 * halo_scale + 0.05, r);
 		a = max(core, pow(clamp(1.0 - r, 0.0, 1.0), 3.0) * 0.45);
 	}
-	a *= lamp_factor * COLOR.a;
+	float strength = COLOR.a;
+	if (timer_look > 0.5 && strength > 1.5) {
+		strength = (strength - 2.0) * rc5_timer_level(city_hour);
+	}
+	a *= lamp_factor * strength;
 	ALBEDO = COLOR.rgb;
 	ALPHA = a;
 #if CURRENT_RENDERER != RENDERER_COMPATIBILITY

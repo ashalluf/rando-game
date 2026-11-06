@@ -61,6 +61,7 @@ global uniform float lamp_factor;
 #include "res://shaders/ocean_closeup.gdshaderinc"
 // The piers' lamps on the water round them at night (RcPierNight; pw_gain 0 = none).
 #include "res://shaders/pier_wash.gdshaderinc"
+#include "res://shaders/oil_island_mirror.gdshaderinc"
 // A little light scattered back out of the water itself where the lamps reach it.
 uniform float pw_water = 0.02;
 
@@ -1258,6 +1259,12 @@ void fragment() {
 		float toward = pow(max(dot(vh, sh), 0.0), 3.0) * (1.0 - smoothstep(0.08, 0.55, sun_n.y)) * smoothstep(-0.04, 0.03, sun_n.y);
 		EMISSION += foam_color * (haze * 0.4 + sun_col * toward * 0.35 * sky_light) * wake * smoothstep(0.08, 0.5, wake) * detail * dim
 			* wake_glow * (1.0 - night_factor) * (1.0 - painted);
+	}
+	if (isl_count > 0 && lamp_factor > 0.01 && refl.y > 0.0) {
+		// The oil islands' floods in the bay (Rc5OilIslands): near and painted water alike.
+		vec3 ie = oil_island_mirror(vec3(w.x, world_pos.y, w.y), refl)
+			* smoothstep(0.05, 0.55, lamp_factor) * max(fres, 0.12) * (1.0 - white);
+		EMISSION += cs_linear_renderer() ? ie : cs_linear_to_srgb(ie);
 	}
 	if (pw_gain > 0.0 && lamp_factor > 0.01) {
 		// The piers' lamps on the water round them (RcPierNight): the body lit, foam brightest.

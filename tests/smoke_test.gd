@@ -118,7 +118,7 @@ const PART_COST := {
 	"shop_vinyl_checks": 0.0, "sky_checks": 0.0, "bonfires_checks": 3.0,
 	"cinematic_review_checks": 0.1, "sunset_clouds_checks": 0.0, "night_street_review_checks": 0.1,
 	"downtown_street_closeup_checks": 1.5, "golden_hour_review_checks": 0.1,
-	"night_flight_checks": 0.0, "mac_verify_pack_checks": 1.0, "fwd_review_f_checks": 0.0, "web_hero_rain_checks": 0.1, "skyline_glass_day_checks": 0.1, "sky_day_checks": 0.0, "rc_golden_aerial_checks": 0.1, "rc_sunset_checks": 0.1, "rc_street_noon_checks": 0.1, "dawn_review_checks": 0.1, "sky_clouds_3_checks": 0.0, "fwd_review_g_checks": 0.0, "rc_alley_night_checks": 2.0, "fwd_review_h_checks": 0.0
+	"night_flight_checks": 0.0, "mac_verify_pack_checks": 1.0, "fwd_review_f_checks": 0.0, "web_hero_rain_checks": 0.1, "skyline_glass_day_checks": 0.1, "sky_day_checks": 0.0, "rc_golden_aerial_checks": 0.1, "rc_sunset_checks": 0.1, "rc_street_noon_checks": 0.1, "dawn_review_checks": 0.1, "sky_clouds_3_checks": 0.0, "fwd_review_g_checks": 0.0, "rc_alley_night_checks": 2.0, "fwd_review_h_checks": 0.0, "fwd_review_i_checks": 0.0
 }
 const DEFAULT_COST := 6.0
 ## Every share pays for its own city load on top of its parts.
@@ -2447,6 +2447,8 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	load("res://tests/loading_first_frame_checks.gd").new().run(self, city)
 	# Load time after wave 4 (tests/load_time_3_checks.gd): the rehearsal's stages, freed list entries.
 	load("res://tests/load_time_3_checks.gd").new().run(self, city)
+	# First uses after waves 5-8 (tests/first_use_w8_checks.gd): the rehearsal's wave 5-8 stages, swept.
+	await load("res://tests/first_use_w8_checks.gd").new().run(self, city)
 	# The extra occluders (tests/occluders_checks.gd): hill terrain, decks, banks, sound walls and
 	# the far mountains, each inside what it stands for.
 	await load("res://tests/occluders_checks.gd").new().run(self, city)
@@ -2970,12 +2972,17 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	load("res://tests/rc5_storm_downtown_checks.gd").new().run(self, city)
 	# Forward+ review h (tests/fwd_review_h_checks.gd, FwdReviewH): waves 6-7's look work on the Mac's renderer.
 	load("res://tests/fwd_review_h_checks.gd").new().run(self, city)
+	# Forward+ review i (tests/fwd_review_i_checks.gd, FwdReviewI): waves 7-8's look work on the Mac's renderer.
+	load("res://tests/fwd_review_i_checks.gd").new().run(self, city)
 	# STARLIGHT PLAZA on an event night (tests/rc5_arena_night_checks.gd, ArenaNight): the screens'
 	# spill, the facades' LED, the hotel's crown, the searchlights, the camera row.
 	load("res://tests/rc5_arena_night_checks.gd").new().run(self, city)
 	# The farmers' market refcam (tests/rc5_farmers_market_checks.gd): the camera row in the aisle,
 	# packed produce, printed cartons, the material's relief and drape, the busier market.
 	load("res://tests/rc5_farmers_market_checks.gd").new().run(self, city)
+	# The rail_crossing refcam (tests/rc5_rail_crossing_checks.gd, RcRailCrossing): red flashers and
+	# their glows, the catenary as ribbons, the LRV glass, the crossbuck legend, the camera row.
+	load("res://tests/rc5_rail_crossing_checks.gd").new().run(self)
 	# The police pursuit at night (tests/rc5_police_pursuit_checks.gd, PursuitLook): the LED flash
 	# pattern and bar, the searchlight's pool and shaft, the camera row.
 	load("res://tests/rc5_police_pursuit_checks.gd").new().run(self)
@@ -2989,6 +2996,73 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	# The construction site at dusk (tests/rc5_construction_dusk_checks.gd, ConstructionDusk): the
 	# camera row, the late shift, the work lights, the dusk glass and the printed posters.
 	load("res://tests/rc5_construction_dusk_checks.gd").new().run(self, city)
+	# The cemetery_dawn refcam (tests/rc5_cemetery_dawn_checks.gd, Rc5CemeteryDawn): the deck's sun, the lamps going out, mist, grass.
+	load("res://tests/rc5_cemetery_dawn_checks.gd").new().run(self, city)
+	# The suburb_night refcam (tests/rc5_suburb_night_checks.gd, SuburbMoon, SuburbNight): the moon,
+	# the window spills, the lanterns.
+	load("res://tests/rc5_suburb_night_checks.gd").new().run(self, city)
+	# Fireworks over the ballpark (tests/rc5_fireworks_ballpark_checks.gd): the second look, the camera row.
+	await load("res://tests/rc5_fireworks_ballpark_checks.gd").new().run(self, city)
+	# The taco truck at 23:00 (tests/rc5_taco_truck_checks.gd, TacoTruckNight): regulars, no bike lanes, lamps, steam.
+	load("res://tests/rc5_taco_truck_checks.gd").new().run(self, city)
+	# The jet_takeoff refcam (tests/rc5_jet_takeoff_checks.gd, JetTakeoff): the beams, the take-off
+	# shimmer, the edge lights' glow, the camera row.
+	load("res://tests/rc5_jet_takeoff_checks.gd").new().run(self, city)
+	# The port's truck gate at 10:00 (tests/rc5_port_gate_checks.gd, RcPortGate): the camera row,
+	# the booth / canopy / portal kit, the queue, the gate's asphalt.
+	load("res://tests/rc5_port_gate_checks.gd").new().run(self, city)
+	# The rush_hour refcam (tests/rc5_rush_hour_checks.gd, RushHour): the jam by the hour, its slots,
+	# cap and standing gap, the stop-and-go wave, the camera row.
+	load("res://tests/rc5_rush_hour_checks.gd").new().run(self)
+	# The oil_islands_dusk refcam (tests/rc5_oil_islands_dusk_checks.gd, LongBeachSand, Rc5OilIslands):
+	# Long Beach's sand, the islands' floods in the bay and on their towers, the camera row.
+	load("res://tests/rc5_oil_islands_dusk_checks.gd").new().run(self, city)
+	# The power plant at dusk (tests/rc5_power_plant_dusk_checks.gd, RcPowerPlant): the camera row,
+	# the plant's lamps lighting it, the window bands, the switch.
+	load("res://tests/rc5_power_plant_dusk_checks.gd").new().run(self, city)
+	# The lighthouse_night refcam (tests/rc5_lighthouse_night_checks.gd, RcLighthouse): the scattered beam, the lamp, foam, stones.
+	load("res://tests/rc5_lighthouse_night_checks.gd").new().run(self, city)
+	# The auto_row refcam (tests/rc5_auto_row_checks.gd, RcAutoRow): real lot cars, measured window cards, a clear frontage.
+	load("res://tests/rc5_auto_row_checks.gd").new().run(self, city)
+	# The walk of fame at night (tests/rc5_walk_of_fame_night_checks.gd, WalkOfFameNight): the
+	# Celeste's premiere, the characters and tourists with the cap full, the lit medallions.
+	load("res://tests/rc5_walk_of_fame_night_checks.gd").new().run(self, city)
+	# The driver_rain refcam (tests/rc5_driver_rain_checks.gd, DriverRain): rain on the open cabin
+	# glass, the cabin at night, the near halo fade, the camera row.
+	load("res://tests/rc5_driver_rain_checks.gd").new().run(self, city)
+	# The backyard_pool refcam (tests/rc5_backyard_pool_checks.gd, Rc5Backyard): the traced yard
+	# pool, the weekend lunch barbecues, the loungers' umbrella, the built fence, the camera row.
+	load("res://tests/rc5_backyard_pool_checks.gd").new().run(self, city)
+	# The crash_closeup refcam (tests/rc5_crash_closeup_checks.gd, CrashAftermath): the pole's V, the popped bonnet, fluids, steam.
+	await load("res://tests/rc5_crash_closeup_checks.gd").new().run(self, city)
+	# A high school stadium on a game night (tests/rc5_friday_lights_checks.gd, FridayLights): the
+	# camera row, the lineup, the standards' spotlights and blooms, the car park built whole.
+	load("res://tests/rc5_friday_lights_checks.gd").new().run(self, city)
+	# The Googie motel refcam (tests/rc5_googie_motel_checks.gd, Motels): the motor court behind a
+	# motel pole sign, the camera row, the sign's light.
+	load("res://tests/rc5_googie_motel_checks.gd").new().run(self, city)
+	# The rail_aerial refcam (tests/rc5_rail_aerial_checks.gd, RcRailAerial): the guideway's wire ribbons, lamps, washes.
+	load("res://tests/rc5_rail_aerial_checks.gd").new().run(self, city)
+	# The sea_life refcam (tests/rc5_sea_life_checks.gd, SeaLife.spray_look): the camera row, the
+	# flat white water and streaked throws, the surfacing rings, the staged pod in turn.
+	load("res://tests/rc5_sea_life_checks.gd").new().run(self, city)
+	# The marine_evening refcam (tests/rc5_marine_evening_checks.gd, MarineEvening): the fog bank's
+	# wall, the people leaving the beach, the twilight shadows, the camera row.
+	load("res://tests/rc5_marine_evening_checks.gd").new().run(self, city)
+	# The historic_core refcam (tests/rc5_historic_core_checks.gd, HistoricCore.look2): the fronts' walls
+	# in their ornament's stone, the darker brick, the closed street wall, the camera row.
+	load("res://tests/rc5_historic_core_checks.gd").new().run(self, city)
+	# The pueblo_lane refcam (tests/rc5_pueblo_lane_checks.gd, PuebloLaneLook): the lane's crowd by
+	# the hour, sellers, worn brick, weathered stall paint, the camera row.
+	load("res://tests/rc5_pueblo_lane_checks.gd").new().run(self, city)
+	# The coast_highway refcam (tests/rc5_coast_highway_checks.gd, Rc5CoastHighway, CoastFlutes): the
+	# fluted bluff, the traffic by the hour and its first fill, real garage doors, the camera row.
+	load("res://tests/rc5_coast_highway_checks.gd").new().run(self, city)
+	# The coyote_night refcam (tests/rc5_coyote_night_checks.gd, Rc5CoyoteNight): the small hours'
+	# street, the landscape timers, no shaft in clear air, the wildlife's eyeshine, the camera row.
+	load("res://tests/rc5_coyote_night_checks.gd").new().run(self, city)
+	# The car_park_roof refcam (tests/rc5_car_park_roof_checks.gd, RcCarParkRoof): the paint mix, the core, parapets, poles, deck, the camera row.
+	load("res://tests/rc5_car_park_roof_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()
