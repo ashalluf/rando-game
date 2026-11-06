@@ -33344,3 +33344,10 @@ and the tunnel's traced brushes work in linear through color_space like the rest
 but their balance on the Mac needs eyes. The attendants hold a pose (rail / idle), they do not
 wipe; towels are not draped over the cars (the cars' shapes vary by body). The brushes do not
 spin. Only the car wash pad kind is touched: the other roadside pads' static cars are unchanged.
+
+**State at wrap-up (2026-11-06).** Done and pushed: everything above; stills on
+`shots/rc5-car-wash` (01-06). Gated: head 1ec4f68d (origin/main a870978b merged) passed
+`SHARDS=3 tests/headless_check.sh`, 6,630 checks, 0 failed (peak shard RSS 3,913 MB); the commits
+after it are only the checks' .uid and this paragraph. Open: Forward+ on the Mac (the wet pad and
+the tunnel brushes), a wiping motion for the crew, towels draped on the cars, the shared frontage
+planter (a plain grey box on every roadside pad).
