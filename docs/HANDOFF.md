@@ -31786,3 +31786,66 @@ gap, a TV flicker in some); no pool in the court, no ice machine, no guests at t
 itself still faces up and down the street (seen edge-on from the opposite pavement); the far city
 keeps both heads of a double-motel corner. A motel on a sloping lot stands at its centre's height
 (the body runs 0.6 m below the floor to hide it).
+
+
+## 9d?. A club's line at 23:30 (fleet wave 8, refcam5 `club_line`, branch `wt/rc5-club-line`)
+
+The task: a new reference view, "a downtown club's line (NightLife) at 23:30 clear, from the
+pavement across. In frame: the canopy, the velvet rope and the bouncer, the queue, the searchlight
+beam, the double-parked pickups, and the night street. Judge against a 2026 AAA game and fix the
+worst 3-5 things."
+
+**The camera.** `club_line` in `tools/refcams/cameras_w8.json`: club AFTERGLOW (the default seed's
+own venue, a restaurant shop on 6th St between Grand and Olive, door at x 2679, z 183, facing north)
+from the north pavement at (2690, 212.4), yaw 30, pitch 13, FOV 44. Its optional `club_line` key
+(refcams_shot.gd `_club_line()` / `_stage_club_pickups()`): `"opening": 1` sets NIGHTLIFE_PREMIERE=1
+before the city loads (tonight's club openings: the searchlight carts at the kerb); `"pickups"`
+places street cars in the club's kerb lane 7 m up the road from where each is to stand and gives
+each that spot as its double-park (`dp_at`, TrafficManager's own rule), the upkeep held; at the
+shot the still catches a standing car's hazards on their lit half (shader TIME is held at 0 in
+refcams, where a car's blink-phase bucket under 0.5 is dark). Two pickups: a TAXI at the door and a
+random car behind it. Found with `tools/nightlife/probe.gd -- --spawn=2700,150,0,0 --hour=23.5`.
+
+**What read as a game, in the order the eye found it** (before: `01_before_club_line.jpg`):
+
+1. **No searchlight beams at all**, with the carts standing at the kerb. A bug, not a tuning:
+   `nightlife_beam.gdshader` faded the first 2 % of its 1.7 km cone (`smoothstep(near_start * 0.6,
+   near_start + 0.02, along)`) even when `near_start` is 0, i.e. when no volumetric fog takes the
+   first stretch - so the shaft started 34 m up, every bit of it a pavement sees from across the
+   street. Every premiere and opening beam in the game had it. Fixed behind `club_look`: the shaft
+   starts at the lens, the cone is lens-wide there (`RcClubLine.cone()`, `LENS_R` 0.36 m; it was
+   4 cm), a dense core over its first `core_len` 45 m (`core_gain` 0.09), and from the street the
+   shaft thins up the sky (`club_fade` 140 m to 18 %, `club_street` 0.7) instead of standing as a
+   white pillar. The first pass (core 0.5, no fade) drew solid white rods; judged on the small scene
+   and in the city, then halved. Forward+ HIGH keeps its volumetric hand-over (the core and the new
+   start apply only with `near_start` 0).
+2. **The club was one more shop.** It stood under its shop's own sign band, whose name ("STORE
+   CLOSING") sat over a 0.26 m line of lettering on the canopy. A club now takes the band
+   (`RcClubLine.front()`, one hook in `NightLife._build_venue()`): a matte black fascia board
+   (`board()`, NightLifeKit's material and codes: black face, LED frame and an up-cove in the club's
+   colour) `BOARD_D` 0.22 m proud over Building's band (0.77-0.93 of the 4.5 m storefront: 3.42 -
+   4.26 m), in front of the TextMesh name it hides, the shop's width (`v.width` = the shop front's
+   width, now in the venue dict) less 6 %, and the name `NAME_H` 0.52 m tall at `NAME_GLOW` 2.6 (at
+   the canopy lettering's 7 the club's colour went white through AgX and the board read as one more
+   shop sign). No Building or roll changes: the board is a batch instance.
+3. **The club's light stopped at its door.** A second light over the middle of the line in the
+   club's colour and a pool along the rope (`LINE_LIGHT_AT`, `LINE_LIGHT_REACH`; in the lamp group,
+   not on the web).
+4. **The pickups** never showed in a still (rolled on a clock): staged, standing on their hazards.
+
+`RC5_CLUB_LINE=0` is the A/B (every hook a no-op; the shader's new uniforms default to the old
+path). The board's and the line light's draw cost: +1.6 k triangles, +3 draws in the view.
+
+**Tools.** `tools/rc5_club_line/club_shot.tscn` - the club front alone (wall, canopy, rope, board,
+two carts with their SkyBeams) on either renderer in seconds (`DIST`, `FOV`, `PITCH`, `LED`, `T`).
+It must be a scene, not `--script`: SkyBeam compiles against autoloads. In refcams_shot.gd a class
+named by name (PropFactory) breaks the `--script` compile: load it by path.
+
+**Numbers** (refcams, opengl3): club_line p1/p5/p50/p95/p99 RC5=0 0/2/23/151/217 -> 0/2/25/158/216;
+GEO 4,720,664 tris / 2,157 draws -> 4,722,238 / 2,160. The ten original cameras: see the report in
+the final message (ten_on vs ten_off).
+
+**Not done / not verified.** Forward+ seen only in the small scene under lavapipe (no volumetric
+fog there: the HIGH hand-over is unchanged code). The canopy still carries its own small name under
+the board. The searchlight drums read as black cylinders from across the street (the lens faces up).
+The hazards are faint at this distance. The bouncers still do not stop anyone.

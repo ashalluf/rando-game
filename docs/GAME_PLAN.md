@@ -4807,3 +4807,8 @@ none of either.
   a promise about what is behind it: a VACANCY box over striped asphalt read as set dressing.
   Lit windows key their rolls on a rounded integer, never on an interpolated varying. MOTELS=0
   and MOTEL_SIGN_GLOW=0 are the A/Bs.
+- **2026-11-06 A club takes its sign band; a searchlight starts at its lens (rc5-club-line, HANDOFF
+  "A club's line at 23:30").** A new reference camera (`club_line`, wave 8's table) across 6th St
+  from AFTERGLOW at 23:30. A venue that dresses a shop owns that shop's sign band (a club's fascia
+  board stands over Building's, hiding its name), and a beam is drawn from the lamp: a shaft fades
+  up into the sky, never in from a start 34 m up. RC5_CLUB_LINE=0 is the A/B.
