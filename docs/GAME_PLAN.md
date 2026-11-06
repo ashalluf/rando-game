@@ -4628,3 +4628,11 @@ none of either.
   wide); railway ground is never clean (weeds by hash along the beds, crushed angular ballast) and
   freight cars carry graffiti and weather like the real ones; a yard is one ballast field, level
   between neighbouring tracks (never open valleys between beds). RC4_FREIGHT_YARD=0 is the A/B.
+- **2026-11-06 The oil_islands_dusk refcam: every shore is a beach (rc5-oil-islands-dusk, HANDOFF
+  "The oil islands at dusk from the Long Beach sand").** A new reference camera (`oil_islands_dusk`,
+  wave 8's table) on the Long Beach sand at 18:45. A BEACH zone must build sand whichever way its
+  shore runs: the bay's north shore had none (the beach builder assumes the west coast), so
+  LongBeachSand lays it along x with the sea to +z and buries the chunk's road strips (SandRoads);
+  lit structures standing in water mirror their light in it (the islands' towers as columns in the
+  bay); a flood is light thrown up a face from its foot, not a face painted the gel's colour.
+  LONG_BEACH_SAND=0 / RC5_OIL_ISLANDS=0 are the A/B.

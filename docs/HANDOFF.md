@@ -30175,3 +30175,74 @@ the only turnout hardware); the departing train's head-end units stand north of 
 vanishing point behind its autoracks; the autoracks' long flat flank still fills the left third.
 
 **Checks:** `tests/rc4_freight_yard_checks.gd`.
+
+## 9d?. The oil islands at dusk from the Long Beach sand (wave 8, refcam5 `rc5-oil-islands-dusk`)
+
+Task: a new reference view, `oil_islands_dusk` (tools/refcams/cameras_w8.json): the decorated oil
+islands (OilIslands, 9gc) at 18:45 clear from the Long Beach sand - eye 1.7 m over the plan's ground
+at (4660, 6274), yaw 127 (west-south-west down the bay), pitch 4, fov 50: CORVINA, HALCYON and
+KESTREL against the afterglow, the bay, the port's quay cranes on the right. Judged against a 2026
+AAA game; what the eye landed on, in order, and what was done:
+
+1. **There was no beach.** MacroMap calls the strip `bay_beach_depth` (70 m) north of `bay_z` BEACH,
+   but `CityChunk._build_beach()` lays sand for the WEST coast (rows of constant z running inland
+   along +x from `coast_x()`) and `_owns_shoreline()` is false on an east-west shore, so a Long Beach
+   chunk built its two road strips (the +Z one ON the waterline, dashes and all) and nothing else:
+   the rest was the horizon plane, which the bake calls water at height 0 - half the frame was flat,
+   glossy, square sheets of "sea" with a dark rim (stills 00_*). **`LongBeachSand`**
+   (`scripts/world/long_beach_sand.gd`, one hook in CityChunk's BEACH arm): for a BEACH block on the
+   bay's north shore between the port and `bay_east_x` (`claims_block()`, pure), the chunk lays its
+   sand the other way round - rows of constant x every 9 m, the sea to +z, the west beach's profile
+   (`SAND_*` numbers and tones: the drowned toe to the chunk's seaward edge, the step, the waterline at
+   `bay_z` where the ocean's surf breaks, the swash, the berm, the lip dipping 4 cm under the
+   beachfront road at the relief's height), on `beach_sand_material()` (UV2.x = metres landward of the
+   waterline, which is all its swash reads), collision in bands; it lays no road strips (SandRoads
+   now calls such a chunk's roads under the sand: `kind 1`, so traffic turns at the beachfront road);
+   palms in twos and threes on the back half of the sand (`PALM_STEP` slots, `PALM_ODDS`, a hash of
+   the seed and the slot) and a lifeguard tower facing the sea in `TOWER_ODDS` of every 240 m. A
+   slice of sea of its own (the west beach's `_build_water(true)`, cut to the strip) was tried: it
+   stood up as a wall of mirrored sky over the shore and hid the cranes (the surf's vertex stage on
+   a plane landward of the bay's shore table) - left out; the sand's toe under the next chunk's
+   water is enough. LOD chunks lay the sand and palms; the far city keeps its plate.
+2. **The bay was dead.** The islands' gelled floods lit nothing in the water: the ocean mirrors the
+   piers' lamp rows and a generic city front, not the islands (9gc's "not done"). **`Rc5OilIslands`**
+   (`scripts/world/rc5_oil_islands.gd`) pushes 16 sources with the piers' rows (one line in
+   `Weather._push_pier_lights()`): each rig tower (centre, half width 6.5 m, foot and top, its two
+   gels at the dusk look's energy), each waterfall and each sound wall's pools.
+   `shaders/oil_island_mirror.gdshaderinc` (in ocean.gdshader, after the emission) meets the
+   reflected ray with the vertical plane through each source square to the ray's heading, lights
+   the hit inside the slab (brightest at the foot, as the floods are), smeared down the water by
+   `isl_smear` per metre travelled - a broken column of each tower's colour - on the near AND the
+   painted water (the islands are 600-900 m out, past `handover_end`), at the water's fresnel,
+   after dark only (`isl_count` 0 by day costs nothing). LINEAR, handed over like the far haze
+   (`cs_linear_renderer()`).
+3. **The towers were glowing pastel slabs.** The floods washed every face foot to crown at an
+   energy AgX took to near white: candy blocks, not lit structures. The island shader's
+   `dusk_look` (0 = the old look bit for bit; `Rc5OilIslands.dress()` from
+   `OilIslandBuild.material()`): a cone of light up from each lamp along the foot (every 7.5 m,
+   narrowing and fading with height, `exp(-h / 13)`), a low afterglow between cones, the crowns
+   falling into the dusk so the derricks and screen tops read as silhouettes against the
+   afterglow; the gel's hue held (the face's own tint taken 60 % to grey under it); the falls a
+   lamp-lit sheet, not a white block. Proved on Forward+ (lavapipe,
+   `tools/glshot/far_landmark_shot.gd IDS=oil_island_0 NIGHT=1`, still 05): darker crowns, more
+   saturated gels, nothing blown.
+
+**Numbers** (refcams, opengl3 1280x720, the final camera; before = `LONG_BEACH_SAND=0
+RC5_OIL_ISLANDS=0`, i.e. main): p1/p5/p50/p95/p99 3/6/24/66/104 -> 5/13/36/65/105, crushed 3.4 %
+-> 1.2 %, saturation 0.574 -> 0.528, CCT 12,591 -> 7,044 K (the navy plane gone, warm sand in);
+triangles 671 k -> 857 k (+28 %), draws 407 -> 457, shadow 101 k -> 197 k: the sand meshes and the
+palms (shadowed near the eye) - the before drew nothing at all on this shore.
+
+**A/B**: `LONG_BEACH_SAND=0` (no Long Beach sand, its roads back), `RC5_OIL_ISLANDS=0` (no mirror,
+the old flood look). Checks: `tests/rc5_oil_islands_dusk_checks.gd`. Stills on
+`shots/rc5-oil-islands-dusk` (README lists them).
+
+**Not done / seen but not mine.** The palms near the eye are lit a bright green at 18:45 (the
+fronds' sky-through emission or the moon key; TreeLight / foliage.gdshader, the same on every
+beach) - so the Long Beach palms stand on the back half of the sand, mostly out of this frame; a
+lighthouse's horizontal beam draws as a long flat green band along the horizon (Lighthouses); the
+sand's 2 m footprint tile reads as dark blots at a grazing dusk look (beach_sand.gdshader). The
+Long Beach sand has no BeachLife (people, path, courts: its planner walks the west coast) and its
+swash noise runs along z, not along the shore (beach_sand.gdshader's along-shore axis is world z).
+The mirror is an emitted billboard per source: it does not know the islands' own silhouettes (a
+tower behind another mirrors through it). Forward+ seen only for the towers, not the mirror.
