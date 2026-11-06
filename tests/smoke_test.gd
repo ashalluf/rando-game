@@ -3011,11 +3011,6 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	# The oil_islands_dusk refcam (tests/rc5_oil_islands_dusk_checks.gd, LongBeachSand, Rc5OilIslands):
 	# Long Beach's sand, the islands' floods in the bay and on their towers, the camera row.
 	load("res://tests/rc5_oil_islands_dusk_checks.gd").new().run(self, city)
-<<<<<<< HEAD
-	# The pueblo_lane refcam (tests/rc5_pueblo_lane_checks.gd, PuebloLaneLook): the lane's crowd by
-	# the hour, sellers, worn brick, weathered stall paint, the camera row.
-	load("res://tests/rc5_pueblo_lane_checks.gd").new().run(self, city)
-=======
 	# The power plant at dusk (tests/rc5_power_plant_dusk_checks.gd, RcPowerPlant): the camera row,
 	# the plant's lamps lighting it, the window bands, the switch.
 	load("res://tests/rc5_power_plant_dusk_checks.gd").new().run(self, city)
@@ -3040,7 +3035,9 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	# The Googie motel refcam (tests/rc5_googie_motel_checks.gd, Motels): the motor court behind a
 	# motel pole sign, the camera row, the sign's light.
 	load("res://tests/rc5_googie_motel_checks.gd").new().run(self, city)
->>>>>>> origin/main
+	# The pueblo_lane refcam (tests/rc5_pueblo_lane_checks.gd, PuebloLaneLook): the lane's crowd by
+	# the hour, sellers, worn brick, weathered stall paint, the camera row.
+	load("res://tests/rc5_pueblo_lane_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()
