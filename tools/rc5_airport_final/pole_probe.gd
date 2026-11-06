@@ -22,10 +22,14 @@ func _initialize() -> void:
 			var rect: Rect2 = plan.block(ix, iz).rect
 			if rect.get_center().distance_to(c) > reach:
 				continue
-			for axis in 2:
-				var index: int = ix + 1 if axis == 0 else iz + 1
+			# StreetDetail._overhead_lines(): each face of the block, the side from the hash.
+			for f in [[0, ix, 1], [0, ix + 1, 0], [1, iz, 1], [1, iz + 1, 0]]:
+				var axis: int = f[0]
+				var index: int = f[1]
+				if absi(hash([plan.seed, "pole_side", axis, index])) % 2 != f[2]:
+					continue
 				if sd.call("_has_poles", plan, ix, iz, axis, index):
-					print("POLE block=%d,%d axis=%d road=%d pos=%.1f w=%.1f name=%s span=%.0f..%.0f district=%s" % [ix, iz, axis, index,
+					print("POLE block=%d,%d axis=%d road=%d side=%d pos=%.1f w=%.1f name=%s span=%.0f..%.0f district=%s" % [ix, iz, axis, index, f[2],
 						plan.road_pos(axis, index), plan.road_width(axis, index), plan.road_name(axis, index),
 						rect.position.y if axis == 0 else rect.position.x, rect.end.y if axis == 0 else rect.end.x, str(plan.district_at(rect.get_center()))])
 	var air := current_scene.get_node_or_null("AirTraffic")
