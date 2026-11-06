@@ -29933,3 +29933,48 @@ only gets shorter on a slow frame; nothing found).
 
 **Runs** (`SHARDS=3`, shuffled, ~32 min each, shards 3.2-3.7 GB RSS): 21101 (cut short by a tool
 limit at ~4,800 checks: the valet), 21202 PASSED 5,797, 21303 PASSED 5,797 (both on 7f68e37f). Final unshuffled gate on the branch merged with main (batch 53a): FINAL_HERE.
+
+## 9d?. Fireworks over the ballpark from Stadium Way, 2026-11-06 (fleet wave 8, `wt/rc5-fireworks-ballpark`; VISUAL_ROADMAP "?")
+
+**The camera.** `fireworks_ballpark` in `tools/refcams/cameras_w8.json`: on Stadium Way just past the
+upper terrace (2330, 2 m AGL, -2601), yaw 45, pitch 9, fov 55, 21:30 clear, looking north-west over
+the south lots at SUNRIDGE BALLPARK with the show beyond centre field. The new optional row key
+`fireworks_t` (refcams_shot.gd `_fireworks_clock()`) stages the show at that clock and holds it, for
+that camera only (`fireworks_site`: "stadium" by default, "beach", "both"; rows without it put the
+node back). 31.2 s on seed 1337, night 0: a big cyan peony 0.86 s after its break, a red one fading,
+two willows hanging, three shells climbing (probe the plan with Fireworks.shell(); the night seed is
+`Fireworks.night_seed(1337, 0, "stadium")`). The first eye tried (2420, -2600) looked into the road's
+cut bank; Stadium Way runs along the south face, so only its first stretch sees the bowl.
+
+**What read fake, worst first, and the fixes** (all in `look5` of fireworks.gdshader /
+fireworks_smoke.gdshader, set by Fireworks; `RC5_FIREWORKS=0` the old look bit for bit):
+1. Every break was a solid white disc: the 96 stars of a shell share one point and one white-hot
+   colour at the instant of the break and summed additively. Stars now come in at 30 % over the first
+   0.3 s and the flash is ONE soft glow quad per break - the shell's trail quad 0, idle once it has
+   broken, so no mesh change - white at the instant, then the air lit in the stars' colour
+   (`glow_gain`, `glow_size`; a (1 - d2)^2 falloff so it is zero at its edge: an additive tail would
+   draw the quad on Forward+). It is the glow bloom gives on the Mac and the only one Compatibility has.
+2. A peony at 470 m was a ball of round dots; stars now trail (peony 0.42 s, ring 0.34, crossette
+   0.30, willow 1.05 of travel), are thinner (min_px widening governs), each has its own brightness,
+   and they sparkle as they die. The white core of a streak is 0.3 not 0.55 (the bursts read white).
+3. The smoke was a faint flat brown haze: it now takes the show's light strongly (`flash_gain` 0.45
+   over `flash_reach` 170 m, was 0.05 over 140), its own shell's colour more, the floodlit ground
+   under it at the ballpark (`under_light`, Fireworks.STADIUM_UNDER, below `under_top`), more light
+   through thin edges, x1.6 density.
+4. The show lit nothing: the flash OmniLight's falloff 1.2 left a 300 m stand 1/13th of what 0.75
+   does (`Fireworks.LOOK5_ATTENUATION`). At 0.55 it washed the near road teal; 0.75 tints the stands.
+5. The climbing comets did not read: x2.2 and a 0.14 s spark streak.
+
+**Numbers** (refcams, opengl3, 1280x720; `build/refcams/before2` with RC5_FIREWORKS=0 against
+`after3`): luminance p50 29 -> 32, p95 78 -> 96, p99 183 -> 211, saturation 0.425 -> 0.439; triangles
+1,597,555 and 473 draws in both (the glow reuses quads: no cost). The ten cameras of cameras.json have
+no show (refcams' day 0 is not a show night for either site) and no `fireworks_t`: unchanged by
+construction (see the session's report for the run).
+
+**Forward+.** `tools/rc5_fireworks/fw_shot.gd` (the show's real meshes and materials, the flash light,
+a ground and a ring of boxes, city.tscn's Environment on a night background; a minute on lavapipe,
+`LOOK5=0|1`, `T=`, `DIST=`): on Forward+ the new look holds - streaks, a soft cyan glow, smoke lit in
+the break's colour; the puffs read rounder there, so the thin-edge lift is only 1.25x.
+
+**Not verified**: the whole city on Forward+ (lavapipe cannot hold it); the Mac's bloom on top of the
+glow quad (it may want `glow_gain` lower there); the web build (no new feature: the same quads).

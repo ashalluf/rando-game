@@ -4598,3 +4598,12 @@ none of either.
   frame); shop doors and far-walker borrowing take only the plain crowd by script (a valet was sent
   through a door for good); the crowd-flow passing check meets nearest the camera. RAGDOLL_PHYSICS_TICK=0
   is the A/B.
+- **2026-11-06 The fireworks_ballpark refcam: a firework is its streaks and the air it lights
+  (rc5-fireworks-ballpark, HANDOFF "Fireworks over the ballpark from Stadium Way").** A new reference
+  camera (`fireworks_ballpark`, wave 8's table) looks from Stadium Way over the south lots at a show
+  over SUNRIDGE BALLPARK at 21:30, its clock held by the new `fireworks_t` row key. Decisions: a break
+  never draws its white-hot instant as 96 stars stacked on one point (a solid disc); the flash and the
+  lit air are one soft glow quad per break in its colour (bloom's job on the Mac, the only glow on
+  Compatibility); stars at half a kilometre read as radial trails, not dots; the show's light reaches
+  the stands (falloff 0.75, not 1.2) and the smoke takes it strongly, plus the floodlit ground under
+  it. RC5_FIREWORKS=0 is the A/B.
