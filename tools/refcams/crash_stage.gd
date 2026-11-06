@@ -201,7 +201,10 @@ static func stage(tree: SceneTree, scene: Node, _cam: Camera3D, _player: Node3D,
 		if n == null:
 			continue
 		var q := Geometry3D.get_closest_point_to_segment(n.global_position + Vector3.UP, eye_l, nose_l)
-		if q.distance_to(n.global_position + Vector3.UP) < 0.9:
+		# ... nor walking through the wreck (walkers keep to their ring whatever stands on it).
+		var in_car := _car.global_transform.affine_inverse() * n.global_position
+		var inside := absf(in_car.x) < dmg._width * 0.5 + 0.35 and absf(in_car.z) < dmg._len * 0.5 + 0.35
+		if q.distance_to(n.global_position + Vector3.UP) < 0.9 or inside:
 			n.visible = false
 	var fl := CrashAftermath.instance()
 	var pool_at := "none"
