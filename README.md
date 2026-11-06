@@ -9,3 +9,7 @@ a drive lantern on the left. opengl3 stills (the Compatibility renderer, not the
 - `03_after_cemetery_dawn.jpg` - the same eye with Rc5CemeteryDawn: no glare path under the deck,
   a dew-dull green lawn with blades, leaves no longer glazed silver by the mist's damp, a ground
   mist with the far trees going into it, the drive's lanterns dimly lit (going out).
+- `04_after_final_cemetery_dawn.jpg` - the merged head (grass at 0.5 density to 60 m).
+- `05_before_over_after.jpg` - 02 over 04.
+- `06_ten_cameras_off_vs_on.jpg` - the ten original refcams, RC5_CEMETERY_DAWN=0 over on (two
+  street shots differ by live traffic only).
