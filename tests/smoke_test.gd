@@ -3050,6 +3050,9 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	# The historic_core refcam (tests/rc5_historic_core_checks.gd, HistoricCore.look2): the fronts' walls
 	# in their ornament's stone, the darker brick, the closed street wall, the camera row.
 	load("res://tests/rc5_historic_core_checks.gd").new().run(self, city)
+	# The pueblo_lane refcam (tests/rc5_pueblo_lane_checks.gd, PuebloLaneLook): the lane's crowd by
+	# the hour, sellers, worn brick, weathered stall paint, the camera row.
+	load("res://tests/rc5_pueblo_lane_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()

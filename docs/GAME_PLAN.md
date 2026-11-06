@@ -4846,3 +4846,9 @@ none of either.
   crest, its foot in the water), people go home up the sand at the end of the day, and between
   sunset and full night the directional light (by then the low moon) keeps a quarter of its shadow:
   the blue-hour sky lights the ground. MARINE_EVENING=0 is the A/B.
+- **2026-11-06 The pueblo_lane refcam: a market is its crowd (rc5-pueblo-lane, HANDOFF "The marketplace
+  lane at 12:30").** A new reference camera (`pueblo_lane`, wave 8's table) in the marketplace lane's
+  east aisle at 12:30. Decisions: a landmark's crowd follows the hour like a plaza's (the lane is too
+  narrow for PlazaCrowd's open ground, so PuebloLaneLook adds walkers to its ring from its own
+  stream); every second stall is staffed; painted things outdoors are weathered (faded, chipped,
+  dirty at the foot), never factory-new; timber is grained. PUEBLO_LANE_LOOK=0 is the A/B.
