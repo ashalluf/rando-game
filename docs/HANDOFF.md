@@ -32426,6 +32426,12 @@ refcams_shot.gd's `_freight_clock()` beside wave 7's `freight_into`. Eye, fov 46
    0): the sun fade held to a third on the red, the tops grimed dark (grime_color itself is LIGHTER
    than the 0.21 roof grey - it lightened the roofs), diesel soot round the stacks blown back along
    the hood, and the radiator fans drawn as guards of rings and spokes over blades.
+3b. *The lead locomotive's cab* (asked for by the lead mid-session): a black rubber frame round
+   each windscreen pane with a parked wiper, a drip visor over the screen, grab irons up the nose's
+   corners and across its top (`RcFreightTrench.loco_cab()`, one hook in FreightStock._loco()'s near
+   level, +240 triangles a unit), and the livery's red and sand deepened (freight_stock `rc5` on the
+   loco's P_FIXED faces) so the nose top reads worn oxide, not salmon. Still a box model: the cab
+   glass has no depth behind it, the nose is flat-faced; a rebuilt locomotive is the next step.
 4. *The wall lights floated* as black boxes on bare concrete: a conduit (dark painted, strapped every
    2 m) runs along each wall 0.32 m over them, into a pull box over each fitting, wherever the
    trench is over 6.4 m deep (`RcFreightTrench.conduit()`, one hook in `FreightKit._trench()`).
@@ -32440,8 +32446,8 @@ right wall is on main too. The sunlit tops (ballast, roofs) read light because a
 for the shaded trench, as a camera would.
 
 **Numbers** (opengl3, refcams, the same camera, before = `RC5_FREIGHT_TRENCH=0`): 2,906,047 ->
-2,930,539 triangles (+0.8 %: the conduit, on the existing mesh), 1,614 -> 1,606 draws; luminance
-p5/p50/p95 40/109/181 -> 35/83/178, saturation 0.227 -> 0.298. The locomotive roofs changed least:
+2,933,779 triangles (+0.95 %: the conduit and the cab detail, on existing meshes), 1,614 -> 1,614
+draws; luminance p5/p50/p95 40/109/181 -> 36/84/181, saturation 0.227 -> 0.272. The locomotive roofs changed least:
 their albedo was already dark grey (0.21), and they read pale because auto exposure opens up for the
 shaded trench; the grime and soot show as darker patches, the fan guards are a few pixels. Stills on
 `shots/rc5-freight-trench`. Checks: `tests/rc5_freight_trench_checks.gd` (the materials and

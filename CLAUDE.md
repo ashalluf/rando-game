@@ -1530,7 +1530,7 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   graffiti on wall-height faces), cast DOUBLE-SIDED (its one-sided buried walls cast nothing from the
   sun's side), the mainline ballast's `rc5` (crevice shadow in the mean, fouled), the crib up near
   the tie tops, a conduit to the wall lights; freight_stock `rc5` (loco roofs grimed and sooted, fan
-  guards). `RC5_FREIGHT_TRENCH=0` is the A/B; checks `tests/rc5_freight_trench_checks.gd`.
+  guards, a deeper livery) and `loco_cab()` (windscreen frames, wipers, grab irons). `RC5_FREIGHT_TRENCH=0` is the A/B; checks `tests/rc5_freight_trench_checks.gd`.
 - Cars fly (owner, 2026-09-20: "easily fly cars around the way I fly the main character"). A
   car that leaves the ground goes into stabilised flight (`Vehicle._fly()`): it holds itself
   level instead of tumbling, the stick aims it (W/S nose down/up, A/D turn with a bank), and
