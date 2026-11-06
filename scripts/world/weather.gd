@@ -1047,7 +1047,7 @@ func settle_wet(s: int, hour: float, pos: Vector3) -> void:
 	if s == State.MARINE:
 		var deck := LaWeather.deck_heights(hour)
 		damp = MarineMorning.damp(LaWeather.cover_at(_coast_x(), hour, pos.x, pos.z)
-			* LaWeather.under_deck(pos.y, deck.y), hour)
+			* LaWeather.under_deck(pos.y, SeaOfClouds.top_at(_coast_x(), hour, pos.x, deck.y)), hour)
 	wetness = maxf(w, damp)
 	PropFactory.set_wetness(wetness)
 	if damp > w:
@@ -1104,7 +1104,7 @@ func _update_la(delta: float, _fog: float, _vol: float) -> void:
 	var cover := LaWeather.cover_at(coast, hour, cam_w.x, cam_w.z)
 	var bank := LaWeather.bank_amount(hour)
 	var deck := LaWeather.deck_heights(hour)
-	marine_here = marine_weight * cover * LaWeather.under_deck(cam_w.y, deck.y)
+	marine_here = marine_weight * cover * LaWeather.under_deck(cam_w.y, SeaOfClouds.top_at(coast, hour, cam_w.x, deck.y))
 	_marine_fog_add = marine_here * (marine_fog + marine_bank_fog * bank)
 	# June gloom at street level (MarineMorning): the coast's morning mist, the damp streets.
 	_marine_fog_add += MarineMorning.mist(marine_here, hour, cam_w.x - coast)
@@ -1145,6 +1145,8 @@ func _update_la(delta: float, _fog: float, _vol: float) -> void:
 	var glow := Color(0.075, 0.048, 0.024) * lamp * moon
 	if _marine_layer:
 		_marine_layer.deck = deck
+		_marine_layer.top_dip = SeaOfClouds.morning(hour)
+		_marine_layer.coast_x = coast
 		_marine_layer.rim = MarineEvening.rim(horizon, sun_col, moon)
 		_marine_layer.drive(marine_weight, coast + LaWeather.edge_offset(hour), bank, lit, shade, glow, sun_dir,
 			_env.fog_light_color if _env else Color(0.6, 0.62, 0.65), delta)

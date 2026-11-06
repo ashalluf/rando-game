@@ -27,6 +27,10 @@ var rim: Color = Color(0.6, 0.45, 0.4)
 var _under: MeshInstance3D
 var _top: MeshInstance3D
 var _bank: MeshInstance3D
+## The morning's inland thinning of the top (SeaOfClouds.morning()) and the coast line it is
+## measured from (true world X); Weather sets them.
+var top_dip: float = 0.0
+var coast_x: float = -900.0
 var _mats: Array[ShaderMaterial] = []
 var _drift: float = 0.0
 
@@ -53,7 +57,23 @@ func _ready() -> void:
 	var plane := PlaneMesh.new()
 	plane.size = Vector2(deck_radius * 2.0, deck_radius * 2.0)
 	_under = _instance("DeckUnder", plane, _mats[0])
-	_top = _instance("DeckTop", plane, _mats[1])
+	var top_plane := plane
+	if SeaOfClouds.enabled:
+		# The top as seen from the hills (SeaOfClouds): out to the camera's haze, and subdivided so
+		# the vertex shader can let it fall inland.
+		top_plane = PlaneMesh.new()
+		top_plane.size = Vector2(SeaOfClouds.FAR_RADIUS * 2.0, SeaOfClouds.FAR_RADIUS * 2.0)
+		top_plane.subdivide_width = 120
+		top_plane.subdivide_depth = 120
+		_mats[1].set_shader_parameter("rim_start", SeaOfClouds.FAR_RADIUS * 0.7)
+		_mats[1].set_shader_parameter("rim_end", SeaOfClouds.FAR_RADIUS * 0.97)
+		_mats[1].set_shader_parameter("top_look", SeaOfClouds.look())
+		_mats[1].set_shader_parameter("coast_top", SeaOfClouds.COAST_TOP)
+		_mats[1].set_shader_parameter("inland_top", SeaOfClouds.INLAND_TOP)
+		_mats[1].set_shader_parameter("dip_near", SeaOfClouds.NEAR)
+		_mats[1].set_shader_parameter("dip_far", SeaOfClouds.FAR)
+		_mats[1].set_shader_parameter("soft_shore", SeaOfClouds.SOFT_SHORE)
+	_top = _instance("DeckTop", top_plane, _mats[1])
 	_bank = _instance("FogBank", _ribbon(), _mats[2])
 	visible = false
 
@@ -136,3 +156,5 @@ func drive(weight: float, edge_x: float, bank: float, lit: Color, shade: Color, 
 		mat.set_shader_parameter("look", MarineMorning.deck_look())
 		mat.set_shader_parameter("bank_look", MarineEvening.bank_look())
 		mat.set_shader_parameter("rim_col", Vector3(rim.r, rim.g, rim.b))
+		mat.set_shader_parameter("top_dip", top_dip)
+		mat.set_shader_parameter("coast_x", coast_x)

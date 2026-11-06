@@ -3049,6 +3049,9 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	# The marine_evening refcam (tests/rc5_marine_evening_checks.gd, MarineEvening): the fog bank's
 	# wall, the people leaving the beach, the twilight shadows, the camera row.
 	load("res://tests/rc5_marine_evening_checks.gd").new().run(self, city)
+	# The sea_of_clouds refcam (tests/rc5_sea_of_clouds_checks.gd, SeaOfClouds): the deck's top thinning
+	# inland in the morning, the billowed top, the soft shore, the camera row.
+	load("res://tests/rc5_sea_of_clouds_checks.gd").new().run(self, city)
 	# The historic_core refcam (tests/rc5_historic_core_checks.gd, HistoricCore.look2): the fronts' walls
 	# in their ornament's stone, the darker brick, the closed street wall, the camera row.
 	load("res://tests/rc5_historic_core_checks.gd").new().run(self, city)

@@ -48,9 +48,29 @@ uniform float fog_k = 0.00022;
 // slate body and a paler, hazier foot where it sits on the sea.
 uniform float bank_look = 0.0;
 uniform vec3 rim_col = vec3(0.6, 0.45, 0.4);
+// The deck seen from above (SeaOfClouds, scripts/world/sea_of_clouds.gd), all 0 = the old top:
+// `top_look` 1 the billowed stratocumulus top, soft against what stands in it; `top_dip` the morning
+// thinning inland (SeaOfClouds.morning()), the top falling from `deck_top` within `dip_near` of the
+// coast line `coast_x` (`coast_top` there) to `inland_top` by `dip_far` (SeaOfClouds.top_at(), line for line);
+// `soft_shore` metres of height under the top over which it thins against the ground or a tower.
+uniform float top_look = 0.0;
+uniform float top_dip = 0.0;
+uniform float coast_x = -900.0;
+uniform float coast_top = 430.0;
+uniform float inland_top = 282.0;
+uniform float dip_near = 600.0;
+uniform float dip_far = 3600.0;
+uniform float soft_shore = 55.0;
+uniform sampler2D depth_texture : hint_depth_texture, filter_nearest, repeat_disable;
 
 varying vec3 wpos;
 varying float bank_h;
+
+// SeaOfClouds.top_at(): the deck's top at true world x.
+float top_y(float x) {
+	float inland = smoothstep(dip_near, dip_far, x - coast_x);
+	return mix(deck_top, min(deck_top, mix(coast_top, inland_top, inland)), top_dip);
+}
 
 float hash12(vec2 p) {
 	vec3 p3 = fract(vec3(p.xyx) * 0.1031);
@@ -99,6 +119,25 @@ float worley(vec2 p) {
 		}
 	}
 	return sqrt(d);
+}
+
+// Worley F1 with the vector to the nearest point (xy, cell units) and its distance (z).
+vec3 worley_v(vec2 p) {
+	vec2 i = floor(p);
+	vec2 f = fract(p);
+	vec3 best = vec3(0.0, 0.0, 8.0);
+	for (int y = -1; y <= 1; y++) {
+		for (int x = -1; x <= 1; x++) {
+			vec2 o = vec2(float(x), float(y));
+			vec2 r = o + 0.15 + 0.7 * hash22(i + o) - f;
+			float d = dot(r, r);
+			if (d < best.z) {
+				best = vec3(r, d);
+			}
+		}
+	}
+	best.z = sqrt(best.z);
+	return best;
 }
 
 // The stratocumulus underside (look 1), linear: x brightness factor on the shaded colour, y how
@@ -155,6 +194,10 @@ void vertex() {
 			w.y = h01 * deck_top * mix(dome, 0.55 + 0.75 * dome, 0.6) - 8.0 * (1.0 - h01);
 		}
 		bank_h = h01;
+		VERTEX = (inverse(MODEL_MATRIX) * vec4(w, 1.0)).xyz;
+	} else if (mode == 1 && top_dip > 0.0) {
+		// The top falls inland (the plane is subdivided for it; MarineLayer).
+		w.y = top_y(w.x + world_offset.x) - world_offset.y;
 		VERTEX = (inverse(MODEL_MATRIX) * vec4(w, 1.0)).xyz;
 	}
 	wpos = w;
@@ -268,6 +311,62 @@ void fragment() {
 			vec3 n = normalize(vec3(-grad.x * 9.0, 1.0, -grad.y * 9.0));
 			float lit = clamp(dot(n, sun_dir) * 0.6 + 0.4, 0.0, 1.0);
 			col = mix(shade_col, lit_col, lit) * (0.9 + 0.14 * hgt + 0.04 * fine);
+			if (top_look > 0.5) {
+				// Stratocumulus from above: domed cells in long rows down the wind, each a billow
+				// lit on its sun side and shaded in the trough round it, smaller billows on the big
+				// ones; every scale fades to its mean once it is under a few pixels (`fw`).
+				float fw = length(fwidth(tw));
+				vec2 q = p + 260.0 * (vec2(fbm(p * 0.0008), fbm(p * 0.0008 + vec2(7.3, 2.1))) - 0.5);
+				vec2 s1 = vec2(1.0 / 520.0, 1.0 / 330.0);
+				vec2 s2 = vec2(1.0 / 150.0, 1.0 / 110.0);
+				vec2 s3 = vec2(1.0 / 46.0, 1.0 / 40.0);
+				vec3 c1 = worley_v(q * s1);
+				vec3 c2 = worley_v(q * s2 + vec2(3.7, 1.1));
+				vec3 c3 = worley_v(q * s3 + vec2(9.2, 4.4));
+				float k1 = 1.0 - smoothstep(60.0, 260.0, fw);
+				float k2 = 1.0 - smoothstep(18.0, 80.0, fw);
+				float k3 = 1.0 - smoothstep(6.0, 24.0, fw);
+				// A dome h = 1 - d^2 per cell: its slope in metres is 2 r / scale (r toward the centre).
+				vec2 g1 = 2.0 * c1.xy * s1 * 42.0;
+				vec2 g2 = 2.0 * c2.xy * s2 * 14.0;
+				vec2 g3 = 2.0 * c3.xy * s3 * 4.0;
+				vec2 gs = g1 * k1 + g2 * k2 + g3 * k3;
+				vec3 nn = normalize(vec3(-gs.x, 1.0, -gs.y));
+				// The troughs between cells: dark where F1 is large (the cell runs out).
+				float trough = smoothstep(0.55, 1.05, c1.z) * k1 * 0.55 + smoothstep(0.5, 1.0, c2.z) * k2 * 0.3
+					+ smoothstep(0.5, 1.0, c3.z) * k3 * 0.15;
+				vec3 sd = normalize(sun_dir + vec3(0.0, 0.001, 0.0));
+				float ndl = dot(nn, sd);
+				// Wrapped light: a cloud is translucent, its far side never black.
+				float diff = clamp(ndl * 0.55 + 0.45, 0.0, 1.0);
+				// The shade a billow throws on the far side of its trough (from the low sun).
+				float self_sh = clamp(1.0 - trough * (1.0 - clamp(sd.y * 1.6, 0.0, 1.0)) * 1.1, 0.0, 1.0);
+				vec3 view = normalize(wpos - CAMERA_POSITION_WORLD);
+				// The sky's blue in the shaded flanks (what lights a cloud top out of the sun).
+				vec3 sky_fill = mix(shade_col, vec3(dot(shade_col, vec3(0.3, 0.59, 0.11))) * vec3(0.78, 0.9, 1.25), 0.7) * 1.75;
+				vec3 top_col = mix(sky_fill, lit_col * 1.04, diff * self_sh);
+				top_col *= 1.0 - trough * 0.22;
+				// A silver sheen on the billows looking toward the sun (forward scattering).
+				float fwd = pow(clamp(dot(view, sd), 0.0, 1.0), 6.0);
+				top_col += lit_col * fwd * (0.25 + 0.35 * (1.0 - trough));
+				col = top_col;
+				// Its edge where it burns off: torn into the cells, not a smooth fade.
+				a = density * smoothstep(0.0, 0.45, c * 1.15 - (1.0 - thick) * 0.45 * (1.0 - c) - trough * 0.6 * (1.0 - c));
+				// The shore: thin where the ground or a tower stands close under the top (the scene's
+				// depth behind the deck, as height under it).
+				float depth = texture(depth_texture, SCREEN_UV).r;
+#if CURRENT_RENDERER == RENDERER_COMPATIBILITY
+				vec3 ndc = vec3(SCREEN_UV, depth) * 2.0 - 1.0;
+#else
+				vec3 ndc = vec3(SCREEN_UV * 2.0 - 1.0, depth);
+#endif
+				vec4 vp = INV_PROJECTION_MATRIX * vec4(ndc, 1.0);
+				float scene_t = length(vp.xyz / vp.w);
+				float frag_t = length(VERTEX);
+				float under = max(scene_t - frag_t, 0.0) * max(-view.y, 0.04);
+				float rag = (fbm(tw * 0.013) - 0.5) * 0.7 + (1.0 - trough) * 0.3;
+				a *= smoothstep(0.0, 1.0, under / soft_shore + rag * 0.35 - 0.05);
+			}
 		}
 	}
 	float dist = length(wpos - CAMERA_POSITION_WORLD);
