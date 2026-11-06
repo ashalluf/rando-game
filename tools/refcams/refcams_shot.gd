@@ -211,9 +211,17 @@ func _run() -> void:
 		if cam.has("dog_walker") and _stager == null:
 			_stager = load("res://tools/refcams/dog_stage.gd")
 			await _stager.stage(self, scene, _eye_cam, func() -> void: _place(player, fov), cam)
+		if stage == "bus" and _stager == null:
+			# cameras_w8.json's bus_stop_rain: a bus at its stop, doors open, its queue (bus_stage.gd).
+			_stager = load("res://tools/refcams/bus_stage.gd")
+			await _stager.stage(self, scene, _eye_cam, func() -> void: _place(player, fov), cam)
 		if stage == "crash" and _stager == null:
 			# cameras_w8.json's crash_closeup: a sedan wrapped round a bent lamp pole (crash_stage.gd).
 			_stager = load("res://tools/refcams/crash_stage.gd")
+			await _stager.stage(self, scene, _eye_cam, player, func() -> void: _place(player, fov), cam)
+		if stage == "stunt" and _stager == null:
+			# cameras_w8.json's stunt_jump: a car mid-flight off a stunt ramp (stunt_stage.gd).
+			_stager = load("res://tools/refcams/stunt_stage.gd")
 			await _stager.stage(self, scene, _eye_cam, player, func() -> void: _place(player, fov), cam)
 		# A "wildlife" row (cameras_w8.json's coyote_night): animals staged where the row says.
 		if cam.has("wildlife") and _stager == null:
@@ -270,6 +278,10 @@ func _run() -> void:
 		if OS.get_environment("NIGHT_AB") == "1":
 			await _night_ab(scene, png)
 		var c: Array = await _geo_report("GEO_%s" % cam.name)
+		# TRUE=1: the MultiMeshes the renderer's counter counts once per draw (any surface with
+		# LODs: CLAUDE.md measurement trap 3) counted per instance, by group (tools/perf_audit_6).
+		if OS.get_environment("TRUE") == "1":
+			load("res://tools/perf_audit_6/true_groups.gd").call("report", self, cam.name)
 		# SPLIT=1 (OSPLIT=1 too): still_shot's cost table for this camera's frame, every category
 		# hidden in turn (tools/perf_audit_4/split_table.py ranks them from the log).
 		if OS.get_environment("SPLIT") == "1":
@@ -971,7 +983,7 @@ func _freight_clock(cam: Dictionary, scene: Node) -> void:
 	var sys := scene.get_node_or_null("FreightRail") if scene else null
 	if sys == null:
 		return
-	if not cam.has("freight_into"):
+	if not cam.has("freight_into") and not cam.has("freight_s"):
 		sys.set("hold", OS.get_environment("FREIGHT_HOLD") == "1")
 		return
 	var line: Variant = sys.get("line")
@@ -980,7 +992,18 @@ func _freight_clock(cam: Dictionary, scene: Node) -> void:
 		line = sys.get("line")
 	if line == null:
 		return
-	load("res://scripts/world/freight_rail.gd").set("clock", float(line.call("clock_at_yard", float(cam.freight_into))))
+	var clock := 0.0
+	if cam.has("freight_s"):
+		# Wave 8's freight_trench: "<s>[:<dir 0 north|1 south>[:<seconds before>]]" as FREIGHT_S, and
+		# an optional "freight_kind" (0 stack, 1 manifest, 2 autorack) as FREIGHT_KIND.
+		if cam.has("freight_kind"):
+			OS.set_environment("FREIGHT_KIND", str(int(cam.freight_kind)))
+		var fs := String(cam.freight_s).split(":", false)
+		clock = float(line.call("clock_at_s", fs[0].to_float(), fs[1].to_int() if fs.size() > 1 else 0, fs[2].to_float() if fs.size() > 2 else 0.0))
+	else:
+		clock = float(line.call("clock_at_yard", float(cam.freight_into)))
+	load("res://scripts/world/freight_rail.gd").set("clock", clock)
+	print("REFCAM %s: freight clock %.1f" % [cam.name, clock])
 	sys.set("hold", true)
 	sys.call("step")
 

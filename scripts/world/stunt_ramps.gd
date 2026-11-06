@@ -368,7 +368,8 @@ static func _pair(plan: CityPlan, ri: int, i: int) -> Array:
 		return [
 			{"id": id + "_a", "kind": Kind.LAUNCH, "p": Vector3(lf.x, gl, lf.y), "yaw": yaw, "len": LAUNCH_LEN,
 				"h": LAUNCH_H, "w": PAIR_W, "paint": paint, "clear": lr, "deck_y": seg[4], "route": ri, "index": i,
-				"run_from": Vector3(lf.x - ride.x * 30.0, gl, lf.y - ride.y * 30.0)},
+				"run_from": Vector3(lf.x - ride.x * 30.0, gl, lf.y - ride.y * 30.0),
+				"flight": StuntJumpFX.flight_box(lf, ride, df + ride * LAND_LEN, PAIR_W)},
 			{"id": id + "_b", "kind": Kind.LAND, "p": Vector3(df.x, gd, df.y), "yaw": yaw, "len": LAND_LEN,
 				"h": LAND_H, "w": PAIR_W, "paint": paint, "clear": dr, "route": ri, "index": i},
 		]
