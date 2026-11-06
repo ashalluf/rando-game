@@ -239,7 +239,9 @@ func pace(panicking: bool) -> float:
 ## the person has somewhere to go (Pedestrian then leaves its own choice alone).
 func on_walk_end() -> bool:
 	var r := rain_now()
-	if r < SHELTER_LEVEL or not ped._life_free():
+	# Shelter and going in are for the plain crowd (StreetErrands.plain()): a valet, vendor or
+	# diner has _life_free() moments too, and a job to keep.
+	if r < SHELTER_LEVEL or not ped._life_free() or not StreetErrands.plain(ped):
 		return false
 	if _wants_in(r):
 		return _plan_door(true, false)
@@ -265,9 +267,9 @@ func settle_now() -> void:
 		hood_to = 1.0
 	if r < SHELTER_LEVEL or sheltering or inside:
 		return
-	if ped._act != CrowdLife.Act.NONE and gear == Gear.NONE:
+	if ped._act != CrowdLife.Act.NONE and gear == Gear.NONE and StreetErrands.plain(ped):
 		ped._end_act(true)
-	if not ped._life_free():
+	if not ped._life_free() or not StreetErrands.plain(ped):
 		return
 	if _wants_in(r):
 		_go_in()

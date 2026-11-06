@@ -2920,7 +2920,8 @@ func _plan_talk(at_spawn: bool) -> bool:
 	var mates: Array[Pedestrian] = []
 	for n in parent.get_children():
 		var p := n as Pedestrian
-		if p == null or p == self or not p._life_free() or p._dog_walker or p.ring != ring:
+		# The plain crowd only (StreetErrands.plain()): a valet walking to a car is _life_free() too.
+		if p == null or p == self or not p._life_free() or p._dog_walker or p.ring != ring or not StreetErrands.plain(p):
 			continue
 		if not at_spawn and (p._carry == CrowdLife.Carry.CALL):
 			continue

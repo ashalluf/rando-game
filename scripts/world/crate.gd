@@ -5,7 +5,7 @@ extends RigidBody3D
 
 
 func _ready() -> void:
-	set_meta("spawn_time", Time.get_ticks_msec() / 1000.0)
+	set_meta("spawn_time", PhysicsBudget.now())
 
 
 func set_material(material: Material) -> void:

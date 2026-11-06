@@ -165,7 +165,7 @@ func _scan() -> void:
 				and _near_call(at, merge_radius, KIND_BLAST) == null:
 			_open(KIND_BLAST, at)
 	# Bodies (Ragdoll roots are PhysicsBudget debris); not our own people.
-	var now := Time.get_ticks_msec() / 1000.0
+	var now := PhysicsBudget.now()
 	for node in get_tree().get_nodes_in_group(PhysicsBudget.DEBRIS_GROUP):
 		var doll := node as Ragdoll
 		if doll == null or doll.is_queued_for_deletion() or doll.has_meta("responder") or doll.has_meta("attended"):
@@ -620,7 +620,7 @@ func open_call(kind: String, world: Vector3, car: Vehicle = null, doll: Ragdoll 
 		car._damage.hold_fire(hold_seconds)
 	if doll != null:
 		doll.set_meta("attended", true)
-		doll.set_meta("spawn_time", Time.get_ticks_msec() / 1000.0)
+		doll.set_meta("spawn_time", PhysicsBudget.now())
 		doll.set_meta("debris_life", hold_seconds)
 	return inc
 

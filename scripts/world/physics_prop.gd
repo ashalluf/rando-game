@@ -37,4 +37,4 @@ func _ready() -> void:
 	shape.shape = _shape
 	shape.position = _shape_offset
 	add_child(shape)
-	set_meta("spawn_time", Time.get_ticks_msec() / 1000.0)
+	set_meta("spawn_time", PhysicsBudget.now())

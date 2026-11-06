@@ -55,4 +55,4 @@ func _ready() -> void:
 		mesh.visibility_range_end_margin = DRAW_DISTANCE * 0.1
 		mesh.visibility_range_fade_mode = GeometryInstance3D.VISIBILITY_RANGE_FADE_SELF
 		add_child(mesh)
-	set_meta("spawn_time", Time.get_ticks_msec() / 1000.0)
+	set_meta("spawn_time", PhysicsBudget.now())

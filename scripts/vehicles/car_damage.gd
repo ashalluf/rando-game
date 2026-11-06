@@ -1276,7 +1276,7 @@ func on_fire() -> bool:
 func hold_fire(seconds: float) -> void:
 	_hold_until = Time.get_ticks_msec() / 1000.0 + seconds if seconds > 0.0 else 0.0
 	if seconds > 0.0 and car != null and car.has_meta("spawn_time"):
-		var age := Time.get_ticks_msec() / 1000.0 - float(car.get_meta("spawn_time"))
+		var age := PhysicsBudget.now() - float(car.get_meta("spawn_time"))
 		car.set_meta("debris_life", maxf(float(car.get_meta("debris_life", wreck_lifetime)), age + seconds + 60.0))
 
 

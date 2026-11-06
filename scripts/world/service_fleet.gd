@@ -685,7 +685,7 @@ func _scan_wrecks() -> void:
 	if _tows.size() >= max_tows:
 		return
 	var pw := _player_world()
-	var now := Time.get_ticks_msec() / 1000.0
+	var now := PhysicsBudget.now()
 	for w in CarDamage._wrecks:
 		if not is_instance_valid(w) or not (w as Node).is_inside_tree() or _no_tow.has((w as Node).get_instance_id()):
 			continue
@@ -758,7 +758,7 @@ func _tick_tows(delta: float) -> void:
 			if String(e.state) == "drive":
 				# The truck never got there: the wreck goes back on the debris clock.
 				(wreck as Node).set_meta("debris_life", 60.0)
-				(wreck as Node).set_meta("spawn_time", Time.get_ticks_msec() / 1000.0)
+				(wreck as Node).set_meta("spawn_time", PhysicsBudget.now())
 				CarDamage._wrecks.append(wreck)
 			else:
 				# Gone with the truck.

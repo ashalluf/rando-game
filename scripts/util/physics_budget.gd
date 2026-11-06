@@ -32,11 +32,18 @@ const PLAYER_GROUP := "player"
 
 var frozen_count: int = 0
 var _timer: float = 0.0
+## Seconds of physics since the game began: the clock debris ages on (`now()`). It was the wall
+## clock, so on a loaded box (a gate shard; a hitch on the Mac) a ragdoll or a blast's rubble was
+## freed after a few hundred physics ticks of its 12 s (the wave-8 flake rule: a timer that
+## decides what physics does runs on the physics step). `PHYSICS_CLOCK=0` is the A/B.
+var clock: float = 1000.0
+static var physics_clock: bool = OS.get_environment("PHYSICS_CLOCK") != "0"
 
 
 ## A physics tick, not a frame: Vehicle.settle() only sticks when it runs between the physics
 ## callbacks and the next step (see there).
 func _physics_process(delta: float) -> void:
+	clock += delta
 	_timer += delta
 	if _timer < check_interval:
 		return
@@ -113,4 +120,9 @@ func _run_checks() -> void:
 
 
 func _now() -> float:
-	return Time.get_ticks_msec() / 1000.0
+	return now()
+
+
+## The debris clock: what every "spawn_time" meta is read against (physics seconds).
+func now() -> float:
+	return clock if physics_clock else Time.get_ticks_msec() / 1000.0

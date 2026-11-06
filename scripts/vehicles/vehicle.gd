@@ -719,7 +719,7 @@ func _ready() -> void:
 	CarInteriors.ensure(self)
 	EngineAudio.ensure(self)
 	CarRadio.ensure(self) # the player's car radio (scripts/vehicles/car_radio.gd)
-	set_meta("spawn_time", Time.get_ticks_msec() / 1000.0)
+	set_meta("spawn_time", PhysicsBudget.now())
 	collision_layer = 4
 	collision_mask = _mask()
 	mass = 1200.0

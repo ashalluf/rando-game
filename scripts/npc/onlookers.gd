@@ -153,7 +153,7 @@ func _look_for_scenes() -> void:
 		var at := WorldState.to_local(Explosion.last_blast_world)
 		if at.distance_to(pp) < SCENE_RADIUS:
 			open_scene(Kind.BLAST, Explosion.last_blast_world)
-	var now := Time.get_ticks_msec() / 1000.0
+	var now := PhysicsBudget.now()
 	for node in get_tree().get_nodes_in_group(PhysicsBudget.DEBRIS_GROUP):
 		var doll := node as Ragdoll
 		if doll == null or doll.is_queued_for_deletion() or doll.has_meta("responder") or doll.bodies.is_empty():
@@ -835,7 +835,7 @@ func stage(kind: int, world: Vector3, ref: Object, count: int) -> Dictionary:
 	var cands: Array = []
 	for n in get_tree().get_nodes_in_group("pedestrian"):
 		var p := n as Pedestrian
-		if p != null and p.is_inside_tree() and p._lives() and p.watch.is_empty() and p._life_ok and not p._down:
+		if p != null and p.is_inside_tree() and p._lives() and StreetErrands.plain(p) and p.watch.is_empty() and p._life_ok and not p._down:
 			var d2 := p.global_position.distance_squared_to(at)
 			if d2 < RECRUIT_REACH * RECRUIT_REACH:
 				cands.append([d2, p])
