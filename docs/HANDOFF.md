@@ -30244,3 +30244,10 @@ p95 rises with the lit shoulder round the edge light in the foreground. Stills o
 `shots/rc5-jet-takeoff`. Not verified: Forward+ (no lavapipe pass for the beams' and pools'
 additive strength on the Mac's renderer; the beams use a fog-free display-ish add with a low
 strength, the pools light_pool.gdshader's own path).
+
+The ten original cameras (cameras.json) were shot on this branch with JET_TAKEOFF=0 and with it on
+(every change here is behind the switch or inert by default, so the off run stands in for main):
+eight of ten within tolerance; `freeway` and `street_noon` flagged only for the live traffic (a
+taxi in the freeway lens in one run, the bus at another spot in the other) - their roads, buildings
+and sky are the same pixels. Gate on the merged branch: SHARDS=3, 6,115 checks passed, 0 failed,
+peak RSS 3.9 GB a shard.
