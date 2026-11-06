@@ -201,6 +201,10 @@ func _run() -> void:
 			# cameras_w8.json's crash_closeup: a sedan wrapped round a bent lamp pole (crash_stage.gd).
 			_stager = load("res://tools/refcams/crash_stage.gd")
 			await _stager.stage(self, scene, _eye_cam, player, func() -> void: _place(player, fov), cam)
+		if stage == "stunt" and _stager == null:
+			# cameras_w8.json's stunt_jump: a car mid-flight off a stunt ramp (stunt_stage.gd).
+			_stager = load("res://tools/refcams/stunt_stage.gd")
+			await _stager.stage(self, scene, _eye_cam, player, func() -> void: _place(player, fov), cam)
 		Engine.time_scale = 0.0005
 		for i in _env_int("SETTLE", 6):
 			await process_frame

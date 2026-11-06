@@ -43,6 +43,7 @@ static func material() -> ShaderMaterial:
 		_material.set_shader_parameter("dirt_tex", PropFactory.texture("hill_dirt", "Color"))
 		_material.set_shader_parameter("paint_tex", PropFactory.texture("metal_painted", "Color"))
 		_material.set_shader_parameter("plank_tex", PropFactory.texture("planks", "Color"))
+		_material.set_shader_parameter("look5", 1.0 if StuntJumpFX.enabled else 0.0)
 	return _material
 
 

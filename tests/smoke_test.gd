@@ -3042,6 +3042,9 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	# The sea_life refcam (tests/rc5_sea_life_checks.gd, SeaLife.spray_look): the camera row, the
 	# flat white water and streaked throws, the surfacing rings, the staged pod in turn.
 	load("res://tests/rc5_sea_life_checks.gd").new().run(self, city)
+	# The stunt_jump refcam (tests/rc5_stunt_jump_checks.gd, StuntJumpFX): the flight box, the hanging
+	# wheels, the launch's dust and grit, the tread plate.
+	await load("res://tests/rc5_stunt_jump_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()

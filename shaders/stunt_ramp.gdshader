@@ -28,6 +28,9 @@ uniform sampler2D paint_tex : source_color, filter_linear_mipmap_anisotropic, re
 uniform sampler2D plank_tex : source_color, filter_linear_mipmap_anisotropic, repeat_enable;
 
 global uniform float road_wetness;
+// The wave 8 stunt_jump pass on the tread plate (StuntJumpFX; 0 = the old plate bit for bit):
+// welded sheets, zinc spangle, dirt carried up from the run-up, long rubber streaks, a duller zinc.
+uniform float look5 = 0.0;
 
 varying float kind;
 varying vec3 vcol;
@@ -107,6 +110,34 @@ void fragment() {
 		col *= mix(1.0, 0.75, grime * 0.4);
 		rough = mix(0.34, 0.7, tracks + grime * 0.3);
 		metal = mix(0.85, 0.35, tracks);
+		if (look5 > 0.5) {
+			// Sheets 1.22 m across x 2.44 m along, welded: a dark seam with a bright bead beside
+			// it, box-filtered by the pixel's footprint so it fades to its mean far off.
+			vec2 sh = vec2(abs(fract(uv.x / 1.22 + 0.5) - 0.5) * 1.22, abs(fract(uv.y / 2.44) - 0.5) * 2.44);
+			float sw = 0.012 + px * 0.7;
+			float seam = max(smoothstep(sw, 0.0, sh.x), smoothstep(sw, 0.0, sh.y)) * clamp(0.024 / (px * 1.5 + 0.024), 0.0, 1.0);
+			float bead = max(smoothstep(sw * 3.5, sw, sh.x) - smoothstep(sw, 0.0, sh.x), smoothstep(sw * 3.5, sw, sh.y) - smoothstep(sw, 0.0, sh.y));
+			// Zinc spangle: crystals a few cm across, lighter and darker, and each sheet its own tone.
+			float spang = vnoise(uv * 22.0) * 0.6 + vnoise(uv * 7.0 + 5.0) * 0.4;
+			float sheet = hash12(floor(vec2(uv.x / 1.22 + 0.5, uv.y / 2.44)) + 17.0);
+			vec3 plate = vec3(0.50, 0.505, 0.50) * mix(0.82, 1.1, spang) * mix(0.9, 1.06, sheet) * mix(1.0, 1.12, lug * fade);
+			// Rubber: long streaks in two wheel paths, heaviest where the tyres load up at the foot.
+			float path = smoothstep(0.62, 0.12, abs(abs(uv.x) - 0.8));
+			float streak = smoothstep(0.35, 0.85, vnoise(vec2(uv.x * 9.0, uv.y * 0.18) + 3.0));
+			float load = mix(1.0, 0.55, smoothstep(2.0, 12.0, uv.y));
+			float rubber = clamp(path * (0.35 + 0.65 * streak) * load, 0.0, 1.0);
+			// Dirt carried up off the run-up, thinning up the ramp, packed in the lugs' valleys.
+			float dirt = smoothstep(6.0, 0.0, uv.y) * (0.45 + 0.55 * fbm(uv * 1.3 + 9.0)) * (1.0 - path * 0.5);
+			vec3 c5 = plate;
+			c5 = mix(c5, vec3(0.43, 0.37, 0.29), dirt * 0.75);
+			c5 = mix(c5, vec3(0.07, 0.07, 0.07), rubber * 0.7);
+			c5 = mix(c5, vec3(0.25, 0.25, 0.25), seam * 0.8);
+			c5 = mix(c5, vec3(0.68, 0.66, 0.62), bead * 0.35);
+			c5 *= mix(1.0, 0.8, grime * 0.35);
+			col = c5;
+			rough = mix(0.5, 0.82, max(rubber, dirt)) - spang * 0.08;
+			metal = mix(0.62, 0.15, max(rubber, dirt));
+		}
 	} else if (k < 2.5) {
 		// Hazard bands.
 		float band = step(0.5, fract((uv.x + uv.y) / 0.36));
