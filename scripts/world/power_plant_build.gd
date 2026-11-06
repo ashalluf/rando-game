@@ -62,6 +62,7 @@ static func _parts(rects: Array, area: Rect2) -> Array[Rect2]:
 # =================================================================================================
 
 static func site_steps(ch: CityChunk) -> Array[Callable]:
+	RcPowerPlant.apply(ch.plan)
 	var steps: Array[Callable] = []
 	var lay := PowerPlant.layout(ch.plan)
 	if lay.is_empty():
@@ -642,7 +643,7 @@ static func landmark(parent: Node3D, plan: CityPlan) -> void:
 				for kk in [0, 1, 2, 0, 2, 3]:
 					st.set_color(red)
 					st.set_uv(corners[kk])
-					st.set_uv2(Vector2(4.2 if li == 0 else 3.0, code))
+					st.set_uv2(Vector2((4.2 if li == 0 else 3.0) * RcPowerPlant.LIGHT_SIZE_GAIN, code))
 					st.set_normal(Vector3.UP)
 					st.add_vertex(at)
 				n += 1
@@ -656,6 +657,8 @@ static func landmark(parent: Node3D, plan: CityPlan) -> void:
 		var mat := ShaderMaterial.new()
 		mat.shader = load("res://shaders/aircraft_lights.gdshader")
 		mat.set_shader_parameter("day_level", 0.14)
+		if RcPowerPlant.enabled:
+			mat.set_shader_parameter("hdr", RcPowerPlant.LIGHT_HDR)
 		var mesh := st.commit()
 		mesh.surface_set_material(0, mat)
 		var lights := MeshInstance3D.new()

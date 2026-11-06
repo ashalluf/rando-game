@@ -315,9 +315,11 @@ static func hall(g: Geo, o: Vector3, sz: Vector3, clad: Color, sd: int, sea_side
 	# The window band under the eaves on both long sides, and the gables'.
 	var band_y := plinth + wall - 5.0
 	for sx: float in [-1.0, 1.0]:
-		g.box(Transform3D(Basis(), o + Vector3(sx * (sz.x * 0.5 + 0.03), band_y + 1.6, 0)), Vector3(0.08, 3.2, sz.z - 6.0), K_GLASS, Color(0.3, 0.36, 0.4), float(sd % 53))
+		g.box(Transform3D(Basis(), o + Vector3(sx * (sz.x * 0.5 + RcPowerPlant.glass_out(0.03)), band_y + 1.6, 0)), Vector3(0.08, 3.2, sz.z - 6.0), K_GLASS, Color(0.3, 0.36, 0.4), float(sd % 53))
 	for sz_: float in [-1.0, 1.0]:
-		g.box(Transform3D(Basis(), o + Vector3(0, band_y + 1.6, sz_ * (sz.z * 0.5 + 0.03))), Vector3(sz.x - 8.0, 3.2, 0.08), K_GLASS, Color(0.3, 0.36, 0.4), float(sd % 41))
+		g.box(Transform3D(Basis(), o + Vector3(0, band_y + 1.6, sz_ * (sz.z * 0.5 + RcPowerPlant.glass_out(0.03)))), Vector3(sz.x - 8.0, 3.2, 0.08), K_GLASS, Color(0.3, 0.36, 0.4), float(sd % 41))
+	if RcPowerPlant.enabled:
+		_band_trim(g, o, sz, band_y, clad)
 	# Roof: a parapet band, the low roof, the ridge vent along it, roof fans.
 	var top := plinth + wall
 	g.box(Transform3D(Basis(), o + Vector3(0, top + 0.5, 0)), Vector3(sz.x + 0.3, 1.0, sz.z + 0.3), K_STEEL, clad * 0.82, 0.0, 16)
@@ -351,6 +353,9 @@ static func hall(g: Geo, o: Vector3, sz: Vector3, clad: Color, sd: int, sea_side
 			for sz_: float in [-1.0, 1.0]:
 				var p := o + Vector3(sx * (sz.x * 0.5 + 0.25), 0.0, sz_ * (sz.z * 0.5 - 1.0))
 				g.cyl(p, p + Vector3(0, top, 0), 0.12, 0.12, 6, K_STEEL, clad * 0.7)
+	if RcPowerPlant.enabled:
+		for q: Vector3 in RcPowerPlant.eave_floods(sz, sz.y - 1.4):
+			_eave_flood(g, o + q, signf(q.x))
 	# A roll-up door in each gable, a personnel door beside it.
 	for sz_: float in [-1.0, 1.0]:
 		var face := o + Vector3(0, 0, sz_ * (sz.z * 0.5 + 0.06))
@@ -361,6 +366,27 @@ static func hall(g: Geo, o: Vector3, sz: Vector3, clad: Color, sd: int, sea_side
 		# Gantry crane rails' end stops and a hoist beam out over the west yard.
 		var p := o + Vector3(-sz.x * 0.5, top - 3.0, sz.z * 0.3)
 		g.beam(p, p + Vector3(-5.0, 0, 0), 0.4, 0.7, K_STEEL, YELLOW)
+
+
+## RcPowerPlant: a hall's window band gets a head and a sill standing proud of the glass, so the
+## band reads as framed glazing set in the cladding, not a strip painted on it.
+static func _band_trim(g: Geo, o: Vector3, sz: Vector3, band_y: float, clad: Color) -> void:
+	for sx: float in [-1.0, 1.0]:
+		for sy: float in [-1.0, 1.0]:
+			g.box(Transform3D(Basis(), o + Vector3(sx * (sz.x * 0.5 + 0.2), band_y + 1.6 + sy * 1.68, 0)), Vector3(0.4, 0.16, sz.z - 5.6), K_STEEL, clad * 0.7, 0.0, 0)
+	for sz_: float in [-1.0, 1.0]:
+		for sy: float in [-1.0, 1.0]:
+			g.box(Transform3D(Basis(), o + Vector3(0, band_y + 1.6 + sy * 1.68, sz_ * (sz.z * 0.5 + 0.2))), Vector3(sz.x - 7.6, 0.16, 0.4), K_STEEL, clad * 0.7, 0.0, 0)
+
+
+## RcPowerPlant: an eave flood on a long wall at `p`, facing out along `side` x (a bracket, the
+## housing and its lens tipped down at the wall's foot).
+static func _eave_flood(g: Geo, p: Vector3, side: float) -> void:
+	var out := Vector3(side, 0.0, 0.0)
+	g.box(Transform3D(Basis(), p - out * 0.45), Vector3(0.9, 0.12, 0.12), K_STEEL, STEEL_DARK, 0.0, 0)
+	var b := Basis.looking_at(out * 0.4 + Vector3(0, -1.0, 0), Vector3.UP)
+	g.box(Transform3D(b, p), Vector3(0.6, 0.42, 0.3), K_STEEL, STEEL_DARK)
+	g.box(Transform3D(b, p + b.z * -0.16), Vector3(0.5, 0.34, 0.02), K_LAMP, Color(1.0, 0.9, 0.75))
 
 
 ## The boiler house: taller, the cladding darker, vertical window strips, a stair tower with a
@@ -376,7 +402,16 @@ static func boiler_house(g: Geo, o: Vector3, sz: Vector3, sd: int) -> void:
 	for i in ns:
 		var z := -sz.z * 0.5 + sz.z * (float(i) + 0.5) / float(ns)
 		for sx: float in [-1.0, 1.0]:
-			g.box(Transform3D(Basis(), o + Vector3(sx * (sz.x * 0.5 + 0.03), plinth + wall * 0.52, z)), Vector3(0.08, wall * 0.72, 2.2), K_GLASS, Color(0.28, 0.33, 0.38), float((sd + i) % 61))
+			g.box(Transform3D(Basis(), o + Vector3(sx * (sz.x * 0.5 + RcPowerPlant.glass_out(0.03)), plinth + wall * 0.52, z)), Vector3(0.08, wall * 0.72, 2.2), K_GLASS, Color(0.28, 0.33, 0.38), float((sd + i) % 61))
+			if RcPowerPlant.enabled:
+				# The strip's frame: jambs, head and sill standing proud of the glass.
+				var fx := sx * (sz.x * 0.5 + 0.2)
+				var yc := plinth + wall * 0.52
+				var hh := wall * 0.72
+				for sj: float in [-1.0, 1.0]:
+					g.box(Transform3D(Basis(), o + Vector3(fx, yc, z + sj * 1.18)), Vector3(0.42, hh + 0.3, 0.16), K_STEEL, CLAD_BOILER * 0.7, 0.0, 48)
+				for sy: float in [-1.0, 1.0]:
+					g.box(Transform3D(Basis(), o + Vector3(fx, yc + sy * (hh * 0.5 + 0.08), z)), Vector3(0.42, 0.16, 2.52), K_STEEL, CLAD_BOILER * 0.7, 0.0, 0)
 	# The two penthouses and a row of roof vents.
 	for sz_: float in [-0.25, 0.25]:
 		g.box(Transform3D(Basis(), o + Vector3(sz.x * 0.15, sz.y + 3.2, sz_ * sz.z)), Vector3(12.0, 5.6, 14.0), K_CLAD, CLAD_BOILER * 0.92, float(sd % 13), 0)
@@ -387,6 +422,9 @@ static func boiler_house(g: Geo, o: Vector3, sz: Vector3, sd: int) -> void:
 	# The stair tower on the north face, its landings, railed ring platforms round the top.
 	var st := o + Vector3(sz.x * 0.25, 0.0, -sz.z * 0.5 - 3.2)
 	stair_tower(g, st, sz.y + 2.0, 5.6, 6.0)
+	if RcPowerPlant.enabled:
+		for q: Vector3 in RcPowerPlant.eave_floods(sz, sz.y - 1.0):
+			_eave_flood(g, o + q, signf(q.x))
 	if g.full:
 		for y: float in [sz.y - 6.0, sz.y - 18.0]:
 			var x := Transform3D(Basis(), o)
@@ -459,6 +497,16 @@ static func stack(g: Geo, o: Vector3, r0: float, r1: float, h: float, bands: boo
 			g.cyl(o + Vector3(0, y, 0), o + Vector3(0, y + 0.3, 0), r0 + 0.12, r0 + 0.12, segs, K_STEEL, STEEL_GREY, false, false)
 		g.box(Transform3D(Basis(), o + Vector3(r0 + 1.4, h * 0.6 + 1.3, 0)), Vector3(2.4, 2.6, 2.6), K_CLAD, WHITE, 3.0, 0)
 		g.platform(Transform3D(Basis(), o), Rect2(r0, -2.0, 3.2, 4.0), h * 0.6, 2 | 4 | 8)
+	if RcPowerPlant.enabled and concrete:
+		# Two floods at the foot aimed up the shaft (RcPowerPlant: they light the stack after dark).
+		for k in 2:
+			var a := PI * 0.75 + PI * float(k)
+			var d := Vector3(cos(a), 0.0, sin(a))
+			var f := o + d * RcPowerPlant.STACK_FLOOD_OUT
+			g.box(Transform3D(Basis(), f + Vector3(0, 0.3, 0)), Vector3(1.2, 0.6, 1.2), K_CONCRETE, CONCRETE)
+			var b := Basis.looking_at(-d + Vector3(0, 1.6, 0), Vector3.UP)
+			g.box(Transform3D(b, f + Vector3(0, 1.0, 0)), Vector3(0.7, 0.5, 0.35), K_STEEL, STEEL_DARK)
+			g.box(Transform3D(b, f + Vector3(0, 1.0, 0) + b.z * -0.18), Vector3(0.6, 0.4, 0.02), K_LAMP, Color(1.0, 0.9, 0.75))
 	# The ladder up the side facing the yard (east).
 	g.ladder(o + Vector3(lerpf(r0, r1, 0.0) + 0.05, 1.2, 0.0), o + Vector3(rp + 0.05, py, 0.0), Vector3(1, 0, 0))
 
