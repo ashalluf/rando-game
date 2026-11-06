@@ -90,6 +90,10 @@ static func material() -> ShaderMaterial:
 	_material.set_shader_parameter("concrete_tex", PropFactory.texture("concrete", "Color"))
 	_material.set_shader_parameter("planks_tex", PropFactory.texture("planks", "Color"))
 	_material.set_shader_parameter("dirt_tex", PropFactory.texture("hill_dirt", "Color"))
+	if ConstructionDusk.enabled:
+		_material.set_shader_parameter("dusk_glass", true)
+		_material.set_shader_parameter("printed_posters", true)
+		_material.set_shader_parameter("paper_atlas", load("res://assets/textures/street_wear/street_wear_paper.png"))
 	return _material
 
 

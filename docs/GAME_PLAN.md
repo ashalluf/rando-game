@@ -4654,3 +4654,10 @@ none of either.
   script finishes compiling, inside the same load(), so the boot presents a frame between scripts
   (longest still stretch 1.1 s). New scripts that join the cycle get it from
   `tools/boot_compile/deps.py --hook`.
+
+- 2026-11-05 (wave 8, rc5-construction-dusk): a new reference camera, `construction_dusk`
+  (cameras_w8.json), looks at a downtown tower site at 18:45. Decisions: a building site works into
+  the evening (a late shift until 20:30) under its own work lights, which is what the open floors
+  read by at dusk; glass on a half-finished tower shows the fit-out lit behind it, not a black
+  mirror; anything pasted on a hoarding is printed (StreetWear's bills), never a flat colour block.
+  CONSTRUCTION_DUSK=0 is the A/B.

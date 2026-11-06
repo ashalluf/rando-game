@@ -2978,6 +2978,9 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	load("res://tests/rc4_freight_yard_checks.gd").new().run(self, city)
 	# The boot compile (tests/boot_compile_checks.gd, LoadPulse.compiled()): frames inside the cycle's compile.
 	load("res://tests/boot_compile_checks.gd").new().run(self)
+	# The construction site at dusk (tests/rc5_construction_dusk_checks.gd, ConstructionDusk): the
+	# camera row, the late shift, the work lights, the dusk glass and the printed posters.
+	load("res://tests/rc5_construction_dusk_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()
