@@ -32749,3 +32749,44 @@ boats' own white hulls are not in the water's light list (the boats are mirrored
 MarinaGolden's trace at night); the restaurants' terraces have no string lights or diners; the
 lights' columns are not occluded by the docks' floats (only by boats); the moonlit hulls still read
 a little flat grey.
+
+## 9d?. The storm at the pier: the storm_sea refcam (fleet wave 8, `wt/rc5-storm-sea`) - IN PROGRESS, NOT GATED
+
+**State**: cut off by the account move after the before shots. Pushed: the camera row only (no code
+change, so main's gate is unaffected). Stills on `shots/rc5-storm-sea` (README there).
+
+**The camera** (`tools/refcams/cameras_w8.json`, `storm_sea`): Rando Pier at 16:00 in a STORM, the
+deck by the north rail 45 m out, looking WNW, a strike held at 1500 m az -145 (`storm_flash`,
+already handled in refcams_shot.gd). **The eye must move**: from (-985, 8.1, -360) a food stand
+fills the left third and a lamp pole cuts the middle (`01_before_storm_sea.jpg`). Better candidates
+from the framing sheet (`02_framing_noflash.jpg`, still_shot.gd, no flash): (-1130, 8.1, -359.5,
+yaw 60, pitch -4) - the rail, the open sea, the headland; (-1205, 8.1, -340, yaw 90) - the end of
+the pier, lamps, benches, festoons, the sea. A second set aiming along the surf zone from the north
+deck's west corner ((-1095, 8.1, -380, yaw 20-40), (-1060, 8.1, -381, yaw 10)) was being shot when
+the session stopped: the storm break is ~103 m off the waterline, so only an eye looking along the
+coast has the breakers in frame. Pick one, update the row's eye.
+
+**What reads fake, worst first** (judged on the before and the framing sheet, opengl3):
+1. **A held strike by day whites out the whole frame** (before: p5/p50/p95 88/179/229; the same
+   storm without the flash is dark, p50 ~70): sky, sea, deck and rail one beige-white haze, the bolt
+   faint. RcStorm (storm_downtown) only tamed the NIGHT flash (`light_gain()` / `cube_gain()` /
+   `dress_sky()` all weighted by moonlight). Plan: a day-storm weight in the same hooks
+   (Weather's lightning light, the sun's `flash * 2.5`, StormDrama.FLASH_AMBIENT in DayNight, the
+   sky's `flash_cube` / spread), so a day flash lights the cloud base round the bolt and lifts the
+   frame a stop, not to white.
+2. **The storm sea has almost no whitecaps or spume** past the surf zone: dark rolling water with a
+   few flecks (ocean.gdshader: the fold foam, `streaky` x0.35, needs much more coverage and
+   wind-torn streaks at wave_scale 6).
+3. **Sun glitter and a lit deck under a full storm deck**: ocean.gdshader gates its own glare by
+   `weather_dark`, but the renderer's sun specular (sun at ~0.25 energy in a storm, SPECULAR 0.12,
+   roughness 0.18) still sparkles on the sea and the deck boards get a sunlit sheen. Plan: a storm
+   factor next to `Rc5CemeteryDawn.sun_specular()` on `_sun.light_specular` (DayNight line ~477),
+   and less key in a storm than RainDay's 1/3.
+4. Smaller: a storm-litter disc high in the sky by day (RcStorm's litter fix still leaves a dark
+   billboard 40 m up in the framing sheet); clear blue-white gaps in the day storm deck.
+Not yet looked at: the breakers' spray (surf_spray.gdshader: an unshaded 0.92 white base and a sun
+back-glow not gated by weather - likely glows in a storm), the rain curtains over the sea.
+
+**Next session**: fix the eye, shoot `--only storm_sea` before (main) / after, put the fixes in a
+new `RcStormSea` (`RC5_STORM_SEA=0` the A/B), checks in `tests/rc5_storm_sea_checks.gd` (one
+line in smoke_test.gd), run the ten cameras + compare, gate, docs per the brief.
