@@ -11,3 +11,12 @@ clear, eye level by the west booth island looking east along the booth row. open
   pedestals, yellow island kerbs; red-and-white boom barriers; canopy steel (beams, purlins) on
   striped crash plinths; louvred detector housings on hazard bases; the gate paved in asphalt
   with arrows and nose hatching; a busier queue.
+- `03_before_wide_from_the_north_west.jpg` / `04_after_wide_from_the_north_west.jpg` - the view
+  from the gate's north-west corner (2775, 5938) where the quay cranes' tops show over the stacks:
+  the queue of bobtails north of the portal, the asphalt (04 is a still_shot.gd scout before the
+  soffit tint; the pair are not the same frame time).
+- `05_ten_cameras_off_vs_on.jpg` - the ten original refcams, RC5_PORT_GATE=0 (top) against on
+  (bottom): no camera sees the port; the three flags are live traffic in other places.
+
+`02` is the final head (soffit retinted); its numbers: 1,993,887 triangles / 1,552 draws against
+the before's 1,896,687 / 1,480.
