@@ -6,7 +6,7 @@ extends RefCounted
 ##
 ## - THE WEEKEND BARBECUE. Grills only cooked at dinner (17:06-21:30), so a Saturday afternoon's
 ##   yards had cold grills and no smoke. On a Saturday or Sunday `WEEKEND_SHARE` of the cooking
-##   households fire up for a late lunch too (11:36-18:00, their own window from their seed): the
+##   households fire up for a late lunch too (11:30-18:24, their own window from their seed): the
 ##   `weekend` uniform on BackyardKit's grill and smoke materials, set from the day each time a
 ##   chunk's yards are built (`day_hook()`); backyard.gdshader and backyard_smoke.gdshader's
 ##   cooking() read it (the two copies agree; checked).
@@ -17,8 +17,8 @@ static var enabled: bool = OS.get_environment("RC5_BACKYARD") != "0"
 ## a weekend. Copied in both shaders' cooking() (`weekend_share`).
 const WEEKEND_SHARE := 0.6
 ## The lunch window's start range and length range (hours), also in both shaders.
-const LUNCH_START := Vector2(11.6, 14.2)
-const LUNCH_LEN := Vector2(2.2, 3.8)
+const LUNCH_START := Vector2(11.5, 14.0)
+const LUNCH_LEN := Vector2(2.8, 4.4)
 ## FarmersMarket's days: 0 Sunday .. 6 Saturday.
 const WEEKEND_DAYS := [0, 6]
 
@@ -64,6 +64,11 @@ static func cooking(seed: float, hour: float, weekend: bool, cook_share: float =
 ##   the sunny wall's shadow, absorption, the sky and the yard mirrored). The chunk's pools are ONE
 ##   mesh (`YardPools`), committed with YardFill's ground; the old pool piece stays under it.
 
+## The pool's quad over SIDEWALK_TOP (YardFill.LIFT + the coping's 0.06), and where the floats sit:
+## a little into it (Backyards._yard_top()), so a ring or a mat is half in the water, not under it.
+const POOL_TOP := 0.11
+const FLOAT_LIFT := 0.1
+
 static var _pool_material: ShaderMaterial = null
 
 
@@ -82,7 +87,7 @@ static func pool(ch: CityChunk, r: Rect2) -> void:
 	var g := -INF
 	for p: Vector2 in [r.position, r.end, Vector2(r.position.x, r.end.y), Vector2(r.end.x, r.position.y)]:
 		g = maxf(g, ch._gy(p.x, p.y))
-	var y := CityChunk.SIDEWALK_TOP + YardFill.LIFT + 0.06 + g - 0.003
+	var y := CityChunk.SIDEWALK_TOP + POOL_TOP + g - 0.003
 	var list: Array = ch.get_meta("rc5_pools", [])
 	list.append([r, y])
 	ch.set_meta("rc5_pools", list)
@@ -118,3 +123,35 @@ static func commit_pools(ch: CityChunk) -> void:
 	mi.material_override = pool_material()
 	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	ch.add_child(mi)
+
+
+# --- The fence -------------------------------------------------------------------------------------
+## - THE TIMBER FENCES were a printed sheet of plank texture, the same board after board, no top,
+##   no foot. lot_walls.gdshader `rc5`: every board its own tone with a rounded edge and a dark gap,
+##   a 2x6 cap with its shadow, a kickboard, weathering down from the cap, dirt at the foot, nails.
+
+static func walls_hook(mat: ShaderMaterial) -> void:
+	mat.set_shader_parameter("rc5", 1.0 if enabled else 0.0)
+
+
+# --- The loungers' umbrella -------------------------------------------------------------------------
+## - THE LOUNGERS stood in the full sun with nothing over them: the only umbrellas were through the
+##   dining tables. `LOUNGER_UMBRELLA` of the lounger pairs get a market umbrella planted behind
+##   their side table, shading the heads (the same mesh and canvas palette, one more instance in
+##   the pair's own prop: it breaks with it). A hash of the seed and the pair's place, no roll.
+
+const LOUNGER_UMBRELLA := 0.6
+## Where the pole stands in the pair's space (the side table is at z 0.45, the heads toward +z).
+const UMBRELLA_AT := Vector3(0.0, 0.0, 0.86)
+
+
+static func lounger_umbrella(seed: int, it: Dictionary, xf: Transform3D) -> Array:
+	if not enabled:
+		return []
+	var at: Vector2 = it.at
+	var key := [seed, int(round(at.x * 10.0)), int(round(at.y * 10.0)), "rc5_lounger_umb"]
+	if YardFill._h01(key) >= LOUNGER_UMBRELLA:
+		return []
+	var canvas := float(absi(hash(key + ["canvas"])) % 8) / 8.0 + (1.0 if YardFill._h01(key + ["stripe"]) < 0.4 else 0.0)
+	var ux := xf * Transform3D(Basis(Vector3.UP, YardFill._h01(key + ["turn"]) * TAU), UMBRELLA_AT)
+	return [["by_umbrella", BackyardKit.get_mesh("umbrella"), ux, Color.WHITE, Color(0.2, 0.2, 0.2, canvas + 0.01)]]

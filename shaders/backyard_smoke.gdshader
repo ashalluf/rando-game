@@ -45,8 +45,8 @@ float cooking(float seed) {
 	// Rc5Backyard.cooking(): WEEKEND_SHARE, LUNCH_START, LUNCH_LEN).
 	if (weekend > 0.5 && s < 0.6) {
 		float q = s / 0.6;
-		float ls = mix(11.6, 14.2, fract(q * 3.17));
-		float ll = mix(2.2, 3.8, fract(q * 5.71));
+		float ls = mix(11.5, 14.0, fract(q * 3.17));
+		float ll = mix(2.8, 4.4, fract(q * 5.71));
 		on = max(on, smoothstep(ls, ls + 0.15, h) * (1.0 - smoothstep(ls + ll - 0.2, ls + ll, h)));
 	}
 	return on;

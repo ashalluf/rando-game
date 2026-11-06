@@ -1783,6 +1783,7 @@ static func walls_material() -> ShaderMaterial:
 	mat.set_shader_parameter("concrete_tex", PropFactory.texture("concrete", "Color"))
 	mat.set_shader_parameter("grass_tex", PropFactory.texture("grass", "Color"))
 	mat.set_shader_parameter("brick_tex", PropFactory.texture("brick", "Color"))
+	Rc5Backyard.walls_hook(mat)
 	_walls_material = mat
 	return mat
 

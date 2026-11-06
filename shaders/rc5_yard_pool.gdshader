@@ -27,16 +27,16 @@ global uniform vec3 sun_direction;
 global uniform vec3 tree_sun;
 
 // How far under the coping's top the water stands, and the tank's depth at its two ends.
-uniform float water_drop = 0.13;
+uniform float water_drop = 0.09;
 uniform float depth_shallow = 1.0;
 uniform float depth_deep = 1.85;
 // The mosaic band: from the coping down this far (above and a little under the water).
 uniform float band = 0.22;
 uniform float ripple = 0.05;
 // Absorption per metre of water (linear, red goes first) and the light the water scatters back.
-uniform vec3 absorb = vec3(0.42, 0.09, 0.055);
+uniform vec3 absorb = vec3(0.62, 0.15, 0.085);
 uniform vec3 scatter = vec3(0.012, 0.13, 0.17);
-uniform vec3 plaster = vec3(0.78, 0.84, 0.86);
+uniform vec3 plaster = vec3(0.56, 0.72, 0.76);
 // The pool light after dark (the same idea as lot_yard's).
 uniform vec3 night_glow = vec3(0.05, 0.55, 0.66);
 uniform float night_energy = 1.1;
@@ -59,7 +59,8 @@ float caustic(vec2 p, float t) {
 	float c1 = abs(sin(p.x * 3.3 + sin(p.y * 2.6 + t * 0.9) * 1.6 + t * 0.7));
 	float c2 = abs(sin(p.y * 3.7 + sin(p.x * 2.2 - t * 0.8) * 1.6 - t * 0.6));
 	float c3 = abs(sin((p.x + p.y) * 2.9 + sin((p.x - p.y) * 2.0 + t * 1.1) * 1.3 + t * 0.5));
-	return pow(1.0 - min(min(c1, c2), c3), 7.0);
+	float m = 1.0 - min(min(c1, c2), c3);
+	return pow(m, 6.0) * 0.55 + pow(m, 2.0) * 0.2;
 }
 
 
@@ -184,20 +185,28 @@ void fragment() {
 		float down = back_t;
 		vec3 trans_sun = exp(-absorb * down);
 		vec3 trans_view = exp(-absorb * path);
-		vec3 light = sun_c * ndl * shadow * trans_sun * (0.55 + 2.2 * cst) + sky * 0.55 * exp(-absorb * (-hp.y)) + vec3(0.01);
+		vec3 light = sun_c * ndl * shadow * trans_sun * (0.5 + 0.9 * cst) + sky * 0.55 * exp(-absorb * (-hp.y)) + vec3(0.01);
 		vec3 body = base * light * trans_view;
 		// What the water scatters back along the view: more the longer the path.
 		vec3 inscatter = scatter * (sun_c * 0.25 + sky * 0.6) * (1.0 - exp(-path * 0.9));
 		// After dark: the pool light in the deep end's wall.
 		vec3 glow = night_glow * night_energy * lamp * step(0.5, COLOR.g) * (0.55 + 0.45 * exp(-path * 0.3)) * (0.8 + 0.3 * cst);
 		vec3 water = (body + inscatter + glow) * (1.0 - fres);
-		// The mirror: the sky by the reflected ray's elevation, the yard's fence, house and trees
-		// round the pool low down (a darker, greener band under ~14 degrees), never a clean sky.
+		// The mirror: what stands round a back yard pool, by the reflected ray's elevation - the
+		// fence low down (weathered wood, its boards), the neighbours' walls and the trees over it,
+		// then the sky; the ripples break the bands up. Never a clean sky at a grazing look.
 		vec3 R = reflect(d, n);
 		float el = clamp(R.y, 0.0, 1.0);
-		vec3 sky_r = sky * mix(1.05, 0.55, smoothstep(0.05, 0.85, el));
-		float yard = 1.0 - smoothstep(0.12, 0.3, el);
-		vec3 yard_c = mix(vec3(0.05, 0.06, 0.045), vec3(0.16, 0.15, 0.13), h21(floor(vec2(atan(R.z, R.x) * 6.0, 0.0)))) * (sky * 0.6 + sun_c * 0.15 * day);
+		float az = atan(R.z, R.x);
+		vec3 sky_r = sky * mix(1.05, 0.55, smoothstep(0.35, 0.95, el));
+		vec3 amb = sky * 0.55 + sun_c * 0.22 * day;
+		float wob = 0.03 * sin(az * 23.0 + g.x * 2.0);
+		float fence_top = 0.16 + 0.03 * sin(az * 3.0 + rnd * 9.0);
+		float roof_top = 0.3 + 0.1 * h21(vec2(floor(az * 2.5 + rnd * 7.0), 1.0));
+		vec3 fence_c = vec3(0.30, 0.22, 0.15) * (0.8 + 0.3 * h21(vec2(floor(az * 90.0), 2.0)) * (1.0 - far)) * amb;
+		vec3 wall_c = mix(vec3(0.42, 0.40, 0.34), vec3(0.08, 0.12, 0.06), step(0.55, h21(vec2(floor(az * 5.0 + rnd * 3.0), 4.0)))) * amb;
+		vec3 yard_c = mix(fence_c, wall_c, smoothstep(fence_top - 0.01, fence_top + 0.01, el + wob));
+		float yard = 1.0 - smoothstep(roof_top - 0.02, roof_top + 0.02, el + wob);
 		vec3 mir = mix(sky_r, yard_c, yard) * fres * mix(1.0, 0.55, night_factor);
 		col = water + mir;
 	}
