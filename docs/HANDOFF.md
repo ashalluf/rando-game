@@ -29619,8 +29619,15 @@ freeway flagged by its own traffic (other cars in the lane ahead in the two runs
 in that view). suburb_night itself: p50 31 -> 30, p95 112 -> 89 (the moonlit pavement and yards),
 the lit pavement at the eye 109 -> 82.
 
-**Not done / seen:** the near house at the eye is a dark house in HouseNights' rolls (11 %), so the
-window spill is proved on the houses down the street and in block stills, not at the lens; the
+**Not done / seen:** the near houses' street windows are dark in this frame by their own rolls, not
+a bug (`tools/rc5_suburb_night/house_probe.gd -- --spawn=1979,4256.8` lists every house round the eye
+with its key and 21:30 rolls): the nearest (1986, 4269, key 610) is lived-in with 0.34 of its rooms
+lit and its one street pane rolled above that; the next (key 980, 0.72 lit) shows only its garage to
+the lens. HouseNights lights 0.32-0.74 of a lived-in house's panes, so a single visible front window
+is dark about half the time - a front-room bias in house_nights.gdshaderinc (and its GDScript mirror,
+the far box and the spill alike) is the next step. So the window spill is proved on the houses down
+the street and in block stills, not at the lens. The pink shape beside the dog walker is a yard
+planter of pink flowers; the dog (white terrier) reads at 7.5 m (near level) and 11 m (mid); the
 spill is a flat quad on the ground, so it does not light the shrubs or a step it crosses; the pale
 DG yards (rc2-suburb's `dg_real`) still read light under the moon; nothing proved on Forward+ under
 lavapipe (the spill and the wash are display-number adds like house_glow's, which fwd-review-e
