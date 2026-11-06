@@ -2815,6 +2815,8 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	load("res://tests/perf_audit_4_checks.gd").new().run(self, city)
 	# The fifth perf audit (tests/perf_audit_5_checks.gd): wheel, knee-high plant and crowd shadow twins.
 	load("res://tests/perf_audit_5_checks.gd").new().run(self, city)
+	# The sixth perf audit (tests/perf_audit_6_checks.gd): roof units' and street props' shadow twins.
+	load("res://tests/perf_audit_6_checks.gd").new().run(self, city)
 	# Traffic behaviour (tests/traffic_behaviour_2_checks.gd, TrafficBehaviour): creep at a red,
 	# inching queues, brake flicker, a bus pulling out, left turns' gaps, wrecks, heads turning.
 	await load("res://tests/traffic_behaviour_2_checks.gd").new().run(self, city)
@@ -3074,6 +3076,17 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	# The marina_night refcam (tests/rc5_marina_night_checks.gd, MarinaNight): the lights the water
 	# mirrors, the restaurants' fronts and names, the jib covers, the camera row.
 	load("res://tests/rc5_marina_night_checks.gd").new().run(self, city)
+	# The freight_trench refcam (tests/rc5_freight_trench_checks.gd, RcFreightTrench): the walls' look, the ballast, the conduit, the row.
+	load("res://tests/rc5_freight_trench_checks.gd").new().run(self, city)
+	# The coast highway's beach houses (tests/coast_houses_checks.gd, CoastHouses): forms by hash, setbacks,
+	# glass walls to the sea, footprints and collision kept, the plan unchanged.
+	load("res://tests/coast_houses_checks.gd").new().run(self, city)
+	# The stunt_jump refcam (tests/rc5_stunt_jump_checks.gd, StuntJumpFX): the flight box, the hanging
+	# wheels, the launch's dust and grit, the tread plate.
+	await load("res://tests/rc5_stunt_jump_checks.gd").new().run(self, city)
+	# The bus_stop_rain refcam (tests/rc5_bus_stop_rain_checks.gd, RainDusk): the camera row, the
+	# rainy dusk's slate sky and grade, the road's mirror handed over, the lamp streak's look5.
+	load("res://tests/rc5_bus_stop_rain_checks.gd").new().run(self, city)
 	# The airport_final refcam (tests/rc5_airport_final_checks.gd, JetFinal): the gear, the belly glow, the camera row.
 	load("res://tests/rc5_airport_final_checks.gd").new().run(self, city)
 

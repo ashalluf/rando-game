@@ -1,0 +1,10 @@
+{
+	"_doc": "The coast-houses views (wave 8 coast-houses, docs/HANDOFF.md): the coast_highway refcam and three from the sand. Run with REFCAMS_JSON=tools/coast_houses/cameras.json.",
+	"resolution": [1280, 720],
+	"cameras": [
+		{"name": "coast_highway", "label": "The coast highway under the bluffs at 17:00 clear, on the seawall's apron by the open beach looking north: four lanes with traffic both ways, the beach houses on pilings over the sand, the cut bluff and the front range, the surf", "eye": [-1046.9, 6.0, -1135.0, 8.0, 0.5], "agl": false, "hour": 17.0, "weather": "clear", "fov": 55},
+		{"name": "coast_houses_sand", "label": "The beach houses from the sand at 17:00 clear, looking north-east along the decks", "eye": [-1073.0, 1.7, -1028.0, -38.0, 6.0], "agl": true, "hour": 17.0, "weather": "clear", "fov": 55},
+		{"name": "coast_houses_sea", "label": "The row of beach houses from the swash, wide, 17:00 clear", "eye": [-1081.0, 1.8, -1155.0, -18.0, 4.0], "agl": true, "hour": 17.0, "weather": "clear", "fov": 55},
+		{"name": "coast_houses_dusk", "label": "The beach houses from the sand at 19:45 clear, lit rooms", "eye": [-1073.0, 1.7, -1028.0, -38.0, 6.0], "agl": true, "hour": 19.75, "weather": "clear", "fov": 55}
+	]
+}
