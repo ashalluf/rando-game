@@ -61,7 +61,7 @@ func _random_ring_point(_sidewalk: float) -> Vector2:
 		z = clampf(position.z + _rng.randf_range(-35.0, 35.0), z_lo, z_hi)
 	var cx := macro.coast_x(z)
 	var w := macro.beach_width_at(z)
-	if leaving and is_inside_tree():
+	if leaving:
 		# Up to the back of the sand (the path, the town), then on along it.
 		z = clampf(position.z + _rng.randf_range(-12.0, 12.0), z_lo, z_hi)
 		return Vector2(macro.coast_x(z) + macro.beach_width_at(z) * _rng.randf_range(0.86, 0.96), z)
