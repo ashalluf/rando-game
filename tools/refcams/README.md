@@ -96,6 +96,12 @@ screen wall, the theatre's lobby and HOTEL ALTAIR's crown. Its optional `arena_e
 makes the night an event night or a quiet one (ArenaNight, as ARENA_EVENT; set before the city
 loads). `tools/rc5_arena_night/site_probe.gd` prints the district's site rects in world XZ.
 
+`wingsuit_golden` (rc5-wingsuit-golden): the
+hero gliding in his wingsuit ~120 m over Bunker Hill toward the skyline at 18:00 clear, shot from his
+OWN chase camera 6 m behind. Its `wingsuit` key (`tools/refcams/wingsuit_stage.gd`: at, heading,
+speed, lead, input, dist, look, fov) launches him `lead` seconds back along the trim glide so he
+passes `at` at the shot; the log prints where he is, his speed and whether the vapour trails.
+
 ## Wave 7's cameras (`cameras_w7.json`)
 
 Run with `REFCAMS_JSON=tools/refcams/cameras_w7.json`. `freight_yard`: the Arroyo Pacific yard at
@@ -257,6 +263,13 @@ while it runs. `POLICE_PURSUIT=0` stages none of it; `PURSUIT_AB=1` saves the fr
 piece switched off (pab_NN_base.png / pab_NN_<piece>.png pairs): the helicopter's spot, pool and
 shaft, the cruisers' wash pool / wall / glare, by their inputs (their owners re-show hidden nodes
 every frame).
+## Wave 8's cameras (`cameras_w8.json`)
+
+Run with `REFCAMS_JSON=tools/refcams/cameras_w8.json`. `suburb_night` (rc5-suburb-night): the
+suburb_morning street (block 21,32 on seed 1337) from the same pavement eye at 21:30 clear, so the
+day and the night of one street compare 1:1. Its optional `dog_walker` key (`tools/refcams/dog_stage.gd`:
+`dist`, `side`, `at`, `yaw`, `seed`, `away`) stands one person walking a dog in the frame, held on its
+spot and walking; the log prints a `REFCAM dog walker` line.
 
 ## Wave 8's cameras (`cameras_w8.json`)
 
@@ -267,4 +280,3 @@ premiere, the characters and the tourists come from the build hour (WalkOfFameNi
 the run needs `OCCLUSION=0` (the occlusion raycast hang, above). For framing in a minute:
 `tools/glshot/station_night_shot.tscn` with `WOF_HOUR=22` (that scene has no DayNight at its root,
 so the walk would otherwise build at the 13:30 fallback).
-
