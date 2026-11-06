@@ -108,7 +108,7 @@ const RIGS := {
 	Kind.MARIACHI: ["crowd_a", "crowd_f", "crowd_g", "crowd_h", "crowd_j"],
 }
 
-static var force_hour: float = -1.0
+static var force_hour: float = Rc5Buskers.stage_hour
 static var enabled: bool = OS.get_environment("BUSKERS") != "0"
 
 static var _meshes: Dictionary = {}
@@ -161,8 +161,8 @@ static func plan_block(plan: CityPlan, ix: int, iz: int, hour: float) -> Array:
 	if block.has("site"):
 		return out
 	if _is_plaza(block):
-		for slot in 2:
-			var v := _roll(plan, [ix, iz, "plaza", slot], PLAZA, hour, slot == 0)
+		for slot in Rc5Buskers.plaza_slots():
+			var v := _roll(plan, [ix, iz, "plaza", slot], PLAZA, hour, slot == 0, Rc5Buskers.forced_kind(slot))
 			if not v.is_empty():
 				v.face = -1
 				v.slot = slot
@@ -194,18 +194,23 @@ static func plan_block(plan: CityPlan, ix: int, iz: int, hour: float) -> Array:
 
 ## The kind that works this spot at `hour`, or {} (every kind rolled, the first in a hashed order
 ## that passes its odds and its hours wins).
-static func _roll(plan: CityPlan, id: Array, place: int, hour: float, may_break: bool) -> Dictionary:
+static func _roll(plan: CityPlan, id: Array, place: int, hour: float, may_break: bool, forced: int = -1) -> Dictionary:
 	var odds: Array = ODDS[place]
 	var first := int(_h01([plan.seed, "busk_kind"] + id) * Kind.size())
 	for i in Kind.size():
 		var kind := (first + i) % Kind.size()
-		if kind == Kind.BREAK and not may_break:
-			continue
-		if _h01([plan.seed, "busk", kind] + id) >= float(odds[kind]):
-			continue
 		var hours := hours_of(plan.seed, kind, id)
-		if not StreetVendors.open_at(hours, hour):
-			continue
+		if forced >= 0:
+			# Staged (Rc5Buskers.stage_plaza): this kind, whatever the rolls and the hours.
+			if kind != forced:
+				continue
+		else:
+			if kind == Kind.BREAK and not may_break:
+				continue
+			if _h01([plan.seed, "busk", kind] + id) >= float(odds[kind]):
+				continue
+			if not StreetVendors.open_at(hours, hour):
+				continue
 		return {"kind": kind, "place": place, "id": "busk_%s" % "_".join(id.map(func(x): return str(x))),
 			"seed": hash([plan.seed, "busker"] + id), "hours": hours}
 	return {}
@@ -251,6 +256,8 @@ static func build_block(chunk: CityChunk, block: Dictionary) -> void:
 		acts.append({"kind": v.kind, "id": v.id, "at": spot.at, "yaw": spot.yaw})
 	chunk.set_meta("busk_people", people)
 	chunk.set_meta("busk_acts", acts)
+	if _is_plaza(block) and not acts.is_empty():
+		Rc5Buskers.plaza_walkers(chunk, block)
 	for k: String in [K_CASE, K_DRUMS, K_BREAK, K_PLINTH, K_AMP]:
 		chunk._batch.set_draw_distance(k, GEAR_DRAW)
 		chunk._batch.set_shadow_distance(k, SHADOW_DISTANCE)
@@ -267,9 +274,7 @@ static func _spot(chunk: CityChunk, rect: Rect2, v: Dictionary, occupied: Array)
 		var c := inner.get_center()
 		var basin := minf(inner.size.x, inner.size.y) * 0.12
 		var long_x := inner.size.x >= inner.size.y
-		var axis := Vector2(1.0, 0.0) if long_x else Vector2(0.0, 1.0)
-		var sgn := 1.0 if int(v.slot) == 0 else -1.0
-		var out := axis * sgn
+		var out := Rc5Buskers.slot_dir(chunk.plan.seed, chunk.ix, chunk.iz, int(v.slot), long_x)
 		# Out along the axis from the fountain's rim until the pitch (and a ring) is clear.
 		for k in 6:
 			var reach := basin + (RING_RADIUS + 4.0 if kind == Kind.BREAK else 6.5) + float(k) * 2.5
@@ -377,7 +382,7 @@ static func spawn_person(chunk: CityChunk, index: int) -> void:
 	var acts: Dictionary = chunk.get_meta("busk_live", {})
 	if not bool(s.busker) and not acts.has(String(s.id)):
 		return
-	if not chunk._take_crowd_room():
+	if not chunk._take_crowd_room() and not Rc5Buskers.reserve_room():
 		return
 	var at: Vector2 = s.at
 	var ped: Pedestrian

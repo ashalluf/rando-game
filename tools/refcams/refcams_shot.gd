@@ -42,6 +42,7 @@ func _initialize() -> void:
 	_lowrider_meet()
 	_arena_event()
 	_market_day()
+	_busk_plaza()
 	# OCCLUSION=0: occlusion culling off (still_shot's switch), to tell what is culled in plain sight.
 	if OS.get_environment("OCCLUSION") == "0":
 		get_root().use_occlusion_culling = false
@@ -503,6 +504,20 @@ func _market_day() -> void:
 			OS.set_environment("MARKET_DAY", str(int(cam.market_day)))
 			if cam.has("hour") and OS.get_environment("MARKET_HOUR") == "":
 				OS.set_environment("MARKET_HOUR", str(float(cam.hour)))
+
+
+## A row's optional "busk_plaza" (wave 8's buskers_plaza): the kinds a plaza's three pitches are
+## forced to ("break,statue,mariachi": Rc5Buskers.stage_plaza, as BUSK_PLAZA), and the row's hour
+## the hour every act is built for (BUSK_HOUR: a chunk built during the load would otherwise be
+## built at the load's hour). Set before the city loads: the acts are laid as their chunks build.
+func _busk_plaza() -> void:
+	var only := OS.get_environment("ONLY").split(",", false)
+	for cam: Dictionary in _cameras().get("cameras", []):
+		if cam.has("busk_plaza") and (only.is_empty() or String(cam.name) in only):
+			if OS.get_environment("BUSK_PLAZA") == "":
+				OS.set_environment("BUSK_PLAZA", String(cam.busk_plaza))
+			if cam.has("hour") and OS.get_environment("BUSK_HOUR") == "":
+				OS.set_environment("BUSK_HOUR", str(float(cam.hour)))
 
 
 ## A row's optional "golf_group" ("hole:stage[:tee[:count]]", wave 6's golf_morning) puts a group
