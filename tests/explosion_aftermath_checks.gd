@@ -188,12 +188,18 @@ func _trees(player: Player) -> void:
 	var entries: Array = []
 	for t: Dictionary in rec.trees:
 		entries.append([t.key, t.i, t.xf, t.mesh])
-	var count_was := (rec.charred as Dictionary).size()
+	# What the rebuild must bring back is what WorldState remembers for the chunk. rec.charred can
+	# hold more: an earlier file's charred trees in a chunk still standing, whose WorldState entries
+	# the gate reset's reset_destruction() cleared (shuffled gate 801 on wt/gate-flakes-3).
+	var remembered: Dictionary = (_ws.charred as Dictionary).get(rec.key, {})
+	var count_was := 0
+	for id: String in rec.charred:
+		count_was += 1 if remembered.has(id) else 0
 	TreeFire._chunks.erase(rec.key)
 	TreeFire.attach(chunk, entries, rec.nodes)
 	var again: Dictionary = TreeFire._chunks.get(rec.key, {})
 	_check(not again.is_empty() and (again.charred as Dictionary).has(tree.id) and (again.charred as Dictionary).size() == count_was,
-			"a rebuilt chunk draws the burnt tree charred again")
+			"a rebuilt chunk draws the burnt tree charred again (%d of %d remembered, %d drawn before)" % [(again.get("charred", {}) as Dictionary).size(), count_was, (rec.charred as Dictionary).size()])
 	_check(not TreeFire.ignite(_city, again, again.charred[tree.id]) if not again.is_empty() else false,
 			"a charred tree never burns again")
 	# The cap.
