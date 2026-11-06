@@ -710,6 +710,9 @@ var _rail_held := false
 
 
 func _stage_rail(cam: Dictionary, scene: Node) -> void:
+	if cam.has("rail_cross"):
+		_stage_rail_cross(cam, scene)
+		return
 	if not cam.has("rail_at"):
 		return
 	var sys := scene.get_node_or_null("LightRail")
@@ -726,6 +729,26 @@ func _stage_rail(cam: Dictionary, scene: Node) -> void:
 	sys.call("step")
 	_rail_held = true
 	print("REFCAM %s: light rail clock %.1f (%s)" % [cam.name, float(lr.clock), cam.rail_at])
+
+
+## A row's optional "rail_cross" ("<crossing>[:<dir>[:<seconds before the nose>]]", wave 8's
+## rail_crossing): the light rail's clock set that many seconds before a train running <dir> reaches
+## crossing <k> (negative: the nose is past it, the train is on the crossing), held until the shot
+## (LightRailSystem's RAIL_CROSS / RAIL_HOLD, per camera). The gates are posed from the same clock.
+func _stage_rail_cross(cam: Dictionary, scene: Node) -> void:
+	var sys := scene.get_node_or_null("LightRail")
+	var line: Variant = sys.get("line") if sys else null
+	if line == null:
+		print("REFCAM %s: no light rail to stage" % cam.name)
+		return
+	var lr: Variant = (line as Object).get_script()
+	var at := String(cam.rail_cross).split(":", false)
+	lr.clock = float(line.call("clock_at_crossing", at[0].to_int(), at[1].to_int() if at.size() > 1 else 0,
+		at[2].to_float() if at.size() > 2 else 6.0))
+	sys.set("hold", true)
+	sys.call("step")
+	_rail_held = true
+	print("REFCAM %s: light rail clock %.1f (crossing %s)" % [cam.name, float(lr.clock), cam.rail_cross])
 
 
 func _unstage_rail(scene: Node) -> void:
