@@ -292,3 +292,6 @@ so the walk would otherwise build at the 13:30 fallback).
 Its optional `sea` key is SeaLife.stage_for_shot()'s spec ("dolphin@x,z[,lead];pelican@x,z", TRUE
 world), staged three frames before the shot with the sea clock held and cleared after it;
 `SEA_DEBUG=1` prints the surfers and swimmers BeachActivity has round the lens.
+
+`marina_night` (rc5-marina-night): the marina at 21:00 clear from the north end of the east
+headwalk, west down the lane along the north quay (no staging keys). `MARINA_NIGHT=0` is its A/B.

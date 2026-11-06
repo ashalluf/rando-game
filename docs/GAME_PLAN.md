@@ -4828,3 +4828,11 @@ none of either.
   streaks along their path, never camera-facing balls (they cut flat at the waterline); anything
   that breaks the surface leaves a ring that ages out. The surf's whitewater not reading from a
   pier end was left to the ocean's owners (shared by every beach view). SEA_SPRAY=0 is the A/B.
+- **2026-11-06 The marina at night: water that carries the lights (rc5-marina-night, HANDOFF "The
+  marina at night").** A new reference camera (`marina_night`, wave 8's table) on the east
+  headwalk at 21:00. Still water at night is judged by the lights in it: every light near it
+  is mirrored as a column narrow across and long down the view, broken by the chop, and lit
+  fronts across the water are mirrored past what stands in front of them; a water body's night
+  term is never a uniform glow in its ripples (that reads as paving). The jetty nav lights stay
+  out of this frame (occluded by boats from every headwalk spot that holds the restaurants).
+  MARINA_NIGHT=0 is the A/B.

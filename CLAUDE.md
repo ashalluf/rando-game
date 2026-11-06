@@ -4191,6 +4191,15 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   in it (Godot's f0 then drops the renderer's own reflection). Rigging is `BoatMesh.Region.WIRE`
   (centre line in the mesh), widened to a pixel in boat_body's vertex stage; jibs wear a UV cover;
   piles are round. `MARINA_GOLDEN=0` is the A/B; checks `tests/rc3_marina_golden_checks.gd`.
+- The marina at night (wave 8, refcam `marina_night` in `tools/refcams/cameras_w8.json`,
+  docs/HANDOFF.md "The marina at night"): `MarinaNight` (`scripts/world/marina_night.gd`, pushed by
+  MarinaGolden's node, so `MARINA_GOLDEN=0` turns it off too) hands marina_water.gdshader the
+  nearest lights (pedestals, anchor lights, lit cabins, quay lamps, nav lights; `ml_p` / `ml_c`) and
+  the restaurants' fronts (`mf_a` / `mf_b`); `shaders/marina_night.gdshaderinc` lays each light's
+  column (tight across the reflected ray, loose in height, broken by a steeper chop) and the fronts
+  past the bulkhead. Also: eateries on the quay (`name_pool`), `marina_seawall.gdshader` on the
+  bulkhead faces, `jib_soft`, `cabin_panes`. `MARINA_NIGHT=0` is the A/B; checks
+  `tests/rc5_marina_night_checks.gd`.
 - Ocean traffic (wave 3, docs/HANDOFF.md "Ocean traffic"): `OceanTraffic`
   (`scripts/world/ocean_traffic.gd`, a Node3D in city.tscn; its children's local space is true world)
   runs `Vessel`s (`scripts/vehicles/vessel.gd`, AnimatableBody3D on props, mask 0, `take_hit()`:
