@@ -778,7 +778,7 @@ static func _warehouse(ch: CityChunk, lp: Dictionary) -> void:
 		for i in range(1, ns):
 			var vv := v0 + WALL + spw * float(i)
 			if i % 2 == 0:
-				_wbox(ch, Transform3D(side_basis, _at(cx, ue + out * 0.08, vv, h * 0.5)), Vector3(0.14, h, 0.12), IndustrialKit.K_GALV, Color(0.62, 0.63, 0.62))
+				_wbox(ch, Transform3D(side_basis, _at(cx, ue + out * 0.08, vv, h * 0.5)), Vector3(0.14, h, 0.12), RcArtsDistrict.spout_kind(brick), RcArtsDistrict.spout_paint(brick))
 			else:
 				_wbox(ch, Transform3D(side_basis, _at(cx, ue + out * 0.12, vv, h - 1.6)), Vector3(0.36, 0.26, 0.22), IndustrialKit.K_LAMP, Color(1.0, 0.95, 0.85))
 				var pp := _at(cx, ue + out * 4.0, vv, 0.0)
@@ -786,7 +786,7 @@ static func _warehouse(ch: CityChunk, lp: Dictionary) -> void:
 	# Downspouts on every other front and back joint.
 	for i in range(2, np, 2):
 		for vv: float in [v0 - 0.08, v1 + 0.08]:
-			_fb(cx, u0 + pw * float(i), vv, h * 0.5, Vector3(0.14, h, 0.12), IndustrialKit.K_GALV, Color(0.62, 0.63, 0.62))
+			_fb(cx, u0 + pw * float(i), vv, h * 0.5, Vector3(0.14, h, 0.12), RcArtsDistrict.spout_kind(brick), RcArtsDistrict.spout_paint(brick))
 	# Rail doors on the back wall where the spur runs behind it.
 	if lp.rail_back:
 		var nd := maxi(1, floori((w - 6.0) / 16.0))
@@ -1148,8 +1148,10 @@ static func _stalls(ch: CityChunk, r: Rect2, s: int, cars: bool) -> void:
 			var v := 0 if _h01([s, "cv", i]) < 0.6 else (2 if _h01([s, "cv2", i]) < 0.5 else 1)
 			var p := Vector2(t + 1.35, r.position.y + minf(depth, 5.4) * 0.5 + 0.2) if long_x else Vector2(r.position.x + minf(depth, 5.4) * 0.5 + 0.2, t + 1.35)
 			var yaw := (0.0 if long_x else PI * 0.5) + (PI if _h01([s, "cf", i]) < 0.5 else 0.0)
-			ch._batch.add("apark_car_%d" % v, ArenaGrounds.car_mesh(v), Transform3D(Basis(Vector3.UP, yaw), Vector3(p.x, base + 0.005, p.y)),
-				_pick(ArenaGrounds.CAR_PAINTS, [s, "cp", i]))
+			var car_xf := Transform3D(Basis(Vector3.UP, yaw), Vector3(p.x, base + 0.005, p.y))
+			var car_paint: Color = _pick(ArenaGrounds.CAR_PAINTS, [s, "cp", i])
+			if not RcArtsDistrict.yard_car(ch, v, car_xf, car_paint):
+				ch._batch.add("apark_car_%d" % v, ArenaGrounds.car_mesh(v), car_xf, car_paint)
 
 
 ## A storage yard: tanks (in a containment wall), else a shed and rows of pallet loads, drums,

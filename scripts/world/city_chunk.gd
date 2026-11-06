@@ -626,6 +626,7 @@ func _finish_build() -> void:
 	TreeFire.attach(self, fire_trees, _mm_nodes)
 	StreetCloseup.commit_cars(self, _mm_nodes)
 	RcAutoRow.commit(self, _mm_nodes)
+	RcArtsDistrict.commit(self)
 	StreetCloseup.clear_sheds(self, _mm_nodes)
 	for paint_key: String in PAINT_KEYS:
 		if _mm_nodes.has(paint_key):

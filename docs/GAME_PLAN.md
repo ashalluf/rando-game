@@ -4908,3 +4908,10 @@ none of either.
   term is never a uniform glow in its ripples (that reads as paving). The jetty nav lights stay
   out of this frame (occluded by boats from every headwalk spot that holds the restaurants).
   MARINA_NIGHT=0 is the A/B.
+- **2026-11-06 The Arts District at 10:00: brick with depth (rc5-arts-district, HANDOFF "The Arts
+  District at 10:00").** A new reference camera (`arts_district`, wave 8's table) on Harbor Ave's
+  west pavement north of Wilshire, looking at a brick warehouse with three murals. A brick wall's
+  windows are never painted on its face: the sash stands back in a reveal the view ray finds, with
+  the sill and the head's shadow; paint on brick carries the brick; a parked car within ~50 m is a
+  real body, never a box. The pass is in Industrial's own shader and builder (no new mesh kinds), so
+  every Arts District and Vernon block gets it. RC5_ARTS=0 is the A/B.

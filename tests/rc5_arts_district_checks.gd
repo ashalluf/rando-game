@@ -21,6 +21,7 @@ func run(t: Object, city: Node3D) -> void:
 	_district(plan)
 	_flag()
 	_frame()
+	_yard_car()
 	_row()
 
 
@@ -81,6 +82,17 @@ func _frame() -> void:
 		ch.free()
 	RcArtsDistrict.enabled = was
 	_t._check(int(counts[0]) >= 3 * 24 and int(counts[1]) == 0, "RcArtsDistrict: the door frame writes two jambs and a header, nothing when off (%d / %d vertices)" % counts)
+
+
+func _yard_car() -> void:
+	var was := RcArtsDistrict.enabled
+	RcArtsDistrict.enabled = false
+	var ch := CityChunk.new()
+	var off := RcArtsDistrict.yard_car(ch, 0, Transform3D(), Color.WHITE)
+	ch.free()
+	RcArtsDistrict.enabled = was
+	_t._check(not off and RcArtsDistrict.SPOUT_PAINT.get_luminance() < 0.3,
+		"RcArtsDistrict: RC5_ARTS=0 leaves the yard cars in the batch; brick downspouts are dark")
 
 
 func _row() -> void:

@@ -326,7 +326,7 @@ void fragment() {
 				float fres = pow(1.0 - clamp(into, 0.0, 1.0), 3.0);
 				// The loft behind: dark, warmer near the floor of each storey.
 				vec3 glass = vec3(0.045, 0.045, 0.042) * (0.8 + 0.5 * wq.y) + vec3(0.03, 0.022, 0.015) * (1.0 - wq.y);
-				float mk = (0.2 + 0.65 * fres) * (0.75 + 0.5 * hash12(pc + 9.0));
+				float mk = (0.14 + 0.55 * fres) * (0.7 + 0.6 * hash12(pc + 9.0));
 				if (pid < 0.07) {
 					// A pane painted out long ago: the sash's grey-green, flat and chalky.
 					glass = vec3(0.34, 0.37, 0.33) * (0.85 + 0.3 * vnoise(uv * 11.0));

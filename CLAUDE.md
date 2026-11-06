@@ -3435,6 +3435,14 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   street by the reflected ray inside a tilt-up pop-out (`office_popout()`), painted steel rusts at
   lips, feet and chips. ContactShadows skips a hidden body every frame. `RC3_VERNON=0` is the A/B;
   checks `tests/rc3_vernon_industrial_checks.gd`.
+- The Arts District at 10:00 (wave 8, refcam `arts_district` in tools/refcams/cameras_w8.json, its
+  `riders` key stages cyclists; docs/HANDOFF.md "The Arts District at 10:00"): `RcArtsDistrict`
+  (`scripts/world/rc5_arts_district.gd`, the `rc5_arts` uniform on industrial_walls): brick reads its
+  normal map; the steel sash sits 22 cm back in a reveal traced along the view ray (sill, jambs, head
+  shadow, panes mirroring the street); murals over brick show the courses (mural COLOR.b 1); steel
+  frames round grade doors, dark iron downspouts; Industrial's yard cars are real road bodies within
+  RcAutoRow.REAL_NEAR (`yard_car()` / `commit()`). `RC5_ARTS=0` is the A/B; checks
+  `tests/rc5_arts_district_checks.gd`.
 - The alley at night (2026-11-01, refcam `alley_night` in tools/refcams/cameras_w5.json,
   docs/HANDOFF.md "The alley at night"): `AlleyNight` (`scripts/world/alley_night.gd`, hook lines in
   AlleyKit and `Alleys.commit()`): standing water in alley_ground.gdshader (`wet_on`, the chunk's
