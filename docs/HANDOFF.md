@@ -30793,6 +30793,9 @@ identical within the noise (pixels 0.01-4.2 %); street_noon (8.3 %) and freeway 
 flagged only by the live traffic in them (another bus, another box truck in the lane ahead): the
 scene is the same - neither view has a Long Beach chunk or water at night. Peak 11.8 GB.
 
+**Gate** (SHARDS=3, merged with main at 5262a043): 6,212 checks passed, 0 failed, peak RSS 3,833 MB
+a shard.
+
 **A/B**: `LONG_BEACH_SAND=0` (no Long Beach sand, its roads back), `RC5_OIL_ISLANDS=0` (no mirror,
 the old flood look). Checks: `tests/rc5_oil_islands_dusk_checks.gd`. Stills on
 `shots/rc5-oil-islands-dusk` (README lists them).
