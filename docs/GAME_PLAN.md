@@ -4668,3 +4668,11 @@ none of either.
   read by at dusk; glass on a half-finished tower shows the fit-out lit behind it, not a black
   mirror; anything pasted on a hoarding is printed (StreetWear's bills), never a flat colour block.
   CONSTRUCTION_DUSK=0 is the A/B.
+
+- 2026-11-06 (wave 8, rc5-walk-of-fame-night): a new reference camera, `walk_of_fame_night`
+  (cameras_w8.json), stands on Canyon Blvd's stars at 22:00 toward THE GRAND CELESTE. Decisions:
+  the palace's marquee advertises a world premiere, so the premiere is there every evening
+  (19:30-01:00) rather than on a hashed night - the marquee's text is fixed, and the scene should
+  match it; the walk's costumed characters, the premiere's first fans and a few tourists a face are
+  the scene and spawn even with the crowd cap full (still counted, never trimmed), as NightLife's
+  door people already do; a tourist strip is busiest after dark. RC5_WALK_OF_FAME=0 is the A/B.
