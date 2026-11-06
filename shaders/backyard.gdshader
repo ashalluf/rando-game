@@ -82,10 +82,10 @@ float cooking(float seed) {
 	}
 	// Rc5Backyard: on a weekend most households with a grill fire it up for a late lunch too (the
 	// same numbers as Rc5Backyard.cooking(): WEEKEND_SHARE, LUNCH_START, LUNCH_LEN).
-	if (weekend > 0.5 && seed < 0.7) {
-		float q = seed / 0.7;
+	if (weekend > 0.5 && seed < 0.6) {
+		float q = seed / 0.6;
 		float ls = mix(11.5, 14.0, fract(q * 3.17));
-		float ll = mix(1.8, 3.4, fract(q * 5.71));
+		float ll = mix(2.2, 3.6, fract(q * 5.71));
 		on = max(on, smoothstep(ls, ls + 0.15, h) * (1.0 - smoothstep(ls + ll - 0.2, ls + ll, h)));
 	}
 	return on;

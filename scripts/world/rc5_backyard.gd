@@ -6,8 +6,8 @@ extends RefCounted
 ##
 ## - THE WEEKEND BARBECUE. Grills only cooked at dinner (17:06-21:30), so a Saturday afternoon's
 ##   yards had cold grills and no smoke. On a Saturday or Sunday `WEEKEND_SHARE` of the households
-##   with a grill fire it up for a late lunch too (11:30-17:24, each its own window from its seed;
-##   about a third at 15:00, more than at dinner on a weekday: a weekend afternoon): the
+##   with a grill fire it up for a late lunch too (11:30-17:36, each its own window from its seed;
+##   about two in five at 15:00, more than at dinner on a weekday: a weekend afternoon): the
 ##   `weekend` uniform on BackyardKit's grill and smoke materials, set from the day each time a
 ##   chunk's yards are built (`day_hook()`); backyard.gdshader and backyard_smoke.gdshader's
 ##   cooking() read it (the two copies agree; checked).
@@ -15,10 +15,10 @@ extends RefCounted
 static var enabled: bool = OS.get_environment("RC5_BACKYARD") != "0"
 
 ## The share of the households with a grill (by its seed) that also cook at lunch on a weekend. Copied in both shaders' cooking() (`weekend_share`).
-const WEEKEND_SHARE := 0.7
+const WEEKEND_SHARE := 0.6
 ## The lunch window's start range and length range (hours), also in both shaders.
 const LUNCH_START := Vector2(11.5, 14.0)
-const LUNCH_LEN := Vector2(1.8, 3.4)
+const LUNCH_LEN := Vector2(2.2, 3.6)
 ## FarmersMarket's days: 0 Sunday .. 6 Saturday.
 const WEEKEND_DAYS := [0, 6]
 

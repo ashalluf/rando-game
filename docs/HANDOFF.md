@@ -30629,13 +30629,13 @@ pick (-363, -2071, looking north) had a three-storey wall behind the fence filli
   + the pair's place, the same mesh and canvas palette, one more instance in the pair's own prop so it
   breaks with it; no roll, nothing else moves).
 - **No barbecue on a Saturday afternoon.** Grills only cooked at dinner (17:06-21:30). Now on a
-  Saturday or Sunday (FarmersMarket's calendar; the game starts on a Saturday) `WEEKEND_SHARE` (70 %)
+  Saturday or Sunday (FarmersMarket's calendar; the game starts on a Saturday) `WEEKEND_SHARE` (60 %)
   of the households with a grill cook a late lunch too, each in its own window from its seed (start
-  11:30-14:00, 1.8-3.4 h; 37 % at 15:00): the `weekend` uniform on BackyardKit's grill and smoke
+  11:30-14:00, 2.2-3.6 h; 39 % at 15:00): the `weekend` uniform on BackyardKit's grill and smoke
   materials, set by `day_hook()` from `Backyards.block()` every chunk build; cooking() in both
   backyard shaders = `Rc5Backyard.cooking()` (checked). The view's own grill stands just off the left
   edge (a framing with it in kept the grill as a black box at the frame's edge and lost the hills), so
-  the plume shows in the `04_` still, not in the camera.
+  the plume shows in the `04_` still (the same patio turned toward it), not in the camera.
 
 **Numbers** (refcams, opengl3 1280x720, `OCCLUSION=0`; RC5_BACKYARD=0 -> on): p5/p50/p95 17/62/173 ->
 17/60/164, saturation 0.389 -> 0.391, 8.24 M -> 8.29 M triangles, 3,902 -> 3,919 draws (the umbrellas,
@@ -30643,7 +30643,7 @@ the pool quads: +0.6 % / +0.4 %).
 
 **Tools.** `tools/rc5_backyard_pool/probe.gd` (above). Checks: `tests/rc5_backyard_pool_checks.gd`
 (the camera row on a suburb patio with a pool ahead; the lunch window in GDScript and both shaders,
-37 % at 15:00 on a Saturday, none on a weekday, dinner untouched, day_hook(); the pool shader and its
+39 % at 15:00 on a Saturday, none on a weekday, dinner untouched, day_hook(); the pool shader and its
 hooks, the quad at the coping, the floats in it; the umbrella a pure hash near its share behind the
 table; the fence pass off by default; the A/B).
 
