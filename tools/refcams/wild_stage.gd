@@ -3,9 +3,10 @@ extends RefCounted
 ## where the row says, so the frame holds a coyote under the lamp and raccoons at the carts
 ## whatever the survey rolled. Loaded at run time by refcams_shot.gd (after the autoloads).
 ##
-##   {"animals": [[species, x, z, yaw_deg, pose, seed], ...], "live": false}
+##   {"animals": [[species, x, z, yaw_deg, pose, seed], ...], "look": [indices], "live": false}
+## "look": the animals that turn their heads to the lens at the shot (their eyes catch the light).
 ## x, z a TRUE world point; yaw the game's yaw in degrees (0 faces -z); pose stand | sniff | sit |
-## bins (a raccoon rooting at the kerb carts) | walk | trot (the gait plays, the animal is put back
+## bins (a raccoon rooting at the kerb carts) | alert (up and watching the lens) | walk | trot (the gait plays, the animal is put back
 ## on its spot every frame so it is where the row says at the shot). The live survey is switched
 ## off and what it had put down freed (`live`: true keeps it). The log prints REFCAM wild lines.
 
@@ -51,6 +52,10 @@ static func stage(tree: SceneTree, scene: Node, _cam: Camera3D, place: Callable,
 				an.set("_idle_pose", 1)
 			"stand":
 				an.set("_idle_pose", 2)
+			"alert":
+				# Up and watching the lens (a raccoon sits up), held there.
+				an.set("mode", 3)
+				an.set("_alert_left", 1.0e6)
 	for i in 20:
 		for m: Array in moving:
 			var an: Node3D = m[0]
@@ -70,6 +75,12 @@ static func stage(tree: SceneTree, scene: Node, _cam: Camera3D, place: Callable,
 			var rig: Variant = (m[0] as Node3D).get("rig")
 			if rig:
 				rig.set("speed", float(rig.get("trot_at")) * 1.15)
+	# A row's "look" (indices into animals): those turn their heads to the lens for the shot.
+	for iv: Variant in spec.get("look", []):
+		var i := int(iv)
+		var an: Node3D = _made[i] if i < _made.size() else null
+		if an and is_instance_valid(an) and _cam:
+			an.get("rig").set("look_at", an.get("rig").to_local(_cam.global_position))
 	for an: Node3D in _made:
 		if is_instance_valid(an):
 			print("REFCAM wild %s at %s yaw %.1f level %d" % [an.name, str(WorldState.to_world(an.global_position)),

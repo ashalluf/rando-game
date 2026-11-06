@@ -71,6 +71,7 @@ func _ready() -> void:
 	_idle_pose = _rng.randi() % 3
 	if not route.is_empty():
 		mode = Mode.TRAVEL
+	Rc5CoyoteNight.attach_eyes(self)
 
 
 func _add_antlers(points: int) -> void:
