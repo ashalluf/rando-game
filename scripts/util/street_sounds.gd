@@ -98,6 +98,10 @@ func _exit_tree() -> void:
 
 
 func _process(_delta: float) -> void:
+	# A second city (a reload, a check's) made its own StreetSounds and nulled _inst as it left:
+	# the one still standing takes the events back.
+	if _inst == null or not is_instance_valid(_inst):
+		_inst = self
 	var now := Time.get_ticks_usec()
 	var dt := clampf(float(now - _last_us) / 1000000.0, 0.0, 0.25)
 	_last_us = now

@@ -32413,8 +32413,8 @@ without changing a picture, bring the shards back under target. Frame cost is pe
   2,615. The static caches are NOT where it went: what each cache alone keeps alive (EXCL) is
   under 25 MB every one (prop_factory's shadow proxies 24.7, freight_stock 24.8, valet_kit 17.2,
   landmark_reservoir 14.6, tree_fire 11.5, ...); DUP (separate mesh objects with the same
-  content) 8-11 MB in all. The scene is: FULL chunks ~350 MB of meshes, traffic ~160-190, LOD
-  chunks 23-41, a handful of far landmarks 11-28 each.
+  content) 8-11 MB in all. The scene: FULL chunks ~350 MB of meshes, traffic ~160-190, LOD chunks
+  23-41, a handful of far landmarks 11-28 each.
 - New in memory_probe.gd: `MESH_TOP=n` prints the n biggest mesh families under each of the six
   biggest owners (resource path, else the node name's stem): the traffic's 160 MB is the bodies,
   the wheel shadow twins (one per wheel size, 50 sizes, 8.8 MB) and CarCloseup's BumperBands
@@ -32426,45 +32426,74 @@ without changing a picture, bring the shards back under target. Frame cost is pe
 **What it was: the teleports.** `update_streaming(true)` (the load, every check's jump,
 `stage_home()`, the stills' SHOTS hops, the verify pack, refcam hops) retired the chunks leaving the
 window the way driving does: kept drawn for the far city's dissolve (`lod_fade_time`, 0.45 s)
-while it built the whole new window in the same call. So each jump peaked at two areas' meshes,
-and glibc keeps the pages it reached (RSS never comes back after a part). The parts that add most
-are exactly the ones that jump into a heavy area (stations, downtown, the masjid).
+while it built the whole new window in the same call. So each jump peaked at two areas, and glibc
+keeps the pages it reached (RSS never comes back after a part). The parts that add most are the
+ones that jump into a heavy area (the stations, the metro, the masjid, the hospital, the garage).
 
-**Fix.** `CityStreamer._free_retiring_now()`, called by an immediate update after its retire
-loop: every retiring chunk is hidden and its meshes dropped (each MeshInstance3D's mesh, each
-MultiMesh's mesh) BEFORE the new window is built. The nodes keep their old timing (freed by
-`_advance_retiring` when the dissolve's time is up): a first version `free()`d them mid-frame and
-a wheel's cached ground contact named one of their bodies (DrivingFX `_surface`: "previously
-freed", a SCRIPT ERROR) and deferred lambdas met freed captures. Driving, walking and flying
-(`update_streaming(false)`) dissolve exactly as before. `TELEPORT_FREE=0` is the A/B;
-`CityStreamer.teleport_freed` counts. Checks `tests/memory_audit_w8_checks.gd` (a 3 km jump: every
-chunk left behind hidden with no mesh in the same frame, the nodes freed after the dissolve, the
-new window built in the call); it is in PART_COST at 0.0 so the shard deal of every other part
-stays as it was (at the default cost it moved metro_underground's +313 MB into shard 2).
+**Fix 1: a teleport empties what it leaves** (`CityStreamer._free_retiring_now()`, called by an
+immediate update after its retire loop, before any build). Each retiring chunk is hidden and
+`_hollow()`ed: every node that holds no physics body and runs no script is freed; bodies (and
+the plain nodes on the way to one) stay with their shapes and meshes dropped; a scripted node is
+never cut into - its meshes emptied, its children kept - and one still running this frame (a
+walker, a prop retire() let go, a ragdoll, a gondola) is left exactly as it is. The chunk node
+itself keeps its old timer (freed by `_advance_retiring` after `lod_fade_time`). Three versions
+were tried, each through the gate: `free()` of the whole chunk (the biggest saving, but a wheel's
+cached ground contact still named a freed body - DrivingFX `_surface`: "previously freed", a
+SCRIPT ERROR - and deferred lambdas met freed captures); meshes dropped only (about 40 % of the
+saving); and a hollow that also cut into scripted nodes, which crashed the engine (signal 11 in a
+ragdoll whose skeleton was freed under it) and broke a gondola's ropes. Driving, walking and
+flying (`update_streaming(false)`) dissolve exactly as before. `TELEPORT_FREE=0` is the A/B;
+`CityStreamer.teleport_freed` counts.
+
+**Fix 2: the gate deals the memory-heavy parts by memory** (`tests/smoke_test.gd`
+`shard_plan()`, `MEM_COST`). The deal balanced time only, so the two heaviest parts
+(police_station +530, metro_underground +400) could share a shard (on the merged main: 3,816 MB)
+while another sat at 3,237. The parts that raise a peak most (each shard's first city load, the
+heavy teleports; measured with gate_rss.py) are now dealt first to the share with the least
+projected memory, then everything else by time as before (estimated time per shard unchanged,
+1,193 / 1,193 / 1,193). `SHARD_MEMORY=0` deals by time alone. Refresh `MEM_COST` from a
+`SMOKE_PROFILE=1` gate when a new part teleports somewhere heavy.
+
+**Checks** `tests/memory_audit_w8_checks.gd` (no teleport of its own - a first version's 3 km jump
+added 322 MB to its shard): `_hollow()` on a synthetic tree (plain branch freed, body kept without
+shape or meshes, a scripted body not cut into), and an immediate update emptying an unbuilt
+retiring chunk that is then freed on its old timer. `PART_COST` 0.0 so the time deal of every other
+part stays as it was.
 
 **Numbers.**
 | | main | this branch |
 |---|---|---|
-| police_station_checks alone, peak RSS | 2,837 MB | 2,599 MB (nodes freed at once; mesh drop: see gate) |
-| shard 1/3 alone (two shards side by side) | 3,839 (gate) | 3,489 |
-| rendered city (opengl3, load + 3 SHOTS hops, warm caches) | 7,727 MB | 7,288 MB |
-| gate shard peaks (SHARDS=3) | 2,943 / 3,839 / 3,436 | GATE_NUMBERS |
+| gate shard peaks, SHARDS=3, main 6f5af3d2 | 2,943 / 3,839 / 3,436 MB | |
+| shard 1/3 alone, before main's merge | 3,839 (gate) | 3,602 (fix 1) |
+| police_station_checks alone | 2,837 MB | 2,701 MB |
+| gate after merging main (batch 51+), fix 1 only | | 3,326 / 3,655 / 3,816 MB (6,514 passed) |
+| gate after merging main, fixes 1 + 2 (two runs) | | **3,418 / 3,572 / 3,555** and 3,358 / 3,575 / 3,554 MB |
+| rendered city (opengl3, load + 3 SHOTS hops, warm caches) | 7,727 MB | 7,452 MB |
 
 **Pictures.** `DIFF=1` still pairs, one load at Flower at Olympic then three hops (MacArthur,
-the 110, the beach), TELEPORT_FREE 0 vs 1: the load 0 pixels differ; the hops 78 / 692 / 576
-pixels (0.01-0.08 %), against an A/A of the same side 86 / 1,235 / 641 - a far car on the deck and
-something at sea, the live systems DIFF does not freeze. Side-by-sides on `shots/memory-audit-w8`.
+the 110, the beach), main's behaviour vs this branch: the load 1 pixel (by 1/255); the hops 578 /
+150 / 335 pixels (0.02-0.06 %) - a car on a street by the park, a far car on the deck, something at
+sea: live systems DIFF does not freeze (an A/A of one side differs by 86 / 1,235 / 641). Side by
+sides on `shots/memory-audit-w8`.
 
-**Also seen (not mine, not fixed).** On main's gate, shard 0 failed nine `mac_verify_pack_checks`
-lines: its one-camera verify run did not finish in the time the check waits with three shards
-loading the box (then `ERROR: Parameter "t" is null` from `verify_pack.gd:310` when the shot came
-late); shard 2 failed `explosions_3: the volumes free themselves` and a CrowdFlow step-round once
-(known shard-order flakes). Neither touches streaming. An engine `ERROR: Lambda capture at index 0
-was freed` already shows once on main after a part's `stage_home()` (no backtrace; not a SCRIPT
-ERROR, so the gate does not count it).
+**Also seen (not mine).** On main's gate, shard 0 failed nine `mac_verify_pack_checks` lines (its
+one-camera verify run did not finish in the time the check waits with three shards loading the
+box, then `ERROR: Parameter "t" is null` from `verify_pack.gd:310`); shard 2 failed
+`explosions_3: the volumes free themselves` and a CrowdFlow step-round once (the CrowdFlow one
+again here, once; it is the known shard-order flake). The new deal put `city_menu` (which builds a
+second city, `city2`) before `ambient_sound_2_checks` in one shard, and "street sound: a shop door
+rings its bell ..." failed every time: the second city's StreetSounds took the static `_inst` and
+nulled it as it left, so the city's own node dropped every event. Fixed in `StreetSounds._process()`
+(a live node takes `_inst` back when it is empty); that shard then passed 2,065 / 2,065. "loop cars
+crawl forward (1 of 21)" (city_landmarks, a stop-and-go loop measured over 3 s) failed once and
+passes alone with TELEPORT_FREE on and off. An engine `ERROR: Lambda capture at index 0 was freed`
+shows once on main and once here after a part's `stage_home()` (no backtrace; not a SCRIPT ERROR).
 
-**Not done / next.** The city LOAD itself (2.2-2.6 GB at a shard's first part) is the rest of a
-shard: FULL chunks' own meshes, then the allocator's slack. Next candidates: the wheel sizes
-(84 MB, a look change), per-car BumperBands / wheel-shadow copies (one per body type, ~17 MB),
-LOD chunks' FarGround (37 MB). Nothing measured on the Mac (Metal keeps meshes on the GPU; the
-saving there is the CPU-side copies and the peak during a teleport, same logic).
+**Not done / next.** The city LOAD itself (2.2-2.9 GB at a shard's first part) is most of a shard:
+FULL chunks' own meshes and GDScript data, then the allocator's slack. Next candidates: the wheel
+sizes (84 MB, a look change), per-body BumperBands / wheel-shadow copies (~17 MB), LOD chunks'
+FarGround (37 MB). The full `free()` of a teleport's old chunks would save ~100 MB more per jump if
+DrivingFX (and anything else reading a wheel's contact body) learned to survive a freed body.
+Nothing measured on the Mac (Metal keeps meshes on the GPU; the saving there is the CPU-side
+copies and the double area during a teleport, same logic). The refcams' ten-camera run was not
+re-measured (the three-hop still run stands in for it).

@@ -4876,6 +4876,8 @@ none of either.
   "Memory after wave 8").** The gate's shards peaked ~3.8 GB; the caches were not the cause (each
   keeps under 25 MB alive on its own), the teleports were: every update_streaming(true) built the
   new window while the old one stood for its 0.45 s dissolve. Across a jump nothing can see the old
-  area, so its meshes go first; the nodes keep their old lifetime (freed mid-frame, wheel contacts
-  and deferred lambdas still named them). glibc tuning (a fixed mmap threshold) lowered end RSS
-  but not the peak, so it was left out. TELEPORT_FREE=0 is the A/B.
+  area, so it is emptied first; what still has a body or a script keeps its old lifetime (freed
+  mid-frame, wheel contacts and deferred lambdas still named them; cut into, a ragdoll crashed the
+  engine). The gate's shards are also dealt by memory for the few heavy parts, not by time alone.
+  glibc tuning (a fixed mmap threshold) lowered end RSS but not the peak, so it was left out.
+  TELEPORT_FREE=0 and SHARD_MEMORY=0 are the A/Bs.
