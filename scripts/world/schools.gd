@@ -1328,6 +1328,8 @@ static func _finish_step(ch: CityChunk, pl: Dictionary) -> void:
 		var A: float = fr.A
 		# The marquee sign on the lawn beside the entry walk, side-on to the street; the flagpole.
 		var sign_s := gate + (7.0 if gate + 9.0 < A else -7.0)
+		# Out from behind the parked buses (rc5-school-morning; RC5_SCHOOL_MORNING=0 the old place).
+		sign_s = RcSchoolMorning.sign_s(pl, sign_s)
 		var sp := _lp(fr, sign_s, SETBACK * 0.5)
 		if full and _mine(ch, sp):
 			var x := Vector3(fr.d.x, 0.0, fr.d.y)
@@ -1509,6 +1511,8 @@ static func bus_spots(plan: CityPlan, pl: Dictionary) -> Array:
 ## The parked buses of the school whose front kerb is in chunk `ch`'s owned rect (FULL, a step):
 ## real Vehicles, parked like the chunk's cars (they live under the city root, survive the chunk).
 static func park_buses(ch: CityChunk, pl: Dictionary) -> void:
+	# The drop-off's cars and people (rc5-school-morning), from the same owner chunks.
+	RcSchoolMorning.school_front(ch, pl)
 	if not _full(ch) or not ResourceLoader.exists(Vehicle.BODY_MODELS[Vehicle.BodyType.SCHOOL_BUS]):
 		return
 	for spot: Array in bus_spots(ch.plan, pl):

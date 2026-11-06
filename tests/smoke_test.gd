@@ -3034,6 +3034,9 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	# A high school stadium on a game night (tests/rc5_friday_lights_checks.gd, FridayLights): the
 	# camera row, the lineup, the standards' spotlights and blooms, the car park built whole.
 	load("res://tests/rc5_friday_lights_checks.gd").new().run(self, city)
+	# The school_morning refcam (tests/rc5_school_morning_checks.gd, RcSchoolMorning): the buses on a
+	# -x / -z kerb, the drop-off's cars and adults, the wing's sunshades, the sign past the buses.
+	load("res://tests/rc5_school_morning_checks.gd").new().run(self, city)
 	# The Googie motel refcam (tests/rc5_googie_motel_checks.gd, Motels): the motor court behind a
 	# motel pole sign, the camera row, the sign's light.
 	load("res://tests/rc5_googie_motel_checks.gd").new().run(self, city)

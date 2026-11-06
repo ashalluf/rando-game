@@ -213,7 +213,9 @@ static func classroom(st: SurfaceTool, xf: Transform3D, len: float, depth: float
 	# A plinth band and, on brick, a painted fascia band at the roof (the 1960s look).
 	box(st, xf * Transform3D(Basis(), Vector3(0.0, 0.15, 0.0)), Vector3(len + 0.06, 0.3, depth + 0.06), K_CONCRETE, CONCRETE, 0.0, 48)
 	if brick:
-		box(st, xf * Transform3D(Basis(), Vector3(0.0, h + 0.35, 0.0)), Vector3(len + 0.1, 0.7, depth + 0.1), K_TRIM, trim, 0.0, 48)
+		box(st, xf * Transform3D(Basis(), Vector3(0.0, h + 0.35, 0.0)), Vector3(len + 0.1, 0.7, depth + 0.1), K_TRIM, RcSchoolMorning.fascia(trim), 0.0, 48)
+	# Sunshades, sills and fins on the street face (rc5-school-morning; RC5_SCHOOL_MORNING=0 none).
+	RcSchoolMorning.wing_relief(st, xf, len, depth, storeys, kind, paint)
 	# Doors on the yard face, one a classroom bay (the shader's bays start at the face's margin).
 	var pitch: float = PITCH[W_CLASS_YARD]
 	var bays := int(floor((len - 0.6) / pitch))

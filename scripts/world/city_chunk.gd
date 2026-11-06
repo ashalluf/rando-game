@@ -3056,7 +3056,8 @@ func _kerb_taken(spot: Array, car: Vehicle) -> bool:
 			or LowriderMeet.blocks_parking(self, spot[0]) \
 			or FilmShoot.blocks_parking(plan, spot[0]) \
 			or Valets.blocks_parking(self, spot[0]) \
-			or Micromobility.blocks_parking(self, spot[0])
+			or Micromobility.blocks_parking(self, spot[0]) \
+			or RcSchoolMorning.blocks_parking(self, spot[0])
 
 
 ## One more parked car on a spot the block's own pass left empty (BusyStreets, a hash per spot).
