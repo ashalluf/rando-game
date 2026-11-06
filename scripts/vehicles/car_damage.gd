@@ -1274,14 +1274,14 @@ func on_fire() -> bool:
 ## fire it has sent an engine to, so there is still a fire when the engine gets there. The wreck
 ## stays in the world as long (its debris clock is pushed back with it).
 func hold_fire(seconds: float) -> void:
-	_hold_until = Time.get_ticks_msec() / 1000.0 + seconds if seconds > 0.0 else 0.0
+	_hold_until = PhysicsBudget.now() + seconds if seconds > 0.0 else 0.0
 	if seconds > 0.0 and car != null and car.has_meta("spawn_time"):
 		var age := PhysicsBudget.now() - float(car.get_meta("spawn_time"))
 		car.set_meta("debris_life", maxf(float(car.get_meta("debris_life", wreck_lifetime)), age + seconds + 60.0))
 
 
 func _held() -> bool:
-	return Time.get_ticks_msec() / 1000.0 < _hold_until
+	return PhysicsBudget.now() < _hold_until
 
 
 ## Water on the fire (a hose, EmergencyCrew), `seconds` of it: past `douse_seconds` the fire is out.
