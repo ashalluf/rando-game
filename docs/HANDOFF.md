@@ -33357,6 +33357,15 @@ with cs_srgb_to_linear (a raw sRGB global on both), its colours plain Vector3 un
 should match; the depth read follows cemetery_mist's two-renderer NDC. The web build not shot
 (one more sampler, the depth texture: well inside WEB_SAMPLERS).
 
+**Status (wrap-up, 2026-11-06).** Done: everything above, docs, stills on `shots/rc5-sea-of-clouds`.
+Gate: `SHARDS=3` passed 6632 checks / 0 failed at 2a27aed8 (main merged); the two commits after it
+(docs, and hiding the top plane under the deck - two lines in marine_layer.gd) passed only
+`SMOKE_PARTS=rc5_sea_of_clouds_checks,rc2_marine_checks,weather_la_checks,rc5_marine_evening_checks`
+(75 checks): the pushed head is NOT fully gated. Open: one full gate on the head; Forward+ and web
+stills of the view; the ten cameras.json shots not re-run (no marine weather there). opengl3 refcams
+on this box hung in the occlusion raycast without a temporary, uncommitted `override.cfg`
+(`[rendering] occlusion_culling/use_occlusion_culling=false`).
+
 Tools: `tools/rc5_sea_of_clouds/deck_shot.tscn` (the deck alone with test towers and a hill, 20 s,
 `YAW`/`PITCH`/`Y`, `SEA_OF_CLOUDS=0`), `probe.tscn` (roads over MIN_H and the ground they look
 down on). Checks: `tests/rc5_sea_of_clouds_checks.gd`.
