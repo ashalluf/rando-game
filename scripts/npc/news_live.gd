@@ -37,6 +37,8 @@ const CREW_TOP := Color(0.13, 0.13, 0.14)
 const CREW_TROUSERS := Color(0.27, 0.25, 0.20)
 
 static var _crew_mats: Dictionary = {}
+## How close (m) to a valet stand the reporter or the camera may stand.
+const STAND_CLEAR := 7.0
 
 
 ## The weight a cluster of fires needs for a column: TreeFire's own unless this is on.
@@ -113,3 +115,28 @@ static func crew_material(src: ShaderMaterial) -> ShaderMaterial:
 	mat.set_shader_parameter("cloth_shade_keep", 0.7)
 	_crew_mats[key] = mat
 	return mat
+
+
+## NewsCrews.layout() kept off what stands on the pavement (a valet stand and its queue: the crew
+## set up in the middle of a restaurant's valets in the first frame), falling back to the plain
+## layout when every way is blocked. Off: the plain layout.
+static func layout_clear(nc: NewsCrews, p: CityPlan, scene: Vector2, reach: float) -> Dictionary:
+	if enabled and nc.is_inside_tree():
+		var avoid: Array = []
+		for n in nc.get_tree().get_nodes_in_group("valet_stand"):
+			var st: Variant = n.get("s") if is_instance_valid(n) else null
+			if st is Dictionary and (st as Dictionary).has("podium"):
+				avoid.append((st as Dictionary).podium) # the podium, in the chunk's (true world) xz
+		if not avoid.is_empty():
+			var lay := nc.layout(p, scene, reach, avoid)
+			if not lay.is_empty():
+				return lay
+	return nc.layout(p, scene, reach)
+
+
+## Whether a reporter at `rep` and a camera at `cam` (true world xz) stand too near an `avoid` point.
+static func blocked(avoid: Array, rep: Vector2, cam: Vector2) -> bool:
+	for a: Vector2 in avoid:
+		if Geometry2D.get_closest_point_to_segment(a, rep, cam).distance_to(a) < STAND_CLEAR:
+			return true
+	return false

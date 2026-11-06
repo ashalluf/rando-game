@@ -220,7 +220,7 @@ func _dispatch() -> void:
 func send(s: Dictionary) -> NewsVan:
 	_ensure_refs()
 	var w: Vector3 = s.world
-	var lay := layout(plan, Vector2(w.x, w.z), standoff_report_distance if s.kind == KIND_STANDOFF else report_distance)
+	var lay := NewsLive.layout_clear(self, plan, Vector2(w.x, w.z), standoff_report_distance if s.kind == KIND_STANDOFF else report_distance)
 	if lay.is_empty():
 		stories.erase(s)
 		return null
@@ -265,7 +265,7 @@ func _aim(van: NewsVan) -> void:
 ## pulled up `van_back` beyond, and the tape across the pavement between the reporter and the
 ## scene with a leg along the kerb toward it. Tries both ways along the street; {} when neither
 ## fits between the crossings. Pure.
-func layout(p: CityPlan, scene: Vector2, reach: float) -> Dictionary:
+func layout(p: CityPlan, scene: Vector2, reach: float, avoid: Array = []) -> Dictionary:
 	var k0 := StreetRoute.kerb_stop(p, scene, 0.0)
 	if k0.is_empty():
 		return {}
@@ -295,6 +295,9 @@ func layout(p: CityPlan, scene: Vector2, reach: float) -> Dictionary:
 		var a_van := a_cam + sgn * van_back
 		var a_tape := a_rep - sgn * 4.0
 		if minf(minf(a_rep, a_cam), a_tape) < lo or maxf(maxf(a_rep, a_cam), a_tape) > hi:
+			continue
+		# Not on top of something that stands on the pavement (NewsLive: a valet stand's queue).
+		if not avoid.is_empty() and NewsLive.blocked(avoid, to_xz.call(a_rep, pav), to_xz.call(a_cam, pav)):
 			continue
 		# The van may stand past the crossing's clearance: kerb_stop clamps it back.
 		var van_goal: Vector2 = to_xz.call(clampf(a_van, lo, hi), road + side * (width * 0.5 - 2.0))
@@ -681,7 +684,7 @@ func clear() -> void:
 func stage(s: Dictionary, station_index: int = -1) -> NewsVan:
 	_ensure_refs()
 	var w: Vector3 = s.world
-	var lay := layout(plan, Vector2(w.x, w.z), standoff_report_distance if s.kind == KIND_STANDOFF else report_distance)
+	var lay := NewsLive.layout_clear(self, plan, Vector2(w.x, w.z), standoff_report_distance if s.kind == KIND_STANDOFF else report_distance)
 	if lay.is_empty():
 		return null
 	s.layout = lay
