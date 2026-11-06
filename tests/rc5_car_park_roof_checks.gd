@@ -59,16 +59,17 @@ func _geometry() -> void:
 	g.commit()
 	var has := func(key: String) -> bool:
 		return (g._s as Dictionary).has(key)
-	_t._check(col_after_dress == 0 and g.col.size() > 0 and has.call("rc5_joint") and has.call("rc5_pole")
-			and has.call("rc5_pedestal") and has.call("rc5_head") and has.call("band_5") and has.call("coping"),
+	_t._check(col_after_dress == 0 and g.col.size() > 0 and has.call("rc5_joint") and has.call("steel")
+			and has.call("precast") and has.call("door") and has.call("band_5") and has.call("coping")
+			and (g._s as Dictionary).size() == 9,
 		"car park roof: the core, parapets and poles build (no collision but the pedestals; %d collision verts)" % g.col.size())
 	# One pole where the old roof had one, as tall as it plus its pedestal, inside the aisles.
 	var old := CarParkBuild.Geo.new()
 	CarParkBuild._roof(old, lay)
-	var ped := (g._s["rc5_pedestal"] as CarParkBuild.CpSurf).v
+	var ped := (g._s["precast"] as CarParkBuild.CpSurf).v
 	var old_haz := (old._s["hazard"] as CarParkBuild.CpSurf).v
 	var top := -1e9
-	for p: Vector3 in (g._s["rc5_pole"] as CarParkBuild.CpSurf).v:
+	for p: Vector3 in (g._s["steel"] as CarParkBuild.CpSurf).v:
 		top = maxf(top, p.y)
 	var roof := CarPark.FLOOR * float(lay.decks)
 	# A pedestal is 12 facets x 3 triangles (108 vertices); the old foot a box of 36 vertices.

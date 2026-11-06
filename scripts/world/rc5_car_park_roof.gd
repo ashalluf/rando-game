@@ -85,8 +85,8 @@ static func core(g: CarParkBuild.Geo, lay: Dictionary, band_key: String) -> void
 		g.box("lamp_head", Vector3(C + 0.06, yr + 3.33, dv - 0.16), Vector3(C + 0.15, yr + 3.36, dv + 0.16), false)
 	# Downpipes from the core's roof to the deck, with their shoes.
 	for dv: float in [0.6, ds - 0.6]:
-		g.box("rc5_pipe", Vector3(C, yr, dv - 0.06), Vector3(C + 0.12, top, dv + 0.06), false)
-		g.box("rc5_pipe", Vector3(C, yr, dv - 0.08), Vector3(C + 0.3, yr + 0.12, dv + 0.08), false)
+		g.box("steel", Vector3(C, yr, dv - 0.06), Vector3(C + 0.12, top, dv + 0.06), false)
+		g.box("steel", Vector3(C, yr, dv - 0.08), Vector3(C + 0.3, yr + 0.12, dv + 0.08), false)
 	# A louvre (the stair's pressurisation) high on the wall.
 	var lv := ds * 0.5 + 4.0
 	g.box("steel", Vector3(C, yr + 4.2, lv - 0.9), Vector3(C + 0.05, yr + 5.2, lv + 0.9), false)
@@ -152,18 +152,18 @@ static func poles(g: CarParkBuild.Geo, lay: Dictionary) -> void:
 		for i in n:
 			var u := m0 + (float(i) + 0.5) * (m1 - m0) / float(n)
 			var c := Vector3(u, y, vc)
-			_cyl(g, "rc5_pedestal", c, 0.32, 0.3, PEDESTAL, 12, true)
+			_cyl(g, "precast", c, 0.32, 0.3, PEDESTAL, 12, true)
 			_cyl(g, "hazard", c + Vector3(0.0, 0.05, 0.0), 0.325, 0.325, 0.3, 12, false)
-			_cyl(g, "rc5_pole", c + Vector3(0.0, PEDESTAL, 0.0), 0.16, 0.16, 0.06, 8, false)
-			_cyl(g, "rc5_pole", c + Vector3(0.0, PEDESTAL, 0.0), POLE_R0, POLE_R1, POLE_H, 10, false)
+			_cyl(g, "steel", c + Vector3(0.0, PEDESTAL, 0.0), 0.16, 0.16, 0.06, 8, false)
+			_cyl(g, "steel", c + Vector3(0.0, PEDESTAL, 0.0), POLE_R0, POLE_R1, POLE_H, 10, false)
 			var ht := y + PEDESTAL + POLE_H
 			for sv: float in [-1.0, 1.0]:
 				# The arm along v, the head at its end, its lens facing down.
-				g.box("rc5_pole", Vector3(u - 0.035, ht - 0.25, vc + sv * 0.05 - 0.035), Vector3(u + 0.035, ht - 0.18, vc + sv * ARM), false)
+				g.box("steel", Vector3(u - 0.035, ht - 0.25, vc + sv * 0.05 - 0.035), Vector3(u + 0.035, ht - 0.18, vc + sv * ARM), false)
 				var hc := vc + sv * (ARM + 0.2)
-				g.box("rc5_head", Vector3(u - 0.24, ht - 0.33, hc - 0.32), Vector3(u + 0.24, ht - 0.17, hc + 0.32), false)
+				g.box("door", Vector3(u - 0.24, ht - 0.33, hc - 0.32), Vector3(u + 0.24, ht - 0.17, hc + 0.32), false)
 				g.box("lamp_head", Vector3(u - 0.2, ht - 0.335, hc - 0.28), Vector3(u + 0.2, ht - 0.33, hc + 0.28), false)
-			_cyl(g, "rc5_pole", Vector3(u, ht - 0.25, vc), 0.075, 0.075, 0.12, 8, false)
+			_cyl(g, "steel", Vector3(u, ht - 0.25, vc), 0.075, 0.075, 0.12, 8, false)
 
 
 ## A tapered cylinder from `c` up `h` metres, radii r0 at the foot and r1 at the top, `sides`
@@ -184,21 +184,9 @@ static func _cyl(g: CarParkBuild.Geo, key: String, c: Vector3, r0: float, r1: fl
 				Vector2.ZERO, Vector2(d0.x, d0.z) * r1, Vector2(d1.x, d1.z) * r1, Vector2.ZERO, collide)
 
 
-## The materials of the keys above (CarParkBuild.material() hands "rc5_*" here).
+## The joints' material (CarParkBuild.material() hands "rc5_*" here; the poles, pipes, heads and
+## pedestals reuse the structure's steel, door and precast, so they add no draw).
 static func material(key: String) -> Material:
-	match key:
-		"rc5_joint":
-			return PropFactory.material(Color(0.2, 0.2, 0.2), 0.9)
-		"rc5_pipe":
-			return PropFactory.material(Color(0.42, 0.44, 0.45), 0.55)
-		"rc5_pedestal":
-			return PropFactory.pbr("concrete", 1.5, Color(0.78, 0.77, 0.74))
-		"rc5_pole":
-			var sm := StandardMaterial3D.new()
-			sm.albedo_color = Color(0.6, 0.61, 0.62)
-			sm.metallic = 0.65
-			sm.roughness = 0.5
-			return sm
-		"rc5_head":
-			return PropFactory.material(Color(0.13, 0.14, 0.15), 0.5)
+	if key == "rc5_joint":
+		return PropFactory.material(Color(0.2, 0.2, 0.2), 0.9)
 	return PropFactory.material(Color(0.5, 0.5, 0.5))
