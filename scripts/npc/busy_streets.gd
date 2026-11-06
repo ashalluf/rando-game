@@ -35,6 +35,8 @@ extends RefCounted
 ## far body for walkers past Pedestrian.mid_body_range. BUSY_STREETS=0 is the A/B.
 ## Probe: tools/busy_streets/census.gd. Checks: tests/busy_streets_checks.gd.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 static var enabled: bool = OS.get_environment("BUSY_STREETS") != "0"
 
 ## Share of street spawns placed round the camera's own block (the rest keep the old rule).

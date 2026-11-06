@@ -23,6 +23,8 @@ extends RefCounted
 ## always did (CityChunk._spawn_debris). Debris bodies are PhysicsBudget debris.
 ## `PROP_BREAK=0` in the environment turns all of it off (the A/B).
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 static var enabled: bool = OS.get_environment("PROP_BREAK") != "0"
 ## PROP_BREAK_LOG=1 prints every break (kind, chunk, prop, how), for tracing what broke what.
 static var log_breaks: bool = OS.get_environment("PROP_BREAK_LOG") == "1"

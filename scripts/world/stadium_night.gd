@@ -17,6 +17,8 @@ extends RefCounted
 ##
 ## STADIUM_NIGHT=0 is the A/B (everything exactly as before).
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 const FAR_DRAW := 560.0
 const FAR_TILE := 160.0
 const FADE := 40.0

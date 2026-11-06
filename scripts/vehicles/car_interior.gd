@@ -14,6 +14,8 @@ extends Node3D
 ## The body's shadow twins carry the closed doors, so while this is up the body and the doors cast
 ## their own shadows instead. remove() puts everything back the way the car had it.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 const INTERIOR_SHADER := preload("res://shaders/car_interior.gdshader")
 const GLASS_OPEN_SHADER := preload("res://shaders/car_glass_open.gdshader")
 

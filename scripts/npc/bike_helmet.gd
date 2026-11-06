@@ -9,6 +9,8 @@ extends RefCounted
 ## (vertex colour; glossy shell, matte straps); one draw per wearer, no shadow, gone past the
 ## crowd's accessory range. The hair goes under it (hidden).
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 ## The shell off the skull (m): the liner.
 const STANDOFF := 0.026
 ## The rim's height over the eye line at the front and at the back (m).

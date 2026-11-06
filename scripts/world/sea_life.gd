@@ -23,6 +23,8 @@ extends Node3D
 ## shader flies). The sounds are synthesised here (barks, splashes, a whale's blow).
 ## SEA_LIFE=0 in the environment (or `enabled` false) removes all of it: the A/B.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 ## The coast's stretches (m) and how far from the coast line (inland or out) the camera may be for
 ## the coast's life to be worked out at all.
 const SEG := 600.0

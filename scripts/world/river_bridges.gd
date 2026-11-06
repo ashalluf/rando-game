@@ -20,6 +20,8 @@ extends RefCounted
 ## everything under and beside it. A bridge is built by the chunk the road's crossing point falls
 ## in (LaRiver bridges() "owner"), detailed at FULL, a deck, piers and coarse ribs at LOD.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 ## The pavement each side of a bridge's carriageway, and the parapet's height.
 const WALK := 3.0
 const RAIL_H := 1.08

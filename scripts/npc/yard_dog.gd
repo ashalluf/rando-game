@@ -10,6 +10,8 @@ extends Dog
 ##
 ## A child of its chunk, which frees it; placed in the chunk's space (the plan's world space).
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 @export var alert_range: float = 22.0
 @export var calm_range: float = 30.0
 ## Seconds of barking in a burst and of quiet between bursts while the player is there.

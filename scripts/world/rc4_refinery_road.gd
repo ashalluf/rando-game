@@ -14,6 +14,8 @@ extends RefCounted
 ##     rest throw a tight dim pool.
 ## RC4_REFINERY_ROAD=0 is the A/B: no material is dressed and every lamp is as it was.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 static var enabled: bool = OS.get_environment("RC4_REFINERY_ROAD") != "0"
 
 ## How far past the plant's kerbs a street lamp counts as the plant's perimeter street's (metres:

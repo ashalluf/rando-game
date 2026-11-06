@@ -28,6 +28,8 @@ extends Vehicle
 ## shaders/emergency_lights.gdshader (a wig-wag worked out from each lens's place on the body);
 ## after dark an OmniLight3D on the roof throws red on the street in step with them (desktop).
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 enum Kind { ENGINE, AMBULANCE }
 enum Mode { DISPATCH, ON_SCENE, LEAVING, TRANSPORT, BACKING, PARKED }
 

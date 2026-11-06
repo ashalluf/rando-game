@@ -12,6 +12,8 @@ extends Node
 ## he came from swings open and shut), take_hit (on_hit: a hard crash or a blast tears a door off)
 ## and _apply_occupant (cabin_glass_override). `CAR_CABINS=0` in the environment turns it all off.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 ## Parked cars within this of the player on foot get theirs (m), dropped past it + `hysteresis`.
 @export var near_range: float = 7.5
 @export var hysteresis: float = 3.0

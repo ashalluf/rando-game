@@ -12,6 +12,8 @@ extends MultiMeshInstance3D
 ## camera close, fewer further out (LAYER_REACH), none once the whole tile is past the shader's
 ## `fade_end`. Worked out a few times a second from the camera's distance to the tile's box.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 ## Layers a tile is drawn as. The grass is 0.55 m and the understory a metre, so 16 put a layer
 ## every 3.5 and 6.5 cm.
 const LAYERS := 16

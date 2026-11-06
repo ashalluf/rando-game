@@ -24,6 +24,8 @@ extends RefCounted
 ## Names: the line, the agency and the livery are invented; station names are public street
 ## names (CLAUDE.md allows them), the seeded ones from CityPlan.road_name().
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 const LINE_NAME := "Coral Line"
 const AGENCY := "Basin Metro"
 const LINE_LETTER := "C"

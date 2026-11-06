@@ -45,6 +45,8 @@ global uniform float wind_factor;
 global uniform vec2 wind_lean;
 /// Weather's wet-surface amount, 0 dry to 1 soaked. Wet leaves go glossy and a little darker.
 global uniform float road_wetness;
+global uniform float road_mist;
+global uniform float rc5_mist_leaf;
 /// Points TOWARDS the sun (published by DayNight). Drives the leaf-glow lobe.
 global uniform vec3 sun_direction;
 /// The sky's horizon colour (DayNight), raw sRGB numbers on both renderers.
@@ -463,7 +465,8 @@ void fragment() {
 		float filt = under_filter * max(under, v_depth * 0.8) * (1.0 - bloom_on);
 		albedo = mix(albedo, albedo * vec3(1.02, 1.16, 0.62), filt);
 	}
-	float wet = clamp(road_wetness, 0.0, 1.0);
+	// A mist's damp (road_mist) beads on leaves, it does not glaze them (Rc5CemeteryDawn).
+	float wet = clamp(road_wetness, 0.0, 1.0) * (1.0 - rc5_mist_leaf * road_mist);
 	// Wet foliage darkens the same way wet cloth does, and goes glossy.
 	ALBEDO = albedo * mix(1.0, 0.84, wet);
 	ALPHA = coverage - alpha_bias;

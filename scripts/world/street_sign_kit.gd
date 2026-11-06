@@ -16,6 +16,8 @@ extends RefCounted
 ## bolts and brackets, K_INK a black legend (printed on, not reflective). UV is the face's own
 ## metres (sheeting texture, grime, wear).
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 const KIND_SCALE := 16.0
 const K_SHEET := 1
 const K_BACK := 2

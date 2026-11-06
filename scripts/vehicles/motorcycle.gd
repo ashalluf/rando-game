@@ -24,6 +24,8 @@ extends Vehicle
 ## * Damage is its own (no CarDamage: a bike has no cabin, panes or doors): rounds spark and
 ##   wear it down, a blast or `max_health` worth of hits and it explodes and burns out.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 enum Kind { SPORT, CRUISER, SCOOTER }
 const TYPES := [BodyType.MOTO_SPORT, BodyType.MOTO_CRUISER, BodyType.MOTO_SCOOTER]
 

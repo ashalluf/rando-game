@@ -6,6 +6,8 @@ extends Pedestrian
 ## and ragdolled the same way, in the crowd cap and the "pedestrian" group. Gunfire sends them
 ## running like everyone else (the bags stay where they were); when it is over they walk back.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 var home := Vector2.ZERO
 var home_yaw: float = 0.0
 ## The middle of their group (they look at it while talking).

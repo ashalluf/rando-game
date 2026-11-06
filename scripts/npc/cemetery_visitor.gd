@@ -5,6 +5,8 @@ extends Pedestrian
 ## grave. Never crosses a street. Everything else - the look, the gait, panic, being knocked
 ## down - is Pedestrian's (no gun fires in the park, but a car can still come through the gate).
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 var pl: Dictionary = {}
 
 ## How far along the drive one stroll goes, at most (points of the drive's polyline, ~3 m each).

@@ -10,6 +10,9 @@ render_mode cull_disabled, depth_draw_opaque;
 #include "res://shaders/color_space.gdshaderinc"
 
 uniform float flutter = 0.0;
+// rc5-wingsuit-golden (WingsuitFx.look2): the two-skin wing - UV2.y carries 4 on the bottom skin -,
+// a nylon sheen at grazing angles and the low sun glowing through the cloth. 0: as before.
+uniform float look = 0.0;
 uniform float panel = 0.26;
 uniform vec3 cloth_color = vec3(0.018, 0.019, 0.022);
 uniform vec3 seam_color = vec3(0.008, 0.008, 0.009);
@@ -19,9 +22,12 @@ uniform float roughness_cloth = 0.58;
 
 varying float v_edge;
 varying float v_tail;
+varying float v_bottom;
 
 void vertex() {
 	float v = UV2.y;
+	v_bottom = step(3.5, v);
+	v -= 4.0 * v_bottom;
 	v_tail = step(1.5, v);
 	v = v - 2.0 * v_tail;
 	v_edge = v;
@@ -64,9 +70,21 @@ void fragment() {
 	ALBEDO = cs_out(col);
 	ROUGHNESS = mix(roughness_cloth, 0.75, seam + inlet);
 	SPECULAR = 0.4;
+	if (look > 0.5) {
+		// Ripstop nylon has a satin sheen at grazing angles (the cells' crowns catch the low sun);
+		// the bottom skin is the same cloth a shade lighter where the stitching gathers it.
+		ROUGHNESS = mix(0.46, 0.75, seam + inlet);
+		RIM = 0.55 * (1.0 - inlet);
+		RIM_TINT = 0.35;
+		col *= mix(1.0, 1.08, v_bottom);
+		ALBEDO = cs_out(col);
+	}
 	// No FRONT_FACING flip: on a cull_disabled material Godot has already turned NORMAL toward
 	// the camera on a back face (CLAUDE.md, fwd-review-b); flipped again, the underside lit as if
 	// it faced away and mirrored the sky as pale plastic.
 	// The cloth lets a little light through, red-orange where the accent is.
 	BACKLIGHT = cs_out(mix(vec3(0.02), accent_color * 0.35, accent));
+	if (look > 0.5) {
+		BACKLIGHT = cs_out(mix(vec3(0.05, 0.045, 0.04), accent_color * 0.6, accent));
+	}
 }

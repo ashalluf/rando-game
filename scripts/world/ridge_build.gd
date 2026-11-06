@@ -11,6 +11,8 @@ extends RefCounted
 ## is drawn. All steps are hash- or data-driven: the chunk's rng is never touched.
 ## Positions: the chunk's local space is true world space (CityChunk.position = -world_offset).
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 static func attach(ch: CityChunk) -> Array[Callable]:
 	var out: Array[Callable] = []
 	if ch.capturing or ch.plan == null:

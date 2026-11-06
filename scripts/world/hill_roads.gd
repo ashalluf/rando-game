@@ -6,6 +6,8 @@ extends RefCounted
 ## with cut/fill shoulders, so cars can actually drive up. Mansion pads are flat spots the same
 ## way. All coordinates are true world XZ.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 ## Max road grade (rise per meter of run).
 const MAX_GRADE := 0.11
 ## A branch leaves the road it joins on a steeper ramp, for its first JUNCTION_RUN metres, so it

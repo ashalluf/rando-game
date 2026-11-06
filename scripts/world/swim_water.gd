@@ -13,6 +13,8 @@ extends RefCounted
 ## Entries live in a 64 m grid of true world cells and go when their node leaves the tree.
 ## `SWIMMING=0` in the environment: no water anywhere (the A/B).
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 ## TANK: a pool whose floor is real (a roof deck's pool: the roof under it), so nothing is passed
 ## through; worked out like the lake. RESERVOIR: the lake behind the dam, its bed the hills.
 enum Kind { NONE, SEA, MARINA, LAKE, CANAL, POOL, TANK, RESERVOIR }

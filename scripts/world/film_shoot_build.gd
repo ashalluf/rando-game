@@ -10,6 +10,8 @@ extends RefCounted
 ## a build step and in the crowd cap. LOD: the trailers, trucks, tent and balloon. The far city's
 ## capture: nothing (a trailer is a few pixels from there). Static: call with the chunk.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 ## How far the pieces draw (m) and cast shadows.
 const BIG_DRAW := 360.0
 const SET_DRAW := 170.0

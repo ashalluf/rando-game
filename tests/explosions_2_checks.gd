@@ -197,7 +197,13 @@ func _debris_lands(at: Vector3) -> void:
 	var landed := 0
 	var under := 0
 	var pieces: Array = d._pieces
-	for i in 120:
+	# Watched for the pieces' whole flight (MAX_FLIGHT, then a margin), not 120 ticks: Blast3's pieces
+	# bounce until they are slow enough to settle, the throws are unseeded, and in 2 s a run often
+	# had only one or two settled - now and then none (batch 53, shard 0: "0 landed, 0 under").
+	# Stops once every piece has come down. Landed means landed ON the deck (MAX_FLIGHT calls a
+	# piece landed wherever it is).
+	var ticks := int(ceil((BlastDebris.MAX_FLIGHT + 0.5) * Engine.physics_ticks_per_second))
+	for i in ticks:
 		await _tree.physics_frame
 		# A busy run can free the debris (its own lifetime, the caps) before the 120 ticks are up.
 		if not is_instance_valid(d):
@@ -207,12 +213,17 @@ func _debris_lands(at: Vector3) -> void:
 		# the 120 ticks and the count at the end read 0 (shuffled gate 14202).
 		var now_landed := 0
 		var now_under := 0
+		var all_down := not d._pieces.is_empty()
 		for p: Dictionary in d._pieces:
-			high = maxf(high, d.to_global(p.pos).y - _top.y)
-			now_landed += 1 if p.landed else 0
-			now_under += 1 if d.to_global(p.pos).y < _top.y - 0.6 else 0
+			var y := d.to_global(p.pos).y - _top.y
+			high = maxf(high, y)
+			now_landed += 1 if p.landed and absf(y) < 1.5 else 0
+			now_under += 1 if y < -0.6 else 0
+			all_down = all_down and bool(p.landed)
 		landed = maxi(landed, now_landed)
 		under = maxi(under, now_under)
+		if all_down and landed > 0:
+			break
 	_t._check(high > 3.0, "explosions_2: debris arcs up (%.1f m)" % high)
 	_t._check(landed > 0 and under == 0, "explosions_2: debris lands on the deck, none through it (%d landed, %d under)" % [landed, under])
 

@@ -33,6 +33,8 @@ extends Node3D
 ## strike that many seconds after load, at STORM_FLASH_DIST metres toward STORM_FLASH_AZ degrees
 ## (for stills); STORM_FLASH_HOLD=<level> then holds that flash (and its bolt) for the shot.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 static var enabled: bool = OS.get_environment("STORM_DRAMA") != "0"
 
 ## The storm's wind, the way Weather's rain_wind (6, 0, 2) blows (XZ, unit).
@@ -260,7 +262,7 @@ func _build_litter() -> void:
 	_litter.local_coords = false
 	_litter.emission_shape = CPUParticles3D.EMISSION_SHAPE_BOX
 	_litter.emission_box_extents = Vector3(26.0, 2.0, 26.0)
-	_litter.direction = Vector3(WIND_DIR.x, 0.3, WIND_DIR.y)
+	_litter.direction = Vector3(WIND_DIR.x, RcStorm.litter_rise(0.3), WIND_DIR.y)
 	_litter.spread = 22.0
 	_litter.initial_velocity_min = 7.0
 	_litter.initial_velocity_max = 15.0
@@ -269,7 +271,7 @@ func _build_litter() -> void:
 	_litter.angular_velocity_max = 900.0
 	_litter.angle_max = 360.0
 	_litter.scale_amount_min = 0.07
-	_litter.scale_amount_max = 0.24
+	_litter.scale_amount_max = RcStorm.litter_size(0.24)
 	_litter.damping_max = 2.0
 	# Wet leaves, dark and glossy, and soaked scraps of paper and card.
 	var tint := Gradient.new()
@@ -356,6 +358,8 @@ func _drive_rain(w: float, r: float, cam: Vector3, ground: float, high: float, l
 		outer_mat.set_shader_parameter("sheets", SHEETS * w)
 		outer_mat.set_shader_parameter("gust", gust_now)
 		outer_mat.set_shader_parameter("slant", (0.25 + 0.6 * gust_now) * w)
+		RcStorm.dress_curtain(outer_mat, w, false)
+		RcStorm.dress_streaks(w)
 	if outer and outer.visible:
 		# From the air the curtain reaches down to the street, so the city below is seen through
 		# the rain rather than under a band of it at the camera's height.
@@ -377,6 +381,7 @@ func _drive_rain(w: float, r: float, cam: Vector3, ground: float, high: float, l
 			_inner_mat.set_shader_parameter("sheets", SHEETS * w)
 			_inner_mat.set_shader_parameter("gust", gust_now)
 			_inner_mat.set_shader_parameter("slant", (0.25 + 0.6 * gust_now) * w)
+			RcStorm.dress_curtain(_inner_mat, w, true)
 
 
 ## Weather's strike, at `dist` metres toward `dir` (XZ, unit). Draws a bolt when near enough.

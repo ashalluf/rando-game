@@ -26,6 +26,8 @@ extends Node
 ## stood on. Off with PORT_LIFE=0 in the environment (the A/B). PORT_T=<seconds> starts the clock
 ## there (stills), PORT_HOLD=1 holds it.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 static var enabled: bool = OS.get_environment("PORT_LIFE") != "0"
 static var clock: float = float(OS.get_environment("PORT_T")) if OS.get_environment("PORT_T") != "" else 0.0
 static var hold: bool = OS.get_environment("PORT_HOLD") == "1"

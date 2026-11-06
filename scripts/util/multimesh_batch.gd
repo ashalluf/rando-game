@@ -3,6 +3,8 @@ extends RefCounted
 ## Collects transforms per mesh and emits one MultiMeshInstance3D per mesh.
 ## Used for the thousands of small repeated things in a city: lamps, trees, dashes, stripes.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 var _batches: Dictionary = {}
 ## Optional ground function (x, z) -> y added to every instance origin (the city relief).
 var ground: Callable

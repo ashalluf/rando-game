@@ -15,6 +15,8 @@ extends RefCounted
 ## tower's frame) the far tier draws again as fine lines (RidgeSystem): `tower_members()` with
 ## `far` true keeps only the legs, the main bracing and the arms.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 const STEEL := Color(0.60, 0.62, 0.62)
 const STEEL_DARK := Color(0.47, 0.49, 0.49)
 const ORANGE := Color(0.86, 0.30, 0.10)

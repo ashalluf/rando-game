@@ -38,6 +38,8 @@ extends RefCounted
 ## Names are this game's own (RANDO CITY PUBLIC LIBRARY, CONTINENTAL POST, RANDO CITY SERVICES,
 ## invented branch names), never a real library's, agency's or post office's.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 enum Kind { LIBRARY_SPANISH, LIBRARY_MODERN, POST_OFFICE, CITY_SERVICES, COMMUNITY }
 
 const CELL := 640.0

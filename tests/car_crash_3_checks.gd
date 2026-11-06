@@ -244,9 +244,12 @@ func _wheel_off() -> void:
 	var hw := float(c._dims().width) * 0.5
 	_wall_at(c, Vector3(hw * 0.6, 0.0, -float(c._dims().length) * 0.5 - 0.35), Vector3(1.2, 2.0, 0.4))
 	await _ticks(2)
-	var wheels_before := 0
+	# The wheels torn before this hit, by instance: in a slow shard an earlier test's wheel can reach
+	# its debris life (wall clock) in between, so counting them misread the new one (batch 56).
+	var before := {}
 	for b in _tree.get_nodes_in_group("debris"):
-		wheels_before += 1 if b.name.begins_with("TornWheel") else 0
+		if b.name.begins_with("TornWheel"):
+			before[b.get_instance_id()] = true
 	# A 100 km/h offset hit on the right of the nose.
 	c.damage_state().breakup()
 	c._damage.breakup().crash(Vector3(node.position.x, 0.4, node.position.z - 0.7), Vector3(-0.25, 0.0, 1.0).normalized(),
@@ -256,17 +259,19 @@ func _wheel_off() -> void:
 	var torn := 0
 	var body: RigidBody3D = null
 	for b in _tree.get_nodes_in_group("debris"):
-		if b.name.begins_with("TornWheel"):
+		if b.name.begins_with("TornWheel") and not before.has(b.get_instance_id()):
 			torn += 1
 			body = b as RigidBody3D
-	_check(torn == wheels_before + 1 and body != null and body.get_meta("debris_life", 0.0) >= 100.0,
+	_check(torn == 1 and body != null and body.get_meta("debris_life", 0.0) >= 100.0,
 			"it is a body of its own that stays (PhysicsBudget debris)")
 	var vw := bk._physics_wheel(node.position)
 	_check(vw != null and vw.wheel_radius < 0.15, "the corner is down on its hub (%.2f m)" % (vw.wheel_radius if vw else 0.0))
 	if body != null:
 		var start := body.global_position
 		await _ticks(60)
-		_check(body.global_position.distance_to(start) > 1.0, "the wheel rolls away (%.1f m)" % body.global_position.distance_to(start))
+		_check(body.global_position.distance_to(start) > 1.0, "the wheel rolls away (%.1f m%s)" % [body.global_position.distance_to(start),
+				"" if body.global_position.distance_to(start) > 1.0 else ", frozen %s, sleeping %s, %.0f m from the player" % [body.freeze, body.sleeping,
+				body.global_position.distance_to((_tree.get_first_node_in_group("player") as Node3D).global_position)]])
 	c._damage.restore()
 	_check(node.visible and bk.torn.is_empty() and (vw == null or vw.wheel_radius > 0.2), "restore() puts the wheel back")
 

@@ -25,6 +25,8 @@ extends RefCounted
 ## forecourt planters are agave, yucca, bird of paradise or dracaena. `enabled` false (LA_TREES=0
 ## in the environment) leaves the city exactly as it was: the A/B.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 enum Species { EUCALYPTUS, CYPRESS, OLIVE, FIG, SYCAMORE, CORAL, BIRD_OF_PARADISE, AGAVE, YUCCA, DRACAENA }
 const NAMES := ["eucalyptus", "cypress", "olive", "fig", "sycamore", "coral", "bird_of_paradise", "agave", "yucca", "dracaena"]
 ## Variants per species (each a mesh, so a batch: a block or a lot uses one by hash).

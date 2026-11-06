@@ -13,6 +13,8 @@ extends StaticBody3D
 ## (Player.BLAST_MASK) find it; npc so a car's bumper zone (Vehicle, mask player | npc) knocks it
 ## instead of the car stopping dead against it. Mask 0: a static body never detects anything.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 var chunk: Node
 ## The WorldState id under the chunk's key.
 var item_id: String = ""

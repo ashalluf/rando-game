@@ -2,6 +2,8 @@ class_name AssaultRifle
 extends Weapon
 ## AK-47: full-auto hitscan rifle. Every bullet shoves whatever it hits.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 @export_group("AK-47")
 ## Impulse delivered by one bullet.
 @export var impact_force: float = 12.0

@@ -301,6 +301,14 @@ already mapped so milestone 2 is script-only.
   reads as abandoned); a landmark that spans several chunks spawns its people from the chunk that
   builds it, not from its own owned rect. The airport loop's kerb lane stops cars by a hash of the
   car and its lap (no state outside the car's traffic dict). TERMINAL_CURB=0 is the A/B.
+- **2026-11-05 The police pursuit at night (rc5-police-pursuit, HANDOFF "The police pursuit at
+  night").** A chase is a reference camera (`police_pursuit`, cameras_w8.json: the chase camera on
+  Wilshire at 22:00, two cruisers on his rear quarters, three stars, the helicopter's light on him,
+  staged by tools/refcams/pursuit_stage.gd). The searchlight's spot does the lighting; its pool and
+  shaft only add the hot middle and a haze that fades at the foot and near the lens. A light bar
+  flashes like a modern LED bar (a bank lit 72 % of the time, not 36 %), so red and blue are on the
+  street in most frames; its washes are the light of a lamp at bar height, not a 13 m dot; the bar
+  is an LED bar, not six coloured boxes. PURSUIT_LOOK=0 is the A/B.
 
 - **2026-11-02 The pier by day (rc3-pier-day, HANDOFF "The pier by day from the deck").** A deck
   the camera stands on is worked out per board in its own shader (transverse boards, gaps,
@@ -3797,6 +3805,11 @@ already mapped so milestone 2 is script-only.
   make it faster, and Quality no longer judges the machine by the loading screen. Shader baking
   stays off while Godot 4.7.2's baked Metal exports crash (godot#123266, #124539). No loader
   threads: the codebase's cyclic preloads broke under one.
+- **2026-11-06, the memorial park at dawn (rc5-cemetery-dawn).** Under a full marine deck the sun
+  has no disc: it keeps its diffuse share but loses its highlight, and the photocells keep the
+  lamps on (fading) until the sun is about a dozen degrees up. A mist's damp beads on leaves and
+  dulls a lawn; only rain glazes them. Morning ground mist is a volume cut by the scene's depth over
+  the park, not more global fog (which would grey every other view). RC5_CEMETERY_DAWN=0 the A/B.
 - **2026-11-06 The driver's seat in the rain (rc5-driver-rain, HANDOFF "The driver's seat in the
   rain").** The view from inside the player's car is judged with the real cabin (a body CarInteriors
   builds), so its glass is the see-through one: anything the outside glass draws (rain, wipers) must
@@ -4532,6 +4545,16 @@ none of either.
   per variant and batched, never per copy; a studio keeps its asphalt (the industrial ground with
   `kept`, worn only by tyre tracks); the basecamp's gaps hold carts and the doors chairs, from the
   layout alone, after every roll; the lot's walkers mostly wear crew blacks. RC4_FILM_LOT=0 is the A/B.
+- **2026-11-05 The gas station at 23:30: the night street is lit in pools, the canopy lights its
+  forecourt (rc5-gas-station-night, HANDOFF "The gas station at 23:30").** A new reference camera
+  (`gas_station_night`, wave 8's table) stands across the street from a roadside gas station at
+  23:30. Decisions: a street lamp's real light falls off as a point source (d^-2 over 2 x its
+  height), so the city's dense lamps (every 12 m staggered) give pools with dark between them, never
+  an even wash - the light under each head is unchanged; on Compatibility the additive lamp pool
+  only adds the share the omni does not already give (Forward+ already did); a canopy's LED panels
+  light and mirror in their own forecourt per pixel (no extra lights); a gas station often has a car
+  at a pump with its driver standing by it, from a hash after every roll. NIGHT_GROUND=0 and
+  GAS_NIGHT=0 are the A/Bs.
 - **2026-11-02 The river_night refcam: a structure's own lights light its surroundings, and water at
   night mirrors what is lit (rc4-river-night, HANDOFF "The LA River at night").** A new reference
   camera (`river_night`, wave 7's table) on the LA River's bed 65 m south of the 6th St ribbon bridge
@@ -4567,6 +4590,11 @@ none of either.
   lit room or pool lights the paving in front of it (an additive spill, display numbers); a pool
   mirrors the lit glass beside it; the terraced garden keeps out of an infinity pool's view (after
   the rolls); a hash fed an interpolated varying is quantised first. RC5_HILL_HOME=0 is the A/B.
+- 2026-11-05 (fleet wave 8, gate-flakes-2): the gate's last open flakes. A jointed doll's settle and
+  freeze clocks run on the physics step (a long frame froze dolls mid-fall, in play too on a slow
+  frame); shop doors and far-walker borrowing take only the plain crowd by script (a valet was sent
+  through a door for good); the crowd-flow passing check meets nearest the camera. RAGDOLL_PHYSICS_TICK=0
+  is the A/B.
 - **2026-11-05 The blast, rounds 13-18 (explosions-4 resumed, wave 8, HANDOFF "The blast, fourth
   pass").** The aerial view gets a ground flash under the burst; the shock ring and the flash are
   the air's view only (faded near the eye and at a grazing look: from the street they painted the
@@ -4584,6 +4612,13 @@ none of either.
   floor, a waxed coping and dirt round the lip on the deck; an air clears the coping by most of a
   metre or it reads as standing; painted signs and murals are LIT paint (they were unshaded,
   flat glowing colour). RC5_SKATE=0 is the A/B.
+- **2026-11-05 The storm_downtown refcam: a night strike is a flash, not a sunrise (rc5-storm-downtown,
+  HANDOFF "The thunderstorm downtown").** A new reference camera (`storm_downtown`, wave 8's table)
+  stands on Flower St at 20:30 in a storm with a strike held for the still (`storm_flash` row key).
+  Decisions: at night lightning lights the street a little and the cloud round the bolt a lot - the
+  flash's share in the sky's cubemap pass (ambient, mirrors, aerial fog) is cut, its colour cold;
+  a storm breaks the lamps' wet-road reflections into short runs (plain rain keeps the long ones);
+  a storm's night curtain draws its streaks, not an even warm veil. RC5_STORM=0 is the A/B.
 - **2026-11-05 The arena_night refcam: an event plaza is lit by its own screens and walls
   (rc5-arena-night, HANDOFF "STARLIGHT PLAZA on an event night").** A new reference camera
   (`arena_night`, wave 8's table) stands in STARLIGHT PLAZA's crowd at 21:00 looking at the screen
@@ -4605,3 +4640,58 @@ none of either.
   frame); shop doors and far-walker borrowing take only the plain crowd by script (a valet was sent
   through a door for good); the crowd-flow passing check meets nearest the camera. RAGDOLL_PHYSICS_TICK=0
   is the A/B.
+- **2026-11-05 The farmers' market refcam: market goods are piled, not spaced (rc5-farmers-market,
+  HANDOFF "The farmers' market from the aisle").** A new reference camera (`farmers_market`, wave 8's
+  table) stands in Palm St's market aisle on a Saturday at 10:00. Decisions: produce is packed the
+  way a grower piles it (a hex layer and a second in its hollows), never a spaced grid over a fill;
+  skin relief, cloth folds and grain are normal-only shader passes with no tangents; a string-light
+  bulb is glass by day; the market's peak crowd is 46. RC5_MARKET=0 is the A/B.
+- **2026-11-05 The brush fire refcam: a ridge fire is smoke over the basin, not a lit cloud
+  (rc5-brush-fire, HANDOFF "The brush fire on a Santa Ana evening").** A new reference camera
+  (`brush_fire`, wave 8's cameras_w8.json): midtown at 18:30 in a Santa Ana toward the front-range
+  fire. The fire line sinks behind the crest and follows its flanks (the far ridge is drawn lower
+  than the real one, so a line at the true height floated in the sky); the column is dense and laid
+  over with a pall drifting downwind; from dusk the sky and fog go smoky amber. BRUSH_FIRE_LOOK=0
+  is the A/B.
+- **2026-11-02 The freight_yard refcam: what the eye stands on must be there (rc4-freight-yard,
+  HANDOFF "The freight yard at 16:30").** A new reference camera (`freight_yard`, wave 7's table) at
+  eye level where the yard's ladder meets the storage tracks, a train pulling out (its clock held by
+  the row's `freight_into`). The yard's storage tracks had no ties and its ladder neither ties nor
+  bed, from two bugs that every other view hid. Decisions: a chunk-wide batch's draw range is set
+  from its own extent (a range is measured to the batch's centre, and the yard's chunks are 520 m
+  wide); railway ground is never clean (weeds by hash along the beds, crushed angular ballast) and
+  freight cars carry graffiti and weather like the real ones; a yard is one ballast field, level
+  between neighbouring tracks (never open valleys between beds). RC4_FREIGHT_YARD=0 is the A/B.
+- **2026-11-06 The boot compile keeps the picture moving (boot-compile, HANDOFF "The boot
+  compile").** 485 of the 652 class scripts are one GDScript dependency cycle (any mention of a
+  class name compiles it in full, in a body as much as in a signature), so the boot's first load()
+  of it compiled them all with a still picture (15.1 s on the 4-core box). Decision: do NOT split
+  the cycle with lazy loads - its hubs are named at ~800 sites in ~400 files (CityChunk by 177
+  scripts, PropFactory by 157), cutting the twelve worst still left a 248-script cycle, and untyped
+  calls would slow the hot loops and land conflicts in every shared file. Instead every script of
+  the cycle has a one-line `_static_init()` calling `LoadPulse.compiled()`: Godot runs it as each
+  script finishes compiling, inside the same load(), so the boot presents a frame between scripts
+  (longest still stretch 1.1 s). New scripts that join the cycle get it from
+  `tools/boot_compile/deps.py --hook`.
+
+- 2026-11-05 (wave 8, rc5-construction-dusk): a new reference camera, `construction_dusk`
+  (cameras_w8.json), looks at a downtown tower site at 18:45. Decisions: a building site works into
+  the evening (a late shift until 20:30) under its own work lights, which is what the open floors
+  read by at dusk; glass on a half-finished tower shows the fit-out lit behind it, not a black
+  mirror; anything pasted on a hoarding is printed (StreetWear's bills), never a flat colour block.
+  CONSTRUCTION_DUSK=0 is the A/B.
+
+- 2026-11-05 (wave 8, rc5-wingsuit-golden): a new reference camera, `wingsuit_golden` - the hero in
+  his wingsuit from his own chase camera at 18:00 over Bunker Hill. The suit's membranes are inflated
+  two-skin wings with cells, not single sheets (a chase camera sees a glide edge-on); the vapour
+  starts at a trimmed glide's speed and takes the sky's and the sun's light; the museum roof under
+  the glide gets its skylight lattice, the concert hall's steel reads by face-to-face contrast under
+  a low sun, and the lit crowns wait for dusk (night_factor is 0.7 at the sunset). A refcam row's fov is vertical. WINGSUIT_LOOK=0 / RC5_WINGSUIT=0 are the A/Bs.
+- **2026-11-05 The suburban street at night: the moon is a residential street's dimmer, a lit window
+  lights its yard (rc5-suburb-night, HANDOFF "The suburban street at 21:30").** A new reference
+  camera (`suburb_night`, wave 8's table) stands on the suburb_morning pavement at 21:30. Decisions:
+  the city's one moon, set for a lit downtown, is cut to 0.3 of itself over SUBURBS and BEACHTOWN
+  (off the coast, deep in the night only) because a suburb's own light - lamps, porches, windows -
+  must win over it; anything that says whether a window is lit says it from HouseNights' key and the
+  pane's own 8-bit roll, on the GPU, so the light on the yard always matches the glass; a lantern's
+  wall light is a point source's falloff with the cap's cut, never a soft disc. SUBURB_NIGHT=0 is the A/B.

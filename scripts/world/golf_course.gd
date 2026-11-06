@@ -25,6 +25,8 @@ extends RefCounted
 ## fields shape the ground (shape()): greens crowned, tees raised, bunkers dug with a lip, the pond
 ## and creek cut down to their water.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 const ID := "golf_course"
 ## The site's wanted edges (world metres), snapped to the nearest roads by CityPlan.sites(): the
 ## valley floor between Ridge/Linden and the 14 m street south of River Blvd on the default seed

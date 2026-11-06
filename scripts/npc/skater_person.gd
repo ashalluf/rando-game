@@ -6,6 +6,8 @@ extends RoughSleeper
 ## and RETURN), bleeds and ragdolls. Unlike a RoughSleeper they wear the crowd look as it is
 ## (street clothes, not worn down), and they stand on the park's concrete, not the sand.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 ## Poses in RoughSleeper.POSES' format (solved per rig from the idle, the body's front +Z in rig
 ## space), the board under the feet along the rig's x: riding, crouched (pumping, landing), in the
 ## air (knees tucked, arms out), grinding (low, arms wide); a spectator standing with folded arms,

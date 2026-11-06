@@ -20,6 +20,8 @@ extends RefCounted
 ## `HOUSE_NIGHTS=0` in the environment is the A/B: no UV2 on the glass (its old look), no
 ## fixtures, no glow, the far boxes and pools as before.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 static var enabled: bool = OS.get_environment("HOUSE_NIGHTS") != "0"
 
 # The numbers house_nights.gdshaderinc holds too (checked by tests/house_nights_checks.gd).
@@ -158,6 +160,8 @@ static func glow_mesh(shape: int) -> Mesh:
 	mesh.material = mat
 	if shape == 3:
 		mesh.custom_aabb = AABB(Vector3(-40, -40, -40), Vector3(80, 80, 80))
+	if shape == 2:
+		SuburbNight.dress_materials(mat, null)
 	_glow_meshes[shape] = mesh
 	return mesh
 
@@ -172,6 +176,7 @@ static func lamp_material() -> ShaderMaterial:
 	if _lamp_mat == null:
 		_lamp_mat = ShaderMaterial.new()
 		_lamp_mat.shader = load("res://shaders/house_lamp.gdshader")
+		SuburbNight.dress_materials(null, _lamp_mat)
 	return _lamp_mat
 
 
@@ -346,6 +351,7 @@ static func finish(ch: CityChunk) -> void:
 	for key_s: String in GLOW_KEYS:
 		ch._batch.set_no_shadow(key_s)
 		ch._batch.set_draw_distance(key_s, HALO_DISTANCE if key_s == "hn_halo" else GLOW_DISTANCE)
+	SuburbNight.finish(ch)
 
 
 ## A pool's light: the turquoise glow over its water and coping (YardFill, FULL chunks).

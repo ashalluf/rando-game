@@ -37,6 +37,8 @@ extends RefCounted
 ## potholes are also kept in a small spatial index so a car driving into one bumps (bump_for()).
 ## Nothing here touches a chunk or block rng. ROAD_WEAR=0 in the environment turns it off.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 # --- Tunables ----------------------------------------------------------------------------------
 
 ## How worn a road is by CityPlan.District (DOWNTOWN, MIDTOWN, SUBURBS, INDUSTRIAL, CAMPUS, BEACHTOWN).

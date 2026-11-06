@@ -20,6 +20,8 @@ extends RefCounted
 ## Every roll is a hash. ARENA_NIGHT=0 in the environment is the A/B (the district as before);
 ## ARENA_EVENT=1 / 0 forces an event night on / off.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 static var enabled: bool = OS.get_environment("ARENA_NIGHT") != "0"
 
 ## Share of nights the arena has an event (most do: a home team and the concerts between).

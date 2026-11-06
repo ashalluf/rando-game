@@ -50,6 +50,8 @@ extends RefCounted
 ## The meshes are built once, merged one surface per material, and cached; a chunk streaming back
 ## in costs only the node and shape set-up.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 ## The real building, for the re-lay (Nominatim, OSM way 412475901).
 const REAL_LATLON := Vector2(34.018543, -118.292465)
 const OSM_WAY := 412475901

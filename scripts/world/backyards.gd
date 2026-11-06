@@ -16,6 +16,8 @@ extends RefCounted
 ## chunk's string lights as ONE merged mesh; LOD chunks the umbrellas, the trampolines and the
 ## lights' glow, so the yards read from the air. Meshes: BackyardKit. `BACKYARDS=0` is the A/B.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 ## Off: no backyard life (BACKYARDS=0 in the environment).
 static var enabled: bool = OS.get_environment("BACKYARDS") != "0"
 

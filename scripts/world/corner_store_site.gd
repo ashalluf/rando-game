@@ -6,6 +6,8 @@ extends Node3D
 ## `reach + hysteresis`), and swings the door open while the player is within `door_reach` of it.
 ## Positions are compared in the store's own frame (to_local), so origin shifts change nothing.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 ## How near the storefront (m, in front of it or anywhere inside) shows the real interior.
 @export var reach: float = 5.0
 @export var hysteresis: float = 1.5

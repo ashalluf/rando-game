@@ -2,6 +2,8 @@ class_name Explosion
 extends RefCounted
 ## Radial blast: shoves every physics prop in range and launches the player (rocket jumps!).
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 
 # Tunables. This is a static utility class, never a node, so these are static vars rather than
 # @export: set them from anywhere (Explosion.up_bias = 0.5) and every blast follows.
