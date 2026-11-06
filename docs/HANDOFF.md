@@ -30639,7 +30639,9 @@ pick (-363, -2071, looking north) had a three-storey wall behind the fence filli
 
 **Numbers** (refcams, opengl3 1280x720, `OCCLUSION=0`; RC5_BACKYARD=0 -> on): p5/p50/p95 17/62/173 ->
 17/60/164, saturation 0.389 -> 0.391, 8.24 M -> 8.29 M triangles, 3,902 -> 3,919 draws (the umbrellas,
-the pool quads: +0.6 % / +0.4 %).
+the pool quads: +0.6 % / +0.4 %). The ten original cameras (cameras.json, one load each, RC5_BACKYARD=0 vs
+on): nine within noise (no flag, triangles -0.9..+0.5 %); `freeway` flagged by its traffic alone
+(a box truck in the lens in one run and not the other; no yard in the view).
 
 **Tools.** `tools/rc5_backyard_pool/probe.gd` (above). Checks: `tests/rc5_backyard_pool_checks.gd`
 (the camera row on a suburb patio with a pool ahead; the lunch window in GDScript and both shaders,
