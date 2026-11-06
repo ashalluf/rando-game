@@ -30664,5 +30664,5 @@ The ten original cameras (cameras.json) were shot on this branch with JET_TAKEOF
 (every change here is behind the switch or inert by default, so the off run stands in for main):
 eight of ten within tolerance; `freeway` and `street_noon` flagged only for the live traffic (a
 taxi in the freeway lens in one run, the bus at another spot in the other) - their roads, buildings
-and sky are the same pixels. Gate on the merged branch: SHARDS=3, 6,115 checks passed, 0 failed,
-peak RSS 3.9 GB a shard.
+and sky are the same pixels. Gate on the branch merged with main 901e9325 (batch 58): SHARDS=3, 6,187 checks
+passed, 0 failed, peak RSS 3.8 GB a shard.
