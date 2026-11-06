@@ -78,7 +78,7 @@ func _rig(city: Node3D, on: bool) -> void:
 	rig.force = true
 	rig._manage()
 	rig._update(1.0 / 60.0)
-	var ropes_ok := not rig._ropes.is_empty()
+	var ropes_ok: bool = not rig._ropes.is_empty()
 	for r: MeshInstance3D in rig._ropes:
 		ropes_ok = ropes_ok and ((r.material_override is ShaderMaterial) == on)
 	for l: MeshInstance3D in rig._lanyards:

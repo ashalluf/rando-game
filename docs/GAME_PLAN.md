@@ -4828,3 +4828,14 @@ none of either.
   streaks along their path, never camera-facing balls (they cut flat at the waterline); anything
   that breaks the surface leaves a ring that ages out. The surf's whitewater not reading from a
   pier end was left to the ocean's owners (shared by every beach view). SEA_SPRAY=0 is the A/B.
+- **2026-11-06 The tower_gondola refcam: thin things are drawn at a pixel (rc5-tower-gondola,
+  HANDOFF "The window washers from the roof next door").** A new reference camera
+  (`tower_gondola`, wave 8's table) on a 69 m roof across the street from dt_park_c's east face at
+  10:00, the cradle held half way through washing a pane (`gondola_t`). Decisions: a rope, wire or
+  lanyard a story depends on is never drawn thinner than a pixel - widened in the vertex stage
+  with its real width as coverage (the utility wires' rule), or the cradle hangs on nothing; the
+  water a crew leaves is the lather on the pane being worked and a few runs, not a 12 m column
+  (squeegeed glass is dry); a pole or target for a rig's IK is placed through the whole node chain
+  (`to_local(global)`), never by multiplying local transforms that skip the armature's scale. The
+  davits cannot share a frame with the cradle from any neighbour roof (the drop is 60-150 m, the
+  street 24-55 m wide): the ropes lead the eye up instead. RC5_GONDOLA=0 is the A/B.

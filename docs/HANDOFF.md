@@ -31981,3 +31981,55 @@ ways (the spray is one draw, the rings are instances of it); luminance p5/p50/p9
 rings that lie on the sea and age out, the staged pod in turn). Kit stills in seconds:
 `tools/sea_life/kit_shot.tscn` (VIEW=dolphin, AGE=; it now shows a ring by the rolling dolphin).
 Not verified on Forward+ (the spray is unshaded and works in linear through color_space).
+
+## 9d?. The window washers from the roof next door (wave 8, refcam5 `rc5-tower-gondola`, branch `wt/rc5-tower-gondola`)
+
+**The camera.** `tower_gondola` in `tools/refcams/cameras_w8.json`: 10:00 clear, the eye on the
+roof of the 69 m office block across the street from dt_park_c's east curtain wall
+(`[2686.6, 71.2, 1380.0, 38, -11]`, fov 42), looking north-west at the cradle hung 36 m away,
+62 m up the face (73 m in the world), half way through washing a pane. Its `gondola_t` key (3480 s)
+holds TowerGondolas' clock for the shot (`_gondola_clock()` in refcams_shot.gd; a row without it
+puts back `GONDOLA_T` or the running clock). Why this tower: of the seven hung cradles on the
+default seed only dt_park_c's east face has a lower neighbour close across a street (24 m;
+`tools/rc5_tower_gondola/roof_probe.gd` lists every building part's roof height round a point,
+`pose_probe.gd` the cradle's lane, height and state over the clock). **The davits are not in the
+frame, on purpose:** from any neighbour roof the cradle is 60-150 m under its davits and the street
+24-55 m wide, so the davits sit 70-80 degrees over the lens whenever the cradle is big enough to
+read; the ropes lead the eye up out of the frame instead. The street far below shows only as the
+drop past the parapet at the bottom right.
+
+**What read fake, worst first, and what changed** (`Rc5TowerGondola`,
+`scripts/world/rc5_tower_gondola.gd`; `RC5_GONDOLA=0` is the A/B, every piece as before):
+1. **The cradle hung on nothing.** The four wire ropes were 5 mm cylinders - a tenth of a pixel at
+   30 m - and the orange lanyards drew as dashes. Now `shaders/gondola_rope.gdshader` on the same
+   unit cylinder: the tube widened in the vertex stage to `min_px` (1.4) pixels with its real width
+   as coverage (raised to `coverage_gamma` 0.55; utility_wire's rule), a hairline faces the camera,
+   faded 160-320 m; the wire is galvanised grey (`WIRE_COLOR`), the lanyards keep their orange.
+2. **The water was invisible.** gondola_streaks' film was a dark 16 % wash over dark glass. Its
+   `look` (1 from the rig): squeegeed glass is dry - only the pane being worked, the stroke ends and
+   a few runs within ~4 m above stay wet, mirroring `sky_tint` (emitted, by a soft Fresnel) - and the
+   pane in front of the crew is lathered full width at the start of a stop and cut back by the
+   stroke's S as it goes on (`soap`); drips below catch the light. `look` 0 is the old shader.
+3. **The crew flapped their elbows.** GondolaRig's elbow pole was `inst.transform * skel.transform
+   * rest.origin`, which leaves out the crowd rigs' 0.01 armature: the pole stood ~100 m up and the
+   IK flung every elbow up and out (skin poking through the shoulders). Now the shoulder through the
+   whole chain (`root.to_local(skel.global_transform * rest.origin)`) plus `ELBOW_POLE` (down, a
+   little out and behind): arms hang to the rail, the squeegee arm works the glass.
+
+**Numbers** (refcams, opengl3 1280x720, before = `RC5_GONDOLA=0`): p1/p5/p50/p95/p99 12/21/139/213/219
+both, saturation 0.213 both; triangles 4.77 M -> 4.74 M, draws 1,856 -> 1,841 (the noise of the live
+city: the ropes are the same four cylinders, the lanyards two); 0.6 % of pixels differ by more than
+12/255, all of them in the cradle's column. Peak 6.6 GB.
+
+**Tools.** `tools/rc5_tower_gondola/roof_probe.gd -- --at=x,z --radius=m` (headless: every far-box
+building part round a point, roof height first), `pose_probe.gd` (`TOWER=`, `SITE=`, `T0/T1/DT`,
+`Y0/Y1`: the cradle over the clock), `tools/gondolas/gondola_shot.gd TOWER=dt_park_c T=3480
+CAM=24.9,-3,-20.1` the refcam's view of the cradle alone in a minute. Checks:
+`tests/rc5_tower_gondola_checks.gd`.
+
+**Not done / seen but not mine.** The neighbour's roof is a bare membrane deck behind a plain
+coping (the infill Building's roof: no plant on that corner, flat parapet) and fills the bottom
+right; the workers still show skin through their shirts at the shoulders when an arm is raised
+(the crowd body under the garment); the cradle's aluminium is clean; no hoist sound. Forward+ not
+seen for the rope and water shaders (both linear on both renderers through color_space; the water's
+mirror is emitted, so SSR adds on top on the Mac).
