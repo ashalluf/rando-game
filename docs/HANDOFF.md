@@ -31832,9 +31832,18 @@ shots branch): mid-block put a street lamp, a share-bike dock and (some runs) a 
 far_building.gd (one condition), historic_core.gd / historic_facade.gd, historic_core_checks.gd (its
 "same street" comparison takes the lot's cell), smoke_test.gd (one line).
 
-**Numbers**: NUMBERS_HERE
+**Numbers** (opengl3, 1280x720, the refcam): on 7.23 M triangles / 4,956 draws, `RC5_HISTORIC=0`
+7.24 M / 4,934 - flat (closing the slots hides the side walls the extension adds; the escapes and
+window units dropped give back the rest). Luminance p5/p50/p95 29/135/228 off -> 29/125/218 on: the
+whiter-than-white ornament and the sunlit fronts come down to their stone. The ten original refcams
+`RC5_HISTORIC=0` vs on: 8 of 10 within noise; freeway and street_night flagged by different traffic
+only (no building in either changes). Checks alone: 27 passed with historic_core_checks, peak 2.06 GB.
 
-**Not verified**: VERIFY_HERE
+**Not verified**: Forward+ (the Mac): every still is opengl3. The wall's mean is the one each
+renderer hands over (linear on Forward+), so the near wall should equal its facade colour there as on
+Compatibility, but nobody has looked. The brick block in the camera is the only brick front checked by
+eye; the checks' block has none. The web build was not exported. Main St's fronts get the same rules
+and were not shot.
 
 **Checks**: `tests/rc5_historic_core_checks.gd` (the row; the shader path off by default; a Spring St
 block built FULL: sets, detail, caps, brick, the far code's set 15, the street wall closed, no fire
