@@ -186,6 +186,7 @@ func _follower(city: Node3D, chunk: Node3D) -> void:
 	var s := _strip(city, chunk)
 	var rect: Rect2 = s[0]
 	var at: Vector2 = s[1]
+	_clear_strip(chunk, at, 30.0)
 	var l := _walker(chunk, rect, at, 90101)
 	var f := _walker(chunk, rect, at + Vector2(-2.0, 0.6), 90102)
 	await _ticks(2)
@@ -278,6 +279,7 @@ func _passing(city: Node3D, chunk: Node3D) -> void:
 	# keyed on the game window's camera, and the player's moved 70 m off during one pass (CI 429:
 	# camera 18.6 m off at the start, CrowdFlow's 89.9 m at the meeting, no neighbour seen).
 	var held := _hold_camera(chunk, at + Vector2(6.5, 0.0))
+	_clear_strip(chunk, at + Vector2(6.5, 0.0), 30.0)
 	var a := _walker(chunk, rect, at, 90201)
 	var b := _walker(chunk, rect, at + Vector2(13.0, 0.0), 90202)
 	await _ticks(30) # the LOD pass: near enough to step through move_and_slide
@@ -329,6 +331,20 @@ func _passing(city: Node3D, chunk: Node3D) -> void:
 	a.queue_free()
 	b.queue_free()
 	_release_camera(held)
+
+
+## The city's own walkers off the check's stretch of pavement (chunk space, `reach` m round `at`):
+## shuffled gate 803 dealt a pair of strangers walking east between the leader and its follower at
+## the leader's pace, and the follower fell in behind them (CrowdFlow's "close ahead, the same
+## way: fall in behind"), 2.1 m back for the whole walk - the same numbers run after run.
+func _clear_strip(chunk: Node3D, at: Vector2, reach: float) -> void:
+	var c := chunk.to_global(Vector3(at.x, 0.0, at.y))
+	for n in _tree.get_nodes_in_group("pedestrian"):
+		var p := n as Pedestrian
+		if p == null or p.has_meta("no_trim") or p.is_queued_for_deletion():
+			continue
+		if Vector2(p.global_position.x - c.x, p.global_position.z - c.z).length() < reach:
+			p.queue_free()
 
 
 ## A Camera3D 12 m off `at` (chunk space), made current; returns [it, the camera that was current].

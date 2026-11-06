@@ -202,7 +202,15 @@ func _check_live(city: Node3D, m: MacroMap) -> void:
 		weather.call("force_state", 0)
 		for i in 60:
 			await tree.physics_frame
-	# Flat out for seven seconds (boost on for the last two): she stays on the water.
+	# Flat out for seven seconds (boost on for the last two): she stays on the water. Back where the
+	# swell check put her, pointed out to sea again: the storm turns her where it will, and one
+	# pointed at the beach ran 175 m into the surf and the sand (shuffled gate 803: 3.12 m up).
+	boat.global_position = ws.call("to_local", sea)
+	boat.global_basis = Basis(Vector3.UP, PI * 0.5)
+	boat.linear_velocity = Vector3.ZERO
+	boat.angular_velocity = Vector3.ZERO
+	for i in 60:
+		await tree.physics_frame
 	Input.action_press("move_forward")
 	var high := -INF
 	for i in 420:
