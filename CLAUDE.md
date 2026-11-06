@@ -5362,6 +5362,14 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   and wire code and takes lots after every roll (`claims_lot()` in `CityPlan.lots()`,
   `claims_cell()` in `HouseKit.extra_lots()`). `POWER_PLANT=0` is the A/B; probe
   `tools/power_plant/probe.tscn` (`PP_DEBUG=1`); checks `tests/power_plant_checks.gd`.
+- The power plant at dusk (wave 8, refcam `power_plant_dusk` in `tools/refcams/cameras_w8.json`,
+  docs/HANDOFF.md "The power plant at dusk from the beach"): `RcPowerPlant`
+  (`scripts/world/rc5_power_plant.gd`): the plant's own lamps light it after dark (`sources()`,
+  pure: wall packs, landing lamps, eave floods, stack-foot uplights, the yard masts, TRUE world, up to
+  64; `shaders/rc5_power_plant.gdshaderinc` `pp_flood()` = `flood_at()`, change both), window bands
+  `GLASS_OUT` proud with a frame (7 cm z-fought at 200 m) drawn as lit / dark bays (`pp_window()`),
+  pools under the wall packs, bigger aviation lights. `RC5_POWER_PLANT=0` is the A/B; checks
+  `tests/rc5_power_plant_dusk_checks.gd`.
 - The film studio lot (2026-10-05, docs/HANDOFF.md "The film studio lot"): SUNSPIRE PICTURES
   (invented, its mark a half sun behind a spire), `FilmStudio` (`scripts/world/film_studio.gd`)
   + `FilmStudioKit` (`scripts/world/film_studio_kit.gd`) on ONE shader
