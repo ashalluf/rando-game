@@ -2,7 +2,8 @@ extends Node
 ## The Coral Line in a few blocks (tools/glshot/block_shot.gd plus a LightRailSystem running the
 ## trains, gates and riders, with the camera as "the player"): seconds to minutes a shot instead
 ## of a city still. Same env as block_shot (EYE, SHOTS, FOV, OUT, FRAMES, BLOCKS) plus the rail's
-## RAIL_AT / RAIL_CROSS / RAIL_S (always held still) and HOUR (the day-night state: 14 or 21).
+## RAIL_AT / RAIL_CROSS / RAIL_S (always held still) and HOUR (the day-night state: 14 or 21);
+## SKY_TINT=r,g,b sets the sky_tint global (the mirrors: e.g. 1,0.72,0.5 for golden hour).
 ##
 ##   OUT=/tmp/r.png EYE=2365,2.2,1535,0,-5 RAIL_AT=1:0 LIBGL_ALWAYS_SOFTWARE=1 xvfb-run -a \
 ##     -s "-screen 0 1280x720x24" godot --rendering-driver opengl3 --display-driver x11 \
@@ -104,6 +105,9 @@ func _ready() -> void:
 			_rail.hold = true
 			add_child(_rail)
 			_rail._setup()
+		if OS.get_environment("SKY_TINT") != "":
+			var t := OS.get_environment("SKY_TINT").split(",")
+			RenderingServer.global_shader_parameter_set("sky_tint", Color(t[0].to_float(), t[1].to_float(), t[2].to_float()))
 		_rail.focus = at
 		_rail.step()
 		print("RAIL clock %.1f trains %s detailed %s" % [LightRail.clock, str(_rail.trains.map(func(x): return [x.id, x.dir, snappedf(x.s, 0.1), x.dwell])), str(_rail.detailed)])

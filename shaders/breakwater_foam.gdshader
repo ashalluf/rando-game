@@ -10,6 +10,10 @@ render_mode cull_disabled, depth_draw_never, shadows_disabled;
 global uniform float wave_scale;
 
 uniform float surge_period = 7.5;
+// RcLighthouse (look 1): the white water torn into lace - holes through the sheet, streaks drawn
+// back with the drain, greyer and see-through toward its offshore edge; the old ribbon was flat
+// opaque sheets, the brightest thing in a night frame. 0 = the old foam.
+uniform float look = 0.0;
 
 float h21(vec2 p) {
 	p = fract(p * vec2(123.34, 456.21));
@@ -37,4 +41,17 @@ void fragment() {
 	ALBEDO = vec3(0.86, 0.88, 0.88);
 	ROUGHNESS = 0.6;
 	ALPHA = clamp(a, 0.0, 1.0) * 0.85;
+	if (look > 0.5) {
+		// Cells of lace: bubbles' rims bright, their middles open, finer toward the edge.
+		vec2 q = vec2(along * 1.4, across * 9.0 - TIME * 0.35);
+		float cell = vnoise(q * 3.0) * 0.6 + vnoise(q * 9.0 + 7.0) * 0.4;
+		float rim = 1.0 - abs(cell - 0.5) * 2.0;
+		float open = smoothstep(0.05, 0.55, rim + (1.0 - across) * 0.6 - (1.0 - surge) * 0.2);
+		float streak = vnoise(vec2(along * 3.5, across * 1.2 + TIME * 0.2));
+		float body = band * smoothstep(0.30, 0.66, lace + (1.0 - across) * 0.28);
+		float la = body * open * mix(0.75, 1.0, streak) * (1.0 - smoothstep(0.2, 0.9, across) * 0.55);
+		ALBEDO = mix(vec3(0.50, 0.53, 0.54), vec3(0.74, 0.77, 0.78), rim * (1.0 - across));
+		ROUGHNESS = 0.45;
+		ALPHA = clamp(la, 0.0, 1.0) * 0.82;
+	}
 }
