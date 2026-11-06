@@ -4807,3 +4807,9 @@ none of either.
   a promise about what is behind it: a VACANCY box over striped asphalt read as set dressing.
   Lit windows key their rolls on a rounded integer, never on an interpolated varying. MOTELS=0
   and MOTEL_SIGN_GLOW=0 are the A/Bs.
+- **2026-11-06 First uses after waves 5-8 (first-use-w8, HANDOFF "First uses after waves 5-8").**
+  Every system that makes and draws a new kind of surface in the same frame (a boat, a lit bonfire,
+  a fuel fireball, the wingsuit, a crash's fluids) gets a stage in the loading screen's rehearsal;
+  scenery a chunk builds hidden does not. A first use is told from a draw cost by running the event
+  twice in one process. The rehearsal stages the LOOK only: no Explosion.blast, no chain fuse, no
+  delayed pops, everything it lights swept. WARM_WAVE8=0 is the A/B.

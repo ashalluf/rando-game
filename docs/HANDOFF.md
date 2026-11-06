@@ -31786,3 +31786,103 @@ gap, a TV flicker in some); no pool in the court, no ice machine, no guests at t
 itself still faces up and down the street (seen edge-on from the opposite pavement); the far city
 keeps both heads of a double-motel corner. A motel on a sloping lot stands at its centre's height
 (the body runs 0.6 m below the floor to hide it).
+
+## 9nv. First uses after waves 5-8: the rehearsal's two new stages (fleet wave 8, infra `first-use-w8`, branch `wt/first-use-w8`, 2026-11-06)
+
+**For the owner, in plain words.** The first time you take a boat out, a beach bonfire is lit near
+you, you open the wingsuit, a car goes up in a fuel fireball or a crashed car leaks onto the road,
+the Mac no longer stops for a moment to build that thing's graphics: the loading screen now builds
+them while it is up. The loading screen is about 2-4 seconds longer for it (less on your Mac).
+
+**The ask.** Everything waves 5-8 added that first appears mid-play compiles on first sight on
+Forward+; find them with `first_use_probe` (opengl3, `WARM=0 REHEARSE=1`, `EVENTS=` sets) and the
+lavapipe probe, give each a WarmRehearsal stage, keep the load time and the boot frame no worse.
+
+**What appears mid-play** (read off waves 5-8's CLAUDE.md bullets and code: most of the waves were
+refcams, i.e. scenery that a chunk or landmark builds, whose shaders the boot compiles one a frame
+and whose surfaces are queued for the pipeline compilers while the chunk is built hidden - the
+mac-launch section). The dynamic ones, made and drawn in the same frame: explosions-4's fuel
+fireball (BlastPool's burning pool and fuel trail, Blast4.side_flames, the flame tongues), a boat
+(BoatKit's hull on boat.gdshader, BoatWake's emitters, BoatSea's chine sheets: the marina streams
+its moored boats in mid-play), a lit bonfire (BonfireFire builds its stack, pool, glow quad and
+flames the first time its ring is lit near the player), the wingsuit's fabric (an ArrayMesh with
+tangents and UV2, rebuilt per frame) and vapour (an ImmediateMesh strip), JetTakeoff's beams, the
+pursuit cruiser's LED bar (PursuitLook, part of the cruiser: rehearsed with it already), and from
+batch 63 CrashAftermath's oil-and-coolant pool (crash_fluids.gdshader), which skips the rehearsal's
+own cars on purpose (its pools are kept for the session). Newer car bodies (Cars3 / Cars4, motos,
+lowriders) were already in the cars stage (it walks every BodyType).
+
+**Measured.** `first_use_probe` gained `EVENTS=wave8` (new_cars, wingsuit, boat, jet_beams,
+bonfire, pursuit_night, fuel_blast, gas_blast) and its cleanup now frees what an event's effects
+parented to the scene (a BlastPool burns 15-24 s: before that, every event after a blast was timed
+under a burning pool). An event run TWICE in one process tells a first-use cost from what the
+thing costs to draw; that is the method that settled each row below.
+
+Lavapipe (Forward+ on the CPU, `ENV_LITE=1`, 480 x 270, caches emptied; base frame 1.3-2.6 s):
+
+| first time ... | no rehearsal: first / second time | with the new stage: first time |
+|---|---|---|
+| a boat (hull, wake, spray) | 27,154 ms / 7,919 (the second is GDScript building the hull) | 2,897 ms |
+| a lit bonfire | 11,770 / 1,332 | 1,242 (a base frame) |
+| the wingsuit opened | 4,448 / 1,340 | 2,026 |
+| landing-light beams | 1,550 / 1,283 | 1,609 (no first-use cost) |
+| a fuel fireball, a gas blast | OOM-killed at 13.6 GB (alone too, after the rehearsal's effects stage) | not measured |
+
+opengl3 (Compatibility, `WARM=0 REHEARSE=1`, base frame ~0.37-0.47 s): the GL driver compiles per
+shader, and the old rehearsal's explosion already compiles the blasts' (first and second fuel blast
+alike ~1.7-1.9 s a frame, which is llvmpipe drawing the volumes, not compiling); boat 2,793 ->
+931 ms, bonfire 1,509 -> 726 ms; wingsuit, beams, the LED cruiser: no first-use cost there.
+
+**What changed.**
+- `WarmRehearsal.wave8` (`WARM_WAVE8=0` the A/B): two stages after the idle particles, each with
+  its LOADING line. `wave 5-8 blasts`: a sedan goes up as a fuel fireball through
+  `WeaponFX.explosion()` with `BlastFX.fuel_next` (the look alone: no `Explosion.blast()`, so nothing
+  is pushed, knocked, damaged or a crime), with `Blast4.chain_depth` 0 (the chain would have set a
+  real fuse on any car within 8 m) and `secondary_count` 0 (the pops go off on timers after the
+  sweep), both put back. A pump's gas blast is the same pool and volume with other uniforms: not
+  staged (it cost ~1 s more). `wave 5-8 effects`: a speedboat and a jet ski, held still, with plain
+  copies of their wake's emitters spraying beside them (the wake itself switches them off on dry
+  land); a BonfireFire built and lit; two JetTakeoff beams; a crash-fluid pool (a PlaneMesh on
+  crash_fluids.gdshader); and two stand-ins with the wingsuit's materials and the very vertex
+  formats WingsuitFx builds (its fabric only exists while he glides).
+- The sweep also frees `BlastPool`s (scripted, so the old plain-node sweep left them burning).
+- The idle-particle stage prints and keeps what it saw and copied (`ghosts_seen`, `ghosts_made`;
+  28 of 28 in the city, cap 64): a weather that grew past the cap would leave the boost trail,
+  copied after it, with nothing, and the checks now fail first.
+- The boot compile: `deps.py --hook` on the 13 cycle scripts merged since its pass without the
+  frame line (11 from waves 7-8, 2 from batch 63).
+- `REHEARSE_STAGES` takes the new stage names (`"wave 5-8 effects"`), which is how lavapipe can run
+  them at all.
+
+**Load time** (`tools/load_time/load_time.sh headless`, `LOAD_SCREEN_HEADLESS=1`, this 4-core box;
+the A/B is WARM_WAVE8=0 on the same code, the final head after merging batch 63):
+
+| | WARM_WAVE8=0 | this branch |
+|---|---|---|
+| screen: rehearsal | 21.1 s (21.2-21.5 in earlier pairs) | 26.2 s (26.3-27.2) |
+| rehearsal wave 5-8 blasts / effects | - | 1.96 s / 1.55 s |
+| LOADING total, cold | 183.9 s | 151.1 s (noise: earlier pair 195.3 / 193.8, warm 116.3 / 120.4) |
+| peak RSS | 2,678 MB | 2,690 MB |
+
+So the cost is ~5 s of the headless rehearsal (the two stages' GDScript - the boats' hulls, the
+fireball's layers, the sedan - plus the sweep's extra frames); the totals swing more than that run
+to run. On the Mac the GPU work behind the shade adds to it (not measured). The boot
+(`load_time.sh boot`, opengl3): the cycle's compile 19.2 s with the 13 new hooks vs 18.9 s without,
+longest gap between frames 992 ms vs 1,002 ms - no worse.
+
+**Checks.** `tests/first_use_w8_checks.gd`: the stages are behind WARM_WAVE8, the probe has the
+events, a rehearsal of the two stages plus the idle particles in the loaded city leaves no
+BlastPool, boat, bonfire or tagged car, catches no chain fuse, puts the chain depth and the pops
+back, and copies every idle system under the cap. `tests/shader_warm_checks.gd` (the whole
+rehearsal leaves nothing) runs the new stages too.
+
+**Not done / not verified.**
+- Nothing on the Mac or a real GPU. Lavapipe cannot hold a fuel blast's pipelines (13.6 GB, killed),
+  so the blast stage's benefit on Forward+ is inferred (BlastPool, the fuel trail and the side
+  flames are new surfaces of the same kind the boat and bonfire proved), not measured.
+- Chunk- and landmark-built scenery from waves 5-8 (taco steam, the cemetery mist, the suburb
+  spills, the airport floods, ...) is not staged: its surfaces are created while the chunk builds
+  hidden over several frames and its shaders are compiled at boot; whether a FULL chunk swapping in
+  still waits on a pipeline on Metal is not measured here.
+- A Weather state reached mid-play for the first time (Santa Ana's smoke pall, the storm's bolt) is
+  covered only by the idle-particle copies of what sits hidden under Weather.
