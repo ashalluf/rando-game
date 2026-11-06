@@ -32800,3 +32800,19 @@ The jet alone in seconds: `tools/rc5_airport_final/final_shot.gd` (opengl3; `JF=
 livery, `CAM`, `LOOK`, `FOV`, `UNDER`, `GEAR`, `AMB`). Checks: `tests/rc5_airport_final_checks.gd`
 (the row, the shader's defaults off, the shared material untouched, an arrival's own copy and its
 glow / gear lamps, `JET_FINAL=0`).
+
+Numbers (opengl3, 1280x720, the refcam's own frame; same eye and staging):
+
+| run | p5 | p50 | p95 | p99 | crush % | triangles | draws |
+|---|---|---|---|---|---|---|---|
+| JET_FINAL=0 | 5 | 22 | 148 | 216 | 5.8 | 7,530,144 | 3,691 |
+| on | 5 | 22 | 148 | 216 | 5.8 | 7,563,488 | 3,688 |
+
+The jet is ~1 % of the frame, so the frame's numbers do not move; the +33 k triangles are the live
+traffic (nothing here adds geometry). The ten original cameras (cameras.json) shot with
+JET_FINAL=0 and on, on this branch merged with main 8c0de652: nine within tolerance, `freeway`
+flagged for its live traffic only (a box truck in the lane in one run, not the other). Gate on
+the same merge: SHARDS=3, 6,578 checks passed, 0 failed, peak RSS 3.96 GB a shard. Stills on
+`shots/rc5-airport-final`. Not verified: Forward+ (no lavapipe pass for the glow's strength on the
+Mac's renderer; `under_glow` and `gear_light` are linear and go through cs_out like the rest of
+the livery's emission, so both renderers read them the same way by construction).
