@@ -17,6 +17,7 @@ CI build 439 = batch 67. Next batch is 68.
 
 ## Batch 68 candidates (all sessions were told to WRAP UP: commit, push, state gate status in HANDOFF)
 Take only heads whose HANDOFF / report says gated green; re-gate the batch as always.
+- rc5-school-morning bc5b8614: READY, gated green on main a870978b (6,634 checks); A/B RC5_SCHOOL_MORNING=0
 - rc5-tower-gondola 1a049fb4 (wrapped up; code 337a047a NOT full-gated, last full gate a46cfc7e had 1 pedestrian_flow flake)
 - rc5-buskers-plaza, rc5-fire-station-night, rc5-school-morning, rc5-airport-final, rc5-car-wash,
   rc5-news-live: refcam5 views, mostly done, were in final A/B renders / gates.
