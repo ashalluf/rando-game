@@ -25,6 +25,10 @@ uniform sampler2D corrugated_tex : source_color, filter_linear_mipmap_anisotropi
 uniform float flood = 0.24;
 /// The tanks' floodlit feet after dark.
 uniform float tank_flood = 0.42;
+// rc4-refinery-road (RcRefineryRoad.apply_plant(); 0 the old look): the tanks' floods as light on
+// their paint in tight fans, and the flares' light following the facing more closely.
+uniform float rc4_look = 0.0;
+uniform float rc4_flood = 3.2;
 /// RefineryNight (wave 6, REFINERY_NIGHT=0 leaves it 0 and every block it gates off): the flares
 /// light the steel round them, the berms are dry weedy dirt.
 uniform float night_look = 0.0;
@@ -150,7 +154,15 @@ void fragment() {
 			albedo = mix(albedo, vec3(0.18, 0.16, 0.13), 0.55 * foot * (0.6 + 0.4 * vnoise(uv * vec2(1.5, 2.0))));
 			// Each floodlight a bright fan up the shell from its foot, every ~14 m round it.
 			float fan = 0.35 + 0.65 * pow(abs(cos(uv.x / 14.0 * 3.14159 + param)), 3.0);
-			emit += to_lit(sodium) * tank_flood * lamp_factor * exp(-uv.y / max(h * 0.8, 1.0)) * fan;
+			if (rc4_look > 0.5) {
+				// rc4-refinery-road: a flood's light on the paint (times its albedo, never an even
+				// wash of sodium over every shell), a tight fan from each fixture dying a third of the
+				// way up, the shell dark between them and toward the rim.
+				float fan2 = pow(abs(cos(uv.x / 14.0 * 3.14159 + param)), 8.0);
+				emit += to_lit(sodium * albedo) * tank_flood * rc4_flood * lamp_factor * exp(-uv.y / max(h * 0.3, 1.0)) * fan2;
+			} else {
+				emit += to_lit(sodium) * tank_flood * lamp_factor * exp(-uv.y / max(h * 0.8, 1.0)) * fan;
+			}
 		}
 		metal = 0.2;
 		rough = 0.62;
@@ -369,6 +381,8 @@ void fragment() {
 				float fall = 1.0 / (1.0 + (dist * dist) / (flare_half * flare_half));
 				fall *= 1.0 - smoothstep(flare_reach * 0.55, flare_reach, dist);
 				float facing = clamp(dot(nrm_world, d / max(dist, 0.01)) * 0.7 + 0.3, 0.0, 1.0);
+				// rc4-refinery-road: the side turned away from a flame takes only its bounce.
+				facing = rc4_look > 0.5 ? clamp(dot(nrm_world, d / max(dist, 0.01)) * 0.9 + 0.1, 0.0, 1.0) : facing;
 				float ph = flare_tips[i].w * 6.2832;
 				float flick = 0.84 + 0.1 * sin(TIME * 9.3 + ph) + 0.06 * sin(TIME * 23.1 + ph * 3.0);
 				fl += fall * facing * flick;

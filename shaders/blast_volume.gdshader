@@ -91,6 +91,11 @@ uniform float core4 = 0.0;
 // Blast4 round 10: at night the fire's light falls off faster up the smoke (its underside glows,
 // its crowns do not) and the crowns go darker against the sky; the 8 s cloud read flat brown. 0 = off.
 uniform float night4 = 0.0;
+// Round 15 (burn5): a fuel or gas ball burns longer. At 0.6-0.8 s a car's or a pump's ball had
+// already cooled to a uniform brown "broccoli"; real fuel blasts roll orange for a second or two
+// with black soot wrapping them. Slower cooling, a later soot shell, the core's fire held longer.
+// A rocket (no fuel, no gas) is untouched; 0 is round 14 bit for bit.
+uniform float burn5 = 0.0;
 uniform vec3 under_col = vec3(1.0, 0.42, 0.12);
 // The fires burning round it now (Blast3.push_fires(): xyz world, w = reach + strength / 2), so
 // the smoke over a burning wreck or a fuel pool is lit orange from below long after the fireball
@@ -295,7 +300,8 @@ vec3 field4(vec3 q) {
 	}
 	float crisp = mix(0.07, 0.24, smoothstep(0.4, 4.0, t));
 	float dens = smoothstep(0.0, crisp, f) * mix(1.0, 0.45, age) * mix(1.0, 0.11, sh.z);
-	float heat = heat_at(t) * (1.0 + 0.35 * gas);
+	float fb5 = burn5 * clamp(fuel + gas, 0.0, 1.0);
+	float heat = heat_at(t / (1.0 + fb5 * (0.7 * fuel + 0.55 * gas))) * (1.0 + 0.35 * gas);
 	// A wide spread of temperature (white-hot crowns, orange, dull red, black soot in the creases):
 	// a fireball reads by its contrast. As it cools its skin goes first: the fire is seen deeper in.
 	float temp = clamp(heat * (0.5 + sh.y * 0.5 - 0.12 * gas + (n1 - 0.5) * (2.2 - 0.3 * gas) + (n2 - 0.5) * 1.4), 0.0, 1.0);
@@ -307,14 +313,14 @@ vec3 field4(vec3 q) {
 		// ball reads as burning fuel - saturated flame against soot - not a gold-lit cloud.
 		temp = mix(temp, temp * temp * 1.12, core4 * smoothstep(0.04, 0.14, t) * (1.0 - 0.6 * gas));
 		// Soot over a fuel ball's skin from 0.15 s, deepest in its creases (never for gas).
-		float shell = fuel * (1.0 - gas) * smoothstep(0.15, 0.6, t) * (1.0 - smoothstep(0.05, 0.45, sh.y)) * (0.75 + 0.5 * (1.0 - n2));
+		float shell = fuel * (1.0 - gas) * smoothstep(0.15 + 0.3 * fb5, 0.6 + 0.6 * fb5, t) * (1.0 - smoothstep(0.05, 0.45, sh.y)) * (0.75 + 0.5 * (1.0 - n2));
 		shell = min(shell, 0.9) * core4;
 		temp *= 1.0 - shell;
 		dens = min(1.0, dens * (1.0 + 0.6 * shell));
 	}
 	temp *= mix(1.0, 0.25 + 0.75 * smoothstep(0.0, 0.55 + 0.25 * fuel, f), smoothstep(0.1, 0.55, t) * (1.0 - 0.5 * gas));
 	// Fire still burning deep in the core while the cap rolls (a fuel ball's longer), seen in gaps.
-	float deep = clamp(sh.y * 1.6 - 0.35, 0.0, 1.0) * exp(-max(t - 0.6, 0.0) / (0.9 + 1.3 * fuel)) * (0.55 + 0.6 * n1);
+	float deep = clamp(sh.y * 1.6 - 0.35, 0.0, 1.0) * exp(-max(t - 0.6 - 0.5 * fb5, 0.0) / ((0.9 + 1.3 * fuel) * (1.0 + fb5 * (0.5 + 0.8 * gas)))) * (0.55 + 0.6 * n1);
 	temp = max(temp, deep * (1.0 - sh.z));
 	return vec3(dens, temp * (1.0 - sh.z), sh.z);
 }

@@ -20,6 +20,7 @@ global uniform vec3 sun_direction;
 global uniform float river_look;
 
 #include "res://shaders/color_space.gdshaderinc"
+#include "res://shaders/river_night.gdshaderinc"
 
 // LINEAR colours. The water over clean concrete, over the algae, and the algae mats themselves.
 uniform vec3 water_color = vec3(0.012, 0.015, 0.011);
@@ -36,6 +37,7 @@ uniform float sky_emit = 0.12;
 
 varying vec2 v_uv;
 varying vec4 v_chan;
+varying vec3 rn_world;
 
 
 float rw_hash(vec2 p) {
@@ -85,7 +87,7 @@ uniform vec3 murk_color = vec3(0.020, 0.024, 0.012);
 const float RW_SLOPE = 1.6;
 const float RW_TOE = 0.57;
 
-vec3 rw_mirror(vec3 r, float o0, float s0, vec3 sky) {
+vec3 rw_mirror(vec3 r, float o0, float s0, vec3 sky, vec3 wp, float night) {
 	vec2 lat = v_chan.rg * 2.0 - 1.0;
 	float bh = v_chan.b * 40.0;
 	float dep = v_chan.a * 10.0;
@@ -118,12 +120,18 @@ vec3 rw_mirror(vec3 r, float o0, float s0, vec3 sky) {
 	// The streaks run down the bank, the wet dark band and algae at its foot.
 	alb *= 1.0 - 0.35 * smoothstep(0.5, 0.85, rw_noise(vec2(s_hit * 1.2, y_hit * 0.08)));
 	alb = mix(alb, vec3(0.035, 0.05, 0.02), 1.0 - smoothstep(0.55, 1.3, y_hit));
-	return alb * (sun_light * sun + sky * sky_light) + vec3(0.05, 0.03, 0.012) * lamp_factor * 0.2;
+	vec3 lit = sun_light * sun + sky * sky_light;
+	if (night > 0.0) {
+		// rc4-river-night: the bank in the mirror takes the bridges' fixtures too.
+		lit += rn_light(wp + r * t_hit, n) * night;
+	}
+	return alb * lit + vec3(0.05, 0.03, 0.012) * lamp_factor * 0.2;
 }
 
 void vertex() {
 	v_uv = UV;
 	v_chan = COLOR;
+	rn_world = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
 }
 
 void fragment() {
@@ -147,6 +155,7 @@ void fragment() {
 	float edge = smoothstep(1.0 - algae_fringe / max(half_width, 0.1) * (0.6 + 0.8 * clump), 1.0, across);
 	// UV runs along the flow, not along world x/z: turn the gradient into the mesh's frame with
 	// the tangents the builder wrote.
+	vec3 n_flat = NORMAL;
 	vec3 nrm_view = normalize(NORMAL + (TANGENT * -grad.x + BINORMAL * -grad.y) * (1.0 - edge));
 	NORMAL = nrm_view;
 	float nv = clamp(dot(NORMAL, VIEW), 0.0, 1.0);
@@ -167,7 +176,26 @@ void fragment() {
 		ROUGHNESS = mix(mix(0.05, 0.12, clamp(length(grad) * 4.0, 0.0, 1.0) + rain * 0.4), 0.8, edge);
 		SPECULAR = 0.12;
 		METALLIC = 0.0;
-		EMISSION = cs_out(rw_mirror(r, p.y, p.x, sky)) * f2 * (1.0 - edge) * (1.0 - foam * 0.7);
+		float rn_on = (river_night > 0.5 && lamp_factor > 0.01) ? smoothstep(0.01, 0.5, lamp_factor) : 0.0;
+		vec3 mir = rw_mirror(r, p.y, p.x, sky, rn_world + origin_shift, rn_on);
+		if (river_night > 0.5 && lamp_factor > 0.01) {
+			// rc4-river-night: the bridges in the water (their lit ribs, lamps and fixtures), and
+			// the fixtures' pools on the sheet itself.
+			vec3 wp = rn_world + origin_shift;
+			vec3 glow = vec3(0.0);
+			// A calmer normal for the bridges' mirror: the full riffles broke the arches into specks;
+			// a third of them stretches them into streaks.
+			vec3 n2 = normalize(n_flat + (TANGENT * -grad.x + BINORMAL * -grad.y) * 0.3);
+			vec3 r2 = reflect(-(INV_VIEW_MATRIX * vec4(VIEW, 0.0)).xyz, normalize((INV_VIEW_MATRIX * vec4(n2, 0.0)).xyz));
+			float bh = v_chan.b * 40.0;
+			float dep = v_chan.a * 10.0;
+			vec4 br = rn_mirror(wp, r2, v_chan.rg * 2.0 - 1.0, p.y, bh, RW_TOE + dep, RW_TOE, RW_SLOPE, 0.006 + length(grad) * 0.05, glow);
+			float lf = smoothstep(0.01, 0.5, lamp_factor);
+			mir = mix(mir, br.rgb, br.a * lf) + glow * lf;
+			EMISSION = cs_out(mir * f2 * (1.0 - edge) * (1.0 - foam * 0.7) + body * rn_light(wp, vec3(0.0, 1.0, 0.0)) * lf * 0.5);
+		} else {
+			EMISSION = cs_out(mir) * f2 * (1.0 - edge) * (1.0 - foam * 0.7);
+		}
 	} else {
 		ALBEDO = cs_out(body);
 		ROUGHNESS = mix(mix(0.06, 0.16, clamp(length(grad) * 4.0, 0.0, 1.0) + rain * 0.4), 0.75, edge);
