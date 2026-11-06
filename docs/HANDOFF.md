@@ -32469,5 +32469,8 @@ frame from the load on, so the level is up before they spawn); one man at the le
 **Not done / not verified.** Not seen on Forward+ (lavapipe cannot hold the city; the colour work is
 DayNight's Color uniforms and the grade, renderer-neutral, and the probe's numbers are the same on
 both). The bus's windscreen is still a dark slab at dusk (the traced cabin is lit only after dark);
-the far deco facade top-left keeps its orange floodlit look (its own palette). The full ten-camera
-compare is in the session's report.
+the far deco facade top-left keeps its orange floodlit look (its own palette). The ten original
+cameras, RC5_BUS_STOP=0 against on from one tree: eight "ok" (pier_night, sunset, hills, beach under
+0.05 mean |d|; street_night, in rain at 21:30, 3.9 - the lamp streaks' look5 only), street_noon and
+freeway flagged for pixels (8.3 / 7.3) by live traffic in other places (a bus, the freeway's cars);
+their grades are the same within a level (dp50 +1 / -1).
