@@ -23,6 +23,8 @@ extends RefCounted
 ## Pure geometry of the plan (no roll): nothing else in the city moves. `LONG_BEACH_SAND=0` in the
 ## environment is the A/B (the chunk builds its roads and nothing else, as before).
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 static var enabled: bool = OS.get_environment("LONG_BEACH_SAND") != "0"
 
 ## Sand steps along the shore (m).

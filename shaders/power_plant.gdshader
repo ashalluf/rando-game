@@ -26,6 +26,8 @@ varying vec3 world_n;
 varying vec3 world_p;
 
 #include "res://shaders/color_space.gdshaderinc"
+#include "res://shaders/fwd_review_h.gdshaderinc"
+#include "res://shaders/rc5_power_plant.gdshaderinc"
 
 // Tuned in display numbers (what Compatibility hands a shader and what COLOR is on both);
 // Forward+'s decoded textures go back to display numbers and the result out in the renderer's own.
@@ -184,8 +186,18 @@ void fragment() {
 		vec3 mirror = sky_tint.rgb * (0.28 + 0.65 * fres) * (0.85 + 0.3 * vnoise(vec2(floor(uv.x / pitch), 0.5) * 3.0));
 		albedo = mix(paint * 0.4, vec3(0.2, 0.21, 0.22), mull);
 		emit += cs_srgb_to_linear(mirror) * 0.55 * (1.0 - mull) * (1.0 - night_factor * 0.75);
-		float lit = step(0.3, hash12(vec2(floor(uv.x / (pitch * 3.0)), param) + seedv));
-		emit += vec3(1.0, 0.82, 0.55) * 0.9 * lit * lamp_factor * (1.0 - mull);
+		if (rc5 > 0.5) {
+			// RcPowerPlant: bays of panes lit or dark, fluorescent or sodium, a transom, the
+			// crane girder and machinery behind the glass (rc5_power_plant.gdshaderinc).
+			mull = max(mull, lines(uv.y, 1.6, 0.06));
+			vec4 room = pp_window(uv, h, param + seedv * 31.0);
+			albedo = mix(mix(paint * 0.4, paint * 0.25, room.a * lamp_factor), vec3(0.2, 0.21, 0.22), mull);
+			emit = mix(emit, emit * 0.35, room.a * lamp_factor);
+			emit += fh_display(room.rgb) * 1.6 * lamp_factor * (1.0 - mull);
+		} else {
+			float lit = step(0.3, hash12(vec2(floor(uv.x / (pitch * 3.0)), param) + seedv));
+			emit += vec3(1.0, 0.82, 0.55) * 0.9 * lit * lamp_factor * (1.0 - mull);
+		}
 		rough = mix(0.08, 0.5, mull);
 		metal = 0.5 * mull;
 		spec = 0.7;
@@ -304,6 +316,11 @@ void fragment() {
 		albedo = paint * (0.9 + 0.1 * vnoise(uv * vec2(0.6, 3.0))) * (1.0 - 0.25 * (1.0 - smoothstep(0.0, 0.25, uv.y)));
 		metal = 0.4;
 		rough = 0.5;
+	}
+	if (rc5 > 0.5 && lamp_factor > 0.01 && pp_src_count > 0 && abs(kind - 5.0) > 0.5 && abs(kind - 6.0) > 0.5 && abs(kind - 7.0) > 0.5 && abs(kind - 16.0) > 0.5 && abs(kind - 19.0) > 0.5) {
+		// RcPowerPlant: the plant's own lamps wash its walls, stacks and steel after dark.
+		float fl = pp_flood(world_p + origin_shift, nrm);
+		emit += to_lit(clamp(albedo * pp_tint, vec3(0.0), vec3(1.0))) * fh_level(fl * pp_gain * lamp_factor);
 	}
 	float wet = clamp(road_wetness, 0.0, 1.0) * wet_k * (top ? 1.0 : 0.35);
 	albedo *= 1.0 - 0.25 * wet;

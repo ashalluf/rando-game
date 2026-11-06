@@ -22,6 +22,8 @@ extends RefCounted
 ##
 ## Every roll is the house key's; no rng, prop id or other batch moves. `SUBURB_NIGHT=0` is the A/B.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 static var enabled: bool = OS.get_environment("SUBURB_NIGHT") != "0"
 
 ## The window spill batch, and how far it draws (m).

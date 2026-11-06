@@ -20,6 +20,8 @@ extends RefCounted
 ## `RUSH_HOUR=0` in the environment is the A/B: the fill, the cap, the follow rule and the speeds
 ## exactly as they were. A staged TrafficManager (tests, stills that place cars) is never jammed.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 static var enabled := OS.get_environment("RUSH_HOUR") != "0"
 
 ## The two rushes: [start of the ramp up, full, full until, ramp down ends], hours.

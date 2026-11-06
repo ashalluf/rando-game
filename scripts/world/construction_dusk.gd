@@ -23,6 +23,8 @@ extends RefCounted
 ##
 ## CONSTRUCTION_DUSK=0 in the environment is the A/B (all four off, the site exactly as before).
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 static var enabled: bool = OS.get_environment("CONSTRUCTION_DUSK") != "0"
 
 ## The late crew goes home at this hour.
