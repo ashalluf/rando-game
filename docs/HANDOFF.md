@@ -31981,3 +31981,50 @@ ways (the spray is one draw, the rings are instances of it); luminance p5/p50/p9
 rings that lie on the sea and age out, the staged pod in turn). Kit stills in seconds:
 `tools/sea_life/kit_shot.tscn` (VIEW=dolphin, AGE=; it now shows a ring by the rolling dolphin).
 Not verified on Forward+ (the spray is unshaded and works in linear through color_space).
+
+## 9d?. The cinematic review, wave 8 (`wt/cinematic-review-w8`; IN PROGRESS, cut off by the account move)
+
+**Task** (tasks_w8.tsv `cinematic-review-w8`): judge wave 8's refcams (`tools/refcams/cameras_w8.json`,
+31 rows on main 12042fe2) together as one picture; fix the out-of-family views in the shared systems
+(HourGrade, DayNight, NightAtmos, the lens) or the view's own system, never per camera; before/after
+sheets; the ten originals must stay inside refcams' compare tolerance.
+
+**Done.**
+- `tools/cinematic_w8/batched.py`: refcams in batches of N cameras a city load, joined into one run
+  folder (report.json, sheet.jpg). **A single load of the 31 wave-8 cameras is OOM-killed after eight
+  shots on a 15 GB box** (13.6 GB); batches of 6 peak 10-13 GB, ~20-25 min each (`--size 6`; a killed
+  run resumes: cameras already shot in any `_b*` folder are skipped). Always `OCCLUSION=0` (the
+  occlusion-raycast hang the wave-8 README mentions); both before runs used it.
+- `tools/cinematic_w8/family.py <run> [<run>...] --sheet x.jpg`: puts every shot in a band by hour and
+  weather (day, golden 16.9-18.4, dusk 18.4-19.6, night, night_wet, marine), prints each band's median
+  p1/p5/p50/p95, saturation, mireds, flags shots past `FLAG` of their band, and writes a contact sheet
+  ordered by hour with the band under each shot.
+- Before runs on main 12042fe2 (opengl3, OCCLUSION=0): `build/refcams/w8_before` (31) and
+  `build/refcams/orig_before` (the ten). Not committed (build/ is ignored); the sheets are on
+  `shots/cinematic-review-w8`.
+
+**Findings so far (before, opengl3).** Band medians (p5/p50/p95): day 30/126/196, golden 34/104/179,
+dusk 6/39/109, night 5/33/140, night_wet 9/38/134. Judged by eye on the sheet, not only the flags
+(most numeric flags are content: a dark pool deck, a blue truck in the port_gate frame):
+1. **storm_downtown (20:30 storm) reads as an overcast DAY**: p1 22 / p50 82 / p95 165, against its
+   sibling street_night (21:30 rain, same street) 5 / 38 / 134. Facades lit evenly, lilac sky, lifted
+   blacks. Its row holds a lightning strike at 0.85 (RcStorm already scales a night strike's light to
+   0.3). NEXT STEP, not run: shoot it without `storm_flash` (`/tmp` table with the key removed, one
+   camera, ~20 min) to tell the held flash from the storm night itself (DayNight's storm night: rain
+   fog veil, ambient, storm sky). If the base is night-like, the fix is the flash's ambient boost
+   (`StormDrama.FLASH_AMBIENT` x the held level, DayNight line ~616) at night; if not, the storm-night
+   fog / sky colours (`night_storm_fog`, `storm_horizon`) at moonlight 1.
+2. **police_pursuit (22:00)**: the helicopter spot turns the road round the cars near white (p95 221,
+   p50 62 vs the night median 33). View's own system: `PursuitLook.SPOT_GAIN` (0.6) / the pool.
+   Not changed yet.
+3. sea_life (08:00, into the low sun over the sea): milky, p1 27, sat 0.24 against the day's 0.34.
+   Plausibly glare; lower priority.
+4. Consistent and left alone: the golden-hour views (wingsuit 3588K, speedboat 3783K, rush_hour
+   4132K, against sunset 4375K), the dusk band (18:45-19:15 all night-blue skies with stars: the
+   sky's own twilight ramp, GoldenHour), the night band (lit stations / marquees bright, the coast
+   dark under CoastExposure).
+- Rainy dusk (18:00 rain, an orange-brown haze, from the lead): wt/rc5-bus-stop-rain's `RainDusk`
+  owns it; no wave-8 camera here is rain at dusk.
+
+**Open.** No game code changed yet: no fix, no after run, no compare of the ten, no checks file, no
+docs bullets beyond this section. **Not gated** (nothing to gate: the head adds two tools only).
