@@ -113,6 +113,11 @@ the train's ends over the pull-out, `chunk_probe.gd` what each yard chunk lays.
 Run with `REFCAMS_JSON=tools/refcams/cameras_w8.json`. `rush_hour` (rc5-rush-hour): the 105 at 17:40
 clear from the caged footbridge east of the 110 (`fb_f_1_213`), the lens just outside the cage looking
 west down the carriageways into the sun; `shot_frames` 90 lets RushHour's jam build.
+`rail_aerial` (rc5-rail-aerial): the Coral Line's structure where it swings off Flower over the 110,
+from River Blvd below at 20:00 clear, looking west. Its optional `rail_s` key ("<s>:<dir>[:<seconds
+before>]", LightRailSystem's RAIL_S) sets and holds the light rail's clock so a train's nose is at
+s along the line (dir 1 runs toward the downtown terminus); "2470:1" puts a train on the curve.
+`tools/rc5_rail_aerial/probe.gd` prints the flyovers, the freeways under them and the poles there.
 
 ## Running
 
@@ -273,3 +278,17 @@ suburb_morning street (block 21,32 on seed 1337) from the same pavement eye at 2
 day and the night of one street compare 1:1. Its optional `dog_walker` key (`tools/refcams/dog_stage.gd`:
 `dist`, `side`, `at`, `yaw`, `seed`, `away`) stands one person walking a dog in the frame, held on its
 spot and walking; the log prints a `REFCAM dog walker` line.
+
+## Wave 8's cameras (`cameras_w8.json`)
+
+Run with `REFCAMS_JSON=tools/refcams/cameras_w8.json`. `walk_of_fame_night` (rc5-walk-of-fame-night):
+Canyon Blvd's south pavement at THE GRAND CELESTE's corner, the lens over the band of stars, 22:00
+clear, looking west-south-west at the marquee and the premiere in front of it. No staging key: the
+premiere, the characters and the tourists come from the build hour (WalkOfFameNight). On this box
+the run needs `OCCLUSION=0` (the occlusion raycast hang, above). For framing in a minute:
+`tools/glshot/station_night_shot.tscn` with `WOF_HOUR=22` (that scene has no DayNight at its root,
+so the walk would otherwise build at the 13:30 fallback).
+`sea_life` (rc5-sea-life): the straight pier's round head at 08:00 clear looking ESE down the coast.
+Its optional `sea` key is SeaLife.stage_for_shot()'s spec ("dolphin@x,z[,lead];pelican@x,z", TRUE
+world), staged three frames before the shot with the sea clock held and cleared after it;
+`SEA_DEBUG=1` prints the surfers and swimmers BeachActivity has round the lens.

@@ -101,6 +101,8 @@ var _parts_done: bool = false
 var _wheel_was: Dictionary = {}
 ## The hits that crumpled (tests).
 var crumples_made: int = 0
+## True while _panels() runs for a pole hit (CrashAftermath's wrap).
+var _pole_hit: bool = false
 
 
 func attach(to: CarDamage) -> void:
@@ -122,9 +124,14 @@ func crash(body_at: Vector3, push_body: Vector3, over: float, world_at: Vector3)
 		_scrape(body_at, push_body, over)
 		return
 	var depth := minf(depth_per_dv * (over - min_over * 0.5), max_hit_depth)
-	var zone := _crumple(body_at, push_body, depth)
+	var pole := CrashAftermath.take_pole()
+	if pole > 0.0:
+		depth = minf(depth * CrashAftermath.POLE_DEPTH, max_crush)
+	var zone := _crumple(body_at, push_body, depth, pole)
 	_scrape(body_at, push_body, over)
+	_pole_hit = pole > 0.0 # a pole wraps the bumper round it: it does not tear off a corner
 	_panels(body_at, push_body, over)
+	_pole_hit = false
 	_wheels(body_at, push_body, over)
 	CrashLitter.scatter(car, world_at, car.linear_velocity, CrashLitter.Kind.PLASTIC,
 			int(plastic_shards * clampf(depth / 0.4, 0.3, 1.5)))
@@ -134,6 +141,7 @@ func crash(body_at: Vector3, push_body: Vector3, over: float, world_at: Vector3)
 		crumples_made += 1
 	if CrashBreakup.applies(car):
 		dmg.breakup().crash(body_at, push_body, over, world_at)
+	CrashAftermath.after_crash(self)
 
 
 ## A blast's side of the car caved in (only past `blast_from`).
@@ -146,7 +154,7 @@ func blast(body_near: Vector3, push_body: Vector3, falloff: float) -> void:
 
 
 ## Adds (or deepens) a crumple zone; returns its index or -1.
-func _crumple(body_at: Vector3, dir_body: Vector3, depth: float) -> int:
+func _crumple(body_at: Vector3, dir_body: Vector3, depth: float, narrow: float = 0.0) -> int:
 	if depth < 0.02:
 		return -1
 	var dir := dir_body.normalized()
@@ -172,6 +180,8 @@ func _crumple(body_at: Vector3, dir_body: Vector3, depth: float) -> int:
 	total = minf(total, reach_cap / 1.35)
 	var reach := clampf(reach_base + reach_gain * total, 0.3, reach_cap)
 	var radius := radius_base + radius_gain * total
+	if narrow > 0.0:
+		radius = CrashAftermath.pole_radius(narrow, total)
 	if absf(dir.y) > 0.6:
 		# A roof comes down whole: the pillars fold under it, edge to edge.
 		radius = maxf(radius, dmg._width * 0.5 + 0.9)
@@ -183,7 +193,7 @@ func _crumple(body_at: Vector3, dir_body: Vector3, depth: float) -> int:
 	var lengthwise := absf(dir.z) > 0.6
 	var c := Vector4(p.x, p.y, p.z, radius / ms)
 	var cp := Vector4(push.x, push.y, push.z, seed)
-	var cs := Vector4(reach / ms, (fold_pitch + 0.06 * seed) / ms, tent if lengthwise else tent * 0.25, 0.0)
+	var cs := Vector4(reach / ms, (fold_pitch + 0.06 * seed) / ms, tent if lengthwise else tent * 0.25, 1.0 if narrow > 0.0 else 0.0)
 	if k < 0:
 		if _zones.size() < CRUMPLE_CAP:
 			k = _zones.size()
@@ -231,6 +241,8 @@ func _panels(body_at: Vector3, push_body: Vector3, over: float) -> void:
 		var lid := Lid.BONNET if end < 0.0 else Lid.BOOT
 		if not big and not (mid and end < 0.0) and crush > bonnet_at:
 			_set_panel(lid, clampf(0.035 + (crush - bonnet_at) * 0.25, 0.0, bonnet_angle * (1.0 if end < 0.0 else 0.7)), 0.0)
+		if _pole_hit:
+			continue
 		if crush > bumper_at or (over > 6.0 and absf(body_at.x) > dmg._width * 0.22 and body_at.z * end > dmg._len * 0.3):
 			var side := signf(body_at.x) if absf(body_at.x) > 0.05 else (1.0 if (crumples_made % 2) == 0 else -1.0)
 			_set_panel(Lid.BUMPER_FRONT if end < 0.0 else Lid.BUMPER_REAR, 1.0, side)
@@ -470,6 +482,7 @@ func _ensure_materials() -> void:
 			elif not far and slot in ["trim", "chrome", "ladder"]:
 				var std := cur as StandardMaterial3D if cur is StandardMaterial3D else src
 				dmg._swap(m, si, _part_material(std, false))
+	CrashAftermath.bands(self, true)
 	var det := car.get_node_or_null("CarDetail") as MeshInstance3D
 	if det != null:
 		detail(car, det)
@@ -586,6 +599,7 @@ func push() -> void:
 
 ## Puts the wheels back (a cruiser going back into the police pool; CarDamage.restore()).
 func reset() -> void:
+	CrashAftermath.bands(self, false)
 	for node: Variant in _wheel_was.keys():
 		if is_instance_valid(node):
 			(node as Node3D).rotation = _wheel_was[node][0]
@@ -616,10 +630,13 @@ func move_point(p: Vector3, n: Vector3) -> Vector3:
 			continue
 		var r := maxf(_crumples[i].w, 0.05)
 		var lat := rel - dir * s
+		if _crumple_shape[i].w > 0.5:
+			var up := (dmg._to_mesh.basis * Vector3.UP).normalized()
+			lat -= up * lat.dot(up) * 0.7
 		var lr := lat.length() / r
 		if lr >= 1.0:
 			continue
-		var wl := 1.0 - smoothstep(0.35, 1.0, lr)
+		var wl := pow(1.0 - lr, 1.5) if _crumple_shape[i].w > 0.5 else 1.0 - smoothstep(0.35, 1.0, lr)
 		var k := clampf(1.0 - s / reach, 0.0, 1.0)
 		q += dir * depth * k * k * (3.0 - 2.0 * k) * wl
 	return q

@@ -103,6 +103,7 @@ func _run() -> void:
 		_port_clock(cam)
 		_freight_clock(cam, scene)
 		_fireworks_clock(cam)
+		_lighthouse_clock(cam)
 		Engine.time_scale = 1.0
 		# A "drive" row (cameras_w5.json, chase_cam): the player drives his own car and the shot is
 		# his chase camera (tools/refcams/chase_stage.gd), not the free eye.
@@ -119,6 +120,12 @@ func _run() -> void:
 			drive = load("res://tools/refcams/wingsuit_stage.gd").new()
 			await drive.call("run", self, cam, player)
 			fov = player.get("camera").fov
+		elif cam.has("cabin"):
+			# A "cabin" row (cameras_w8.json, driver_rain): the player stopped at a red in his own
+			# car, the eye inside the cabin behind his head (tools/refcams/cabin_stage.gd).
+			OS.set_environment("EYE", "")
+			drive = load("res://tools/refcams/cabin_stage.gd").new()
+			await drive.call("run", self, cam, player)
 		elif cam.has("boat"):
 			# A "boat" row (cameras_w8.json, speedboat_golden): the player at the helm under way
 			# off the coast, a free chase eye on the hull (tools/refcams/boat_stage.gd).
@@ -160,6 +167,8 @@ func _run() -> void:
 				_stage_freeway_cars(cam, scene)
 			if cam.has("skate_t") and (i == stage_at or i >= frames - 3):
 				_skate_clock(cam)
+			if cam.has("sea") and i == frames - 3:
+				_sea_stage(cam, scene)
 			await process_frame
 			_place(player, fov)
 			if day:
@@ -189,6 +198,14 @@ func _run() -> void:
 		if cam.has("dog_walker") and _stager == null:
 			_stager = load("res://tools/refcams/dog_stage.gd")
 			await _stager.stage(self, scene, _eye_cam, func() -> void: _place(player, fov), cam)
+		if stage == "crash" and _stager == null:
+			# cameras_w8.json's crash_closeup: a sedan wrapped round a bent lamp pole (crash_stage.gd).
+			_stager = load("res://tools/refcams/crash_stage.gd")
+			await _stager.stage(self, scene, _eye_cam, player, func() -> void: _place(player, fov), cam)
+		# A "wildlife" row (cameras_w8.json's coyote_night): animals staged where the row says.
+		if cam.has("wildlife") and _stager == null:
+			_stager = load("res://tools/refcams/wild_stage.gd")
+			await _stager.stage(self, scene, _eye_cam, func() -> void: _place(player, fov), cam)
 		Engine.time_scale = 0.0005
 		for i in _env_int("SETTLE", 6):
 			await process_frame
@@ -217,6 +234,7 @@ func _run() -> void:
 		if traffic_staged:
 			scene.get_node("Traffic").set("staged", false)
 		_unstage_rail(scene)
+		_sea_unstage(cam, scene)
 		var png := _out_dir.path_join("%s.png" % cam.name)
 		get_root().get_texture().get_image().save_png(png)
 		# NIGHT_AB=1 (rc5-gas-station-night): what lights the night ground - the frame again with
@@ -298,6 +316,20 @@ func _stage_street_cars(cam: Dictionary, scene: Node, plan: Variant) -> bool:
 			placed += 1
 			_fw_staged.append(car)
 	print("REFCAM %s: placed %d street cars on road %d (axis %d at %.1f)" % [cam.name, placed, best, axis, float(plan.road_pos(axis, best))])
+	# Optional "clear" (googie_motel): the load's own street traffic within that many metres of the
+	# eye is hidden for the shot (a bus the load put across the view), the placed cars kept.
+	var clear := float(spec.get("clear", 0.0))
+	if clear > 0.0:
+		var ws := get_root().get_node("/root/WorldState")
+		var eye_xz := Vector2(float(cam.eye[0]), float(cam.eye[2]))
+		for v in traffic.get("cars"):
+			var car := v as Node3D
+			if not is_instance_valid(car) or _fw_staged.has(car):
+				continue
+			var w: Vector3 = ws.call("to_world", car.global_position)
+			if Vector2(w.x, w.z).distance_to(eye_xz) < clear:
+				car.visible = false
+				print("REFCAM %s: hid %s (inside the staged clearance)" % [cam.name, car.name])
 	return true
 
 
@@ -678,6 +710,35 @@ func _skate_clock(cam: Dictionary) -> void:
 			n.call("set_clock", float(cam.skate_t))
 
 
+## A row's optional "sea" (wave 8's sea_life): SeaLife.stage_for_shot()'s spec, "kind@x,z[,lead];..."
+## (dolphin, pelican, dive, whale at TRUE world XZ), as still_shot's SEA=: staged a few frames before
+## the shot and the sea clock held there; put back after it. Rows without the key leave SeaLife alone.
+func _sea_stage(cam: Dictionary, scene: Node) -> void:
+	var sea := scene.get_node_or_null("SeaLife")
+	if sea == null or _eye_cam == null:
+		print("REFCAM %s: no SeaLife to stage" % cam.name)
+		return
+	sea.call("stage_for_shot", String(cam.sea), _eye_cam, 40.0, float(cam.get("sea_lead", 0.4)))
+	if OS.get_environment("SEA_DEBUG") == "1":
+		var ba: GDScript = load("res://scripts/world/beach_activity.gd")
+		for n in get_root().find_children("*", "", true, false):
+			if n.get_script() == ba:
+				var water: Array = n.get("_water")
+				for w: Dictionary in water:
+					var nd := w.node as Node3D
+					if nd:
+						print("SEA_DEBUG %s %s at %s d %.0f vis %s" % [w.kind, w.get("state", ""), nd.global_position, nd.global_position.distance_to(_eye_cam.global_position), nd.is_visible_in_tree()])
+
+
+func _sea_unstage(cam: Dictionary, scene: Node) -> void:
+	if not cam.has("sea"):
+		return
+	var sea := scene.get_node_or_null("SeaLife")
+	if sea:
+		sea.call("clear_stage")
+		sea.set("hold_clock", false)
+
+
 ## A row's optional "fireworks_t" (wave 8's fireworks_ballpark): a show staged at that show clock
 ## (seconds) and held there for the shot, as FIREWORKS_T= / FIREWORKS_HOLD=1 do for a still;
 ## "fireworks_site" picks the site ("stadium" by default, "beach", or "both"). Rows without the key
@@ -706,6 +767,17 @@ func _fireworks_clock(cam: Dictionary) -> void:
 		if staged.has(s.id):
 			s.clock = float(staged[s.id])
 			s.prev = s.clock
+
+
+## A row's optional "lighthouse_t" (wave 8's lighthouse_night): holds every lighthouse's rotor at
+## that clock (LighthouseBeacon.hold_t, as LIGHTHOUSE_T=), so the beams point the same way every
+## run; a row without it lets the lenses turn (unless LIGHTHOUSE_T is set).
+func _lighthouse_clock(cam: Dictionary) -> void:
+	var lb: GDScript = load("res://scripts/world/lighthouse_beacon.gd")
+	if cam.has("lighthouse_t"):
+		lb.set("hold_t", float(cam.lighthouse_t))
+	elif OS.get_environment("LIGHTHOUSE_T") == "":
+		lb.set("hold_t", -1.0)
 
 
 func _port_clock(cam: Dictionary) -> void:
@@ -799,7 +871,10 @@ var _rail_held := false
 
 
 func _stage_rail(cam: Dictionary, scene: Node) -> void:
-	if not cam.has("rail_at"):
+	if cam.has("rail_cross"):
+		_stage_rail_cross(cam, scene)
+		return
+	if not cam.has("rail_at") and not cam.has("rail_s"):
 		return
 	var sys := scene.get_node_or_null("LightRail")
 	var line: Variant = sys.get("line") if sys else null
@@ -808,13 +883,40 @@ func _stage_rail(cam: Dictionary, scene: Node) -> void:
 		return
 	# LightRail is reached through its script: naming it compiles it before the autoloads exist.
 	var lr: Variant = (line as Object).get_script()
-	var at := String(cam.rail_at).split(":", false)
-	lr.clock = float(line.call("clock_at_station", at[0].to_int(), at[1].to_int() if at.size() > 1 else 0,
-		at[2].to_float() if at.size() > 2 else 0.0))
+	if cam.has("rail_s"):
+		# wave 8's rail_aerial: "<s>:<dir>[:<seconds before>]", a train's nose at s along the line
+		# (LightRailSystem's RAIL_S).
+		var rs := String(cam.rail_s).split(":", false)
+		lr.clock = float(line.call("clock_at_s", rs[0].to_float(), rs[1].to_int() if rs.size() > 1 else 0,
+			rs[2].to_float() if rs.size() > 2 else 0.0))
+	else:
+		var at := String(cam.rail_at).split(":", false)
+		lr.clock = float(line.call("clock_at_station", at[0].to_int(), at[1].to_int() if at.size() > 1 else 0,
+			at[2].to_float() if at.size() > 2 else 0.0))
 	sys.set("hold", true)
 	sys.call("step")
 	_rail_held = true
-	print("REFCAM %s: light rail clock %.1f (%s)" % [cam.name, float(lr.clock), cam.rail_at])
+	print("REFCAM %s: light rail clock %.1f (%s)" % [cam.name, float(lr.clock), cam.get("rail_s", cam.get("rail_at", ""))])
+
+
+## A row's optional "rail_cross" ("<crossing>[:<dir>[:<seconds before the nose>]]", wave 8's
+## rail_crossing): the light rail's clock set that many seconds before a train running <dir> reaches
+## crossing <k> (negative: the nose is past it, the train is on the crossing), held until the shot
+## (LightRailSystem's RAIL_CROSS / RAIL_HOLD, per camera). The gates are posed from the same clock.
+func _stage_rail_cross(cam: Dictionary, scene: Node) -> void:
+	var sys := scene.get_node_or_null("LightRail")
+	var line: Variant = sys.get("line") if sys else null
+	if line == null:
+		print("REFCAM %s: no light rail to stage" % cam.name)
+		return
+	var lr: Variant = (line as Object).get_script()
+	var at := String(cam.rail_cross).split(":", false)
+	lr.clock = float(line.call("clock_at_crossing", at[0].to_int(), at[1].to_int() if at.size() > 1 else 0,
+		at[2].to_float() if at.size() > 2 else 6.0))
+	sys.set("hold", true)
+	sys.call("step")
+	_rail_held = true
+	print("REFCAM %s: light rail clock %.1f (crossing %s)" % [cam.name, float(lr.clock), cam.rail_cross])
 
 
 func _unstage_rail(scene: Node) -> void:

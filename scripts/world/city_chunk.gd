@@ -625,6 +625,7 @@ func _finish_build() -> void:
 	_mm_nodes = _batch.build(self)
 	TreeFire.attach(self, fire_trees, _mm_nodes)
 	StreetCloseup.commit_cars(self, _mm_nodes)
+	RcAutoRow.commit(self, _mm_nodes)
 	StreetCloseup.clear_sheds(self, _mm_nodes)
 	for paint_key: String in PAINT_KEYS:
 		if _mm_nodes.has(paint_key):
@@ -2959,8 +2960,11 @@ func _take_crowd_room(reserve: float = 0.0) -> bool:
 func _spawn_walker(rect: Rect2, sidewalk: float, rng: RandomNumberGenerator) -> void:
 	if not _take_crowd_room(Encampment.walker_reserve(plan, ix, iz)):
 		return
+	var walker_seed := rng.randi()
+	if not Rc5CoyoteNight.keep_walker(self, rect, walker_seed):
+		return
 	var ped := Pedestrian.new()
-	ped.setup(rect, sidewalk, rng.randi())
+	ped.setup(rect, sidewalk, walker_seed)
 	FashionDistrict.walker(self, ped)
 	PlazaCrowd.walker(self, ped, rect)
 	var start := ped._random_ring_point(sidewalk)
@@ -3301,6 +3305,9 @@ func _build_lot(lot: Dictionary, params: Dictionary, rng: RandomNumberGenerator)
 		lot = rest[0]
 		center = lot.center
 	var fill := LotFill.wanted(self, district)
+	# A Googie motel behind its pole sign (Motels: the car park whose corner the sign stands on).
+	if fill and lot.get("parking", false) and Motels.build_lot(self, lot):
+		return
 	# A surface car park (CityPlan.lots() "parking"; the pad roll above is still made).
 	if fill and lot.get("parking", false) and not StarBoulevard.strip_lot(plan, ix, iz, lot):
 		LotFill.surface_lot(self, lot)
@@ -4490,6 +4497,8 @@ func _add_tree(at: Vector3, rng: RandomNumberGenerator, lean_to: Vector2 = Vecto
 	if _under_freeway(Vector2(at.x, at.z), TREE_FREEWAY_MARGIN):
 		return
 	if BroadwayNight.keeps_tree_off(plan, at):
+		return
+	if RcAutoRow.keeps_tree_off(self, at):
 		return
 	# Los Angeles' own species for a share of blocks, parks and planters (LaTrees, hashes only).
 	if LaTrees.street_or_park(self, at, yaw, tint, lean_to):

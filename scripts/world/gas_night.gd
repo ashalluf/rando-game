@@ -16,6 +16,8 @@ extends RefCounted
 ##
 ## `GAS_NIGHT=0` is the A/B (the station exactly as before). Checks: tests/rc5_gas_station_night_checks.gd.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 static var enabled: bool = OS.get_environment("GAS_NIGHT") != "0"
 ## Forced on for every gas station (refcam staging and checks): `PUMP_CAR=1`.
 static var force_pump_car: bool = OS.get_environment("PUMP_CAR") == "1"
