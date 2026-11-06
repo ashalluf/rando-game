@@ -32749,3 +32749,51 @@ boats' own white hulls are not in the water's light list (the boats are mirrored
 MarinaGolden's trace at night); the restaurants' terraces have no string lights or diners; the
 lights' columns are not occluded by the docks' floats (only by boats); the moonlit hulls still read
 a little flat grey.
+
+## 9d?. The laundromat strip at 23:30, refcam5 `laundromat_night`, 2026-11-06 (fleet session `rc5-laundromat-night`, branch `wt/rc5-laundromat-night`)
+
+**The view.** A strip of small shops on a midtown block at 23:30 clear (the west face of the
+building seed 519869139, x ~428, z 2836-2875: BOBA, RECORDS, BARBER, DONUT HOLE, LAUNDRY, TATTOO),
+from the west pavement across the street, FOV 36. Its `park_car` key stages a sedan on the east
+kerb in front of the barber (park_stage.gd); `clear_cars` 5 hides the city's car parked on the eye;
+`clear_people` 4. **Finding a strip**: shop names are hashes of the building's seed and face only,
+so `tools/rc5_laundromat_night/plan_scan.gd` (headless, ~3 min) walks the plan's MIDTOWN edge lots
+and prints every low lot whose names put an open LAUNDRY beside a DONUT HOLE (with each shop's
+open / shutter roll); `tools/rc5_laundromat_night/probe.gd` (HOPS=) confirms on the built buildings
+and prints EYEs. The plan scan's face count is a guess (the built face may hold fewer shops), so a
+candidate must be confirmed by the probe.
+
+**What gave it away, worst first, and what changed** (all behind the `rc5_laundromat` global,
+`RcLaundromat`, `RC5_LAUNDROMAT=0` the A/B, bit for bit the old path):
+
+1. **The shut tattoo parlour was a black void.** It rolls a scissor gate, but the gate's bars were
+   averaged to 0.42 once finer than a pixel and then CUT at 0.5 - so from a few metres on the gate
+   simply vanished and the closed shop drew as bare, unlit glass. The lattice is now anti-aliased
+   coverage over the glass (`gate_cover = mix(bar, 0.42, gate_fade)`): bars sharp up close, their
+   share of the pixel as they go under one.
+2. **Closed fronts were lit by nothing.** Even drawn, a 0.16 gate over unlit glass was black. Gates
+   and roll-down shutters now take the street's light (`rc5_front_wash()`: lamps and the
+   neighbours' windows on the pavement, brighter low down; a light level, decoded on Forward+ per
+   the fwd_review_h rule) and the gate is galvanised (0.40).
+3. **Nobody was waiting in the laundromat.** It had washers, an island and a folding table but no
+   seat. A row of three moulded chairs on a rail stands against a side wall (`LAUND_CHAIR_*`,
+   orange or teal by the room's roll), and one or two people sit there side-on to the street
+   (shop_person i = 2, 3; IP_SIT, knees short of the table).
+4. **The donut shop was any cafe.** A shop whose name code is DONUT HOLE (`RcLaundromat.DONUT_CODE`
+   11, shop_names_a in the shader) gets a lit case on the front of its counter (`SI_CASE`: three
+   trays of ringed donuts in six icings, sprinkles, holes, a light strip) and a backlit menu board of
+   donut pictures over price lines on the back bar. `shop_interior()` takes a new last argument,
+   `donut`.
+
+**Numbers** (refcams opengl3 1280x720, same commit, `RC5_LAUNDROMAT=0` -> on): luminance p50 26 ->
+27, p95 132 -> 137; 3,989,341 -> 3,989,565 triangles, 1,850 -> 1,851 draws (noise: every change is
+in the fragment stage). Pixel MAD 0.67, not flagged.
+
+**The ten original cameras**: see the compare at the end of this section.
+
+**Not done / not verified.** No Forward+ still: the gate wash is decoded on Forward+ by the same
+rule as the other light levels, but nobody has looked at it on lavapipe. The building's black
+cladding with pale moonlit window frames (the top half of the frame) still reads as a wireframe;
+it is the building's finish and the moon's key, city-wide, and was left alone. The trash bags at the
+kerb draw near-black. The laundromat's drums do not turn (TIME is held in refcams anyway). The
+interior people are the traced capsule bodies and read stiff up close.

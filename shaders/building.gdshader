@@ -117,6 +117,16 @@ global uniform float fwd_review_g;
 // a scissor gate stays drawn past a pixel, a laundromat has chairs and people waiting, a donut
 // shop a lit case of donuts (shop_interior.gdshaderinc).
 global uniform float rc5_laundromat;
+// The street's light on a shop's closed front after dark (rc5_laundromat): the lamps and the
+// neighbours' windows on the pavement wash a shutter or a gate from below. A light level worked
+// out here, so decoded on Forward+ (the fwd_review_h rule) to display as tuned on Compatibility.
+float rc5_front_wash(float fv, float on) {
+	float w = rc5_laundromat * on * mix(0.62, 0.16, clamp(fv / 0.745, 0.0, 1.0));
+#if CURRENT_RENDERER != RENDERER_COMPATIBILITY
+	w = pow(max(w, 0.0), 2.2);
+#endif
+	return w;
+}
 // Wall texture set (albedo, normal, roughness), sampled in wall space: meters per tile.
 uniform sampler2D wall_albedo : source_color, filter_linear_mipmap, repeat_enable;
 uniform sampler2D wall_normal : hint_normal, filter_linear_mipmap, repeat_enable;
@@ -1127,8 +1137,10 @@ void fragment() {
 					if (rc5_laundromat > 0.5) {
 						// Kept as its coverage over the glass: averaged to 0.42 and cut at 0.5, the
 						// gate vanished past a few metres and the closed shop read as empty glass.
-						shutter = bar > 0.5 && gate_fade < 0.5;
-						gate_cover = shutter ? 0.0 : 0.42 * gate_fade + bar * (1.0 - gate_fade) * 0.5;
+						// The lattice as anti-aliased coverage: the bars sharp up close, their
+						// average as they go under a pixel, drawn over the glass either way.
+						shutter = false;
+						gate_cover = mix(bar, 0.42, gate_fade);
 					} else {
 						bar = mix(bar, 0.42, gate_fade);
 						shutter = bar > 0.5;
@@ -1759,8 +1771,12 @@ void fragment() {
 			emission += reflected;
 			if (gate_cover > 0.0) {
 				// A scissor gate's bars over the glass, as their share of each pixel.
-				albedo = mix(albedo, vec3(0.16, 0.16, 0.17), gate_cover);
+				// Galvanised bars, washed by the street's light (a dark 0.16 over unlit glass was
+				// a black hole where a closed shop stood).
+				vec3 gate_steel = vec3(0.40, 0.41, 0.43);
+				albedo = mix(albedo, gate_steel, gate_cover);
 				emission *= 1.0 - gate_cover;
+				emission += gate_steel * gate_cover * rc5_front_wash(fv, shop_on) * 1.4;
 				rough = mix(rough, 0.5, gate_cover);
 				metal = mix(metal, 0.55, gate_cover);
 			}
@@ -1786,6 +1802,7 @@ void fragment() {
 			albedo = mix(albedo, steel * 0.45, rail);
 			rough = 0.55;
 			metal = 0.45;
+			emission += albedo * rc5_front_wash(fv, shop_on);
 		} else if (reveal_face && recess_door) {
 			// A recessed entry's lobby, reached by the traced view ray: a mosaic floor with a
 			// border, polished stone returns, a dark soffit with a downlight that comes on with

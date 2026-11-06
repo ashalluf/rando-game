@@ -4640,6 +4640,13 @@ none of either.
   as particle quads on the water; a wake's foam is braided lines on an aerated sheet that emits the
   evening's light, not a lit white band; spray is a low sheet off the chines; a boat's transom carries
   its invented name. BOAT_SEA=0 is the A/B.
+- **2026-11-06 The laundromat strip refcam: a closed shop is never a hole (rc5-laundromat-night,
+  HANDOFF "The laundromat strip at 23:30").** A new reference camera (`laundromat_night`, wave 8's
+  table) looks across a midtown street at a strip of small shops at 23:30. Decisions: anything drawn
+  finer than a pixel is kept as its coverage, never thresholded away (the scissor gate vanished);
+  a closed front is lit by the street, not by nothing; a shop's interior follows its NAME where the
+  name says more than its room kind (a DONUT HOLE is a cafe with a donut case); a laundromat at
+  night has people waiting in it. RC5_LAUNDROMAT=0 is the A/B.
 - **2026-11-06 The taco truck refcam: a truck at night brings its people (rc5-taco-truck-night,
   HANDOFF "The taco truck at 23:00").** A new reference camera (`taco_truck_night`, wave 8's table)
   stands in a midtown taco truck's queue at 23:00. Decisions: a working truck is never empty - it

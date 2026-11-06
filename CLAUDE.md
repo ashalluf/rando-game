@@ -6536,6 +6536,14 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   and kitchen dimmer (seams on the kitchen), steam off the stack (`shaders/taco_steam.gdshader`).
   `RC5_TACO=0` is the A/B; probe `tools/rc5_taco_truck/probe.gd`; checks
   `tests/rc5_taco_truck_checks.gd`.
+- The laundromat strip at 23:30 (wave 8, refcam `laundromat_night` in `tools/refcams/cameras_w8.json`,
+  its `park_car` stages a sedan at the kerb; docs/HANDOFF.md "The laundromat strip at 23:30"):
+  `RcLaundromat` (`scripts/world/rc5_laundromat.gd`, the `rc5_laundromat` global): a scissor gate is
+  anti-aliased COVERAGE over the glass (averaged to 0.42 and cut at 0.5 it vanished past a few
+  metres), gates and shutters take the street's wash (`rc5_front_wash()`); a laundromat has a chair
+  row (`LAUND_CHAIR_*`) with one or two sitting; a DONUT HOLE (name code 11) a lit donut case
+  (`SI_CASE`) and a backlit menu. `RC5_LAUNDROMAT=0` is the A/B; strips found by
+  `tools/rc5_laundromat_night/plan_scan.gd`; checks `tests/rc5_laundromat_night_checks.gd`.
 - Parklets (fleet wave 2, docs/HANDOFF.md "Outdoor dining parklets"): `Parklets`
   (`scripts/world/parklets.gd`) reads every FULL building's ground-floor shop fronts
   (`Building.shop_fronts`, recorded beside `shop_pools`) and, for a CAFE or RESTAURANT room on the

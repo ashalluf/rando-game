@@ -19,8 +19,8 @@ func run(t: Object, _city: Node) -> void:
 		"rc5_laundromat: the shader global is declared, a float, on by default")
 	var b_src := FileAccess.get_file_as_string("res://shaders/building.gdshader")
 	var i_src := FileAccess.get_file_as_string("res://shaders/shop_interior.gdshaderinc")
-	_t._check(b_src.contains("global uniform float rc5_laundromat;") and b_src.contains("gate_cover = shutter ? 0.0 : 0.42 * gate_fade")
-		and b_src.contains("albedo = mix(albedo, vec3(0.16, 0.16, 0.17), gate_cover);"),
+	_t._check(b_src.contains("global uniform float rc5_laundromat;") and b_src.contains("gate_cover = mix(bar, 0.42, gate_fade);")
+		and b_src.contains("albedo = mix(albedo, gate_steel, gate_cover);"),
 		"rc5_laundromat: a scissor gate past a pixel is kept as its coverage over the glass")
 	_t._check(b_src.contains("bar = mix(bar, 0.42, gate_fade);\n\t\t\t\t\t\tshutter = bar > 0.5;"),
 		"rc5_laundromat: off, the gate is the old averaged cut")
