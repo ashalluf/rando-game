@@ -121,10 +121,12 @@ static func mat(name: String) -> Material:
 			sh.set_shader_parameter("rock_normal", PropFactory.texture("rock", "NormalGL"))
 			sh.set_shader_parameter("rock_rough", PropFactory.texture("rock", "Roughness"))
 			sh.set_shader_parameter("blocks", 1.0 if name == "armour_far" else 0.0)
+			RcLighthouse.apply(sh, "armour")
 			m = sh
 		"foam":
 			var fm := ShaderMaterial.new()
 			fm.shader = load("res://shaders/breakwater_foam.gdshader")
+			RcLighthouse.apply(fm, "foam")
 			m = fm
 		_:
 			m = PropFactory.material(Color.MAGENTA)
@@ -147,12 +149,15 @@ static func light_mat(id: String, kind: String) -> Material:
 			sh.set_shader_parameter("beams", float(spec.beams))
 		"beam":
 			sh.shader = load("res://shaders/lighthouse_beam.gdshader")
+			sh.set_shader_parameter("beam_length", float(spec.length))
 		"lamp":
 			sh.shader = load("res://shaders/lighthouse_lamp.gdshader")
 			sh.set_shader_parameter("beams", float(spec.beams))
 	# Vector3, not Color: a Color set from script is decoded on Forward+, a Vector3 is not, and the
 	# shaders take these as linear on both renderers (color_space.gdshaderinc).
 	sh.set_shader_parameter("lamp_color" if kind != "beam" else "beam_color", lin)
+	if kind != "lens":
+		RcLighthouse.apply(sh, kind)
 	_mats[key] = sh
 	return sh
 
@@ -680,6 +685,8 @@ static func beam_mesh(n: int, length: float) -> Mesh:
 					var v: Array = q[vi]
 					st.set_normal(b * (v[1] as Vector3))
 					st.set_uv(Vector2(float(v[2]), 0.0))
+					# The beam's axis (mesh x, z) for lighthouse_beam.gdshader's look (RcLighthouse).
+					st.set_uv2(Vector2(cos(yaw), -sin(yaw)))
 					st.add_vertex(b * (v[0] as Vector3))
 	var mesh := st.commit()
 	_mats[key] = mesh
