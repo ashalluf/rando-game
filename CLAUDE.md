@@ -4076,6 +4076,14 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   it both ways (queues at the closure; `staged` for checks). `COAST_HIGHWAY=0` /
   `COAST_TRAFFIC=0` are the A/B; probe `tools/coast_highway/probe.gd`; checks
   `tests/coast_highway_checks.gd`.
+- The coast highway at 17:00 (wave 8, refcam `coast_highway` in `tools/refcams/cameras_w8.json`,
+  docs/HANDOFF.md "The coast highway at 17:00 from the seawall"): `CoastFlutes`
+  (`scripts/world/coast_flutes.gd`, one line after the carve in `MacroMap.height_at()`; names
+  nothing that needs an autoload) cuts hashed rain gullies down the cut bluff; `Rc5CoastHighway`
+  (`scripts/world/rc5_coast_highway.gd`): CoastTraffic's cars by the hour (`wanted()`) and a first
+  fill over the whole reach (`fill_slots()`), real slatted / sectional garage doors, planters with
+  agave and bird of paradise, palms and glazed end walls on the beach houses, a warmer apron and a
+  parapet coping. `RC5_COAST=0` is the A/B; checks `tests/rc5_coast_highway_checks.gd`.
 - The marina (VISUAL_ROADMAP #70, 2026-10-05, docs/HANDOFF.md 9cb): the small-craft marina
   between the beach town and the airport, the form of LA's big man-made one, names invented.
   **Data**: `Marina` (`scripts/world/marina.gd`, `MacroMap.marina`, built in `setup()` after the

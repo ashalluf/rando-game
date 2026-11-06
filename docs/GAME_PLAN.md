@@ -4737,3 +4737,10 @@ none of either.
   lit structures standing in water mirror their light in it (the islands' towers as columns in the
   bay); a flood is light thrown up a face from its foot, not a face painted the gel's colour.
   LONG_BEACH_SAND=0 / RC5_OIL_ISLANDS=0 are the A/B.
+- **2026-11-06 The coast_highway refcam: a cut bluff is fluted, a closed road turns its cars round
+  (rc5-coast-highway, HANDOFF "The coast highway at 17:00 from the seawall").** A new reference
+  camera on the seawall's apron at 17:00. A cut face of any height reads as sculpted until rain
+  gullies are cut into it (CoastFlutes, applied after the carve so everything follows the same
+  ground); a traffic system that only spawns out of sight and deletes at a dead end leaves the road
+  in view empty, so the coast highway fills its whole reach at load and its cars U-turn at the
+  slide. RC5_COAST=0 is the A/B.

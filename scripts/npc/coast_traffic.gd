@@ -127,8 +127,12 @@ func _maintain() -> void:
 			continue
 		var s: float = car.traffic.s
 		var gone := is_nan(ps) or absf(s - ps) > despawn_distance or s >= s_max() - 1.0
-		# A northbound car at the closure leaves once the player is away from it.
+		# A northbound car at the closure leaves once the player is away from it; with
+		# Rc5CoastHighway on it turns round there instead, so the southbound side has traffic.
 		if int(car.traffic.dir) < 0 and s <= close + 30.0 and (is_nan(ps) or absf(ps - close) > 150.0):
+			if not is_nan(ps) and Rc5CoastHighway.enabled and absf(s - ps) <= despawn_distance:
+				Rc5CoastHighway.u_turn(self, car, close)
+				continue
 			gone = true
 		if gone:
 			cars.erase(car)
@@ -142,6 +146,8 @@ func _maintain() -> void:
 		for dir: int in [1, -1]:
 			for sl: Array in Rc5CoastHighway.fill_slots(plan.seed, dir, want, ps, spawn_max, close + 40.0, s_max() - 20.0, 35.0):
 				spawn(float(sl[0]), dir, int(sl[1]), true)
+		if OS.get_environment("COAST_DEBUG") == "1":
+			print("COAST_FILL %d cars, %d wanted a direction, player z %.0f" % [cars.size(), want, ps])
 		return
 	for dir: int in [1, -1]:
 		var have := 0

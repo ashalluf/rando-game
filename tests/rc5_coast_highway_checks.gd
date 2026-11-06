@@ -21,6 +21,7 @@ func run(t: Node, city: Node3D) -> void:
 		return
 	_flutes(ch, macro)
 	_traffic(ch)
+	_u_turn(city)
 	_houses(ch)
 
 
@@ -98,6 +99,26 @@ func _traffic(ch: CoastHighway) -> void:
 			if int(slots[i][1]) == int(slots[j][1]) and absf(float(slots[j][0]) - s) < 35.0:
 				ok = false
 	_t._check(ok and near > 0, "rc5 coast highway: the first fill spreads the cars over the reach, near road too (%d slots, %d within 160 m)" % [slots.size(), near])
+
+
+## A northbound car standing at the head of the closure's queue turns round and drives south.
+func _u_turn(city: Node3D) -> void:
+	var tr := city.get_node_or_null("CoastTraffic")
+	if tr == null:
+		_t._check(false, "rc5 coast highway: CoastTraffic is there")
+		return
+	var was: bool = tr.staged
+	tr.staged = true
+	var close: float = tr.s_min()
+	var car: Vehicle = tr.spawn(close + 3.0, -1, 0, true)
+	var turned := false
+	if car != null:
+		car.traffic.speed = 0.0
+		turned = Rc5CoastHighway.u_turn(tr, car, close) and int(car.traffic.dir) == 1
+		tr.cars.erase(car)
+		car.queue_free()
+	tr.staged = was
+	_t._check(turned, "rc5 coast highway: a car at the head of the closure's queue turns round southbound")
 
 
 func _houses(ch: CoastHighway) -> void:

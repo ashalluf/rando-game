@@ -31203,3 +31203,57 @@ Long Beach sand has no BeachLife (people, path, courts: its planner walks the we
 swash noise runs along z, not along the shore (beach_sand.gdshader's along-shore axis is world z).
 The mirror is an emitted billboard per source: it does not know the islands' own silhouettes (a
 tower behind another mirrors through it). Forward+ seen only for the towers, not the mirror.
+
+## 9d?. The coast highway at 17:00 from the seawall, 2026-11-06 (fleet wave 8, branch `wt/rc5-coast-highway`; VISUAL_ROADMAP "?")
+
+**The camera.** `coast_highway` in `tools/refcams/cameras_w8.json`: on the seawall's apron by the
+open beach (z -1135, d 33 from the waterline), 1.7 m up, looking north up the stretch at 17:00
+clear: the beach and the surf on the left, the first beach houses on their pilings, the four lanes
+and the parked shoulders, the cut bluff on the right and the front range coming down to the slide.
+The first eye tried (at the south end of the houses, z -990) put a garage door across half the
+frame (`00_first_framing_against_a_garage.jpg`).
+
+**What gave it away, worst first, and what changed** (`Rc5CoastHighway`,
+`scripts/world/rc5_coast_highway.gd`, and `CoastFlutes`, `scripts/world/coast_flutes.gd`;
+`RC5_COAST=0` turns all of it off):
+
+1. **The bluff was one sculpted plane of sand.** CoastHighway.profile() cuts it at 1.5:1 and
+   HillRoads' carve holds the lower part to a 1:1 bank, so the face was smooth from the gutter to
+   the crest. `CoastFlutes.flute()` (one line after the carve in `MacroMap.height_at()`) cuts rain
+   gullies down it: one per ~19 m cell along the shore (centre and width hashed), deepening with
+   height (2 m + 0.24 m a metre up, at most 13 m), leaning and wandering as they climb, from the toe
+   out to d 175, faded out at the stretch's south end, never under the road's bed. The tiles,
+   collision, planting and far ground follow it. It is its own small script because MacroMap is
+   compiled by `--script` tools without the autoloads (the coast probe): naming Rc5CoastHighway
+   there pulled in CityChunk.
+2. **The road was empty.** CoastTraffic spawned 160-380 m from the player, six a direction, and
+   threw away every northbound car that reached the closure, so the stretch in sight held a car
+   or two. Now `wanted()` sets the cars a direction by the hour (NightCity.traffic_level x 3.4:
+   18 at 17:00, 2 at 03:00), the first upkeep lays them over the whole reach at once
+   (`fill_slots()`, near road included, never within 12 m of the player; `COAST_DEBUG=1` prints
+   `COAST_FILL`), and a northbound car at the head of the closure's queue turns round and drives
+   back south (`u_turn()`) instead of vanishing - what the cars at a closed road really do.
+3. **The beach houses read as boxes.** An end wall facing open beach was blank stucco with one
+   small window; it now opens to the view (`side_windows()`: a tall corner window at the sea end
+   and one by the street). Garage doors were a white plane with three black lines: they are now
+   real doors over a dark recess (`garage_door()`: 11 cm timber slats on a dark or timber leaf,
+   four sections with raised fields on a pale one). The street side gets a planter along the wall
+   wherever the garage, the door and the bins leave room, planted with agave, bird of paradise and
+   yucca (LaTrees' code species), a palm at one corner of 60 % of houses, lanterns either side of
+   the garage (`dress_house()`).
+4. **The apron and the parapet.** The apron's concrete was pale blue (a near-white tint lit by the
+   sky) in 1.5 m tiles; it is warmer, more weathered, 2 m slabs (`apron_material()`). The parapet's
+   bare slab edge has a coping with a drip either side (`parapet_cap()`).
+
+**Numbers** (refcams, opengl3 1280x720, `coast_highway`): before (RC5_COAST=0) p5/p50/p95
+41/138/177, 1.88 M triangles, 918 draws; after: see the final table in the report below. The
+draws and triangles rise by the palms, the planted species and the doors (a few dozen draws, about
++6 % triangles in this view); nothing changes outside the coast corridor (the ten original cameras
+compared, see below).
+
+**Not done / not verified.** Forward+ (the Mac) not seen: the apron tint is a road-material tint
+like the old one, but its look under SDFGI is unproven. The big smooth face north of the slide is
+the front range's own (outside the stretch: not fluted). The cars parked on the shoulders still
+stand where the plan put them in 2026-10; the moving traffic is kinematic and pops round in its
+U-turn at the closure (~280 m from the camera). The houses' street faces are only seen obliquely
+from the refcam; the proof still is `04_after_house_fronts.jpg`.

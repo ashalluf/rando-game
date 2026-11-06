@@ -25,11 +25,11 @@ static var enabled: bool = OS.get_environment("RC5_COAST") != "0"
 
 # --- Traffic ------------------------------------------------------------------------------------
 
-## Cars wanted each way at `hour`: the evening rush about twice the old count, the small hours a few.
+## Cars wanted each way at `hour`: the evening rush about three times the old count, the small hours a few.
 static func wanted(base: int, hour: float) -> int:
 	if not enabled:
 		return base
-	return clampi(roundi(float(base) * 2.4 * NightCity.traffic_level(hour)), 2, base * 3)
+	return clampi(roundi(float(base) * 3.4 * NightCity.traffic_level(hour)), 2, base * 4)
 
 
 ## The first fill: where each direction's cars go, metres of road from the player's z, spread over
@@ -211,10 +211,10 @@ static func side_windows(c: CoastHighway, hs: Dictionary, sx: float, fz: float, 
 		holes.append([mid, y0 + 1.0, mid + 1.2, y0 + 2.3, "window"])
 
 
-## The apron between the seawall and the road: poured slabs 3 m long with a broom finish and
-## the weathering a beach road's concrete has (sand and salt), warmer than the old pale-blue tint.
+## The apron between the seawall and the road: poured slabs 2 m apart, more weathered (a beach
+## road's concrete takes sand and salt), warmer than the old pale-blue tint.
 static func apron_material() -> Material:
-	return PropFactory.road("sidewalk", 3.2, Color(1.30, 1.25, 1.15), 7336, 3.0, 0.6)
+	return PropFactory.road("sidewalk", 3.0, Color(1.34, 1.29, 1.20), 7336, 2.0, 0.9)
 
 
 ## The seawall parapet's cap: a precast coping 6 cm proud of both faces with a drip under each
@@ -239,3 +239,25 @@ static func parapet_cap(c: CoastHighway, g: CoastHighwayBuild.Geo, w: float, t: 
 	g.quad("wall", P.call(e, z0, top0 - 0.01), P.call(e, z1, top1 - 0.01), P.call(e, z1, top1 + hgt - 0.03), P.call(e, z0, top0 + hgt - 0.03), -sea3, col)
 	g.quad("wall", P.call(a, z0, top0 - 0.01), P.call(a, z1, top1 - 0.01), P.call(w, z1, top1 - 0.01), P.call(w, z0, top0 - 0.01), Vector3.DOWN, col.darkened(0.3))
 	g.quad("wall", P.call(w + t, z0, top0 - 0.01), P.call(w + t, z1, top1 - 0.01), P.call(e, z1, top1 - 0.01), P.call(e, z0, top0 - 0.01), Vector3.DOWN, col.darkened(0.3))
+
+
+## A northbound car standing at the head of the queue before the slide turns round and drives back
+## south (the road is closed: that is what the cars there really do), when the southbound lane by
+## it is clear. True when it turned (CoastTraffic._maintain() then keeps it).
+static func u_turn(tr: CoastTraffic, car: Vehicle, close: float) -> bool:
+	if not enabled:
+		return false
+	var t: Dictionary = car.traffic
+	if float(t.s) > close + 4.5 or float(t.speed) > 0.5:
+		return false
+	var lane := 1
+	for other: Vehicle in tr.cars:
+		if other == car or not is_instance_valid(other) or not other.is_traffic():
+			continue
+		var ot: Dictionary = other.traffic
+		if int(ot.dir) == 1 and int(ot.lane) == lane and absf(float(ot.s) - float(t.s)) < 25.0:
+			return false
+	t.dir = 1
+	t.lane = lane
+	t.speed = 0.0
+	return true

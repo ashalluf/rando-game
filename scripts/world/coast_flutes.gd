@@ -11,16 +11,16 @@ static var enabled: bool = OS.get_environment("RC5_COAST") != "0"
 
 ## Gullies: the mean spacing along the shore, how deep (at the bottom of the face, and per metre of
 ## height, capped), how wide a gully is against its cell, and how far up the face they start.
-const FLUTE_CELL := 15.0
-const FLUTE_DEPTH := 1.6
-const FLUTE_PER_M := 0.16
-const FLUTE_MAX := 7.0
+const FLUTE_CELL := 19.0
+const FLUTE_DEPTH := 2.0
+const FLUTE_PER_M := 0.24
+const FLUTE_MAX := 13.0
 const FLUTE_WIDTH := 0.62
 const FLUTE_START := 1.0
 const FLUTE_FULL := 9.0
 ## How far from the toe the face is fluted (past it the mountains' own erosion takes over), and
 ## where the flutes fade out at the stretch's south end (the bench comes down there).
-const FLUTE_REACH := 105.0
+const FLUTE_REACH := 175.0
 const FLUTE_SOUTH_FADE := 70.0
 
 
@@ -46,7 +46,7 @@ static func flute(m: MacroMap, pos: Vector2, h: float) -> float:
 	if above < FLUTE_START:
 		return h
 	var amount := w * smoothstep(FLUTE_START, FLUTE_FULL, above) * smoothstep(toe, toe + 5.0, d) \
-			* (1.0 - smoothstep(FLUTE_REACH - 25.0, FLUTE_REACH, d))
+			* (1.0 - smoothstep(FLUTE_REACH - 40.0, FLUTE_REACH, d))
 	if amount <= 0.0:
 		return h
 	var g := gully(c.seed, pos.y, above)
