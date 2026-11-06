@@ -32431,6 +32431,9 @@ drop past the parapet at the bottom right.
    IK flung every elbow up and out (skin poking through the shoulders). Now the shoulder through the
    whole chain (`root.to_local(skel.global_transform * rest.origin)`) plus `ELBOW_POLE` (down, a
    little out and behind): arms hang to the rail, the squeegee arm works the glass.
+4. **The contractor's name hung off its board** (the lead's note): FreewayKit.text_geo() centres its
+   lettering, and the cradle placed it as if left-aligned (x -1.36), so "BASIN H" sat over the mesh
+   panel past the board's end. Centred on the board now.
 
 **Numbers** (refcams, opengl3 1280x720, before = `RC5_GONDOLA=0`): p1/p5/p50/p95/p99 12/21/139/213/219
 both, saturation 0.213 both; triangles 4.77 M -> 4.74 M, draws 1,856 -> 1,841 (the noise of the live
@@ -32455,7 +32458,8 @@ CAM=24.9,-3,-20.1` the refcam's view of the cradle alone in a minute. Checks:
 
 **Not done / seen but not mine.** The neighbour's roof is a bare membrane deck behind a plain
 coping (the infill Building's roof: no plant on that corner, flat parapet) and fills the bottom
-right; the workers still show skin through their shirts at the shoulders when an arm is raised
+right - left alone on purpose: it is Building / Rooftops' roof, and dressing it here would move
+roof rolls city-wide (the lead's note; a job for whoever owns roofs); the workers still show skin through their shirts at the shoulders when an arm is raised
 (the crowd body under the garment); the cradle's aluminium is clean; no hoist sound. Forward+ not
 seen for the rope and water shaders (both linear on both renderers through color_space; the water's
 mirror is emitted, so SSR adds on top on the Mac).

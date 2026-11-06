@@ -545,7 +545,10 @@ static func cradle_mesh(paint: int) -> ArrayMesh:
 		Vector3(-hl + 0.04, RAIL_Y - 0.04, hd + 0.01), Vector3(0, 0, 1), STEEL, 4,
 		Vector2(0, 0), Vector2(CRADLE_LEN, 0), Vector2(CRADLE_LEN, 0.9), Vector2(0, 0.9))
 	g.box(Vector3(0, 0.84, hd + 0.03), Vector3(2.9, 0.26, 0.02), Color(0.92, 0.92, 0.90), 0)
-	g.text(COMPANY, 0.11, Vector3(-1.36, 0.79, hd + 0.045), Vector3(1, 0, 0), Vector3(0, 1, 0), Vector3(0, 0, 1), Color(0.08, 0.16, 0.36), 0)
+	# FreewayKit.text_geo() centres its lettering: at -1.36 the name hung half off the board's left
+	# end, over the mesh panel (Rc5TowerGondola fixes it: centred on the board).
+	var name_at := Vector3(0.0, 0.84, hd + 0.045) if Rc5TowerGondola.enabled else Vector3(-1.36, 0.79, hd + 0.045)
+	g.text(COMPANY, 0.11, name_at, Vector3(1, 0, 0), Vector3(0, 1, 0), Vector3(0, 0, 1), Color(0.08, 0.16, 0.36), 0)
 	# The end stirrups: a frame up to the rope entries, the hoist inside, the control box.
 	for sx in [-1.0, 1.0]:
 		var x: float = sx * (hl + 0.12)
