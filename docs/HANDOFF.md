@@ -32749,3 +32749,55 @@ boats' own white hulls are not in the water's light list (the boats are mirrored
 MarinaGolden's trace at night); the restaurants' terraces have no string lights or diners; the
 lights' columns are not occluded by the docks' floats (only by boats); the moonlit hulls still read
 a little flat grey.
+
+## 9d?. The Arts District at 10:00 (fleet wave 8, refcam5 `arts_district`, branch `wt/rc5-arts-district`)
+
+A new reference view, `arts_district` in `tools/refcams/cameras_w8.json`: the Arts District east of
+Vignes (Industrial.arts(), section 9bh) at 10:00 clear, from Harbor Ave's west pavement just north
+of Wilshire Blvd, looking north-east across Harbor at a brick warehouse (block 34,2: three murals,
+grade doors) with the brick lofts up the street. `EYE=4061.2,1.7,331.5,-138.0,8.0`, FOV 60, walkers
+within 3 m cleared, two cyclists staged on Harbor by the row's new `riders` key ([[axis, index, dir,
+s, kind, speed, seed], ...] = MICRO_RIDERS' fields, handed to Cyclists.place_rider() and held). Six
+eyes were tried (stills on the shots branch): from the junction a signal pole filled the lens, from
+the corner a lamp pole, further north the pavement's encampment and a guy anchor. A guy wire still
+crosses the lower right of this one: it is the street's, left in.
+
+**What gave it away, in the order the eye lands on it**, and what was done (all `RcArtsDistrict`,
+`RC5_ARTS=0` the A/B):
+1. **The steel factory windows were painted flat on the brick**: a pixel grid of dark squares with
+   white "missing" panes (8 % painted out at 0.72 grey). industrial_walls.gdshader's brick branch
+   (new `rc5_arts` uniform, 0 by default = the old branch bit for bit) follows the view ray 22 cm
+   into the opening: past the glass's edge it draws the reveal (brick returns shaded, the head's
+   soffit, the sill a pale concrete ledge), on the glass a heavier perimeter frame and 4 x 5 panes,
+   each pane at its own small tilt mirroring sky / roofline / street (emitted through fh_display(),
+   like RcVernon's storefront), the head's shadow across the top; painted-out panes are the sash's
+   chalky grey-green, a few open (dark) or milky wired glass. Derivatives are taken once outside
+   the branches (`duv`).
+2. **The brick was a flat photo**: `brick_nrm` was bound to the material and never read. The
+   courses now stand in relief (tangent = up x the face normal, which is the box writer's u) with a
+   lime bloom low on the wall.
+3. **The warehouses' yard cars were grey bricks**: Industrial._stalls() laid ArenaGrounds' 260-
+   triangle box cars, which at 20 m read as blocks. `RcArtsDistrict.yard_car()` takes them on a FULL
+   chunk and `commit()` (one line after RcAutoRow.commit in CityChunk) draws them per 48 m cell: the
+   real road body's far twin (CarParkBuild.real_body(), RcAutoRow's type table and paint) within
+   RcAutoRow.REAL_NEAR, the box past it and as the shadow throughout. City-wide for Industrial's
+   employee stalls (Vernon too).
+4. **Murals on brick were painted as if on concrete**: chips showed grey cement and the ink was a
+   vector-black line. A mural box on a brick wall carries COLOR.b 1 (`mural_flag()`; 0.5 as before
+   elsewhere and with the switch off): the courses show through the paint, chips go back to brick,
+   the ink is a softer blue-black, the brick's relief on it.
+5. **Downspouts and doors**: the brick fronts' downspouts were bright galvanised sticks (dark painted
+   iron now: K_STEEL with `SPOUT_PAINT`, rusting at the foot by the rc3 rule); every grade door in
+   brick gets a dark steel frame (two jambs and a deep header, 20 cm proud, `door_frame()`).
+
+**Shared files touched**: city_chunk.gd (one line), industrial.gd (three hooks: mural flag, door
+frame, downspout kind / paint, yard car), industrial_kit.gd (apply), industrial_walls.gdshader (the
+new branch and the mural block, off by default), refcams_shot.gd (`riders`), smoke_test.gd (one line).
+
+**Numbers**: see the report at the end of this section.
+
+**Checks**: `tests/rc5_arts_district_checks.gd` (the shader branches off by default and the switch on
+the material, the Arts District round the camera still has brick warehouses with murals, the mural
+flag, the door frame's vertices on / off, the yard cars left in the batch with the switch off, the
+camera row). Probe `tools/rc5_arts_district/probe.gd -- --spawn=x,z` lists the district's industrial
+lots with EYEs.
