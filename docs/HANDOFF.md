@@ -33337,3 +33337,17 @@ on it, and keep SwiftShader for the software-fallback case.
 **A/B:** `ANGLE=gl` vs the default on webshot.js / bookmarks.sh.
 
 Stills on `shots/web-bonfire`.
+
+**Status at hand-over (the account change, 2026-11-06 14:35):**
+- Done: the cause (SwiftShader, proved on fx_room and the real `beach_night` bookmark), the other
+  fires checked (car, tree crown: fx_room on both backends; brush fire: `santa_ana` on ANGLE GL),
+  the tools, the docs, before / after stills (pushed on `shots/web-bonfire`).
+- Changed: tools only (`tools/web_probe/fx_room.gd`, `tools/web_probe/glprobe.js`,
+  `tools/webshot/webshot.js`) and docs. No game script, shader or scene changed, so the game's
+  checks are not touched.
+- **Not gated:** the pushed head (origin/main merged at a870978b) did not finish a full
+  `SHARDS=3 tests/headless_check.sh` before the account change. Run it once before merging.
+- Open: SwiftShader's exact trigger (why one QuadMesh object passes the depth test and an equal
+  one does not) is not known; nothing is verified on a real GPU browser; the headful-SwiftShader
+  crash (back buffers status 36061, then a local_vector FATAL) happened once and did not repeat
+  in the stock harness.
