@@ -9,7 +9,9 @@ extends RefCounted
 ##             street 40 m below they are a tenth of a pixel, so they drew as dotted dashes or
 ##             not at all. They are ribbons on shaders/rail_wire.gdshader now (turned to the
 ##             camera, never thinner than a pixel, their real width as coverage; at night they
-##             catch the pole lamps near each pole), one mesh a chunk.
+##             catch the pole lamps near each pole), one mesh a chunk ("RailWiresLit"). Main's
+##             RcRailCrossing draws the line's other wires as UtilityPoles ribbons; on the
+##             structure this takes over (LightRailKit._wire()).
 ##   lamps     an LED walkway luminaire on a bracket either side of every pole on the structure,
 ##             its lens lit by `lamp_factor`, a halo (NightAtmos) and a pool on the ballast.
 ##   soffit    a downlight pair under the girder midway between columns, a pool on the street

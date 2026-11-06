@@ -67,11 +67,15 @@ var _shapes: Array = []
 ## from the air their shadow edges on the ballast are what makes the track read.)
 var fine := SurfaceTool.new()
 var _fine_any := false
-## The same wires as camera-facing ribbons (RcRailAerial; RC5_RAIL_AERIAL=0 keeps them in `fine`).
+## RcRailCrossing: the wires as UtilityPoles' camera-facing ribbons ([points, radius, kind]).
+var _ribbons: Array = []
+## RcRailAerial: the wires over the aerial structure as ribbons that catch the pole lamps (they
+## take over from RcRailCrossing's there; RC5_RAIL_AERIAL=0 hands them back).
 var ribbons := SurfaceTool.new()
 var _ribbons_any := false
-## The s of the next _wire()'s two ends (set by _wires()).
+## The s of the next _wire()'s two ends and whether that segment is on the structure (_wires()).
 var _wire_s := Vector2.ZERO
+var _wire_aerial := false
 
 
 func _init(c: CityChunk) -> void:
@@ -409,7 +413,8 @@ func _wires(i: int) -> void:
 		var a := _wire_points(sa, track)
 		var b := _wire_points(sb, track)
 		_wire_s = Vector2(sa, sb)
-		_wire(a[0], b[0], 0.0065)
+		_wire_aerial = line.mode[i] == LightRail.Mode.AERIAL or line.mode[j] == LightRail.Mode.AERIAL
+		_wire(a[0], b[0], 0.0065, RcRailCrossing.KIND_CONTACT)
 		_wire(a[1], b[1], 0.0055)
 		# A dropper wherever one falls in this segment (every ~9 m of the span).
 		var span := _span(sa)
@@ -448,11 +453,14 @@ func _wire_points(s: float, track: float) -> Array:
 	return [Vector3(p.x, cy, p.y), Vector3(pm.x, my, pm.y)]
 
 
-func _wire(a: Vector3, b: Vector3, r: float) -> void:
-	if RcRailAerial.enabled:
+func _wire(a: Vector3, b: Vector3, r: float, kind: int = RcRailCrossing.KIND_STEEL) -> void:
+	if RcRailAerial.enabled and _wire_aerial:
 		RcRailAerial.wire(ribbons, a, b, r, RcRailAerial.KIND_DROPPER if r < 0.005 else RcRailAerial.KIND_WIRE,
 			RcRailAerial.to_pole(line, _wire_s.x), RcRailAerial.to_pole(line, _wire_s.y))
 		_ribbons_any = true
+		return
+	if RcRailCrossing.enabled:
+		_ribbons.append([PackedVector3Array([a, b]), r, kind])
 		return
 	prism(fine, a, b, r, r, 3, _col(WIRE, S_STEEL), false)
 	_fine_any = true
@@ -912,6 +920,11 @@ func _crossing(c: Dictionary) -> void:
 				var axis_v := (r3 * cos(PI * 0.25) + Vector3.UP * sin(PI * 0.25) * sgn).normalized()
 				var up_v := (Vector3.UP * cos(PI * 0.25) - r3 * sin(PI * 0.25) * sgn).normalized()
 				box(body, face, axis_v * 0.61, up_v * 0.11, h3 * 0.01, _col(Color(0.94, 0.94, 0.92), S_PAINTED))
+				if RcRailCrossing.enabled:
+					# The legend in black on each board (sgn +1 rises to the right as seen).
+					var lift := 0.004 if sgn > 0.0 else 0.0
+					var lxf := Transform3D(Basis(axis_v, up_v, -h3), face - h3 * (0.016 + lift))
+					letters(RcRailCrossing.crossbuck_words(sgn), 0.13, Vector2.ZERO, lxf, kind_color(Color(0.04, 0.04, 0.04), P_SIGN), Rect2(-0.61, -0.11, 1.22, 0.22), Vector2(-h3.x, -h3.z), 1.05)
 			# Flasher heads: a crossarm with two hooded lamps facing the traffic (the lamps are the
 			# gate node's).
 			box(body, base - h3 * 0.05 + Vector3.UP * 2.85, r3 * 0.62, Vector3.UP * 0.04, h3 * 0.04, _col(DARK, S_PAINTED))
@@ -952,13 +965,20 @@ func _commit() -> void:
 	var mi := _add("RailStructure", body.commit(), smat)
 	mi.add_to_group("light_rail_static")
 	if _ribbons_any:
-		var wm := _add("RailWires", ribbons.commit(), RcRailAerial.wire_material())
+		var wm := _add("RailWiresLit", ribbons.commit(), RcRailAerial.wire_material())
 		wm.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		wm.add_to_group("light_rail_static")
 	if _fine_any:
 		var fm := _add("RailDetail", fine.commit(), smat)
 		fm.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		fm.add_to_group("light_rail_static")
+	if not _ribbons.is_empty():
+		var rm := UtilityPoles.ribbon_mesh(_ribbons)
+		if rm:
+			var wm := _add("RailWires", rm, UtilityPoles.wire_material())
+			wm.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+			wm.gi_mode = GeometryInstance3D.GI_MODE_DISABLED
+			wm.add_to_group("light_rail_static")
 	if _paint_any:
 		var pm := _add("RailSigns", paint.commit(), paint_material())
 		pm.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF

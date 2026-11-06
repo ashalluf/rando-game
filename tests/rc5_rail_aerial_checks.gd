@@ -100,14 +100,15 @@ func _chunk(city: Node, plan: CityPlan, line: LightRail) -> void:
 	var k := plan.block_index_at(at + Vector2(0.0, -3.0))
 	var chunk: CityChunk = city.call("_new_chunk", k, CityChunk.Level.FULL)
 	chunk.build()
-	var wires: MeshInstance3D = chunk.get_node_or_null("RailWires")
+	var wires: MeshInstance3D = chunk.get_node_or_null("RailWiresLit")
 	var st: MeshInstance3D = chunk.get_node_or_null("RailStructure")
 	var glow: MeshInstance3D = chunk.get_node_or_null("RailGlow")
 	var fine: MeshInstance3D = chunk.get_node_or_null("RailDetail")
+	# RcRailCrossing's ribbons ("RailWires") keep the at-grade line; none on the structure here.
 	var wire_ok := wires != null and wires.mesh != null and wires.mesh.get_surface_count() == 1 \
 		and wires.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_OFF \
 		and (wires.material_override as ShaderMaterial).shader.resource_path.ends_with("rail_wire.gdshader")
-	_t._check(wire_ok and fine == null, "rail_aerial: the chunk's overhead wires are one ribbon mesh on the wire shader, none left as prisms")
+	_t._check(wire_ok and fine == null, "rail_aerial: the structure's overhead wires are one lit ribbon mesh (rail_wire.gdshader), none left as prisms")
 	var mat := st.material_override as ShaderMaterial if st else null
 	var wash: Variant = mat.get_shader_parameter("rail_wash") if mat else null
 	_t._check(mat != null and mat != FreewayKit.structure_material() and wash is Vector2 and (wash as Vector2).x > 0.0,
