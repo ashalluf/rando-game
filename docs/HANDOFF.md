@@ -33349,3 +33349,8 @@ past, not another road, a gone unit stops nobody; the wash's red and its clock; 
 out of the station starts in its bay, sends a watch to the kerb, is on its lane when the exit ends
 and the street goes again). Not verified on Forward+ (lavapipe); the wash and spill are additive
 unshaded quads through cs_out() / display_pool, the conventions that hold there.
+
+**Status (wrap-up, 2026-11-06).** Done: all five fixes, the camera row, stills, docs. Head 2b49225d
+(origin/main a870978b merged) passed a full gate, SHARDS=3: 6,647 checks, 0 failed; only this note
+was committed after it. Open: a Forward+ (lavapipe) check of the wash and the apron spill; the
+engine's roof OmniLight still on the wall clock; the wash's bank sides not measured per body.
