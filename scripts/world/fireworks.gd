@@ -74,6 +74,22 @@ const WATER_LIGHTS := 4
 ## Off (the A/B): `FIREWORKS=0`; forced: `FIREWORKS=1`. -1 until read.
 static var _env: int = -2
 
+## The look's second pass (wave 8 refcam fireworks_ballpark, docs/HANDOFF.md "Fireworks over the
+## ballpark from Stadium Way"): the shaders' `look5` (no white disc at a break, radial trails, a
+## soft glow per break, smoke lit by the show and the floodlit ground), and a flash light that
+## reaches the stands and the lots (LOOK5_ATTENUATION, where the old 1.2 left ~3 % of it 300 m
+## off). `RC5_FIREWORKS=0` is the A/B: the old look bit for bit.
+const LOOK5_ATTENUATION := 0.55
+## The ballpark's floodlit ground lighting the smoke's underside (linear colour, fireworks_smoke).
+const STADIUM_UNDER := Vector3(0.050, 0.046, 0.038)
+static var _look5: int = -1
+
+
+static func look5() -> bool:
+	if _look5 < 0:
+		_look5 = 0 if OS.get_environment("RC5_FIREWORKS") == "0" else 1
+	return _look5 == 1
+
 ## Each site: id, true world ground point, launch line, its length, break heights.
 var sites: Array = []
 ## Set by the checks / stills: a site id -> show seconds to hold or run from.
@@ -340,6 +356,11 @@ func _build_site(s: Dictionary) -> Dictionary:
 		water.set_shader_parameter("shore_x", float(s.shore_x))
 		w.material_override = water
 		root.add_child(w)
+	if look5():
+		sm.set_shader_parameter("look5", 1.0)
+		km.set_shader_parameter("look5", 1.0)
+		if not s.water:
+			km.set_shader_parameter("under_light", STADIUM_UNDER)
 	for m in mats:
 		m.set_shader_parameter("line_dir", s.line)
 		m.set_shader_parameter("spread", float(s.spread))
@@ -350,7 +371,7 @@ func _build_site(s: Dictionary) -> Dictionary:
 		light = OmniLight3D.new()
 		light.name = "Flash"
 		light.omni_range = 1200.0
-		light.omni_attenuation = 1.2
+		light.omni_attenuation = LOOK5_ATTENUATION if look5() else 1.2
 		light.shadow_enabled = false
 		light.light_specular = 0.4
 		light.visible = false
