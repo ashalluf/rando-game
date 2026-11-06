@@ -4737,3 +4737,9 @@ none of either.
   lit structures standing in water mirror their light in it (the islands' towers as columns in the
   bay); a flood is light thrown up a face from its foot, not a face painted the gel's colour.
   LONG_BEACH_SAND=0 / RC5_OIL_ISLANDS=0 are the A/B.
+- **2026-11-06 The sea_life refcam: water that is touched (rc5-sea-life, HANDOFF "Life in the
+  water from the end of the pier").** A new reference camera (`sea_life`, wave 8's table) on the
+  straight pier's head at 08:00. A splash is white water lying ON the sea plus drops flying as
+  streaks along their path, never camera-facing balls (they cut flat at the waterline); anything
+  that breaks the surface leaves a ring that ages out. The surf's whitewater not reading from a
+  pier end was left to the ocean's owners (shared by every beach view). SEA_SPRAY=0 is the A/B.

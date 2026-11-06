@@ -273,3 +273,8 @@ suburb_morning street (block 21,32 on seed 1337) from the same pavement eye at 2
 day and the night of one street compare 1:1. Its optional `dog_walker` key (`tools/refcams/dog_stage.gd`:
 `dist`, `side`, `at`, `yaw`, `seed`, `away`) stands one person walking a dog in the frame, held on its
 spot and walking; the log prints a `REFCAM dog walker` line.
+
+`sea_life` (rc5-sea-life): the straight pier's round head at 08:00 clear looking ESE down the coast.
+Its optional `sea` key is SeaLife.stage_for_shot()'s spec ("dolphin@x,z[,lead];pelican@x,z", TRUE
+world), staged three frames before the shot with the sea clock held and cleared after it;
+`SEA_DEBUG=1` prints the surfers and swimmers BeachActivity has round the lens.

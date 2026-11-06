@@ -31203,3 +31203,50 @@ Long Beach sand has no BeachLife (people, path, courts: its planner walks the we
 swash noise runs along z, not along the shore (beach_sand.gdshader's along-shore axis is world z).
 The mirror is an emitted billboard per source: it does not know the islands' own silhouettes (a
 tower behind another mirrors through it). Forward+ seen only for the towers, not the mirror.
+
+## 9d?. Life in the water from the end of the pier: the sea_life refcam (wave 8, refcam5 `rc5-sea-life`, branch `wt/rc5-sea-life`)
+
+**The camera.** `sea_life` in `tools/refcams/cameras_w8.json`: 08:00 clear, on the straight pier's
+round head (Manhattan pier, head centre (-959, 1100), deck top 6.4 m), eye 1.65 m over the deck at
+(-952, 8.05, 1108.5) looking ESE (yaw -128, pitch -4, FOV 40) down the coast: the power plant, the
+beach town's sand, the horseshoe pier and the front range in morning light, the sun's glitter path
+on the left. Its optional `sea` key (refcams_shot.gd `_sea_stage()`) is `SeaLife.stage_for_shot()`'s
+spec ("kind@x,z[,lead];...", TRUE world): a dolphin pod 40 m out at (-922, 1146) and a pelican line
+at (-918, 1128), staged three frames before the shot with the sea clock held, put back after.
+`SEA_DEBUG=1` prints every swimmer and surfer BeachActivity has (their distance from the lens).
+
+**What read fake, worst first, and what was done** (`SEA_SPRAY=0` puts all of it back):
+1. *Every splash was a dome of polka dots, cut flat by the waterline.* sea_spray.gdshader drew the
+   white water round the hole as camera-facing discs with a grid of round dots, half under the
+   sea plane, so each re-entry was a row of soft glowing balls with a ruler-straight bottom. Now
+   (`look2`, set from `SeaLife.spray_look`): the four low clumps lie FLAT on the water, a patch of
+   white water with a torn edge and a darker hole that spreads and opens into lace over ~3 s; the
+   ten thrown clumps fly as streaks along their own velocity (the quad stretched along the
+   velocity as the eye sees it, a thin sheet tapering both ways with drops strung on it, faded
+   before it meets the water). The blow is unchanged.
+2. *Nothing touched the water.* A dolphin rolling its back through the surface, a leap's entry,
+   a pelican sitting down after its plunge and the whale's back left the sea as it was. They now
+   leave a ring (`SeaLife.SPRAY_RING`, a new spray kind: two flat quads, a band of fine foam broken
+   into arcs round a calmer slick, ageing out over 4 s, left behind as the pod swims on).
+3. *The dolphins read as pale silver plastic.* sea_life.gdshader's `skin2` (dolphin only): the
+   rake scars a third as strong (they striped the flank silver), the body ~20 % darker, and the
+   water film on the skin sharp highlights broken by streaks down the body instead of a broad
+   satin sheen.
+4. *The staged pod leapt in unison* (tooling): `stage()`'s sync now brings the dolphins up a third
+   of a second apart, so at the moment three or four are in the air and the rest roll or are down.
+
+**Looked at and left alone.** The surf's whitewater is there at 08:00 (it is at the beach
+refcam's eye) but from 130-270 m offshore at 8 m it is a 2-4 px band behind the waves' backs and
+does not read; making it read from range means thickening foam in ocean.gdshader, which every
+beach and sunset view shares - out of this area. A debug render (the zone red, the whitewater
+green, the bores blue) showed the bores and whitewater present all along the shore. The surfers
+sit 180-240 m from the pier head (BeachActivity's lineup is break + 8-22 m): dots, as from any
+real pier end. Short dark dashes on the open water (the ocean's wind slicks at this sun angle)
+and the far horseshoe pier's boxy shops are other areas'.
+
+**Numbers** (opengl3, refcams, before = `SEA_SPRAY=0`): 2,682,979 triangles and 900 draws both
+ways (the spray is one draw, the rings are instances of it); luminance p5/p50/p95 40/154/213 ->
+40/153/213. Checks: `tests/rc5_sea_life_checks.gd` (the row, the switch, the shader branches,
+rings that lie on the sea and age out, the staged pod in turn). Kit stills in seconds:
+`tools/sea_life/kit_shot.tscn` (VIEW=dolphin, AGE=; it now shows a ring by the rolling dolphin).
+Not verified on Forward+ (the spray is unshaded and works in linear through color_space).
