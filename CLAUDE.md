@@ -5342,6 +5342,14 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   zone over each chunk's part at FULL and LOD; nothing breaks. `CEMETERY=0` is the A/B; probes
   `tools/cemetery/probe.gd` (`EYES=` heights on the rise) and `build_probe.gd`; checks
   `tests/cemetery_checks.gd` (`tools/cemetery/checks_only.tscn` alone).
+- The memorial park at dawn (wave 8, refcam `cemetery_dawn` in `tools/refcams/cameras_w8.json`,
+  docs/HANDOFF.md "The memorial park at dawn under the marine layer"): `Rc5CemeteryDawn`
+  (`scripts/world/rc5_cemetery_dawn.gd`, hooks in DayNight and CemeteryBuild): under the marine
+  deck the sun loses its specular (`sun_specular()`) and the lamps hold past sunrise
+  (`lamp_hold()`); a depth-cut morning mist box over the park (`shaders/cemetery_mist.gdshader`,
+  `mist()` by hour and humidity, `tick()`); mown tufts on its lawn; lawn.gdshader `spray_rough`
+  (the park's dew 0.66); the `rc5_mist_leaf` global keeps a mist's damp (road_mist) off the leaves.
+  `RC5_CEMETERY_DAWN=0` is the A/B; checks `tests/rc5_cemetery_dawn_checks.gd`.
 - Places of worship (2026-10-05, docs/HANDOFF.md "Places of worship"): `Worship`
   (`scripts/world/worship.gd`, placement, pure) puts one per `CELL` (800 m) by a hash of seed +
   cell - kind by the district's `KIND_WEIGHTS` (MISSION, MODERN, STOREFRONT, GREEK, TEMPLE,

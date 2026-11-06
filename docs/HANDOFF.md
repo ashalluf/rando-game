@@ -29933,3 +29933,64 @@ only gets shorter on a slow frame; nothing found).
 
 **Runs** (`SHARDS=3`, shuffled, ~32 min each, shards 3.2-3.7 GB RSS): 21101 (cut short by a tool
 limit at ~4,800 checks: the valet), 21202 PASSED 5,797, 21303 PASSED 5,797 (both on 7f68e37f). Final unshuffled gate on the branch merged with main (batch 53a): FINAL_HERE.
+
+## 9d?. The memorial park at dawn under the marine layer (refcam5 `cemetery_dawn`, wave 8; branch `wt/rc5-cemetery-dawn`)
+
+Task: a new reference view, "cemetery_dawn" in `tools/refcams/cameras_w8.json`: HOLLYCREST MEMORIAL
+PARK (blocks 17..18, 30..31 on the default seed) at 06:30, weather marine, eye level (1.7 m over the
+rise) among the flat markers west of the crown at (1640, 4140), looking east up the lawn to the
+mausoleum with a drive lantern on the left. Stills on `shots/rc5-cemetery-dawn`.
+
+**What read fake in the first frame, worst first, and the fix** (`Rc5CemeteryDawn`,
+`scripts/world/rc5_cemetery_dawn.gd`; `RC5_CEMETERY_DAWN=0` the A/B, which is main's look exactly):
+
+1. **A hard glare path across the lawn toward the east** - under a full stratus deck, where there is
+   no sun disc. Two causes: the cut sun kept its full specular (DayNight now sets
+   `_sun.light_specular = Rc5CemeteryDawn.sun_specular(marine)`, 0.12 under a full deck), and the
+   morning's watering (LawnsCloseup's sprinklers, 04:36-10:24) left the whole cemetery lawn at
+   roughness 0.32, a mirror of the bright east sky. lawn.gdshader has a `spray_rough` uniform
+   (default 0.32, every other lawn unchanged); the park's lawn takes `DEW_ROUGH` 0.66
+   (`dress_lawn()` from `CemeteryBuild._ground()`): dew, darker and duller, not a film.
+2. **Silver-white trees.** Weather's marine damp (MarineMorning, road_wetness 0.3) went through the
+   foliage shaders as a rain soak: roughness down, specular 0.85, every crown mirroring the grey
+   sky. foliage, foliage_tex and la_tree now scale their wetness by `1 - rc5_mist_leaf * road_mist`
+   (`rc5_mist_leaf`, a new shader global, 0 by default; Rc5CemeteryDawn sets 0.85 once). A shower
+   (road_mist 0) still soaks them as before. This also changes the marine_morning refcam's trees.
+3. **No mist; the far trees and the mausoleum as crisp as noon.** `mist_box()` lays a box over
+   each FULL chunk's part of the site (`CemeteryMist`) on `shaders/cemetery_mist.gdshader`: back
+   faces, the view ray's chord through the box cut by the scene depth (ballpark_glow's recipe), ten
+   dithered samples of a height mist (`density` 0.022 /m at the turf, `scale_height` 2.6 m) over the
+   rise (Cemetery.height()'s dome mirrored: crown, H, four extents, in the box's own space, so no
+   origin shift) wisped by two drifting noises; colour = the environment's fog light (linear);
+   fog_disabled, depth test off, alpha capped 0.92. `mist()` = the morning (04:18 up, 05:30 full,
+   08:24 down, gone 10:12) x humidity (marine 1, overcast / rain 0.6, a clear morning 0.3, none in
+   a Santa Ana), pushed with the colour by `tick()` from DayNight to every live box. Works on both
+   renderers (Compatibility's depth texture as ballpark_glow uses it).
+4. **The lanterns simply off.** Photocells switch on the light level, and under a June-gloom deck it
+   is dusk-dark after sunrise. `lamp_hold(marine, elevation)`: up to `HOLD_LEVEL` 0.8 of the lamp
+   level under a full deck, fading from sun elevation 0.04 to 0.24 (sin): 0.46 at 06:30, nothing by
+   07:00 (elevation 0.26), nothing at 08:00 (the marine_morning refcam is untouched), never in a
+   clear dawn. DayNight folds it into `lamp_factor` and the lights' energy (one hook). It applies
+   city-wide under the deck, evenings too (lamps come on a little earlier under the evening bank).
+5. **A printed carpet of a lawn** (no blades: the block's grass step does not run in a cemetery).
+   `grass()` plants LawnsCloseup's mown tufts with the lawn's own look data over the rise
+   (`GRASS_DENSITY` 0.5 of a park's, cells drawn to `GRASS_DRAW` 60 m), off the drive, buildings and
+   trunks (Cemetery's keep-out mask) and 0.75 m (uprights 1.65 m) round every stone.
+
+**Numbers** (refcams, opengl3, 1280 x 720, the final eye): RC5_CEMETERY_DAWN=0 p5/p50/p95 50/112/160,
+sat 0.102, 5.07 M tris / 2,435 draws; on 64/100/149, sat 0.088, 5.94 M / 2,458 at the first grass
+density (0.75, 86 m); the grass was then cut to 0.5 and 60 m (see the final report for that run).
+The lift of p1/p5 is the mist. The ten original cameras were shot with the switch off and on.
+
+**Not done / not verified**
+- Forward+ (the Mac) not seen: every still is opengl3. The mist's colour is the fog's light in
+  linear and its alpha is coverage, so it should hold, but nobody has looked; the cut sun specular
+  and the lamp hold are engine-side and renderer-neutral.
+- The mausoleum still reads as a clean white box (uniform ashlar, no weathering or soot under the
+  cornice); the chapel was not in this view.
+- The mist boxes are per chunk with no fade at the site's wall: from outside the park at dawn a
+  viewer sees the mist stop at the fence line.
+- Visitors: nobody at 06:30 in the view (CemeteryVisitor's strolls are not by the hour).
+- Probe: `tools/cemetery/rc5_lamp_probe.gd` prints Hollycrest's lamps and crown.
+- Checks: `tests/rc5_cemetery_dawn_checks.gd` (the pure functions, the shader, the DayNight hooks,
+  the camera row, a FULL chunk's mist box and grass cells, the A/B).

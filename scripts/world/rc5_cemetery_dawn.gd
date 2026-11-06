@@ -30,8 +30,11 @@ const MARINE_SPECULAR := 0.12
 const HOLD := Vector2(0.04, 0.24)
 ## How much of the night's lamp level the hold keeps at most.
 const HOLD_LEVEL := 0.8
-## Grass density on the cemetery lawn (CityChunk._add_grass's scale: 1 a park's).
-const GRASS_DENSITY := 0.75
+## Grass density on the cemetery lawn (CityChunk._add_grass's scale: 1 a park's) and how far its
+## cells draw (m): past ~60 m a mown tuft is under a pixel tall and the lawn's texture carries it
+## (at 0.75 and the lawns' 86 m the blades cost +0.87 M triangles in the refcam).
+const GRASS_DENSITY := 0.5
+const GRASS_DRAW := 60.0
 ## The memorial park's lawn after the morning's watering under the deck: beaded dew, not a film
 ## (lawn.gdshader `spray_rough`; 0.32 a sprinkler's film, which mirrored the bright east sky as a
 ## glare path across the whole rise).
@@ -157,7 +160,7 @@ static func grass(ch: CityChunk, st: Dictionary) -> void:
 				LawnsCloseup.tuft_data(phase, look, LawnsCloseup.edge_distance(site, p)))
 		else:
 			ch._batch.add(key, blade, Transform3D(basis, Vector3(p.x, y, p.y)), jit, Color(phase, 0.0, 0.0))
-	var draw_to := LawnsCloseup.grass_distance(ch.grass_distance)
+	var draw_to := minf(LawnsCloseup.grass_distance(ch.grass_distance), GRASS_DRAW)
 	for key: String in keys:
 		ch._batch.set_no_shadow(key)
 		ch._batch.set_draw_distance(key, draw_to)

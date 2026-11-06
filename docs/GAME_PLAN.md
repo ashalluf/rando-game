@@ -3797,6 +3797,11 @@ already mapped so milestone 2 is script-only.
   make it faster, and Quality no longer judges the machine by the loading screen. Shader baking
   stays off while Godot 4.7.2's baked Metal exports crash (godot#123266, #124539). No loader
   threads: the codebase's cyclic preloads broke under one.
+- **2026-11-06, the memorial park at dawn (rc5-cemetery-dawn).** Under a full marine deck the sun
+  has no disc: it keeps its diffuse share but loses its highlight, and the photocells keep the
+  lamps on (fading) until the sun is about a dozen degrees up. A mist's damp beads on leaves and
+  dulls a lawn; only rain glazes them. Morning ground mist is a volume cut by the scene's depth over
+  the park, not more global fog (which would grey every other view). RC5_CEMETERY_DAWN=0 the A/B.
 
 ## Correction: what build 135 (0ce833f) actually contained
 
