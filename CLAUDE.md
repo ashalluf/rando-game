@@ -4565,6 +4565,16 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   (`house_glow.gdshader`, additive in display numbers); pools by `pool_variant()` (lot_yard) and
   `pool_glow()`. `HouseNightLights` puts `budget` (4 / 2 / 0 / 0) OmniLights on the nearest lit
   porches, Forward+ desktop only. `HOUSE_NIGHTS=0` is the A/B; checks `tests/house_nights_checks.gd`.
+- The suburban street at night (wave 8, refcam `suburb_night` in `tools/refcams/cameras_w8.json`,
+  docs/HANDOFF.md "The suburban street at 21:30"): `SuburbMoon` (`scripts/world/suburb_moon.gd`, one
+  factor in DayNight's moon energy; names no city class) cuts the moon to `MOON_GAIN` over SUBURBS /
+  BEACHTOWN deep in the night, eased on the real clock; `SuburbNight` (`scripts/world/suburb_night.gd`,
+  one hook at the end of `HouseBuild._glass()`) lays each ground-floor pane's light on the yard
+  (`shaders/suburb_spill.gdshader` reads the pane's lit / TV roll from HouseNights' hash: key in the
+  instance COLOR.r, the pane's 8-bit roll in .g) and switches house_glow's lantern wash (point-source
+  falloff, the cap's cut) and house_lamp's framed lens (`suburb_night` uniform). `SUBURB_NIGHT=0` is
+  the A/B (`SUBURB_MOON=0` the moon alone; re-judged with NightGround in, it still takes the
+  pavement 79 -> 53 of 255, so it stays); checks `tests/rc5_suburb_night_checks.gd`.
 - Yard sales (2026-10-30, docs/HANDOFF.md "Weekend yard sales"): `YardSales`
   (`scripts/world/yard_sales.gd`, one line after each `Backyards.block()` in YardFill) - a hash of
   seed + lot holds a sale on Saturday / Sunday (`sale_info()`, `state_at()`: SETUP / OPEN /

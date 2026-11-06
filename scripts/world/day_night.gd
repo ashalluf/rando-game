@@ -467,7 +467,7 @@ func _apply() -> void:
 		# The moon lights the night by its phase: a new-moon night is darker than a full one
 		# (about 1 at the default gibbous, so the night grade keeps its level).
 		var moon_lit := 0.5 - 0.5 * sun_dir.dot(moon_dir)
-		_sun.light_energy = lerpf(night_sun_energy * lerpf(0.45, 1.05, moon_lit), day_sun_energy, daylight) * (1.0 - 0.75 * weather_darken) \
+		_sun.light_energy = lerpf(night_sun_energy * lerpf(0.45, 1.05, moon_lit) * SuburbMoon.moon_gain(self, moonlight), day_sun_energy, daylight) * (1.0 - 0.75 * weather_darken) \
 			* (1.0 - marine_sun_cut * marine) * (1.0 + 0.06 * santa_ana) * RainDay.sun_gain(weather_darken, moonlight) + flash * 2.5
 		# Under the deck the light is the whole grey sky: shadows go soft and faint.
 		_sun.shadow_opacity = (1.0 - marine_shadow_cut * marine) * RainDay.shadow_gain(weather_darken, moonlight)

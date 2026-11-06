@@ -2989,6 +2989,9 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	load("res://tests/rc5_construction_dusk_checks.gd").new().run(self, city)
 	# The cemetery_dawn refcam (tests/rc5_cemetery_dawn_checks.gd, Rc5CemeteryDawn): the deck's sun, the lamps going out, mist, grass.
 	load("res://tests/rc5_cemetery_dawn_checks.gd").new().run(self, city)
+	# The suburb_night refcam (tests/rc5_suburb_night_checks.gd, SuburbMoon, SuburbNight): the moon,
+	# the window spills, the lanterns.
+	load("res://tests/rc5_suburb_night_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()

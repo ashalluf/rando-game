@@ -30655,3 +30655,79 @@ change runs in clear or rain weather). Gate: SHARDS=3, 6,160 checks passed, 0 fa
 - Probe: `tools/cemetery/rc5_lamp_probe.gd` prints Hollycrest's lamps and crown.
 - Checks: `tests/rc5_cemetery_dawn_checks.gd` (the pure functions, the shader, the DayNight hooks,
   the camera row, a FULL chunk's mist box and grass cells, the A/B).
+
+## 9nd. The suburban street at 21:30 (refcam5 `suburb_night`, wave 8, branch `wt/rc5-suburb-night`)
+
+A new reference camera, `suburb_night` (`tools/refcams/cameras_w8.json`, created by this branch): the
+rc2-suburb street (block 21,32 on seed 1337: Craftsman and Spanish houses, a pole line, kerb carts)
+from `suburb_morning`'s own pavement eye - (1979, 1.7 AGL, 4256.8), yaw -96, pitch 1, FOV 55 - at
+21:30 clear, so the street's day and night compare 1:1. `REFCAMS_JSON=tools/refcams/cameras_w8.json
+python3 tools/refcams/refcams.py run build/refcams/<label> --only suburb_night` (one load, ~15-20 min
+on a 4-core box, peak ~9.6 GB the first time). Its `dog_walker` key stages a person walking a dog
+7.5 m up the pavement toward the lens (`tools/refcams/dog_stage.gd`; the crowd had one dog walker
+within 80 m at 21:30, never in frame). Stills on `shots/rc5-suburb-night`.
+
+**What gave it away, in the order the eye found it, and what was done** (`SUBURB_NIGHT=0` turns
+every one off, which is main's look):
+1. **Day for night.** Every pavement, yard and road stood at 100-120 of 255 under crisp moon shadows
+   (the moon is NightStreetReview.MOON, chosen for a lit downtown), so the street lamps lit nothing
+   and the windows did not read. `SuburbMoon` (`scripts/world/suburb_moon.gd`, one factor in
+   DayNight's moon energy): with the camera in SUBURBS or BEACHTOWN and off the open coast
+   (CoastExposure's weight), the moon is `MOON_GAIN` 0.3 of itself, only deep in the night (moonlight
+   0.6 -> 0.95, so the sunset and the blue hour are untouched), eased over 2.5 s of the real clock
+   when the camera crosses a district line. Pure `gain_for()`; it names no city class (DayNight is
+   compiled by the sky tools). The lit pavement at the eye: 109 -> 82.
+2. **The porch lantern was a white box in a white disc.** house_lamp's lens was one even emissive
+   box and house_glow's scallop a soft round disc 2.6 x 3 m on the wall, reaching up to the eaves.
+   Now (both behind a `suburb_night` uniform SuburbNight sets on the shared materials): the lens is
+   glass panes in a dark bronze frame (a centre muntin on the lanterns) round a hot bulb fading to
+   amber; the wall's light is a point source's falloff (d0 / (d0^2 + r^2)^1.5 in the quad's own
+   metres, d0 0.42), cut by the cap above the lamp with a faint glow over it and a tail fanning down
+   the wall. Carriage lamps and path lights take the same.
+3. **Lit windows lit nothing.** `SuburbNight.window_spill()` (one hook at the end of
+   `HouseBuild._glass()`, so apartments too, never the hill homes): a soft trapezoid on the yard in
+   front of every ground-floor room pane, 5 m out and 2.2 x the pane's width at its far end, lifted
+   7 cm over the yard (the mulch beds along the houses hid it at 3 cm), one shadowless `sn_spill`
+   batch a FULL chunk to 140 m. `shaders/suburb_spill.gdshader` decides per pane, on the GPU, from the
+   house key (instance COLOR.r) and the pane's 8-bit roll (COLOR.g, exactly what the glass's vertex
+   alpha reads back) through house_nights.gdshaderinc: a dark room throws nothing, the TV room throws
+   its blue flicker, a sheer / blind / drape passes its share; lamp_factor x night_factor; added in
+   display numbers on both renderers (house_glow's rule), fog off. The garage and door glass (their
+   fixed rolls 0.1 / 0.3) throw none.
+4. **Nobody walks a dog.** The staged dog walker (above); the crowd's own rolls are untouched.
+
+**Cost** (opengl3, the camera, GEO, one load each, the dog walker staged in both): SUBURB_NIGHT=0
+5,682,446 triangles / 2,749 draws -> on 5,707,966 / 2,762 (+0.4 %, +0.5 %): the spill is one batch of
+quads a FULL suburb chunk (372 on the refcam's block, most of them dark: their alpha is 0). Shadow
+pass unchanged (2,067,692). The ten original refcams, SUBURB_NIGHT=0 vs on (`compare`): nine ok, the
+freeway flagged by its own traffic (other cars in the lane ahead in the two runs; no night, no house
+in that view). suburb_night itself: p50 31 -> 30, p95 112 -> 89 (the moonlit pavement and yards),
+the lit pavement at the eye 109 -> 82.
+
+**The moon cut re-judged with NightGround in** (batch 56, `main` 9edd6b1e; the lead asked: keep the
+camera-gated cut only if the street still reads too moonlit with rc5-gas-station-night's NightGround).
+Two shots of suburb_night from one merge, opengl3 (`build/refcams/ng_moon_on`, `ng_moon_off`):
+everything on p5/p50/p95 3/27/68; `SUBURB_MOON=0` 4/28/92. Region means (pavement at the eye /
+driveway / road / house wall): on 53/60/15/13, `SUBURB_MOON=0` 79/84/26/13 - without the cut the
+pavement and the yards stand where they did before NightGround (76/70/16 in the first all-on shot), a
+pale moonlit grey under the lamps. NightGround does not reach this street's pavement; the cut stays.
+
+**Not done / seen:** the near houses' street windows are dark in this frame by their own rolls, not
+a bug (`tools/rc5_suburb_night/house_probe.gd -- --spawn=1979,4256.8` lists every house round the eye
+with its key and 21:30 rolls): the nearest (1986, 4269, key 610) is lived-in with 0.34 of its rooms
+lit and its one street pane rolled above that; the next (key 980, 0.72 lit) shows only its garage to
+the lens. HouseNights lights 0.32-0.74 of a lived-in house's panes, so a single visible front window
+is dark about half the time - a front-room bias in house_nights.gdshaderinc (and its GDScript mirror,
+the far box and the spill alike) is the next step. So the window spill is proved on the houses down
+the street and in block stills, not at the lens. The pink shape beside the dog walker is a yard
+planter of pink flowers; the dog (white terrier) reads at 7.5 m (near level) and 11 m (mid); the
+spill is a flat quad on the ground, so it does not light the shrubs or a step it crosses; the pale
+DG yards (rc2-suburb's `dg_real`) still read light under the moon; nothing proved on Forward+ under
+lavapipe (the spill and the wash are display-number adds like house_glow's, which fwd-review-e
+proved; the lens is house_lamp's own cs_out()). Checks: `tests/rc5_suburb_night_checks.gd` (16).
+
+**Gate** (SHARDS=3 on `wt/rc5-suburb-night` = main 2026-11-05 + this): 5,927 of 5,929 checks passed
+(shards 1,941 / 1,730 pass, 2 of 2,258 failed; peak RSS 3.8 GB a shard). Both failures were
+downtown_street_closeup_checks' StreetCloseup off / on block A/B (`Batch_sg_plate` differs, the props
+134 / 134), which passed rerun alone (`SMOKE_PARTS=downtown_street_closeup_checks`: 32 of 32) - a
+shard-order flake in a file this branch does not touch.
