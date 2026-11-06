@@ -37,6 +37,8 @@ var _rng := RandomNumberGenerator.new()
 var _timer: float = 0.0
 var _built_frame: int = -1
 var _built: int = 0
+## True once the first fill has run (Rc5CoastHighway.fill_slots()).
+var _filled: bool = false
 
 
 ## Off: COAST_HIGHWAY=0 (no stretch) or COAST_TRAFFIC=0.
@@ -125,20 +127,34 @@ func _maintain() -> void:
 			continue
 		var s: float = car.traffic.s
 		var gone := is_nan(ps) or absf(s - ps) > despawn_distance or s >= s_max() - 1.0
-		# A northbound car at the closure leaves once the player is away from it.
+		# A northbound car at the closure leaves once the player is away from it; with
+		# Rc5CoastHighway on it turns round there instead, so the southbound side has traffic.
 		if int(car.traffic.dir) < 0 and s <= close + 30.0 and (is_nan(ps) or absf(ps - close) > 150.0):
+			if not is_nan(ps) and Rc5CoastHighway.enabled and absf(s - ps) <= despawn_distance:
+				Rc5CoastHighway.u_turn(self, car, close)
+				continue
 			gone = true
 		if gone:
 			cars.erase(car)
 			_retire(car)
 	if is_nan(ps):
 		return
+	var want := Rc5CoastHighway.wanted(cars_per_direction, StreetVendors.hour_now(self))
+	# The first fill lays the whole reach at once, the near road too (Rc5CoastHighway).
+	if not _filled and Rc5CoastHighway.enabled:
+		_filled = true
+		for dir: int in [1, -1]:
+			for sl: Array in Rc5CoastHighway.fill_slots(plan.seed, dir, want, ps, spawn_max, close + 40.0, s_max() - 20.0, 35.0):
+				spawn(float(sl[0]), dir, int(sl[1]), true)
+		if OS.get_environment("COAST_DEBUG") == "1":
+			print("COAST_FILL %d cars, %d wanted a direction, player z %.0f" % [cars.size(), want, ps])
+		return
 	for dir: int in [1, -1]:
 		var have := 0
 		for car in cars:
 			if int(car.traffic.dir) == dir:
 				have += 1
-		if have >= cars_per_direction:
+		if have >= want:
 			continue
 		var s := ps + _rng.randf_range(spawn_min, spawn_max) * (1.0 if _rng.randf() < 0.5 else -1.0)
 		if s < close + 40.0 or s > s_max() - 20.0:
