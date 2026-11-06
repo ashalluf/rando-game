@@ -30512,3 +30512,44 @@ needs eyes). The crane's jib-tip and counter-jib lamps are still lamp boxes, not
 slew). A round glare blob on the glass in this view is a street lamp's halo, not the site's. The
 crews stand; nobody pours, and the hoist's car does not move. Columns on the open floors are lit
 only by the OmniLights.
+
+## 9d?. The rail crossing from the waiting car
+
+New wave-8 refcam `rail_crossing` (tools/refcams/cameras_w8.json): River Blvd at Harbor Blvd (the
+Coral Line's crossing k 6, x 911.8, z 2785), 17:30 clear, bonnet height (1.15 m) in the first car
+of the southbound queue, a train crossing west with the gates down. Its staging: `rail_cross`
+("<crossing>:<dir>:<seconds before the nose>", negative = the nose is past) holds LightRail's clock
+(refcams_shot `_stage_rail_cross()`, the RAIL_CROSS env's logic per camera), and `street_cars`
+puts the queue in the next lane and across the tracks. `tools/rc5_rail_crossing/probe.gd` lists
+every gated crossing with its road, width, lanes and the train's time there.
+
+What the view gave away, worst first, fixed behind `RcRailCrossing.enabled`
+(`scripts/world/rc5_rail_crossing.gd`; `RC5_RAIL_CROSSING=0` the A/B):
+
+1. *The overhead wires were dashed lines.* The contact wire, messenger and droppers were 4-6.5 mm
+   triangular tubes; past ten metres they fell between pixels and drew as dashes across the sky.
+   They are now `UtilityPoles.ribbon_mesh()` ribbons (`RailWires`, utility_wire.gdshader: camera
+   facing, never under 1.15 px, their real width as alpha), the contact wire kind 5 (dark copper),
+   the rest kind 4 (galvanised). Same draw count (it replaces `RailDetail`).
+2. *The flashers burned white.* RailGate's lens was emission (1, 0.08, 0.03) x 7, which AgX takes
+   to a white disc with a salmon rim. Lit lenses are `RcRailCrossing.lens_material()` (green held
+   at 0.1 of red, energy 2.6 - the emergency lights' rule) and every flasher and arm lamp has a
+   camera-facing glow (`shaders/rc5_flasher_glow.gdshader`: additive with af_cover, a core and a
+   skirt that reaches zero at the edge, at least 9 px, brighter by `lamp_factor`) shown only while
+   its lamp is lit, alternating with it. Freight gates (FreightKit, the same RailGate) get it too.
+3. *The trains' windows were flat tan panels.* lrv_glass lit the saloon by the golden sky's colour
+   and mirrored 4 %. `look5` (set on the shared train glass): tinted laminated glass (0.14 of the
+   saloon through it, at least 8.5 % mirrored), the saloon lit neutral by its windows plus its
+   strips on by day, the far windows' view desaturated, and people traced in it - seated rows by
+   both side walls and standees in the aisle (`l5_people()`: planes x = +-0.62 and 0, a hash per
+   seat row picks who is there and their shirt, skin and hair). Default 0 = the old shader.
+4. *The crossbuck boards were blank.* RAILROAD / CROSSING in black (FreewayKit's letters, the paint
+   mesh), each on its board, FULL chunks.
+
+**Cost.** opengl3 refcam: see the shots README for the final numbers (tris and draws within a
+percent; the ribbons replace the tubes).
+
+**Not done / not verified.** Forward+ not seen (the glow is additive in linear there: its skirt is
+small, but a Mac look is needed; the glass's emission is the same path as before). The bell on the
+mast is still a black cap, no gong; the train's pantographs are small and dark against the sky and
+were left; the gate arm is plain striped boxes. No flashing light falls on the cars or road.

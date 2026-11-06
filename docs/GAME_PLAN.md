@@ -4668,3 +4668,9 @@ none of either.
   read by at dusk; glass on a half-finished tower shows the fit-out lit behind it, not a black
   mirror; anything pasted on a hoarding is printed (StreetWear's bills), never a flat colour block.
   CONSTRUCTION_DUSK=0 is the A/B.
+- 2026-11-06 (wave 8, rc5-rail-crossing): a new reference camera, `rail_crossing`
+  (cameras_w8.json), waits at a Coral Line crossing at 17:30 as a train passes. Decisions: thin
+  wires (catenary as well as utility lines) are drawn as camera-facing ribbons, never as tubes that
+  fall between pixels; a red warning lamp is held to green at 0.1 of red so AgX keeps it red; a
+  train's windows are tinted glass with people behind them, lit neutral, not the sky's colour.
+  RC5_RAIL_CROSSING=0 is the A/B.

@@ -48,7 +48,7 @@ uniform vec3 station_color = vec3(0.16, 0.155, 0.15);
 // strips (the golden sky's colour drew every window a flat tan panel) and people in it: seated
 // passengers both sides and a few standees in the aisle. 0: the old shader exactly.
 uniform float look5 = 0.0;
-uniform float look5_tint = 0.22;
+uniform float look5_tint = 0.14;
 uniform float look5_f0 = 0.085;
 
 varying vec3 mpos;
@@ -178,7 +178,8 @@ vec3 saloon(vec3 p, vec3 d, float night, vec3 day) {
 		if (h.y > sill && h.y < head) {
 			float pillar = step(0.88, fract(h.z / 1.05));
 			// Seen through the far pane too: the day out there is a second tint down.
-			col = mix(mix(day * 0.38, street_color * 0.4, night), wall_color * 0.3 * light, pillar);
+			vec3 out_day = look5 > 0.5 ? mix(day, vec3(dot(day, vec3(0.2126, 0.7152, 0.0722))), 0.6) * 0.3 : day * 0.38;
+			col = mix(mix(out_day, street_color * 0.4, night), wall_color * 0.3 * light, pillar);
 		} else if (h.y < sill && h.y > seat_y - 0.05) {
 			float row = fract(h.z / seat_pitch);
 			col = row < 0.72 ? seat_color * light : wall_color * 0.6 * light;

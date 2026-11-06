@@ -1407,6 +1407,13 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   (`cuts_in()`), macro_ground's `cut_rect2` sinks the plane; LightRailSystem / LightRailTrain draw
   tunnel trains while `MetroStation.showing`. `METRO_STATION=0` is the A/B; probe
   `tools/metro/probe.gd`; checks `tests/metro_underground_checks.gd`.
+- The rail crossing refcam (wave 8, `rail_crossing` in `tools/refcams/cameras_w8.json`, its
+  `rail_cross` key holds a train on the crossing; docs/HANDOFF.md "The rail crossing from the
+  waiting car"): `RcRailCrossing` (`scripts/world/rc5_rail_crossing.gd`): the catenary as
+  UtilityPoles' camera-facing ribbons (`RailWires`), RailGate's lit lenses held red with glows
+  (`shaders/rc5_flasher_glow.gdshader`), lrv_glass `look5` (tinted, neutral saloon, passengers),
+  the crossbuck's legend. `RC5_RAIL_CROSSING=0` is the A/B; probe `tools/rc5_rail_crossing/probe.gd`;
+  checks `tests/rc5_rail_crossing_checks.gd`.
 - The metro station refcam (wave 7, `metro_station` in `tools/refcams/cameras_w7.json`, its
   `rail_at` key holds a train at the terminus; docs/HANDOFF.md "The metro station refcam"):
   `MetroLook` (`scripts/world/metro_look.gd`): the floors mirror the light lines
