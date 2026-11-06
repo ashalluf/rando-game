@@ -5824,6 +5824,14 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   hook lines in city_chunk.gd, after every roll; the frontage (`strip_lot()`) is kept from
   VacantLots, Apartments, CarDealers and surface car parks, and built as lot-filling SLABs. `STAR_BOULEVARD=0` the A/B; probe
   `tools/star_boulevard/probe.tscn`; checks `tests/star_boulevard_checks.gd`.
+- The walk of fame at night (wave 8, refcam `walk_of_fame_night` in `tools/refcams/cameras_w8.json`,
+  docs/HANDOFF.md "The walk of fame at 22:00"): `WalkOfFameNight` (`scripts/world/walk_of_fame_night.gd`,
+  hooks in StarBoulevard.steps() / _spawn_character() / medallion_mesh()): the Celeste's premiere
+  every evening 19:30-01:00 (NightLife's carpet, barriers, fans, searchlights; the press omni on
+  Forward+ only - one more light on Compatibility pushed the lamps' off the pavement), costumed
+  characters and the first fans / tourists spawned with the crowd cap full (`no_trim`), tourists on
+  the walk by the hour, a bigger lit star medallion (star_neon `plate`). `WOF_HOUR=` for small-scene
+  stills. `RC5_WALK_OF_FAME=0` is the A/B; checks `tests/rc5_walk_of_fame_night_checks.gd`.
 - Window-washing gondolas (2026-10-05, fleet "tower-gondolas"): `TowerGondolas`
   (`scripts/world/tower_gondolas.gd`, static: sites, the clock-driven descent `pose_at()`, the
   cradle / davit / squeegee / hard-hat meshes) and `GondolaRig` (`scripts/world/gondola_rig.gd`,

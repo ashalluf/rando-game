@@ -31426,3 +31426,70 @@ ok; street_noon and street_night flagged on pixels and the night's p95. Both are
 St, where no dealer can stand (DowntownReal.in_extent): the difference is live traffic (a bus
 in a different place in each run, non-strict runs), not this change. Triangle changes stay within
 +-2.2 %.
+
+## 9np. The walk of fame at 22:00 (fleet wave 8, refcam5 `walk_of_fame_night`, branch `wt/rc5-walk-of-fame-night`)
+
+**The camera.** `walk_of_fame_night` in `tools/refcams/cameras_w8.json`: Canyon Blvd (seed 1337's
+walk, blocks 5..8) on the south pavement at the corner of THE GRAND CELESTE's block (7,-13), the lens
+1.65 m over the band of stars (`[700.5, 1.65, -2299.4, 112, 6]`, agl), 22:00 clear, fov 58, looking
+west-south-west at the marquee with the stars running away on the right. Two framings were tried
+first and dropped: x 714 is in the cross street (block 7 ends at x 702), x 752 put the lens inside
+a postcard spinner (the goods stand on the band's line, 3.45 m in from the kerb).
+
+**What gave it away** (an art director's order, eye first):
+1. The marquee says WORLD PREMIERE / THE GOLDEN HOUR / RED CARPET 7PM / STARS IN PERSON and the
+   forecourt in front of it was empty: no carpet, nobody waiting, nothing in the sky.
+2. Of the three costumed characters the plan puts on the stars in front of the palace, one stood
+   there: a busy midtown fills the crowd cap first and `_take_crowd_room()` refused the rest.
+3. Two people on the walk at 22:00 - a tourist strip is busiest after dark.
+4. The lamps' star medallions were a thin outline under a pixel wide from a few metres: nobody could
+   tell they were stars.
+(Also seen, not fixed: the palace's roof sign reads "THE GRA ... CELESTE" from across the street,
+the clock tower stands in front of "ND"; the forecourt planters' palms are oversized cylinders at
+this range; the postcard spinner's cards are flat colour boxes.)
+
+**What changed** (`WalkOfFameNight`, `scripts/world/walk_of_fame_night.gd`; three hook lines in
+StarBoulevard, two in its medallion mesh, a `plate` mode in `shaders/star_neon.gdshader`):
+- `premiere()`: the Celeste's premiere every evening 19:30-01:00 (NightLife's hours) - the marquee
+  is fixed text, so the scene matches it every night rather than on a hashed one. NightLife's own
+  kit: `NightLifeKit.premiere()` (carpet, brass stanchions, crowd barriers) from the palace's doors
+  (StarBoulevard.palace_frame) over the forecourt to the kerb (14.0 m on seed 1337), fans
+  (NightGoer FAN) behind the barriers - the first `KEY_FANS` (10) even with the crowd cap full,
+  never trimmed, as NightLife's scene people - the press pool, four searchlight carts and their
+  SkyBeams at the kerb. The press lights' OmniLight is Forward+ only: on Compatibility one more
+  light on the palace's chunk pushed the street lamps' own off the whole pavement (p50 50 -> 38 in
+  the first after, back to 50 with it gated).
+- `key_character()`: a character is spawned with the cap full (still counted, `no_trim`).
+- `tourists()`: up to `TOURISTS` (14) walkers a walk face at `TOURIST_KEYS`' share of the hour
+  (full 19:00-22:00), put down on the face's boulevard pavement by the band and then walking the
+  ring like ShopCrowd's; the first `KEY_TOURISTS` (4) spawn with the cap full. Not under the smoke
+  test unless a check sets `force_in_test`.
+- The medallion: radius 0.42 -> `MEDALLION_R` 0.52, the neon tube 3.6 -> 6 cm wide, the plate on
+  star_neon.gdshader's `plate` mode (gold metal by day, lit warm from behind with lamp_factor).
+Hashes of seed + block only; nothing else on the block moves (star_boulevard_checks' signature
+check still passes). `RC5_WALK_OF_FAME=0` is the A/B (the walk exactly as before); `WOF_HOUR=` sets
+the build hour for small-scene stills (station_night_shot.tscn has no DayNight at its root).
+
+**Numbers** (refcams.py, opengl3 1280x720, OCCLUSION=0):
+- This camera, main 9edd6b1e -> branch: luminance p5/p50/p95 4/50/157 -> 4/50/155, saturation
+  0.529 -> 0.528, 4.08 M triangles / 3,104 draws -> 4.63 M / 3,421 (+13 % / +10 %: the fans, carpet,
+  carts and barriers in front of the palace; FULL chunks only, the premiere is not built at LOD).
+- The ten original cameras, RC5_WALK_OF_FAME=0 vs on (one branch, two runs): 0 of 10 flagged by
+  `compare`; every luminance within a level; triangles -1.1 .. +1.5 % except the freeway +7.9 % /
+  draws +3.8 % (no walk-of-fame block within 2 km of it - the run-to-run spread of that aerial-ish
+  view's streaming, which earlier perf audits record).
+- Peak RSS of the refcam run 6.8 GB (opengl3). The smoke parts star_boulevard_checks +
+  rc5_walk_of_fame_night_checks: 48 checks, peak 2.0 GB.
+
+**Checks.** `tests/rc5_walk_of_fame_night_checks.gd` (one line in smoke_test.gd): the row, the pure
+hours, the palace's block FULL at 22:00 with the crowd cap at 0 (carpet, four beams, >= 10 fans,
+every planned character, >= 4 tourists, the medallion's size and plate), at noon (no premiere), and
+with the switch off (no premiere, the characters refused as before).
+
+**Stills** on `shots/rc5-walk-of-fame-night` (README there).
+
+**Not done / not verified.** Forward+ (the Mac) not seen: the press omni and the searchlights'
+volumetric spots only exist there. The carpet is low in this frame (seen edge-on behind the
+fans); a premiere has no arriving cars or photographers. The tourists walk off round the block
+after they are put down. The medallion's plate glow is display-number emission (cs_out), judged on
+opengl3 only.

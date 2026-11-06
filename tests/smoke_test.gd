@@ -3018,6 +3018,9 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	load("res://tests/rc5_lighthouse_night_checks.gd").new().run(self, city)
 	# The auto_row refcam (tests/rc5_auto_row_checks.gd, RcAutoRow): real lot cars, measured window cards, a clear frontage.
 	load("res://tests/rc5_auto_row_checks.gd").new().run(self, city)
+	# The walk of fame at night (tests/rc5_walk_of_fame_night_checks.gd, WalkOfFameNight): the
+	# Celeste's premiere, the characters and tourists with the cap full, the lit medallions.
+	load("res://tests/rc5_walk_of_fame_night_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()
