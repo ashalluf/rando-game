@@ -17,9 +17,10 @@ static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/H
 
 static var enabled: bool = OS.get_environment("RC5_RAIL_CROSSING") != "0"
 
-## Flasher lens light: red held to green 0.1 (AgX keeps it red), energy as the emergency lenses'.
+## Flasher lens light: red held to green 0.1 and a modest energy (at 2.6 the lens still read white
+## under its glow on Compatibility; the glow carries the brightness).
 const LENS_COLOR := Color(1.0, 0.1, 0.02)
-const LENS_ENERGY := 2.6
+const LENS_ENERGY := 1.5
 ## The glow round a lit flasher (metres across) and round an arm lamp.
 const GLOW_SIZE := 1.1
 const ARM_GLOW_SIZE := 0.55

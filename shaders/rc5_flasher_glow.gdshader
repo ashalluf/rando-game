@@ -18,6 +18,8 @@ uniform float night_gain = 1.3;
 uniform float min_px = 9.0;
 // Pulled toward the camera so the lamp's own hood never cuts it (metres).
 uniform float pull = 0.25;
+// The lens's radius as a share of the quad's half size.
+uniform float lens_r = 0.27;
 
 void vertex() {
 	vec3 c = (MODELVIEW_MATRIX * vec4(0.0, 0.0, 0.0, 1.0)).xyz;
@@ -33,11 +35,14 @@ void vertex() {
 void fragment() {
 	vec2 q = UV * 2.0 - 1.0;
 	float r = length(q);
-	float core = exp(-r * r * 22.0);
+	// The lens itself (r under ~0.27 of the quad) is the material's: the glow is the light round it,
+	// so it rises from a faint fill over the lens to its peak at the lens's rim and falls away.
+	float rim = max(r - lens_r, 0.0);
+	float core = exp(-rim * rim * 40.0) * mix(0.25, 1.0, smoothstep(0.0, lens_r, r));
 	float skirt = pow(max(1.0 - r, 0.0), 2.4) * 0.35;
 	float g = (core + skirt) * mix(day_gain, night_gain, clamp(lamp_factor, 0.0, 1.0));
 	// The hot centre leans toward orange (still red-heavy, never white).
-	vec3 col = mix(glow_color, vec3(1.0, 0.28, 0.06), core * 0.4) * g;
+	vec3 col = mix(glow_color, vec3(1.0, 0.22, 0.05), core * 0.3) * g;
 	vec4 a = af_cover(cs_out(col));
 	ALBEDO = a.rgb;
 	ALPHA = a.a;
