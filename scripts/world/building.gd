@@ -844,7 +844,9 @@ func _part_material(style: Dictionary) -> ShaderMaterial:
 	_apply_wall_texture(mat, finish, shape == Shape.WAREHOUSE, style.wall_set, style.weathering)
 	if wall_detail_force >= 0.0 and finish <= Finish.BRICK and (style.wall_set as Array).size() == 2:
 		# The photographed wall as detail round the facade colour (landmark_facade's rule).
-		var m: Color = (WALL_TEXTURE_MEAN.get(style.wall_set[0], [Color(0.3, 0.3, 0.3)]) as Array)[0]
+		# The mean as this renderer hands the texture over (linear; raw sRGB on Compatibility).
+		var means: Array = WALL_TEXTURE_MEAN.get(style.wall_set[0], [Color(0.3, 0.3, 0.3), Color(0.55, 0.55, 0.55)])
+		var m: Color = means[1 if RenderingServer.get_current_rendering_method() == "gl_compatibility" else 0]
 		mat.set_shader_parameter("wall_texture_mean", Vector3(m.r, m.g, m.b))
 		mat.set_shader_parameter("wall_detail", wall_detail_force)
 	_part_mat = mat
