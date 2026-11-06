@@ -418,6 +418,7 @@ static func block(ch: CityChunk, bp: Dictionary) -> void:
 	if not enabled or ch.capturing:
 		return
 	var district := int(ch.plan.block(ch.ix, ch.iz).district)
+	Rc5Backyard.day_hook(ch)
 	if ch.level == CityChunk.Level.FULL:
 		# A job a lot (time-sliced with YardFill's own dressing), then the chunk's lights mesh.
 		var st := {"lights": BackyardKit.G.new(), "counts": {}}

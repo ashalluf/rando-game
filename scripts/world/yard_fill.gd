@@ -972,6 +972,7 @@ static func _dress_beach_lot(ch: CityChunk, lp: Dictionary, grid: Dictionary, co
 						_flower(ch, p, rng)
 			"pool":
 				_coping(ch, r)
+				Rc5Backyard.pool(ch, r)
 				HouseNights.pool_glow(ch, r)
 				SwimWater.add_rect(ch, r, CityChunk.SIDEWALK_TOP + LIFT - 0.05 + ch._gy(r.get_center().x, r.get_center().y), CityChunk.SIDEWALK_TOP + LIFT - 0.05 + ch._gy(r.get_center().x, r.get_center().y) - SwimWater.POOL_DEPTH, SwimWater.Kind.POOL)
 	if drive.size.x > 0.0 and _h01([plan.seed, key, "drive_car"]) < DRIVE_CAR_ODDS and ch._yard_cars < MAX_CARS:
@@ -1818,6 +1819,7 @@ static func commit(ch: CityChunk) -> void:
 		mi.mesh = st.commit()
 		mi.material_override = walls_material()
 		ch.add_child(mi)
+	Rc5Backyard.commit_pools(ch)
 	ch._yard_ground.clear()
 	ch._yard_strips.clear()
 	ch._yard_boxes.clear()

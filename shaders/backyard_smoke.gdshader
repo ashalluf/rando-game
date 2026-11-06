@@ -19,6 +19,8 @@ global uniform float wind_factor;
 
 uniform sampler2D puff : source_color, filter_linear_mipmap;
 uniform float cook_share = 0.55;
+// Rc5Backyard.day_hook(): 1 on a Saturday or Sunday (a lunch window as well as dinner).
+uniform float weekend = 0.0;
 uniform float height = 3.4;
 uniform float rise_seconds = 7.0;
 uniform float radius_base = 0.14;
@@ -38,7 +40,16 @@ float cooking(float seed) {
 	float start = 17.1 + s * 1.2;
 	float len = 1.5 + fract(s * 7.31) * 1.6;
 	float h = city_hour;
-	return smoothstep(start, start + 0.15, h) * (1.0 - smoothstep(start + len - 0.2, start + len, h));
+	float on = smoothstep(start, start + 0.15, h) * (1.0 - smoothstep(start + len - 0.2, start + len, h));
+	// Rc5Backyard: on a weekend a share of them fire up for a late lunch too (the same numbers as
+	// Rc5Backyard.cooking(): WEEKEND_SHARE, LUNCH_START, LUNCH_LEN).
+	if (weekend > 0.5 && s < 0.6) {
+		float q = s / 0.6;
+		float ls = mix(11.6, 14.2, fract(q * 3.17));
+		float ll = mix(2.2, 3.8, fract(q * 5.71));
+		on = max(on, smoothstep(ls, ls + 0.15, h) * (1.0 - smoothstep(ls + ll - 0.2, ls + ll, h)));
+	}
+	return on;
 }
 
 void vertex() {
