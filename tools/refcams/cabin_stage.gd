@@ -11,6 +11,7 @@ extends RefCounted
 ##    "dir": -1, "lane": 0,            dir -1 = toward -along; lane 0 = by the centre line
 ##    "near": 700.0,                   the junction ahead is the first crossing past this (TRUE world along)
 ##    "queue": 1,                      cars standing ahead of him at the stop line (same lane)
+##    "queue_body": "",                their body (a Vehicle.BodyType name; "" any)
 ##    "beside": 1,                     cars standing in the other lane (0 / 1 / 2)
 ##    "cross": [[dir, lane, offset, kmh, body or ""], ...]   cars running through on the cross road's green
 ##    "eye": [x, y, z],                the eye from the driver's head (CarCabin's measured front seat:
@@ -29,9 +30,10 @@ var plan: CityPlan
 var _police_was := true
 var _staged_was := false
 var _placed: Array = []
+var _hidden: Array = []
 var _fov := 62.0
-var _eye := Vector3(0.12, 0.06, 0.42)
-var _look := Vector3(0.25, -0.35, -8.0)
+var _eye := Vector3(0.1, -0.08, -0.1)
+var _look := Vector3(0.3, -0.2, -8.0)
 ## The driver's head in the body mesh's space and that mesh (CarCabin.for_car()).
 var _head := Vector3.ZERO
 var _mesh: MeshInstance3D = null
@@ -112,7 +114,7 @@ func run(st: SceneTree, cam: Dictionary, p: Node3D) -> void:
 		# Standing in his lane at the line, standing beside him, and the cross street on green.
 		for q in queue:
 			var a := line - float(dir) * (2.6 + gap * float(q))
-			_put(traffic.call("place_car", _axis, index, dir, lane_n, a, 0.0, false, -1))
+			_put(traffic.call("place_car", _axis, index, dir, lane_n, a, 0.0, false, Vehicle.BodyType.get(String(d.get("queue_body", "")), -1)))
 		var other_lane := 1 - lane_n if lanes > 1 else lane_n
 		var beside := int(d.get("beside", 1)) if lanes > 1 else 0
 		for q in beside:
@@ -124,6 +126,12 @@ func run(st: SceneTree, cam: Dictionary, p: Node3D) -> void:
 			if row.size() > 4 and String(row[4]) != "":
 				kind = Vehicle.BodyType.get(String(row[4]), -1)
 			_put(traffic.call("place_car", other, k, int(row[0]), int(row[1]), mine + float(row[2]), float(row[3]) / 3.6, false, kind))
+	# The load's own street cars standing round him (a box truck had the queue's place): hidden.
+	if traffic:
+		for v in traffic.get("cars"):
+			if is_instance_valid(v) and v != car and not _placed.has(v) and (v as Node3D).global_position.distance_to(car.global_position) < float(d.get("clear", 30.0)):
+				(v as Node3D).visible = false
+				_hidden.append(v)
 	# A second to settle on the springs, the wipers, the lamps on; then until the real cabin is up
 	# (CarInteriors splits the doors on a worker thread).
 	var t := 0.0
@@ -136,6 +144,9 @@ func run(st: SceneTree, cam: Dictionary, p: Node3D) -> void:
 		rig = ci != null and (ci.get("rigs") as Dictionary).has(car.get_instance_id())
 	_find_head()
 	hold()
+	for c in _placed:
+		print("REFCAM cabin: placed %s %s at %.1f m" % [c.name, str(c.get("body_type")), (c as Node3D).global_position.distance_to(car.global_position)])
+	print("REFCAM cabin: hid %d street cars round him" % _hidden.size())
 	print("REFCAM cabin: %s on road %d at %s, junction (%d, %d) line %.1f, %d cars placed, interior %s after %.1f s, head %s" % [body_name, index, str(WorldState.to_world(car.global_position)), _jx, _jz, line, _placed.size(), str(rig), t, str(_head)])
 
 
@@ -188,8 +199,42 @@ func _hold_still() -> void:
 	car.hold_crash_watch(2)
 
 
-func debug(_out_dir: String) -> void:
-	pass
+## CABIN_EYES="ex,ey,ez,lx,ly,lz;...": more frames from the same load (<out>/eye_<i>.png), the eye
+## and the look as the row's (framing work).
+func _more_eyes(out_dir: String) -> void:
+	var spec := OS.get_environment("CABIN_EYES")
+	if spec == "":
+		return
+	var keep := [_eye, _look]
+	var i := 0
+	for one in spec.split(";", false):
+		var v := one.split(",")
+		if v.size() < 6:
+			continue
+		_eye = Vector3(v[0].to_float(), v[1].to_float(), v[2].to_float())
+		_look = Vector3(v[3].to_float(), v[4].to_float(), v[5].to_float())
+		for k in 3:
+			hold()
+			await tree.process_frame
+		tree.root.get_texture().get_image().save_png(out_dir.path_join("eye_%d.png" % i))
+		i += 1
+	_eye = keep[0]
+	_look = keep[1]
+
+
+## CABIN_AB=1: the same frame again with DriverRain's look off on this car (<out>/driver_rain_off.png),
+## so one city load gives the before and the after.
+func debug(out_dir: String) -> void:
+	await _more_eyes(out_dir)
+	if OS.get_environment("CABIN_AB") != "1" or not is_instance_valid(car):
+		return
+	DriverRain.look(car, false)
+	for i in 4:
+		hold()
+		await tree.process_frame
+	tree.root.get_texture().get_image().save_png(out_dir.path_join("driver_rain_off.png"))
+	DriverRain.look(car, DriverRain.enabled)
+	print("REFCAM cabin: saved the DRIVER_RAIN=0 frame")
 
 
 func finish() -> void:
@@ -198,9 +243,9 @@ func finish() -> void:
 		if player.get("vehicle") == car:
 			player.exit_vehicle()
 		car.queue_free()
-	for c in _placed:
+	for c in _hidden:
 		if is_instance_valid(c):
-			(c as Node).queue_free()
+			(c as Node3D).visible = true
 	if traffic:
 		traffic.set("staged", _staged_was)
 	var police: Node = city.get_node_or_null("Police")

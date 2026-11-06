@@ -132,6 +132,11 @@ void fragment() {
 			float lod = film_blur * wet * (0.35 + 0.65 * cover);
 			vec3 behind = textureLod(open_screen, SCREEN_UV + off, lod).rgb;
 			float own = clamp(cover * 0.9 + wet * 0.25, 0.0, 0.95) * (1.0 - smoothstep(0.6, 1.0, f));
+			// The bright lights behind (signals, lamps, shop fronts) bloom in the water film.
+			vec3 hot = max(textureLod(open_screen, SCREEN_UV, 4.0).rgb - vec3(0.5), vec3(0.0));
+			float hot_l = dot(hot, vec3(0.333));
+			behind += hot * 1.4 * wet;
+			own = max(own, clamp(hot_l * 2.0 * wet, 0.0, 0.55));
 			// What the water shows is EMITTED (the screen colour as it is), over the dry pane.
 			EMISSION = mix(EMISSION, behind * mix(0.92, 0.8, cover), own);
 			ALBEDO *= 1.0 - own;

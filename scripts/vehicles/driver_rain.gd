@@ -11,8 +11,32 @@ extends RefCounted
 static var enabled: bool = OS.get_environment("DRIVER_RAIN") != "0"
 
 
-## Puts the rain on CarInterior's glass material.
-static func apply(glass: ShaderMaterial) -> void:
-	if glass == null:
-		return
-	glass.set_shader_parameter("rain_inside", 1.0 if enabled else 0.0)
+## How much street light the cabin catches at night (car_interior.gdshader `night_fill`).
+const NIGHT_FILL := 0.12
+
+
+## Puts the rain on CarInterior's glass material and the night look on its cabin material.
+static func apply(glass: ShaderMaterial, cabin: ShaderMaterial = null) -> void:
+	if glass != null:
+		glass.set_shader_parameter("rain_inside", 1.0 if enabled else 0.0)
+	if cabin != null:
+		cabin.set_shader_parameter("night_fill", NIGHT_FILL if enabled else 0.0)
+		cabin.set_shader_parameter("night_screens", 1.0 if enabled else 0.0)
+
+
+## Where car lamp halos come in (m; car_lights.gdshader `halo_near`, set by
+## PropFactory.vehicle_light_material()): 0 with the look off.
+static func halo_near() -> float:
+	return 12.0 if enabled else 0.0
+
+
+## Turns the whole look on or off on `car`'s built cabin (tools: a same-frame A/B).
+static func look(car: Node, on: bool) -> void:
+	var was := enabled
+	enabled = on
+	for ci in car.find_children("CarInterior", "", true, false):
+		apply(ci.get("_glass"), ci.get("_mat"))
+	for key: String in PropFactory._cache:
+		if key.begins_with("car_light_mat_"):
+			(PropFactory._cache[key] as ShaderMaterial).set_shader_parameter("halo_near", halo_near())
+	enabled = was

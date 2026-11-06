@@ -154,7 +154,7 @@ func _setup(split: Dictionary, kit: Dictionary) -> void:
 	_glass = ShaderMaterial.new()
 	_glass.shader = GLASS_OPEN_SHADER
 	CarCabin.apply(_glass, data)
-	DriverRain.apply(_glass)
+	DriverRain.apply(_glass, _mat)
 	car.cabin_glass_override = _glass
 	car._update_occupant(true)
 	_shadows(true)
