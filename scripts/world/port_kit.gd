@@ -19,6 +19,8 @@ extends RefCounted
 ##   three-level LOD ladder; their colours are vertex colours and UV2.x picks a finish (paint,
 ##   hazard stripes, grating, glass, rubber, lamps, cladding, ribbed girders).
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 # --- ISO 668 dimensions (metres) --------------------------------------------------------------
 const L40 := 12.192
 const L20 := 6.058

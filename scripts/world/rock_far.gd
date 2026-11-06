@@ -10,6 +10,8 @@ extends Node3D
 ## plane's drawn ground. Its node's origin is the true-world origin (MountainOccluder's rule), a
 ## child of the streamer so the origin shifts carry it.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 const NEAR_CELL := 320.0
 const FAR_CELL := 1920.0
 ## Metres from the camera to a near cell's nearest point inside which the cell is shown: inside

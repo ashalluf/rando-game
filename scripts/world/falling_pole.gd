@@ -5,6 +5,8 @@ extends RigidBody3D
 ## into the air - then let go once it is well over (or after `HOLD_SECONDS`), so it slams onto the
 ## street, bounces and lies there. The slam is heard and throws a little dust.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 const HOLD_SECONDS := 2.2
 ## Let go past this tilt from upright (radians).
 const RELEASE_ANGLE := 1.15

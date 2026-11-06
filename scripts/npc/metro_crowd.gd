@@ -10,6 +10,8 @@ extends Node
 ## than its share. Every rider is in the crowd cap (CityChunk._take_crowd_room()); the seeds are
 ## hashes of the city seed and a counter. METRO_CROWD=0 is the A/B (the station as it was).
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 static var enabled: bool = OS.get_environment("METRO_CROWD") != "0"
 
 ## Riders put on the escalators when the station is built: down, up.

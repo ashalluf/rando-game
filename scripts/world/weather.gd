@@ -15,6 +15,8 @@ extends Node
 ## Debug: ?weather=storm on the web, -- --weather=storm on desktop (clear, overcast, rain, storm,
 ## marine, santa_ana).
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 enum State { CLEAR, OVERCAST, RAIN, STORM, MARINE, SANTA_ANA }
 const STATE_NAMES := ["Clear", "Overcast", "Rain", "Storm", "Marine layer", "Santa Ana"]
 ## The names --weather= / ?weather= take, by state (and the aliases after them).
@@ -548,6 +550,12 @@ global uniform float lamp_factor;
 uniform float night_look = NIGHT_LOOK;
 uniform vec3 night_tint : source_color = vec3(0.46, 0.41, 0.35);
 uniform float night_alpha = 0.82;
+// RcStorm (the storm_downtown refcam): at night a storm's even veil and sheets fade further
+// (night_veil, night_sheets: 1 = as before), and the streaks are cut thin (thin 0 = the old
+// cell-wide soft column, which drew every streak of the inner curtain as a band).
+uniform float night_veil = 1.0;
+uniform float night_sheets = 1.0;
+uniform float thin = 0.0;
 
 varying vec3 local_pos;
 varying vec3 world_pos;
@@ -587,6 +595,7 @@ void fragment() {
 		vec2 cell = vec2(ang2 * (260.0 + fi * 140.0) * cells_gain, up * (34.0 + fi * 13.0) * rows_gain + TIME * (fall + fi * 0.8));
 		float r = hash12(floor(cell) + fi * 17.3);
 		float column = 1.0 - abs(fract(cell.x) - 0.5) * 2.0;
+		column = mix(column, smoothstep(0.72, 1.0, column), thin);
 		v += smoothstep(0.45, 1.0, r) * column * (0.42 - fi * 0.1);
 	}
 	// Soft top and bottom, so the cylinder never shows its own rim.
@@ -604,6 +613,8 @@ void fragment() {
 		k = mix(1.0, (0.3 + 1.7 * sheet) * (0.75 + 0.5 * gust), sheets);
 	}
 	float nl = night_look * clamp(lamp_factor, 0.0, 1.0);
+	v = mix(v, v - 0.12 * (1.0 - night_veil), nl);
+	k = mix(k, 1.0 + (k - 1.0) * night_sheets, nl);
 	ALBEDO = mix(tint, night_tint, nl);
 	ALPHA = clamp(clamp(v, 0.0, 1.0) * band * strength * k * mix(1.0, night_alpha, nl), 0.0, 1.0);
 }
@@ -944,14 +955,16 @@ func _update_flash(delta: float) -> void:
 		_sky.set_shader_parameter("flash", flash * StormDrama.night_flash_gain(moon, true))
 	if _drama:
 		_drama.on_flash(flash, _sky, _strike_dir)
+	if _sky:
+		RcStorm.dress_sky(_sky, moon)
 	if _sun:
-		_sun.set_meta("weather_flash", flash * StormDrama.night_flash_gain(moon))
+		_sun.set_meta("weather_flash", flash * StormDrama.night_flash_gain(moon) * RcStorm.light_gain(moon))
 	if _flash_light:
 		_flash_light.visible = flash > 0.001
 		if _flash_light.visible:
 			var dir := Vector3(-_strike_dir.x, -0.5, -_strike_dir.z).normalized()
 			_flash_light.global_transform = Transform3D(Basis.looking_at(dir, Vector3.UP), Vector3.ZERO)
-			_flash_light.light_energy = flash * flash_light_energy * StormDrama.night_flash_gain(moon)
+			_flash_light.light_energy = flash * flash_light_energy * StormDrama.night_flash_gain(moon) * RcStorm.light_gain(moon)
 
 
 ## The odds of each state for a roll at `hour`: the marine layer is common overnight and in the

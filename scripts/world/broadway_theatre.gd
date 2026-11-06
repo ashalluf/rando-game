@@ -19,6 +19,8 @@ extends RefCounted
 ## dark) and ONE surface for every lit or painted thing on the street (broadway_sign.gdshader).
 ## LOD and the far city: boxes, the sign column and marquee lit at night (building_lod's PANEL).
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 const STOREY_GROUND := 6.2
 const MARQUEE_Y0 := 4.25
 const MARQUEE_Y1 := 7.0

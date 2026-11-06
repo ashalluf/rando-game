@@ -25,6 +25,8 @@ extends RefCounted
 ##    close, and the camera shake comes with the pressure wave, harder and longer for a fuel blast.
 ## EXPLOSIONS_4=0 in the environment is the A/B (the third pass exactly).
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 static var enabled: bool = OS.get_environment("EXPLOSIONS_4") != "0"
 ## The daylight value range of the mushroom (blast_volume.gdshader `value4`): sunlit billows near
 ## white, deep soot in the folds. BLAST_VALUE=0 is the A/B (the round-3 flat grey).
@@ -468,6 +470,10 @@ static var _panel: Mesh
 ## Round 18: the torn panels are ragged crumpled sheets, smaller (BLAST_PANELS=0 the bent card).
 ## Round 18: flame tongues of their own heights, flickering, with holes and a see-through outer flame. BLAST_FLAME5=0.
 static var flame_look5: bool = OS.get_environment("BLAST_FLAME5") != "0"
+## Round 20: on Forward+ the tongues' colours go toward linear (they were tuned as display numbers
+## on opengl3 and drew pale yellow on the Mac). BLAST_FLAME_FWD=0.
+static var flame_fwd: bool = OS.get_environment("BLAST_FLAME_FWD") != "0"
+static var flame_fwd_decode := 1.0
 ## Round 18: the pool's light hangs in the flames (2.3 m up), dimmer: at 1.1 m it burnt a white
 ## hot spot into the road (AgX takes a bright orange to white). BLAST_POOL_LIGHT=0.
 static var pool_light5: bool = OS.get_environment("BLAST_POOL_LIGHT") != "0"
@@ -562,7 +568,7 @@ static func hot_core(parent: Node, at: Vector3, radius: float, life: float = -1.
 	var tw := q.create_tween()
 	tw.tween_method(func(a: float):
 		m.set_shader_parameter("age", a)
-		q.scale = Vector3.ONE * (0.55 + 0.6 * sqrt(a)), 0.0, 1.0, life)
+		q.scale = Vector3.ONE * (0.3 + 0.75 * sqrt(a)), 0.0, 1.0, life)
 	tw.parallel().tween_property(q, "global_position", at + Vector3.UP * radius * 0.85, life).set_ease(Tween.EASE_OUT)
 	tw.tween_callback(q.queue_free)
 	return q
@@ -698,6 +704,11 @@ static func flame_material() -> Material:
 		_flame_mat.shader = preload("res://shaders/flame_tongue.gdshader")
 		_flame_mat.set_shader_parameter("noise3d", Blast3.noise_texture())
 		_flame_mat.set_shader_parameter("look5", 1.0 if flame_look5 else 0.0)
+		var dec := flame_fwd_decode
+		var env_dec := OS.get_environment("BLAST_FLAME_FWD_DECODE")
+		if env_dec != "":
+			dec = env_dec.to_float()
+		_flame_mat.set_shader_parameter("fwd_decode", dec if flame_fwd else 0.0)
 	return _flame_mat
 
 

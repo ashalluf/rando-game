@@ -5,6 +5,8 @@ extends Node3D
 ## road get one each, and each frame an emitter rides its car's rear axle. Weather owns it and
 ## feeds it `wetness`; nothing runs on a dry street.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 ## Emitters in the pool (the web gets half).
 @export var emitters: int = 6
 ## Only cars this close to the player throw spray (m).

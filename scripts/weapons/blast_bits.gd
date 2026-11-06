@@ -10,6 +10,8 @@ extends Node3D
 ## everything), two MultiMeshes whose buffers are written whole each frame: every chip of every
 ## blast is one draw, every spark another. Desktop only; the web keeps the particles.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 ## Most chips and sparks alive at once (the oldest slot is reused past this).
 static var max_chips: int = 240
 static var max_sparks: int = 220

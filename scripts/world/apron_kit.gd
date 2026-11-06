@@ -8,6 +8,8 @@ extends RefCounted
 ## apparatus shed it stands in. Every mesh faces -Z, stands on y 0 and is cached (the scissor
 ## by its height, in 2 cm steps).
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 const C_LIME := Color(0.48, 0.62, 0.02)
 const C_CHECK := Color(0.02, 0.02, 0.02)
 

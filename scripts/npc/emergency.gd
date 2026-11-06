@@ -25,6 +25,8 @@ extends Node3D
 ## Coordinates: incident positions are TRUE world positions (WorldState); the units and crews
 ## are ordinary nodes under this one with scene positions.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 @export var enabled: bool = true
 @export_group("Calls")
 ## How often the street is looked over for new calls (s), and how far from the player a call

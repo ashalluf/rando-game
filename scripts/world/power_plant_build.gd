@@ -12,6 +12,8 @@ extends RefCounted
 ##                    and earth wire of the line, the strain bus and the towers' lattice as fine lines
 ##                    (power_wire.gdshader, as the ridges' lines), and the stacks' aviation lights.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 const POOL_KEY := "pp_pool"
 const MAX_OMNI := 4
 

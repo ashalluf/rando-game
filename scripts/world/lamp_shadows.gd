@@ -17,6 +17,8 @@ extends Node
 ## One instance under the tree root, made by the first lamp light a chunk builds (ensure()).
 ## LAMP_SHADOWS=0 in the environment is the A/B (no node).
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 static var enabled: bool = OS.get_environment("LAMP_SHADOWS") != "0"
 ## Shadowed lamps at a time; Quality sets it per level (2 / 0 / 0 / 0).
 static var budget: int = 2

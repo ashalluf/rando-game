@@ -29,6 +29,8 @@ extends RefCounted
 ## lots facing its canal (backing onto the perimeter street's pavement), a middle island two rows
 ## back to back, each facing its own canal.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 const SITE_ID := "venice_canals"
 const NAME := "MARISOL CANALS"
 ## North-south canals first (west to east), then east-west (north to south).

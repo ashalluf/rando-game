@@ -27,6 +27,8 @@ extends RefCounted
 ##
 ## Names are this game's own (NAMES), never a real chain's.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 const ODDS := {
 	CityPlan.District.MIDTOWN: 0.20,
 	CityPlan.District.SUBURBS: 0.13,

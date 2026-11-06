@@ -16,6 +16,8 @@ extends AmbientCraft
 ## (SpotLight3D, volumetric on Forward+ HIGH, a drawn shaft elsewhere, a pool of light where it
 ## lands); news carry a camera ball that follows what they are filming.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 enum Role { POLICE, NEWS }
 enum Mode { HOVER, GOTO, ORBIT, LEAVE }
 
@@ -359,6 +361,7 @@ func _build_searchlight() -> void:
 		core.position = Vector3(0.0, 0.0, 0.02)
 		core.scale = Vector3(0.5, 0.5, 1.0)
 		_pool.add_child(core)
+	PursuitLook.dress_searchlight(_pool, _beam_mat, _spot)
 
 
 # --- Flight -----------------------------------------------------------------------------------
@@ -543,7 +546,7 @@ func _aim_gear(dt: float) -> void:
 	if not lit:
 		_beam.visible = false
 		return
-	_spot.light_energy = searchlight_energy * lamp
+	_spot.light_energy = searchlight_energy * lamp * PursuitLook.spot_gain()
 	var volumetric: bool = traffic.volumetric_searchlight() if traffic else false
 	_spot.light_volumetric_fog_energy = searchlight_fog if volumetric else 0.0
 	# Where it lands, for the pool and the length of the drawn shaft.
@@ -556,9 +559,9 @@ func _aim_gear(dt: float) -> void:
 		var n: Vector3 = hit.normal
 		var tangent := n.cross(Vector3.RIGHT if absf(n.x) < 0.9 else Vector3.FORWARD).normalized()
 		var bitangent := n.cross(tangent).normalized()
-		var dia := 2.0 * reach * tan(deg_to_rad(searchlight_angle)) * 1.25 + 2.0
+		var dia := PursuitLook.pool_dia(reach, searchlight_angle)
 		# Columns scaled directly: Basis.scaled() would scale the WORLD axes (HANDOFF 9c).
-		_pool.global_transform = Transform3D(Basis(tangent * dia, bitangent * dia, n), hit.position + n * 0.25)
+		_pool.global_transform = Transform3D(Basis(tangent * dia, bitangent * dia, n), hit.position + n * PursuitLook.pool_lift())
 	else:
 		_pool.visible = false
 	_beam.visible = not volumetric
@@ -567,7 +570,7 @@ func _aim_gear(dt: float) -> void:
 		var gain := AirportNight.PATROL_BEAM if AirportNight.enabled and task == "patrol" else 1.0
 		if gain != _beam_gain:
 			_beam_gain = gain
-			_beam_mat.set_shader_parameter("strength", 0.22 * gain)
+			_beam_mat.set_shader_parameter("strength", (PursuitLook.SHAFT_STRENGTH if PursuitLook.enabled else 0.22) * gain)
 		var wide := reach * tan(deg_to_rad(searchlight_angle))
 		_beam.transform = Transform3D(Basis(Vector3.RIGHT, PI * 0.5).scaled_local(Vector3(wide, reach, wide)), _spot.position + Vector3(0.0, 0.0, -reach * 0.5))
 

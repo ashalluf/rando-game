@@ -12,6 +12,8 @@ extends Node
 ##                     parts of the Buildings standing near the camera, in TRUE world.
 ## `SKYLINE_GLASS=0` in the environment is the A/B: x 0, the glass exactly as before.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 static var enabled: bool = OS.get_environment("SKYLINE_GLASS") != "0"
 ## SKYLINE_GLASS_DEBUG=1: traced towers magenta, clouds green in the glass.
 static var debug: bool = OS.get_environment("SKYLINE_GLASS_DEBUG") == "1"

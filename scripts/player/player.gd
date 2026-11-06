@@ -3,6 +3,8 @@ extends CharacterBody3D
 ## Overpowered third-person controller: run, unlimited boost (ground and air), super-high jump,
 ## double jump, strong air control, no fall damage. Every feel number is an @export below.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 ## Physics layers: 1 world, 2 player, 4 props, 8 npc (pedestrians).
 const AIM_MASK := 1 | 4 | 8
 const BLAST_MASK := 2 | 4 | 8

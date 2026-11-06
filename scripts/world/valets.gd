@@ -26,6 +26,8 @@ extends RefCounted
 ## parked; nothing goes through CityChunk._add_prop. FULL chunks only. `VALETS=0` in the
 ## environment is the A/B. Static: call with the chunk.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 # --- Tunables --------------------------------------------------------------------------------
 
 ## Chance a tower is a hotel with a valet stand at its lobby, by district (one stand a building).

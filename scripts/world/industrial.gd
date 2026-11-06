@@ -36,6 +36,8 @@ extends RefCounted
 ## chunks and the far city's capture get the warehouses, trailers, rail cars, tanks and the water
 ## tower as plain far boxes and the yards as ground slabs - nothing else.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 ## Off, every industrial lot builds as it did before this (the A/B: INDUSTRIAL=0 on still_shot.gd
 ## and block_shot.tscn; FILL=yard on tools/lot_coverage.gd).
 static var enabled: bool = true

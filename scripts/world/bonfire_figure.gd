@@ -7,6 +7,8 @@ extends BeachFigure
 ## `clothed` set, which gets up and runs like any sunbather and is dressed the same way when it
 ## goes down (BeachGoer.knock()).
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 ## The crowd rig (an index into Pedestrian.MODELS).
 var model: int = 0
 

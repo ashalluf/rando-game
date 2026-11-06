@@ -10,6 +10,8 @@ extends RefCounted
 ## green-black paint, frosted globes lit after dark (lamp_factor), its pool and a real light like
 ## every street lamp (CityChunk._add_lamp's prop slot, so prop ids do not move).
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 const LAMP_HEIGHT := 5.6
 const LAMP_IRON := Color(0.09, 0.13, 0.11)
 ## How far from the kerb the shops' goods stand (m): against the building line.

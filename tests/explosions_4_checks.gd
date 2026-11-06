@@ -390,6 +390,11 @@ func _round11(parent: Node) -> void:
 	var fm := Blast4.flame_material()
 	_t._check(not Blast4.tongues() or (float((fm as ShaderMaterial).get_shader_parameter("look5")) == (1.0 if Blast4.flame_look5 else 0.0)),
 		"explosions_4: flame tongues of their own heights with holes (look5)")
+	var tsrc := FileAccess.get_file_as_string("res://shaders/flame_tongue.gdshader")
+	_t._check(not Blast4.tongues() or (tsrc.contains("#if CURRENT_RENDERER != RENDERER_COMPATIBILITY")
+		and (float((fm as ShaderMaterial).get_shader_parameter("fwd_decode")) > 0.0) == Blast4.flame_fwd),
+		"explosions_4: on Forward+ the tongues' display-number colours go toward linear (not pale yellow)")
+	_t._check(hsrc_core_ok(), "explosions_4: on Forward+ the hot core is a fifth of the light and never the white plateau")
 	var pm := Blast4.panel_mesh()
 	_t._check(pm != null and (not Blast4.panel_torn or pm.get_faces().size() >= 14 * 9),
 		"explosions_4: a torn panel is a ragged crumpled sheet (%d face verts)" % pm.get_faces().size())
@@ -447,3 +452,10 @@ func _round11(parent: Node) -> void:
 			heaps += 1
 	_t._check(not (Blast4.wall_enabled and Blast4.heavy_masonry) or heaps >= 2,
 		"explosions_4: a wall blast throws slabs and leaves a heap at the foot (%d)" % heaps)
+
+
+## The hot core's Forward+ branch (round 20): a fifth of the light, capped below the white plateau
+## (at full numbers the first frames bloomed into a flat white disc on Forward+).
+func hsrc_core_ok() -> bool:
+	var src := FileAccess.get_file_as_string("res://shaders/blast_hot_core.gdshader")
+	return src.contains("#if CURRENT_RENDERER != RENDERER_COMPATIBILITY") and src.contains("bb(min(k, 0.86))")

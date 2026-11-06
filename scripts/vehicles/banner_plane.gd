@@ -9,6 +9,8 @@ extends AmbientCraft
 ## banner has its own body: shoot it enough and it tears off the rope and flutters down. A plane
 ## that goes down cuts its banner loose too.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 ## Airspeed (m/s; banner tows fly at 40-50 knots).
 @export var speed: float = 23.0
 ## Rope from the hook to the banner's lead pole (m), and how far the banner rides below the

@@ -12,6 +12,8 @@ extends RefCounted
 ##    now goes `POOL_AIR` over the transition, about a metre over the coping, with a grab.
 ## RC5_SKATE=0 is the A/B (the old look, the old air).
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 static var enabled: bool = OS.get_environment("RC5_SKATE") != "0"
 
 ## The pool line's frontside air: its height over the chord along the wall (SkateParkLife).

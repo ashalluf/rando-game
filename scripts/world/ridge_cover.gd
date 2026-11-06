@@ -3,6 +3,8 @@ extends Node
 ## Under a FULL chunk that builds some of the ridges in detail (RidgeBuild): while the chunk is
 ## drawn, RidgeSystem hides the far versions of those towers, masts and sites (`ids`, Ridges.far_id).
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 var ids: Array[int] = []
 var _on := false
 

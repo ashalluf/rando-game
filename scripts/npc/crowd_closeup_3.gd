@@ -12,6 +12,8 @@ extends RefCounted
 ##    silhouettes, a better dither
 ## CROWD_CLOSEUP_3=0 in the environment is the A/B for both (the old constants, the old cut).
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 static var _on: int = -1
 
 

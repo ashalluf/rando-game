@@ -11,6 +11,8 @@ extends RefCounted
 ## the front edge of the yard) at a height `y` over the ground floor; the front of a wing is its
 ## low-v face and faces -v.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 var ch: CityChunk
 var h: Dictionary
 var acc: HouseKit.Acc
@@ -638,6 +640,8 @@ func _glass(a: Vector2, b: Vector2, y0: float, y1: float, n: Vector2, rnd: float
 	var blind: Color = HouseKit.BLINDS[absi(hash([seed, a.x, a.y])) % HouseKit.BLINDS.size()]
 	blind.a = rnd
 	_quad("glass", L(a, y1), L(b, y1), L(b, y0), L(a, y0), N(n), blind, [Vector2(0, 0), Vector2(1, 0), Vector2(1, 1), Vector2(0, 1)])
+	# A lit room's light on the yard in front of it (SuburbNight, refcam5 suburb_night).
+	SuburbNight.window_spill(self, a, b, y0, y1, n, rnd)
 
 
 func _frame_ring(q0: Vector2, q1: Vector2, y0: float, y1: float, t: Vector2, n: Vector2, cl: Color, fw: float) -> void:

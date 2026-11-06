@@ -10,6 +10,8 @@ extends RefCounted
 ## `FREEWAY_CLOSEUP=0` in the environment is the A/B: the old asphalt road material, the kit's
 ## shaders as they were, the old fill.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 static var enabled := OS.get_environment("FREEWAY_CLOSEUP") != "0"
 
 ## The chance a free traffic slot is left empty (TrafficManager._maintain_freeway() rolls it,

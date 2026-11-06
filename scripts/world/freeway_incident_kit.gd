@@ -8,6 +8,8 @@ extends RefCounted
 ## cms_cabinet(), at every level) and its LED face (a quad FreewayIncidents puts on the cabinets
 ## near the player, shaders/freeway_cms.gdshader, the message an L8 texture of LedScreen.GLYPHS).
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 ## The tread strip: width across (m), thickness (m), the lug height (m).
 const TREAD_W := 0.29
 const TREAD_T := 0.022

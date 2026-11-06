@@ -3,6 +3,8 @@ extends Node
 ## Day/night cycle: moves the sun and the moon, tints the sky and fog, and drives the
 ## `night_factor` global shader parameter that makes windows and lamps glow after dark.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 ## Real seconds for a full day. 2880 is 48 minutes, two real seconds per game minute - the pace
 ## the big open-world games settled on. At 480 (owner, 2026-09-23: "the day/night cycle is too
 ## fast") a sunset was over in under a minute and a whole day in eight.
@@ -465,10 +467,12 @@ func _apply() -> void:
 		# The moon lights the night by its phase: a new-moon night is darker than a full one
 		# (about 1 at the default gibbous, so the night grade keeps its level).
 		var moon_lit := 0.5 - 0.5 * sun_dir.dot(moon_dir)
-		_sun.light_energy = lerpf(night_sun_energy * lerpf(0.45, 1.05, moon_lit), day_sun_energy, daylight) * (1.0 - 0.75 * weather_darken) \
+		_sun.light_energy = lerpf(night_sun_energy * lerpf(0.45, 1.05, moon_lit) * SuburbMoon.moon_gain(self, moonlight), day_sun_energy, daylight) * (1.0 - 0.75 * weather_darken) \
 			* (1.0 - marine_sun_cut * marine) * (1.0 + 0.06 * santa_ana) * RainDay.sun_gain(weather_darken, moonlight) + flash * 2.5
 		# Under the deck the light is the whole grey sky: shadows go soft and faint.
 		_sun.shadow_opacity = (1.0 - marine_shadow_cut * marine) * RainDay.shadow_gain(weather_darken, moonlight)
+		# No sun disc through the deck: no sharp highlight either (Rc5CemeteryDawn).
+		_sun.light_specular = Rc5CemeteryDawn.sun_specular(marine)
 		# A rainy night's haze is lit by the street lamps, not by a moon behind the cloud. Rain
 		# thickens the volumetric fog seventy-fold, and lit by the moonlight fill it hung over
 		# the whole street as a pale grey veil, so a rainy night read as a grey dusk.
@@ -504,6 +508,10 @@ func _apply() -> void:
 			var day_share := santa_ana * (1.0 - night_factor)
 			top = top.lerp(santa_top, 0.55 * day_share * (1.0 - dusk))
 			rim = rim.lerp(santa_horizon, 0.5 * day_share * (1.0 - 0.6 * dusk))
+			var smoke: Array = BrushFireLook.sky(top, rim, santa_ana, dusk, moonlight)
+			top = smoke[0]
+			rim = smoke[1]
+			day_share = maxf(day_share, BrushFireLook.sky_weight(santa_ana, dusk, moonlight))
 			_horizon_now = _horizon_now.lerp(rim, day_share)
 		if marine > 0.0:
 			# Under the deck the sky is the deck: grey by day, the city's light on it at night.
@@ -608,18 +616,22 @@ func _apply() -> void:
 			_env.ambient_light_energy *= 1.0 + StormDrama.FLASH_AMBIENT * clampf(float(_sun.get_meta("weather_flash", 0.0)), 0.0, 1.5)
 		if santa_ana > 0.0:
 			_env.fog_light_color = _env.fog_light_color.lerp(santa_fog, 0.7 * santa_ana * (1.0 - moonlight) * (1.0 - dusk))
+			_env.fog_light_color = BrushFireLook.fog(_env.fog_light_color, santa_ana, dusk, moonlight)
 		if marine > 0.0:
 			_env.fog_light_color = _env.fog_light_color.lerp(marine_fog.lerp(night_storm_fog, moonlight), marine)
+		Rc5CemeteryDawn.tick(hour, marine, weather_darken, santa_ana, _env.fog_light_color)
 	# Street lamps. Setting hundreds of lights every frame is wasteful, but only refreshing when
 	# the value moves leaves every lamp that streamed in since the last change sitting at zero,
 	# which is why the streets stayed black the first time. Refresh on a slow tick instead, so
 	# newly loaded chunks pick the level up within a third of a second.
 	# At dawn the photocells switch the lamps off before the sunrise (DawnReview.lamp_factor()).
 	var nf_lamps := DawnReview.lamp_factor(night_factor, hour, elevation)
-	var lamp_factor := maxf(nf_lamps, weather_darken * 0.85)
+	# Under the deck the photocells hold the lamps past the sunrise (Rc5CemeteryDawn).
+	var lamp_hold := Rc5CemeteryDawn.lamp_hold(marine, elevation)
+	var lamp_factor := maxf(maxf(nf_lamps, lamp_hold), weather_darken * 0.85)
 	# The lights themselves come in on the square of the level: a lamp's pool switched on at sunset
 	# is not seen against the daylight (SunsetReview, rc-sunset). Weather's share is as it was.
-	var want := maxf(SunsetReview.light_level(nf_lamps), weather_darken * 0.85) * lamp_energy * lamp_scale
+	var want := maxf(SunsetReview.light_level(maxf(nf_lamps, lamp_hold)), weather_darken * 0.85) * lamp_energy * lamp_scale
 	# _apply() is also called from _ready(), where there is no delta parameter to use.
 	_lamp_timer -= get_process_delta_time()
 	if _lamp_timer <= 0.0 or absf(want - _lamp_level) > 0.04:

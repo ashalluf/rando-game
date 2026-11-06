@@ -3,6 +3,8 @@ extends RigidBody3D
 ## Knock-over-able street trash can (Poly Haven metal can, clean or rusty). Joins the physics_prop
 ## group so PhysicsBudget manages it. Set `rusty` before adding it to the tree.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 ## How far a prop draws (metres), see _ready().
 const DRAW_DISTANCE := 140.0
 
