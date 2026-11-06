@@ -1,0 +1,75 @@
+class_name RcChurchSunday
+extends RefCounted
+## The Mission church on a Sunday morning (wave 8 refcam5 "church_sunday", docs/HANDOFF.md "The
+## Mission church on a Sunday morning"). What the view from across the street gave away, fixed:
+##
+## - The front was hidden: the kerb's street trees and the grounds' own lawn trees stood square in
+##   front of the facade and the bell tower, so from the opposite pavement the church was a white
+##   wall seen through leaves. `keeps_tree_off()` (one hook in CityChunk._add_tree(), after every
+##   roll) keeps the kerb trees off a place of worship's front (the facade and the tower, with a
+##   margin), and WorshipBuild's grounds keep their trees out of the lawn before the facade
+##   (`front_clear()`): they stand to the sides, palms and trees framing it, as a real one is
+##   planted.
+##
+## - The stucco was one flat sheet of white: the worship sites' stucco materials take
+##   shaders/lime_wash.gdshaderinc (`lime_params()`: patchy coats, repair patches, streaks from the
+##   copings, damp at the foot, the trowel's relief; a factor in linear light on both renderers).
+##
+## A/B: RC5_CHURCH=0 in the environment (the trees as before). The congregation is WorshipSunday's
+## (WORSHIP_SUNDAY=0).
+
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
+static var enabled: bool = OS.get_environment("RC5_CHURCH") != "0"
+
+## Metres either side of the front the kerb keeps clear.
+const TREE_CLEAR := 3.0
+
+
+## The span of a site's front in its frame (local x0, x1): the building group the view is about.
+static func front_span(p: Dictionary) -> Vector2:
+	match int(p.kind):
+		Worship.Kind.MISSION:
+			var xc: float = p.xc
+			var W: float = p.W
+			return Vector2(xc - W * 0.5 - float(p.tower) - 0.4, xc + W * 0.5 + float(p.arcade) + 0.6)
+		Worship.Kind.STOREFRONT:
+			return Vector2(float(p.BX) - float(p.W) * 0.5, float(p.BX) + float(p.W) * 0.5)
+	var w: float = float(p.get("W", 16.0)) + 6.0
+	var c: float = float(p.get("xc", 0.0))
+	return Vector2(c - w * 0.5, c + w * 0.5)
+
+
+## True when a kerb tree at `at` (true world) would stand in front of a place of worship's front.
+static func keeps_tree_off(plan: CityPlan, at: Vector3) -> bool:
+	if not enabled or plan == null or not Worship.enabled:
+		return false
+	var q := Vector2(at.x, at.z)
+	for s: Dictionary in Worship.near_rect(plan, Rect2(q - Vector2(2, 2), Vector2(4, 4)), plan.sidewalk_width + 2.0):
+		var f: Dictionary = s.frame
+		var n: Vector2 = f.n
+		var front := Industrial.fp(f, float(s.L) * 0.5, 0.0)
+		var d := q - front
+		var lz := -d.dot(n)
+		var lx := d.dot(Vector2(-n.y, n.x))
+		if lz < -0.5 or lz > plan.sidewalk_width + 1.5:
+			continue
+		var span := front_span(WorshipBuild.plan_of(s))
+		if lx > span.x - TREE_CLEAR and lx < span.y + TREE_CLEAR:
+			return true
+	return false
+
+
+## True when a grounds tree at local `q` would stand between the street and the front.
+static func front_clear(p: Dictionary, q: Vector2) -> bool:
+	if not enabled:
+		return false
+	var span := front_span(p)
+	return q.x > span.x - 2.0 and q.x < span.y + 2.0 and q.y > -float(p.get("fz", 8.0)) - 1.0
+
+
+## The lime-wash uniforms for the worship stucco (landmark_facade.gdshader); {} with the pass off.
+static func lime_params() -> Dictionary:
+	if not enabled:
+		return {}
+	return {"lime_wash": 1.0}

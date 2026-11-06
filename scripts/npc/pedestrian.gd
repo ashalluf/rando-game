@@ -384,6 +384,10 @@ func _ready() -> void:
 	_add_hit_area()
 
 
+## A model path a subclass wants instead of the rolled one ("" the roll; the roll is still made).
+var model_pick: String = ""
+
+
 ## Picks one of the generated characters (seeded) and starts its walk cycle. False if none exist.
 func _add_model() -> bool:
 	var available: Array[String] = []
@@ -393,6 +397,8 @@ func _add_model() -> bool:
 	if available.is_empty():
 		return false
 	var path: String = available[_style.randi() % available.size()]
+	if model_pick != "" and model_pick in available:
+		path = model_pick # a subclass's choice (Worshipper: Sunday best), after the roll
 	var dealt: Array = PlazaCrowd.deal(self, available)
 	if not dealt.is_empty():
 		path = dealt[0]

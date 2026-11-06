@@ -16,6 +16,7 @@ render_mode cull_back;
 // Shader files use // comments, never #.
 
 #include "res://shaders/landmark_common.gdshaderinc"
+#include "res://shaders/lime_wash.gdshaderinc"
 
 uniform sampler2D wall_albedo : source_color, filter_linear_mipmap_anisotropic, repeat_enable;
 uniform sampler2D wall_normal : hint_normal, filter_linear_mipmap_anisotropic, repeat_enable;
@@ -83,8 +84,11 @@ uniform float night_self = 0.0;
 
 varying vec3 wpos;
 varying vec3 wnrm;
+// Metres above the mesh's own base (lime_wash.gdshaderinc: a worship site's mesh sits on its pavement).
+varying float lh;
 
 void vertex() {
+	lh = VERTEX.y;
 	wpos = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
 	wnrm = normalize((MODEL_MATRIX * vec4(NORMAL, 0.0)).xyz);
 }
@@ -136,6 +140,15 @@ void fragment() {
 	float window = 0.0;
 	// A pixel's footprint on the wall, outside any branch (derivatives in one are undefined).
 	vec2 px = max(vec2(fwidth(uv.x), fwidth(wpos.y)), vec2(1e-4));
+	if (lime_wash > 0.0) {
+		vec2 tilt;
+		float lf = lw_factor(uv, lh, normalize(wnrm), px, tilt);
+#if CURRENT_RENDERER == RENDERER_COMPATIBILITY
+		lf = pow(lf, 1.0 / 2.2);
+#endif
+		base *= lf;
+		nmap.xy = clamp(nmap.xy + tilt, vec2(0.0), vec2(1.0));
+	}
 	if (wall && win_pitch.x > 0.0 && wpos.y > win_band.x && wpos.y < win_band.y) {
 		vec2 cell = vec2(uv.x / win_pitch.x, (wpos.y - win_band.x) / win_pitch.y);
 		vec2 id = floor(cell);

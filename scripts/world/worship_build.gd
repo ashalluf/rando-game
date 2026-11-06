@@ -125,14 +125,16 @@ static func build(ch: CityChunk, node: Node3D, body: StaticBody3D, s: Dictionary
 		_grounds(ctx)
 	g.commit(node, "Building")
 	_finish(ctx)
+	WorshipSunday.people(ctx)
 
 
 # --- Materials -----------------------------------------------------------------------------------------
 
 static func _use_mats(g: LandmarkGeo, p: Dictionary) -> void:
 	var flood := {"flood_strength": 0.85, "flood_reach": 8.0, "flood_floor": 0.18, "flood_spacing": 4.5, "grime": 0.3, "night_self": 0.02}
-	g.use("stucco", LandmarkMats.facade("wor_stucco", "plaster_white", 3.0, _with(flood, {"tint": Color(0.64, 0.60, 0.53), "texture_contrast": 1.6, "grime": 0.5})))
-	g.use("stucco_warm", LandmarkMats.facade("wor_stucco_warm", "plaster_beige", 3.0, _with(flood, {"tint": Color(0.92, 0.84, 0.72)})))
+	var lime := RcChurchSunday.lime_params()
+	g.use("stucco", LandmarkMats.facade("wor_stucco", "plaster_white", 3.0, _with(_with(flood, {"tint": Color(0.64, 0.60, 0.53), "texture_contrast": 1.6, "grime": 0.5}), lime)))
+	g.use("stucco_warm", LandmarkMats.facade("wor_stucco_warm", "plaster_beige", 3.0, _with(_with(flood, {"tint": Color(0.92, 0.84, 0.72)}), lime)))
 	g.use("stone", LandmarkMats.facade("wor_stone", "plaster_beige", 3.0, _with(flood, {"tint": Color(0.70, 0.64, 0.54),
 		"joint_spacing": Vector2(1.2, 0.6), "joint_width": 0.012, "joint_dark": 0.3})))
 	g.use("trim", LandmarkMats.facade("wor_trim", "plaster_white", 2.0, _with(flood, {"tint": Color(0.56, 0.50, 0.42), "grime": 0.3})))
@@ -633,6 +635,8 @@ static func _grounds(ctx: Dictionary) -> void:
 			if o.distance_to(q) < 6.0:
 				ok = false
 		if absf(x - bx) < 3.0 and z > -3.5:
+			ok = false
+		if RcChurchSunday.front_clear(p, q):
 			ok = false
 		if ok:
 			placed.append(q)

@@ -44,6 +44,7 @@ func _initialize() -> void:
 	_club_line()
 	_market_day()
 	_yard_sale()
+	_sunday()
 	# OCCLUSION=0: occlusion culling off (still_shot's switch), to tell what is culled in plain sight.
 	if OS.get_environment("OCCLUSION") == "0":
 		get_root().use_occlusion_culling = false
@@ -567,6 +568,20 @@ func _yard_sale() -> void:
 		if int(cam.get("yard_sale", 0)) == 1 and (only.is_empty() or String(cam.name) in only):
 			OS.set_environment("YARD_SALE_DAY", "6")
 			OS.set_environment("YARD_SALE_HOUR", str(float(cam.get("hour", 9.5))))
+
+
+## A row's optional "sunday" (wave 8's church_sunday): 1 builds every place of worship's people
+## for its Sunday at the row's "hour" (WorshipSunday.force_day / force_hour, as WORSHIP_DAY=0
+## WORSHIP_HOUR=h): a chunk built during the load would otherwise take the load's day and hour.
+## Set before the city loads.
+func _sunday() -> void:
+	if OS.get_environment("WORSHIP_DAY") != "":
+		return
+	var only := OS.get_environment("ONLY").split(",", false)
+	for cam: Dictionary in _cameras().get("cameras", []):
+		if int(cam.get("sunday", 0)) == 1 and (only.is_empty() or String(cam.name) in only):
+			OS.set_environment("WORSHIP_DAY", "0")
+			OS.set_environment("WORSHIP_HOUR", str(float(cam.get("hour", 10.5))))
 
 
 ## A row's optional "golf_group" ("hole:stage[:tee[:count]]", wave 6's golf_morning) puts a group
