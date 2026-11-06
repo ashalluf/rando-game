@@ -31786,6 +31786,7 @@ gap, a TV flicker in some); no pool in the court, no ice machine, no guests at t
 itself still faces up and down the street (seen edge-on from the opposite pavement); the far city
 keeps both heads of a double-motel corner. A motel on a sloping lot stands at its centre's height
 (the body runs 0.6 m below the floor to hide it).
+
 ## 9d?. The marine layer's evening bank from the beach (refcam5 `marine_evening`, wave 8; branch `wt/rc5-marine-evening`)
 
 **The camera.** A new row in `tools/refcams/cameras_w8.json`: `marine_evening`, 18:30, weather marine,
