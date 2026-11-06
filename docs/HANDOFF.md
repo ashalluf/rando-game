@@ -32439,6 +32439,11 @@ were one box per storey with a glazed sea face, a flat roof and a glass-railed d
 The houses' own CPU geometry: 16.5 k -> 23.3 k triangles for all 15 (the checks build them into a
 bare Geo). Stills on `shots/coast-houses`.
 
+**Ten cameras** (cameras.json, COAST_HOUSES=0 -> on, same build): nine `ok`; `freeway` flags on
+live freeway traffic standing differently between the two loads (a box truck and a taxi in front of
+the lens; none of the ten is near the coast). **Gate:** SHARDS=3 on 1b1ed308 (main 7f062523 merged):
+6,520 checks passed, 0 failed, peak RSS 4,002 MB a shard.
+
 **Not done / not verified.** Forward+ (the Mac) not seen: hh_glass is the hillside houses' shader,
 already reviewed there, and the rest is HouseKit's materials. The far boxes do not follow the
 setbacks or the pitched roofs (one box a house, as before). The gable's sea glass reads grey by day
