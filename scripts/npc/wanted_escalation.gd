@@ -18,6 +18,8 @@ extends RefCounted
 ## name, insignia or livery. `WANTED_ESCALATION=0` in the environment puts the old response back
 ## (the A/B): the caps, roadblocks at four, vans at five, two helicopters, one siren.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 ## Off (the A/B): every hook below leaves the old behaviour.
 static var enabled: bool = OS.get_environment("WANTED_ESCALATION") != "0"
 

@@ -23,6 +23,8 @@ extends RefCounted
 ##   throws a long pool down the runway ahead (landing_pool(), one additive quad a jet).
 ## Every number is a constant here; nothing rolls.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 static var enabled: bool = OS.get_environment("AIRPORT_NIGHT") != "0"
 
 ## How far a mast's floods reach (metres, the pool's radius) and their strength on the concrete

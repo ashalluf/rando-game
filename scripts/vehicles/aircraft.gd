@@ -6,6 +6,8 @@ extends Vehicle
 ## self-leveling. Shift = throttle up, right click = throttle down, W / S pitch, A / D roll.
 ## Every feel number is an export below.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 enum Kind { PRIVATE, AIRLINER }
 
 const KIND_NAMES := ["Private Jet", "Airliner"]

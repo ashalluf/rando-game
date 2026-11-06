@@ -21,6 +21,8 @@ extends RefCounted
 ## Workers are crowd rigs in hi-vis and hard hats (ConstructionWorker), in the crowd cap, only in
 ## working hours.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 ## Off: no sites at all (the A/B; `CONSTRUCTION=0` in the environment).
 static var enabled: bool = OS.get_environment("CONSTRUCTION") != "0"
 ## The hour the crews are built for, for tests and stills (negative: the city's clock).
@@ -74,7 +76,7 @@ const SIGN_AHEAD := 18.0
 
 # --- Crews --------------------------------------------------------------------------------------
 const WORK_HOURS := Vector2(6.5, 17.5)
-const MAX_WORKERS := 7
+const MAX_WORKERS := 9
 
 ## Invented developers, projects and taglines (never a real company or building).
 const DEVELOPERS := ["HALVERSON & REED", "MERIDIAN VALE PARTNERS", "SUNSTONE DEVELOPMENT", "ARROYO CROWN GROUP",
@@ -417,7 +419,7 @@ static func hour_now(node: Node) -> float:
 
 static func working(node: Node) -> bool:
 	var h := hour_now(node)
-	return h >= WORK_HOURS.x and h <= WORK_HOURS.y
+	return (h >= WORK_HOURS.x and h <= WORK_HOURS.y) or ConstructionDusk.late(h)
 
 
 # --- Chunk state ------------------------------------------------------------------------------
@@ -467,8 +469,9 @@ static func _lights_mesh(lights: Array) -> ArrayMesh:
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
 	var corners := [Vector2(0.0, 0.0), Vector2(1.0, 0.0), Vector2(1.0, 1.0), Vector2(0.0, 1.0)]
 	for l: Array in lights:
+		var col: Color = l[2] if l.size() > 2 else Color(1.0, 0.1, 0.05, 1.0)
 		for k: int in [0, 1, 2, 0, 2, 3]:
-			st.set_color(Color(1.0, 0.1, 0.05, 1.0))
+			st.set_color(col)
 			st.set_uv(corners[k])
 			st.set_uv2(Vector2(float(l[1]), 0.0))
 			st.set_normal(Vector3.UP)
@@ -724,6 +727,8 @@ static func _tower_full(ch: CityChunk, site: Dictionary, g: float) -> void:
 	_hoarding(ch, st, site, g)
 	# --- The yard: cabins, a skip, toilets, stacks ---
 	_yard(ch, st, site, floor_y)
+	# --- Work lights for the late shift (ConstructionDusk) ---
+	ConstructionDusk.work_lights(ch, st, site, floor_y)
 	# --- Crew spots ---
 	var crew: Array = _state(ch).workers
 	var block_rect: Rect2 = (ch.plan.block(ch.ix, ch.iz).rect as Rect2)
@@ -935,6 +940,7 @@ static func _hoarding(ch: CityChunk, st: SurfaceTool, site: Dictionary, g: float
 			var fp := (g0 + g1) * 0.5 + out * 1.6
 			(_state(ch).workers as Array).append({"at": fp, "yaw": atan2(-out.x, -out.y), "lift": 0.0,
 				"rect": (ch.plan.block(ch.ix, ch.iz).rect as Rect2), "seed": hash([ch.plan.seed, site.seed, "gateman"]), "paddle": true, "deck": false})
+			ConstructionDusk.gate_crew(ch, site, (g0 + g1) * 0.5, out, along)
 		if e == walk and street:
 			# The covered walkway (a sidewalk shed): posts at the kerb side and at the boards, a
 			# deck at WALKWAY_H with a plywood parapet, lamps under it.
@@ -953,7 +959,7 @@ static func _hoarding(ch: CityChunk, st: SurfaceTool, site: Dictionary, g: float
 			K.box(st, Transform3D(Basis(Vector3.UP, yaw), Vector3(dm.x, y0 + WALKWAY_H + 0.15, dm.y)), Vector3(len, 0.3, depth + 0.2), K.K_STEEL, Color(0.20, 0.32, 0.22))
 			K.box(st, Transform3D(Basis(Vector3.UP, yaw), Vector3(dm.x, y0 + WALKWAY_H + 0.31, dm.y)), Vector3(len, 0.03, depth + 0.2), K.K_FORM, Color(0.62, 0.55, 0.42), -1.0, 0, 32)
 			var pk := (a + b) * 0.5 + out * (depth + 0.1)
-			K.box(st, Transform3D(Basis(Vector3.UP, yaw + PI), Vector3(pk.x, y0 + WALKWAY_H + 0.85, pk.y)), Vector3(len, 1.1, 0.03), K.K_HOARDING, Color.WHITE, float(way) + 0.01, 0, 32)
+			K.box(st, Transform3D(Basis(Vector3.UP, yaw + PI), Vector3(pk.x, y0 + WALKWAY_H + 0.85, pk.y)), Vector3(len, 1.1, 0.03), K.K_HOARDING, Color.WHITE, float(way) + (0.26 if ConstructionDusk.enabled else 0.01), 0, 32)
 			_shape(ch, Vector3(len, 0.35, depth + 0.2), Transform3D(Basis(Vector3.UP, yaw), Vector3(dm.x, y0 + WALKWAY_H + 0.17, dm.y)))
 			var t4 := 1.2
 			while t4 < len:

@@ -10,6 +10,8 @@ class_name RcRidgeSign
 ## - The hill round it: the code-built shrubs gathered into thickets with gaps by RcHills' cluster
 ##   field and sized by it (CityChunk._plant_hills), not one even scatter of identical green balls.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 static var _on: int = -1
 
 

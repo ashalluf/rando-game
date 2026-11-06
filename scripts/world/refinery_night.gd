@@ -16,6 +16,8 @@ extends RefCounted
 ## REFINERY_NIGHT=0 is the A/B: every block it adds in the shaders is behind `night_look`, which
 ## stays 0, and the flame mesh is built as before.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 static var enabled: bool = OS.get_environment("REFINERY_NIGHT") != "0"
 
 ## How far a flare's light reaches (metres) and how bright it is on the steel next to it.

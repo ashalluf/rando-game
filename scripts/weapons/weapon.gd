@@ -4,6 +4,8 @@ extends Node3D
 ## Subclasses build a primitive model in _build_model() and implement _fire(aim).
 ## `aim` is the dictionary from Player.get_aim(): origin, direction, point, collider, normal.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 @export_group("Weapon")
 @export var display_name: String = "Weapon"
 ## Shots per second.

@@ -17,6 +17,8 @@ class_name PierDay
 ##   and the weather, mostly on the promenade (PROMENADE), some in twos and threes; they are
 ##   ordinary PierGoers in the crowd cap.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 ## The whole pass (`PIER_DAY=0` turns it off).
 static var enabled: bool = OS.get_environment("PIER_DAY") != "0"
 

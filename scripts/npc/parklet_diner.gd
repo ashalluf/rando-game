@@ -11,6 +11,8 @@ extends Pedestrian
 ## the chair holds them; gunfire sends them running like everyone else and they do not come back
 ## (their dinner is ruined). A waiter goes back to work once the scare is over.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 enum Role { DINER, WAITER }
 
 ## A waiter's uniform: black shirt and black trousers (the crowd's garment regions).

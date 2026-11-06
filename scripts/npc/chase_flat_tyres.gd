@@ -10,6 +10,8 @@ extends Node3D
 ##   * throws sparks off the rim on the road and grinds (Sfx `scrape`) past `spark_speed`.
 ## Nothing is restored: a car with flats keeps them (it is a wreck in the making).
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 ## How far the wheel radius drops (m), the share of grip a flat keeps, the drag deceleration per
 ## flat wheel (m/s squared at speed) and the wobble (rad/s of yaw kick, a few times a second).
 @export var rim_drop: float = 0.075

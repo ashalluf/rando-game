@@ -33,6 +33,8 @@ extends Vehicle
 ## HeliSpot puts one on a pad when the player comes near (rooftops, the hospital, the police HQ,
 ## the airport's heliport); HELI_FLYABLE=0 in the environment turns all of it off (HeliPads.enabled).
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 
 enum HeliLivery { PRIVATE, POLICE, NEWS, MEDICAL }
 

@@ -27,6 +27,8 @@ extends RefCounted
 ## real grid; `site()` then puts the footprint there, as far as the block lets it. Every NAME the
 ## game shows is invented (Minimap.LANDMARK_NAMES, the builders' *_NAME consts).
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 const SITES := {
 	"arena": {"real": "1111_s_figueroa", "latlon": Vector2(34.0429979, -118.2671352), "radius": 44.0,
 		"footprint": Vector2(240.0, 200.0), "yaw": 0, "tolerance": 60.0,

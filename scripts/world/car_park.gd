@@ -25,6 +25,8 @@ extends RefCounted
 ## into an aisle, back to E0 and up again: the classic loop of a straight-ramp structure.
 ## Names are invented (OPERATORS), never a real parking company.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 const CELL := 640.0
 const ODDS := 0.9
 const TRIES := 6

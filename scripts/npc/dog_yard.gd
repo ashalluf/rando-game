@@ -6,6 +6,8 @@ extends RefCounted
 ## one behind the lot-line fences (BACK_ODDS). FULL chunks only, at most MAX_PER_CHUNK. Every roll
 ## is a hash of the plan seed and the lot (never a chunk or block rng), so nothing else moves.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 const FRONT_ODDS := 0.3
 const BACK_ODDS := 0.06
 const MAX_PER_CHUNK := 3

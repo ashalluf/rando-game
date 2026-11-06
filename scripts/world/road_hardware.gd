@@ -26,6 +26,8 @@ extends RefCounted
 ## tests/road_detail_checks.gd. Placements are recorded on the chunk's "road_hardware" meta (the
 ## MultiMesh reads back identity under --headless).
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 ## Off: nothing is laid and the old grates, inlets and manholes stay.
 static var enabled: bool = OS.get_environment("ROAD_DETAIL") != "0"
 

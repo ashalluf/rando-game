@@ -13,6 +13,8 @@ extends Node3D
 ## flight pose (laid along the velocity, banked into turns, the gun hand forward) and foot IK.
 ## The police officers' Avatars are crowd rigs and keep the old three clips.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 const IDLE_CLIP := "Idle"
 const WALK_CLIP := "Casual_Walk_inplace"
 const RUN_CLIP := "run_fast_3_inplace"

@@ -10,6 +10,8 @@ extends RefCounted
 ## together); with OceanTraffic off (OCEAN_TRAFFIC=0) the first boat's BoatWake pushes them alone
 ## (`push_alone()`). BOAT_SEA=0 is the A/B (no boat wakes on the water).
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 static var enabled: bool = OS.get_environment("BOAT_SEA") != "0"
 ## Boats register here (Boat._ready / _exit_tree): no group walk a tick.
 static var boats: Array = []

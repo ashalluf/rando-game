@@ -15,6 +15,8 @@ extends FreewayKit
 ## one shadow-only roof, one StaticBody3D, one Area3D. FULL chunks only. No rolls: the station is
 ## the same on every seed (the line is); the riders are hash-seeded.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 const K_TILE := 1
 const K_TERRAZZO := 2
 const K_CONCRETE := 3

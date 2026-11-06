@@ -8,6 +8,8 @@ extends StreetVendor
 ## the crowd's standing clips (StreetVendor). They do not run from gunfire (they are up a building
 ## or in the road); they turn and look.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 ## Holds the flagger's paddle.
 var paddle: bool = false
 

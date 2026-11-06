@@ -33,6 +33,8 @@ extends RefCounted
 ## Names: the railroad, its marks and its livery are invented (ARROYO PACIFIC, reporting mark
 ## APXR); street names are the plan's.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 const RAILROAD := "ARROYO PACIFIC"
 const MARK := "APXR"
 

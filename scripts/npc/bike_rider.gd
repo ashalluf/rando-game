@@ -20,6 +20,8 @@ extends Pedestrian
 ## are lit (MicroMesh.rider_material). A helmet on some (BikeHelmet, built round the rig's own
 ## head like the fire helmet), never over a hat they already wear.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 ## Seconds of panic after a shot or a blast nearby (they ride away flat out).
 @export var rider_panic: Vector2 = Vector2(5.0, 9.0)
 ## Share of riders in a helmet: road bikes, the others.

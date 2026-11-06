@@ -22,6 +22,8 @@ extends RefCounted
 ##
 ## Off (HISTORIC_CORE=0 in the environment): none of it, the A/B for stills and frame counts.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 ## The two avenues and the stretch (DowntownReal.AVENUES / STREETS names).
 const AVENUES := ["SPRING ST", "MAIN ST"]
 const NORTH_STREET := "2ND ST"

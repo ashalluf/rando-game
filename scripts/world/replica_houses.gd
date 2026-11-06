@@ -16,6 +16,8 @@ extends RefCounted
 ## FULL chunks build it into the chunk's ReplicaBuilder surfaces (one mesh per material for every
 ## house in the chunk); LOD chunks draw each house as the city's LOD boxes plus a roof prism.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 # --- Tunables --------------------------------------------------------------------------------
 
 ## Storey height, metres (the condo sets its own).

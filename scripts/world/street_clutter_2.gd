@@ -24,6 +24,8 @@ extends RefCounted
 ##
 ## `STREET_CLUTTER_2=0` in the environment is the A/B (nothing laid). Static: call with the chunk.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 # --- Tunables --------------------------------------------------------------------------------
 
 static var enabled: bool = OS.get_environment("STREET_CLUTTER_2") != "0"

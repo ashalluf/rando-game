@@ -15,6 +15,8 @@ extends RefCounted
 ## the layout's seed only (a private RandomNumberGenerator seeded from it for the planting), never
 ## the chunk's or the block's rng.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 ## The thin ground pieces' lift over the pavement (m): lawn under paving under asphalt.
 const LIFT_LAWN := 0.03
 const LIFT_PAVE := 0.05

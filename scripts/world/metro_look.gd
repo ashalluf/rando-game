@@ -13,6 +13,8 @@ extends RefCounted
 ##   saloon()): lit by the sky's colour, at golden hour they glowed peach in a tunnel.
 ## METRO_LOOK=0 in the environment is the A/B (the station as wave 3 built it).
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 static var enabled: bool = OS.get_environment("METRO_LOOK") != "0"
 
 const ATLAS := "res://assets/textures/billboards/billboard_ads.jpg"

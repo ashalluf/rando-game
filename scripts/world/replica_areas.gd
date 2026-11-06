@@ -27,6 +27,8 @@ extends RefCounted
 ## Adding the next area: another const table shaped like ESPLANADE, appended to AREAS, and the
 ## same consumers pick it up. Only ESPLANADE exists today.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 ## Metres between path samples. Every lateral measurement in this file is taken at a sample, so
 ## this is also the resolution of the terrace, the corridor and the lane paths.
 const STEP := 4.0

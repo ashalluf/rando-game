@@ -3,6 +3,8 @@ extends VehicleBody3D
 ## Arcade car: bouncy, grippy, overpowered, with a nitro. Built from boxes in code with a body
 ## type, a paint color and an optional add-on. Press interact next to it to drive.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 ## CROSSOVER is last so every older index (and every seed that rolled one) keeps its meaning.
 ## BUS, BOX_TRUCK and SEMI (BigVehicles) come after it for the same reason; random_car() never
 ## rolls them - TrafficManager spawns them on purpose. FIRE_ENGINE and AMBULANCE (Emergency) come

@@ -25,6 +25,8 @@ extends RefCounted
 ## GUNPLAY_FEEL=0 in the environment is the A/B: WeaponFX's old flash, tracer and holes, the old
 ## straight kick.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 static var enabled: bool = OS.get_environment("GUNPLAY_FEEL") != "0"
 
 ## Light thrown on the shooter's hands and gun (energy at the rifle's flash size, and reach).

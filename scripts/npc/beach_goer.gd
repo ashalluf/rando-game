@@ -20,6 +20,8 @@ extends RoughSleeper
 ## the welded middle and far bodies, the baked figures, the ragdolls and the limb cuts all work on
 ## it as on any rig.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 enum Style { TRUNKS, BIKINI, ONE_PIECE }
 
 ## The crowd rigs that come to the beach (indices into Pedestrian.MODELS) and what each wears:
