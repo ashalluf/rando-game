@@ -31244,11 +31244,24 @@ strobe lights), the vessels' wakes at 17:36 (`ocean_traffic/vessel_shot.tscn`; t
 the speedboat's `wake_glow` sun term uses a raw `sun_col` like the ocean's older terms - left), the
 construction kit at night (its dusk glass is not in the kit; display-number shader, static pass only).
 
-**Found, NOT fixed (older than waves 7-8):** in `police_shot.gd VIEW=chase` a hard-edged rectangle
-of brighter asphalt under the second cruiser's headlights, Forward+ only, still there with
-`PURSUIT_LOOK=0 POLICE_NIGHT_LOOK=0` (still 08). Its sides are screen-aligned, so it looks like a
-light assigned to only some of Forward+'s clusters (CarLights' traffic spots?) - on Metal too if it
-is Godot's clustering, a lavapipe artefact if not. Bisect next with CarLights' budget at 0.
+**The rectangle under the cruiser's headlights (found here, then fixed):** in `police_shot.gd
+VIEW=chase` a hard-edged box of brighter asphalt under the second cruiser's headlights, Forward+
+only (still 08). It looked like a cluster artefact (sides square to the screen) and is not one.
+Bisected on lavapipe, a minute a run (police_shot.gd's new knobs: `CL_BUDGET`, `CL_PLAYER=0`,
+`PNL_BUDGET`, `WASH=0`, `NOSSR=1`, `NOVFOG=1`, `NOGLOW=1`, `CL_RANGE`, `CL_ATT`, `PATCH_AMOUNT`,
+`LIGHT_LOG=1`): gone with CarLights' budget 0; there with the strobes' omnis off, the washes off,
+SSR off and volumetric fog off; the SAME box, same pixels, with the spots' range 28 -> 40 m (a
+cluster tile would move with the light's bounds); gone with road.gdshader's `patch_amount` 0. It is
+a resurfacing patch (7 m jittered cells, axis-aligned with the street, which runs straight away from
+this camera - hence "screen-aligned"): inside a hard step the patch took 0.7-1.2 x the tarmac's
+roughness, and a spot 0.63 m off the road at a grazing angle lit the smoother cells as a bright box.
+opengl3 has no headlight spots (CarLights is Forward+ only), so no still ever showed it; on the Mac
+it is every patch in reach of a traffic car's or the player's own headlights. Fix: a patch is never
+smoother, 1.0-1.12 x the roughness (fresh asphalt is a touch rougher than polished old tarmac); its
+tone and seam are unchanged, so it still reads as a patch (a faint darker cell, still 10).
+`FWD_REVIEW_I=0` is the old 0.7-1.2 range (the tool sets the global itself: this scene has no
+SkyExtras). On Compatibility the patches are also a little rougher now (no headlights there: no
+visible change). Checked in `tests/fwd_review_i_checks.gd`.
 
 **Not rendered:** the cemetery mist, the suburb at night, the hill home spill, the port gate booths,
 the rush-hour haze and the oil-island mirror (their scenes need city chunks; lavapipe holds 3 blocks

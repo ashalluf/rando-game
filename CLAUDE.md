@@ -7509,7 +7509,10 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   the brush fire). Hand a soft amount over with `fi_add()` (`fi_add_hdr()` keeps an HDR core above 1
   raw; `shaders/fwd_review_i.gdshaderinc`) or `FwdReviewI.display_pool()`. Small scenes on both
   renderers: `tools/fwd_review_i/night_bits.gd SCENE=runway|fire`. `FWD_REVIEW_I=0` the A/B; checks
-  `tests/fwd_review_i_checks.gd`.
+  `tests/fwd_review_i_checks.gd`. And a
+  low Forward+ spot (CarLights' headlights; opengl3 has none) shows any roughness STEP in the road as
+  a lit box: road.gdshader's resurfacing patches were up to 30 % smoother inside a hard edge - never
+  make a hard-edged region smoother than what is round it.
 - Native screenshots without a browser: `tools/glshot/building_shot.gd` (one building),
   `tools/glshot/block_shot.tscn` (a few FULL city blocks alone, no far city: a block's ground and
   furniture) and `tools/glshot/city_shot.gd` (the city at a `--spawn`) render with the real

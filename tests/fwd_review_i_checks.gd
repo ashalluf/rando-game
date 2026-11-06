@@ -8,6 +8,8 @@ extends RefCounted
 ## - The runway's edge-light glows (JetTakeoff.infield(): 16 m light_pool quads every edge light)
 ##   were on light_pool's default linear add: bright blue and cream discs down both edges on the Mac.
 ##   FwdReviewI.display_pool() puts them on fwd-review-h's display_add_fwd path.
+## - The road's resurfacing patches (road.gdshader) were up to 30 % smoother inside a hard step: under a
+##   low Forward+ spot (a cruiser's headlights) a bright box on the road. Now never smoother.
 ## - The rule for the next one: every wave 7-8 additive quad reviewed hands its amount over on
 ##   Forward+ (a CURRENT_RENDERER branch, cs_out(), cs_as_uniform() or fi_add()).
 ## Source text and statics only.
@@ -72,3 +74,12 @@ func run(t: Node, _city: Node3D) -> void:
 		else:
 			_t._check(false, "fwd-review-i: %s.gdshader is additive and hands nothing over on Forward+" % n)
 	_t._check(handed == adds.size(), "the wave 7-8 additive quads hand their amount over on Forward+ (%d of %d)" % [handed, adds.size()])
+	# The road's resurfacing patches: a hard-edged 7 m cell that used to be up to 30 % SMOOTHER than
+	# the tarmac round it, which a low grazing spot (CarLights' traffic headlights, Forward+ only)
+	# lit as a bright box on the road ahead of every cruiser. Now never smoother, at most 12 % rougher.
+	var road_src := FileAccess.get_file_as_string("res://shaders/road.gdshader")
+	var road := _code("res://shaders/road.gdshader")
+	_t._check(road_src.contains('#include "res://shaders/fwd_review_i.gdshaderinc"')
+		and road.contains("float p_gain = fwd_review_i > 0.5 ? 1.0 + 0.12 * hash12(cell + 3.3) : 0.7 + 0.5 * hash12(cell + 3.3);")
+		and road.contains("rough = mix(rough, rough * p_gain, inside);"),
+		"a road patch is never smoother than the tarmac round it (FWD_REVIEW_I=0 the old 0.7-1.2 range)")
