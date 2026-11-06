@@ -27,6 +27,7 @@ global uniform vec4 skyline_sky_rim;
 
 #include "res://shaders/color_space.gdshaderinc"
 #include "res://shaders/marina_mirror.gdshaderinc"
+#include "res://shaders/marina_night.gdshaderinc"
 
 // LINEAR: the body of the water, and a lighter, greener tone in the shallows along the walls.
 uniform vec3 deep_color = vec3(0.012, 0.026, 0.028);
@@ -40,6 +41,11 @@ uniform float roughness_calm = 0.03;
 uniform float roughness_chop = 0.10;
 // Night: the city's sodium glow broken into streaks by the chop.
 uniform vec3 night_glow = vec3(0.09, 0.05, 0.018);
+// MarinaNight: the glow's share while the real lights are mirrored (its crazing read as brick
+// paving), the chop's steepness for the lights' glints, and the lights' gain.
+uniform float night_glow_keep = 0.2;
+uniform float ml_wobble = 6.0;
+uniform float ml_gain = 1.0;
 
 varying vec3 v_local;
 varying vec3 v_cam;
@@ -123,7 +129,12 @@ void fragment() {
 	// Mostly where the chop catches it: at 0.4 of it everywhere the whole basin drew as one flat
 	// orange-brown sheet on Forward+ at night (its night exposure lifts it).
 	vec3 glow = night_glow * lamp_factor * (0.08 + 0.92 * sparkle * sparkle);
+	bool night_lights = (ml_count > 0 || mf_count > 0) && lamp_factor > 0.01;
+	if (night_lights) {
+		glow *= night_glow_keep;
+	}
 	vec3 emit = sky * fres * sky_emit + glow * fres;
+	float boat_a = 0.0;
 	if (mm_count > 0) {
 		// The boats in the water (MarinaGolden): the reflected ray traced against the nearest
 		// hulls, cabins and masts. Where one stands in it the renderer's own reflection (the sky,
@@ -139,6 +150,19 @@ void fragment() {
 		fr = max(fr, fres);
 		SPECULAR = 0.5 * (1.0 - hit.a);
 		emit = emit * (1.0 - hit.a) + hit.rgb * fr;
+		boat_a = hit.a;
+	}
+	if (night_lights) {
+		// The lights in the water (MarinaNight): every lamp's column and the lit fronts across the
+		// basin, behind whatever boat stands in the mirror.
+		vec3 vi = normalize(v_local - v_cam);
+		vec3 rf = vec3(vi.x, abs(vi.y), vi.z);
+		vec3 rw = reflect(vi, normalize(vec3(-grad.x * ml_wobble, 1.0, -grad.y * ml_wobble)));
+		rw.y = max(rw.y, 0.002);
+		float px = 2.0 / (abs(PROJECTION_MATRIX[1][1]) * max(VIEWPORT_SIZE.y, 240.0));
+		float frn = max(0.02 + 0.98 * pow(1.0 - clamp(-vi.y, 0.0, 1.0), 5.0), 0.1);
+		vec3 lights = mn_lights(v_local, rf, rw, px, distance(v_local, v_cam));
+		emit += lights * frn * ml_gain * smoothstep(0.05, 0.5, lamp_factor) * (1.0 - boat_a);
 	}
 	EMISSION = cs_out(emit);
 }

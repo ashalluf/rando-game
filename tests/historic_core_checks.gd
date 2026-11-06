@@ -180,7 +180,8 @@ func _signature(chunk: CityChunk) -> Array:
 		if HistoricCore.lot_avenue(plan, chunk.ix, chunk.iz, lot) != "":
 			var c: Vector2 = lot.center
 			var sz: Vector2 = lot.size
-			own.append(Rect2(c - sz * 0.5, sz).grow(1.0))
+			# The lot's cell: a front fills it along the avenue (HistoricCore.closes_wall()).
+			own.append((lot.get("cell", Rect2(c - sz * 0.5, sz)) as Rect2).merge(Rect2(c - sz * 0.5, sz)).grow(1.0))
 	var mine := func(q: Vector2) -> bool:
 		for r: Rect2 in own:
 			if r.has_point(q):

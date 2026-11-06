@@ -1660,6 +1660,7 @@ func _sample_terrain() -> bool:
 		# an eight-metre quad gives a mountain a faceted, folded-paper edge no shading can hide.
 		var has_road := _hill_segments().size() > 0
 		_tile_n = (terrain_subdiv_road if has_road else terrain_subdiv) if level == Level.FULL else terrain_subdiv_lod
+		_tile_n = Rc5Reservoir.tile_n(self, _tile_n)
 		_tile_heights.resize((_tile_n + 1) * (_tile_n + 1))
 		_tile_drains.resize((_tile_n + 1) * (_tile_n + 1))
 		_tile_rills.resize((_tile_n + 1) * (_tile_n + 1))
@@ -2960,8 +2961,11 @@ func _take_crowd_room(reserve: float = 0.0) -> bool:
 func _spawn_walker(rect: Rect2, sidewalk: float, rng: RandomNumberGenerator) -> void:
 	if not _take_crowd_room(Encampment.walker_reserve(plan, ix, iz)):
 		return
+	var walker_seed := rng.randi()
+	if not Rc5CoyoteNight.keep_walker(self, rect, walker_seed):
+		return
 	var ped := Pedestrian.new()
-	ped.setup(rect, sidewalk, rng.randi())
+	ped.setup(rect, sidewalk, walker_seed)
 	FashionDistrict.walker(self, ped)
 	PlazaCrowd.walker(self, ped, rect)
 	var start := ped._random_ring_point(sidewalk)

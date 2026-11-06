@@ -88,12 +88,16 @@ func _ready() -> void:
 	_beam_mat.shader = _beam_shader
 	_beam_mat.set_shader_parameter("strength", strength)
 	BroadwayNight.beam(_beam_mat)
+	RcClubLine.beam(_beam_mat, reach)
 	_beam.material_override = _beam_mat
 	_beam.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	_beam.gi_mode = GeometryInstance3D.GI_MODE_DISABLED
 	# The cone's own box is the beam's (1.7 km up): never culled while any of it is in view.
 	_beam.extra_cull_margin = 16.0
 	var wide := reach * tan(deg_to_rad(half_angle))
+	var club_cone := RcClubLine.cone(wide)
+	if club_cone != null:
+		_beam.mesh = club_cone
 	_beam.transform = Transform3D(Basis(Vector3.RIGHT, PI * 0.5).scaled_local(Vector3(wide, reach, wide)), Vector3(0.0, 0.0, -reach * 0.5 - NightLifeKit.DRUM_L * 0.5))
 	_beam.visible = false
 	_pitch_node.add_child(_beam)

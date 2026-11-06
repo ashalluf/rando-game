@@ -6,6 +6,8 @@ shader_type spatial;
 // `level` carries the hour (script: lamp-style night ramp).
 render_mode unshaded, cull_disabled, depth_draw_never, blend_add, shadows_disabled, fog_disabled;
 
+#include "res://shaders/fwd_review_i.gdshaderinc"
+
 uniform vec3 flame_col = vec3(3.2, 1.25, 0.3);
 uniform vec3 glow_col = vec3(0.55, 0.17, 0.04);
 uniform float level = 0.0;
@@ -74,7 +76,9 @@ void fragment() {
 	}
 	// NOT through cs_out(): added light on the Compatibility renderer lands on a display-space
 	// buffer, where the sRGB curve would turn the glow's faint tail (0.03) into a bright 0.19 and
-	// draw the card's rectangle. The same numbers on both renderers keep the tail a tail.
-	ALBEDO = col * level;
+	// draw the card's rectangle. But Forward+ adds in LINEAR, which does exactly that to raw numbers
+	// (fwd-review-i: an orange box round the fire on the Mac): there the tail is handed over as the
+	// display number it was tuned as, the HDR core above 1 kept raw (fi_add_hdr()).
+	ALBEDO = fi_add_hdr(col * level);
 	ALPHA = 1.0;
 }

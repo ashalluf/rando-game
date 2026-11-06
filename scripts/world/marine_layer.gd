@@ -22,6 +22,8 @@ var fog_density: float = 0.0003
 ## The deck's underside and top this frame (LaWeather.deck_heights(): lower while the evening bank
 ## is in; Weather sets it).
 var deck: Vector2 = Vector2(LaWeather.DECK_BASE, LaWeather.DECK_TOP)
+## The evening bank crest's afterglow colour (linear; MarineEvening.rim(), Weather sets it).
+var rim: Color = Color(0.6, 0.45, 0.4)
 var _under: MeshInstance3D
 var _top: MeshInstance3D
 var _bank: MeshInstance3D
@@ -42,6 +44,11 @@ func _ready() -> void:
 		mat.set_shader_parameter("rim_end", deck_radius * 0.95)
 		# Drawn after the opaque world and before other transparents at the same depth.
 		mat.render_priority = -2
+		# The evening bank's wall stands in FRONT of the deck it rolls into, seen from the shore: drawn
+		# after the planes (the planes' huge bounds sort them nearer, and the underside 130 m up was
+		# painted over the bank's whole lower face; MarineEvening).
+		if m == 2 and MarineEvening.bank_look() > 0.5:
+			mat.render_priority = -1
 		_mats.append(mat)
 	var plane := PlaneMesh.new()
 	plane.size = Vector2(deck_radius * 2.0, deck_radius * 2.0)
@@ -127,3 +134,5 @@ func drive(weight: float, edge_x: float, bank: float, lit: Color, shade: Color, 
 		mat.set_shader_parameter("deck_base", deck.x)
 		mat.set_shader_parameter("deck_top", deck.y)
 		mat.set_shader_parameter("look", MarineMorning.deck_look())
+		mat.set_shader_parameter("bank_look", MarineEvening.bank_look())
+		mat.set_shader_parameter("rim_col", Vector3(rim.r, rim.g, rim.b))

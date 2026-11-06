@@ -34,6 +34,11 @@ uniform float paper_glow = 0.55;
 uniform int debug_mode = 0;
 // Detail under a pixel is averaged away from this many metres.
 uniform float detail_fade = 40.0;
+// Weathered stall paint (PuebloLaneLook, the refcam pueblo_lane pass): sun-faded, chipped to grey
+// timber in patches, scuffed and dirty at the foot of every upright face. 0 = the old paint.
+uniform float weather = 0.0;
+// The ground's height (true world y: the origin shift moves x and z only) for the foot grime.
+uniform float foot_y = 0.0;
 
 // Flat: interpolated, three equal values still come out a few ulps apart, and the hashes that
 // take the seed turn that into per-pixel colour noise (the sarapes drew as RGB static).
@@ -41,6 +46,8 @@ varying flat float v_kind;
 varying flat float v_seed;
 varying vec3 v_paint;
 varying vec3 v_world;
+// The face's world-up share (1 a top, 0 an upright face): the foot grime is on upright faces only.
+varying float v_ny;
 
 float pm_hash(vec2 p) {
 	p = fract(p * vec2(123.34, 456.21));
@@ -86,6 +93,7 @@ vec3 pm_sway(vec3 wp, float free, float t) {
 	v_paint = cs_srgb_to_linear(COLOR.rgb); \
 	vec3 pm_wp = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz; \
 	v_world = pm_wp; \
+	v_ny = normalize((MODEL_MATRIX * vec4(NORMAL, 0.0)).xyz).y; \
 	VERTEX += inverse(mat3(MODEL_MATRIX)) * pm_sway(pm_wp, UV2.y, TIME);
 
 // What a fragment is: albedo (linear), roughness, metallic, emission (linear), how much light it
@@ -173,6 +181,26 @@ PmSurf pm_surface(vec2 uv, float dist, float px) {
 		float g = pm_noise(vec2(uv.x * 3.0, uv.y * 40.0));
 		s.albedo *= mix(1.0, 0.86 + 0.2 * g, fine * pm_keep(40.0, px));
 		s.rough = 0.62;
+		if (weather > 0.0) {
+			// Sun fade: toward a chalky grey of the same brightness, more on the tops.
+			float lum = dot(s.albedo, vec3(0.2126, 0.7152, 0.0722));
+			float fade = weather * (0.22 + 0.25 * max(v_ny, 0.0)) * (0.7 + 0.6 * pm_noise(uv * 1.7 + v_seed * 13.0));
+			s.albedo = mix(s.albedo, vec3(lum) * 1.12 + vec3(0.02), fade);
+			// Chips: paint gone to grey, weathered timber in small ragged flakes, more of them low
+			// down where feet and carts knock it; averaged away under a pixel.
+			float hgt = v_world.y - foot_y;
+			float low = 1.0 - smoothstep(0.1, 0.8, hgt);
+			float n = pm_noise(uv * vec2(16.0, 12.0) + v_seed * 31.0) * 0.6 + pm_noise(uv * 47.0 + v_seed * 7.0) * 0.4;
+			float th = 0.8 - 0.14 * low * (1.0 - abs(v_ny));
+			float chip = smoothstep(th, th + 0.03, n) * weather;
+			vec3 timber = cs_srgb_to_linear(vec3(0.46, 0.42, 0.36)) * (0.8 + 0.3 * pm_noise(vec2(uv.x * 30.0, uv.y * 2.0)));
+			float keep = fine * pm_keep(47.0, px);
+			s.albedo = mix(s.albedo, timber, chip * keep + chip * 0.12 * (1.0 - keep));
+			s.rough = mix(s.rough, 0.86, chip);
+			// The foot: shoe scuffs and street dirt up the bottom 35 cm of an upright face.
+			float foot = (1.0 - smoothstep(0.0, 0.35, hgt)) * (1.0 - abs(v_ny)) * weather;
+			s.albedo *= 1.0 - 0.45 * foot * (0.75 + 0.5 * pm_noise(uv * vec2(14.0, 5.0)));
+		}
 	} else if (k < 1.5) {
 		// Natural timber: grain along v, knots.
 		float g = pm_noise(vec2(uv.x * 18.0, uv.y * 1.2)) * 0.6 + pm_noise(vec2(uv.x * 60.0, uv.y * 3.0)) * 0.4;

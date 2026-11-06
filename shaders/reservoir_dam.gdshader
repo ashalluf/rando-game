@@ -11,6 +11,9 @@ render_mode cull_back;
 // How bright the lanterns burn after dark (linear emission).
 uniform float lamp_energy = 5.0;
 uniform vec3 lamp_color = vec3(1.0, 0.62, 0.28);
+// Rc5Reservoir (0 = as before): the trail's decomposed granite darker, its edges worn into the
+// bank, a wear line down its middle, pebbles and rain runnels.
+uniform float trail2 = 0.0;
 
 
 void fragment() {
@@ -72,7 +75,37 @@ void fragment() {
 		float across = abs(fract(uv.y) - 0.5);
 		alb = vec3(0.30, 0.25, 0.18) * mix(0.82, 1.12, g) * mix(0.9, 1.05, rc_fbm(uv * 0.2));
 		alb *= 1.0 - 0.1 * smoothstep(0.3, 0.2, across) * smoothstep(0.1, 0.18, across);
-		alb *= 1.0 - 0.35 * road_wetness;
+		if (trail2 > 0.5) {
+			// uv.y runs 0..3 across the 3 m ribbon, uv.x metres along it.
+			float x = uv.y;
+			float edge = min(x, 3.0 - x);
+			float wob = (rc_noise(vec2(uv.x * 0.35, 1.7)) - 0.5) * 0.5;
+			alb = vec3(0.215, 0.18, 0.135) * mix(0.8, 1.12, g) * mix(0.88, 1.08, rc_fbm(uv * vec2(0.15, 0.5)));
+			// The edges: loose darker grit and the bank's dirt creeping in, ragged.
+			float fringe = 1.0 - smoothstep(0.15, 0.55, edge + wob * 0.6);
+			alb = mix(alb, vec3(0.12, 0.10, 0.075) * mix(0.8, 1.1, rc_noise(uv * 5.0)), fringe * 0.75);
+			// A paler compacted line where people walk, off centre and wandering.
+			float path = 1.0 - smoothstep(0.25, 0.6, abs(x - 1.35 - wob));
+			alb *= 1.0 + 0.12 * path;
+			// Pebbles: small dark and pale specks.
+			// Pebbles: round, jittered in 12 cm cells, a few dark and a few pale, faded to their
+			// average once a cell is under a couple of pixels.
+			vec2 pc = uv / 0.12;
+			vec2 cell = floor(pc);
+			vec2 jit = vec2(rc_hash(cell + 3.7), rc_hash(cell + 9.1)) * 0.6 + 0.2;
+			float pr = mix(0.08, 0.2, rc_hash(cell + 1.3));
+			float pd = length(fract(pc) - jit);
+			float pfw = max(fwidth(pc.x), 1e-4);
+			float pebble = (1.0 - smoothstep(pr - pfw, pr + pfw, pd)) * (1.0 - smoothstep(0.3, 0.8, pfw));
+			float ptone = rc_hash(cell + 5.5);
+			alb *= 1.0 + pebble * (ptone < 0.5 ? -0.4 : 0.3) * step(0.55, rc_hash(cell + 7.9));
+			// Rain runnels across the trail toward the lake, a few metres apart.
+			float run = smoothstep(0.85, 1.0, rc_noise(vec2(uv.x * 0.9 + x * 0.6, 4.0))) * smoothstep(0.45, 0.9, rc_noise(vec2(uv.x * 0.07, 9.0)));
+			alb *= 1.0 - 0.3 * run;
+			alb *= 1.0 - 0.35 * road_wetness;
+		} else {
+			alb *= 1.0 - 0.35 * road_wetness;
+		}
 		rough = 0.95;
 	} else if (kind == K_CHUTE) {
 		vec4 c = rc_concrete(uv, 0.5, 0.0);
