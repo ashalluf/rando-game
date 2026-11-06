@@ -319,7 +319,7 @@ func _fire_call(player: Player) -> void:
 
 ## The world layer's top under true world `w` (local y), or a large number when there is none.
 func _ground_y(space: PhysicsDirectSpaceState3D, w: Vector3) -> float:
-	var l := _ws.to_local(w)
+	var l: Vector3 = _ws.to_local(w)
 	var q := PhysicsRayQueryParameters3D.create(Vector3(l.x, l.y + 20.0, l.z), Vector3(l.x, l.y - 30.0, l.z), 1)
 	var hit := space.intersect_ray(q)
 	return (hit.position as Vector3).y if not hit.is_empty() else 1.0e6
