@@ -622,6 +622,7 @@ func _finish_build() -> void:
 	_mm_nodes = _batch.build(self)
 	TreeFire.attach(self, fire_trees, _mm_nodes)
 	StreetCloseup.commit_cars(self, _mm_nodes)
+	RcAutoRow.commit(self, _mm_nodes)
 	StreetCloseup.clear_sheds(self, _mm_nodes)
 	for paint_key: String in PAINT_KEYS:
 		if _mm_nodes.has(paint_key):
@@ -4485,6 +4486,8 @@ func _add_tree(at: Vector3, rng: RandomNumberGenerator, lean_to: Vector2 = Vecto
 	if _under_freeway(Vector2(at.x, at.z), TREE_FREEWAY_MARGIN):
 		return
 	if BroadwayNight.keeps_tree_off(plan, at):
+		return
+	if RcAutoRow.keeps_tree_off(self, at):
 		return
 	# Los Angeles' own species for a share of blocks, parks and planters (LaTrees, hashes only).
 	if LaTrees.street_or_park(self, at, yaw, tint, lean_to):
