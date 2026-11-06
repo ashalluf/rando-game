@@ -16,6 +16,8 @@ extends RefCounted
 ##
 ## Env NEWS_EYE=x,y,z / NEWS_LOOK=x,y,z / NEWS_STATION override the row for framing work.
 
+static var hero_at := Vector3.INF
+static var hero_yaw := 0.0
 static var _people: Array = []
 static var _engine: Node = null
 static var _nc: Node = null
