@@ -123,7 +123,10 @@ static func premiere(ch: CityChunk, pal: Dictionary, people: Array) -> void:
 	var pool := Transform3D(Basis(Vector3.UP, atan2(base.basis.z.x, base.basis.z.z)) * pb.scaled(Vector3(5.0, 1.0, length + 1.5)), Vector3(pool_at.x, CityChunk.SIDEWALK_TOP + 0.07, pool_at.z))
 	ch._batch.add("nl_pool", PropFactory.shop_spill(), pool, Color(1.0, 0.82, 0.7, 0.42))
 	ch._batch.set_no_shadow("nl_pool")
-	NightLife._add_light(holder, base * Vector3(0.0, 4.5, length * 0.5) + Vector3(0.0, g, 0.0), 11.0, Color(1.0, 0.9, 0.8))
+	# The press lights' omni on Forward+ only: on Compatibility (the web, opengl3) an object takes a
+	# few lights at most, and one more here pushed the street lamps' own off the whole pavement.
+	if RenderingServer.get_rendering_device() != null:
+		NightLife._add_light(holder, base * Vector3(0.0, 4.5, length * 0.5) + Vector3(0.0, g, 0.0), 11.0, Color(1.0, 0.9, 0.8))
 	for x: float in [-8.4, -5.3, 5.3, 8.4]:
 		var at := base * Vector3(x, 0.0, to_kerb - 0.95)
 		NightLife._add_searchlight(ch, holder, at, base.basis, hash([seed_value, x, "sl"]), true)
