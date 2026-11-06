@@ -33345,8 +33345,9 @@ Stills on `shots/web-bonfire`.
 - Changed: tools only (`tools/web_probe/fx_room.gd`, `tools/web_probe/glprobe.js`,
   `tools/webshot/webshot.js`) and docs. No game script, shader or scene changed, so the game's
   checks are not touched.
-- **Not gated:** the pushed head (origin/main merged at a870978b) did not finish a full
-  `SHARDS=3 tests/headless_check.sh` before the account change. Run it once before merging.
+- **Gated green:** `SHARDS=3 tests/headless_check.sh` on 0f736ca0 (origin/main a870978b merged):
+  SMOKE TEST PASSED, 6620 checks, 0 failed, 1877 s, peak RSS 3725 / 3901 / 3544 MB per shard. The
+  commits after it change docs/HANDOFF.md only.
 - Open: SwiftShader's exact trigger (why one QuadMesh object passes the depth test and an equal
   one does not) is not known; nothing is verified on a real GPU browser; the headful-SwiftShader
   crash (back buffers status 36061, then a local_vector FATAL) happened once and did not repeat
