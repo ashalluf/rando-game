@@ -37,6 +37,8 @@ var _rng := RandomNumberGenerator.new()
 var _timer: float = 0.0
 var _built_frame: int = -1
 var _built: int = 0
+## True once the first fill has run (Rc5CoastHighway.fill_slots()).
+var _filled: bool = false
 
 
 ## Off: COAST_HIGHWAY=0 (no stretch) or COAST_TRAFFIC=0.
@@ -133,12 +135,20 @@ func _maintain() -> void:
 			_retire(car)
 	if is_nan(ps):
 		return
+	var want := Rc5CoastHighway.wanted(cars_per_direction, StreetVendors.hour_now(self))
+	# The first fill lays the whole reach at once, the near road too (Rc5CoastHighway).
+	if not _filled and Rc5CoastHighway.enabled:
+		_filled = true
+		for dir: int in [1, -1]:
+			for sl: Array in Rc5CoastHighway.fill_slots(plan.seed, dir, want, ps, spawn_max, close + 40.0, s_max() - 20.0, 35.0):
+				spawn(float(sl[0]), dir, int(sl[1]), true)
+		return
 	for dir: int in [1, -1]:
 		var have := 0
 		for car in cars:
 			if int(car.traffic.dir) == dir:
 				have += 1
-		if have >= cars_per_direction:
+		if have >= want:
 			continue
 		var s := ps + _rng.randf_range(spawn_min, spawn_max) * (1.0 if _rng.randf() < 0.5 else -1.0)
 		if s < close + 40.0 or s > s_max() - 20.0:
