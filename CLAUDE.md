@@ -4199,6 +4199,13 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   MultiMeshBatch instance's default custom is Color.BLACK (alpha 1), which light_pool.gdshader
   takes as a NightLamps point source - a pool needs `Color(0, 0, 0, 0)` (`POOL_CUSTOM`).
   `PORT_NIGHT=0` is the A/B; checks `tests/rc4_port_night_checks.gd`.
+- The port's truck gate at 10:00 (wave 8, refcam `port_gate` in `tools/refcams/cameras_w8.json`,
+  docs/HANDOFF.md "The port's truck gate at 10:00"): `RcPortGate` (`scripts/world/rc5_port_gate.gd`,
+  hooks in PortLifeKit's booth / canopy / portal meshes and `PortGate.build()`): glazed booths whose
+  glass shows a lit cabin (port_steel part 15), driver pedestals, boom barriers, canopy steel on
+  crash plinths, louvred detector housings, the gate chunk paved in asphalt (`yard()`), a third
+  queue slot that is always a bobtail (a whole rig ran into the street). `RC5_PORT_GATE=0` is the
+  A/B; checks `tests/rc5_port_gate_checks.gd`.
 - The refinery's road at night (wave 7, refcam `refinery_night`, docs/HANDOFF.md "The refinery's road
   at night"): `RcRefineryRoad` (`scripts/world/rc4_refinery_road.gd`): road.gdshader's
   `shaders/refinery_road.gdshaderinc` (behind `rr_on`, 0 on every other road) lights the roads and

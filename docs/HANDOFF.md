@@ -30923,3 +30923,57 @@ eight of ten within tolerance; `freeway` and `street_noon` flagged only for the 
 taxi in the freeway lens in one run, the bus at another spot in the other) - their roads, buildings
 and sky are the same pixels. Gate on the branch merged with main 901e9325 (batch 58): SHARDS=3, 6,187 checks
 passed, 0 failed, peak RSS 3.8 GB a shard.
+
+## 9nh. The port's truck gate at 10:00 (fleet wave 8, refcam5 `port_gate`, branch `wt/rc5-port-gate`)
+
+A new reference camera, `port_gate` in `tools/refcams/cameras_w8.json`: the container terminal's
+truck gate (PortGate, the north-west port chunk) at 10:00 clear, eye level (1.7 m) by the west
+booth island at (2777, 5971), looking east (yaw -110, fov 64) along the row of booths under the
+canopy, the OCR / radiation portal at the left, a semi at the booths and the bobtails leaving.
+Stills on `shots/rc5-port-gate`.
+
+**Framing, and why not the cranes.** The task asked for the cranes behind. They are 500 m south on
+the quay, 80 m tall to the apex (a raised boom ~100 m), so 8-11 degrees up from the gate; every
+eye-level spot round the booths has the canopy (9.4 m at 10-40 m) or the yard's 3-4 tier stacks
+(10-12 m, 40-60 m off, PortFill) higher than that in the way. Scouted from the street north of the
+gate (z 5930, 5938) only their lattice tops show over the stacks, and the booths are 50 m off and
+tiny; from 30 m up they are all there. I chose the view by the booths (what the task named first)
+and kept the wider north-west view as a still on the shots branch; a refcam that must show the
+cranes would need an eye ~25 m up, or the stacks next to the gate kept low (PortFill's rolls).
+
+**What read as fake, worst first, and what changed** (`RcPortGate`, `scripts/world/rc5_port_gate.gd`):
+1. *The booths*: grey boxes with mirror-black glass. Now a stainless plinth, a glazed cab on corner
+   posts and mullions whose glass shows a lit cabin behind it (port_steel.gdshader part 15: back
+   wall, desk, screens, ceiling panel, emitted less the Fresnel share, brighter after dark), an
+   overhanging white roof cap with a teal drip band, a roof AC unit, a door and step, yellow kerb
+   faces on the island with hazard-striped noses, taller bollards with a band, a lane light, and a
+   driver pedestal (card reader, screen, intercom) at cab height on each lane side.
+2. *The portal's detector panels*: blank white 4 m blocks. Now louvred housings (port_steel
+   S_HOUSE: seams and louvre bands) on a hazard-striped base, a cap and a status lamp.
+3. *The canopy*: a flat slab on bare posts. Now steel under it - a beam over every column line,
+   purlins every 1.6 m, a coping and a drip edge - and the columns on striped crash plinths.
+4. *The ground*: the yard's cracked concrete read as a dry lake bed under the whole gate. The gate's
+   chunk is paved in worn asphalt (`yard()`, the neutral `asphalt_aerial` set; Asphalt033 drew
+   tan there), with lane arrows on the approach and yellow chevron hatching at the island noses.
+5. *Empty lanes*: the trucks' odds 70 / 55 % -> 92 / 82 %, and a third slot queued north of the
+   portal - always a bobtail (`bobtail()` keeps the hash's odds roll): a whole rig there ran 5 m
+   past the gate's north edge, into a road works' excavator on the default seed. Red-and-white
+   boom barriers past every inbound stop bar (and before the street on the outbound lanes) are one
+   `port_gate_barrier` batch.
+
+Hooks: PortLifeKit's `booth_mesh()` / `canopy_mesh()` / `portal_mesh()` pick the new builders (new
+cache keys), `PortGate.build()` calls `RcPortGate.build()` and takes its odds and slots,
+`CityChunk._port_yard()` passes its slab material through `RcPortGate.yard()`. No roll anywhere
+else moves (the trucks are PortGate's own hash). `RC5_PORT_GATE=0` is the A/B: PortGate exactly as
+before (old meshes, odds, two slots, concrete).
+
+**Numbers** (refcams opengl3, the port_gate frame): before 1,896,687 triangles / 1,480 draws /
+786 k shadow; after ~1.99 M / 1,544 / 836 k (+5 % triangles, +64 draws: mostly the six extra
+trucks, each a Vehicle). Kit: booth 184 -> 548 triangles, canopy 428 -> 918, portal 1,056 ->
+1,398, barrier 142 (`tools/rc5_port_gate/mesh_probe.gd`, headless, seconds, also prints the
+default seed's truck rolls). Luminance p50 79 -> 63 (the darker asphalt).
+
+Not verified: Forward+ (no lavapipe render of the gate: the booth glass emission and the asphalt
+tint were judged on opengl3 only; port_steel's colours go through its own `col()`, so the glass is
+decoded on Forward+ like the shader's other constants). The far city keeps the old gate boxes.
+Checks: `tests/rc5_port_gate_checks.gd`.

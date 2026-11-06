@@ -4714,3 +4714,10 @@ none of either.
   lights draw a faint fog-free beam after dark; the take-off shimmer grows with thrust in
   metre-sized ripples. The rotation pivot was measured and left (the main gear is under the
   origin). JET_TAKEOFF=0 is the A/B.
+
+- 2026-11-06 (wave 8, rc5-port-gate): a new reference camera, `port_gate` (cameras_w8.json), looks
+  along the container terminal's booth row at 10:00. Decisions: the camera stands by the booths,
+  not where the quay cranes show (from eye level the canopy and the yard's 3-4 tier stacks hide
+  them; only their tops show from the street); a gate is busy at 10:00 (fuller lanes, a queue);
+  the queue slot north of the portal is a bobtail so nothing runs into the street; the gate is
+  paved in asphalt, the yard keeps its concrete. RC5_PORT_GATE=0 is the A/B.

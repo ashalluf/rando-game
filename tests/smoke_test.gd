@@ -2999,6 +2999,9 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	# The jet_takeoff refcam (tests/rc5_jet_takeoff_checks.gd, JetTakeoff): the beams, the take-off
 	# shimmer, the edge lights' glow, the camera row.
 	load("res://tests/rc5_jet_takeoff_checks.gd").new().run(self, city)
+	# The port's truck gate at 10:00 (tests/rc5_port_gate_checks.gd, RcPortGate): the camera row,
+	# the booth / canopy / portal kit, the queue, the gate's asphalt.
+	load("res://tests/rc5_port_gate_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()
