@@ -703,7 +703,8 @@ static func surface_lot(ch: CityChunk, lot: Dictionary) -> void:
 	_car_park(ch, Alleys.trim(ch.plan, ch.ix, ch.iz, _cell(lot)), int(lot.seed))
 
 
-static func _car_park(ch: CityChunk, cell: Rect2, key: int) -> void:
+## `fill_at` >= 0 sets how full the lot is (a school's game night), after the roll.
+static func _car_park(ch: CityChunk, cell: Rect2, key: int, fill_at: float = -1.0) -> void:
 	_ground(ch, cell, "asphalt")
 	if ch.level != CityChunk.Level.FULL or ch.capturing:
 		return
@@ -719,6 +720,8 @@ static func _car_park(ch: CityChunk, cell: Rect2, key: int) -> void:
 	var to_world := func(u: float, v: float) -> Vector2:
 		return r.position + (Vector2(u, v) if along_x else Vector2(v, u))
 	var fill := rng.randf_range(CAR_FILL.x, CAR_FILL.y)
+	if fill_at >= 0.0:
+		fill = fill_at
 	var top := CityChunk.SIDEWALK_TOP + ASPHALT_LIFT
 	var stripe := PropFactory.box("pstripe", Vector3(4.4, 0.01, 0.12), Color(0.95, 0.95, 0.92))
 	var stripe_basis := Basis(Vector3.UP, PI * 0.5) if along_x else Basis()
