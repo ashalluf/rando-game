@@ -7,8 +7,9 @@ extends RefCounted
 ##
 ##   wires     the contact wire, messenger and droppers (4-6.5 mm) were 3-sided prisms: from the
 ##             street 40 m below they are a tenth of a pixel, so they drew as dotted dashes or
-##             not at all. They are ribbons on shaders/utility_wire.gdshader now (turned to the
-##             camera, never thinner than a pixel, their real width as coverage), one mesh a chunk.
+##             not at all. They are ribbons on shaders/rail_wire.gdshader now (turned to the
+##             camera, never thinner than a pixel, their real width as coverage; at night they
+##             catch the pole lamps near each pole), one mesh a chunk.
 ##   lamps     an LED walkway luminaire on a bracket either side of every pole on the structure,
 ##             its lens lit by `lamp_factor`, a halo (NightAtmos) and a pool on the ballast.
 ##   soffit    a downlight pair under the girder midway between columns, a pool on the street
@@ -25,7 +26,7 @@ static var enabled: bool = OS.get_environment("RC5_RAIL_AERIAL") != "0"
 ## Narrowest a wire is drawn (pixels) and where the wires fade (metres from the camera).
 const WIRE_MIN_PX := 1.0
 const WIRE_FADE := Vector2(260.0, 380.0)
-## utility_wire.gdshader kinds: 0 bare stranded (contact wire, messenger), 4 galvanised (droppers).
+## rail_wire.gdshader kinds: 0 copper (contact wire, messenger), 4 galvanised (droppers).
 const KIND_WIRE := 0.0
 const KIND_DROPPER := 4.0
 ## The walkway luminaires: height over the rail, how far out from the pole (past the track).
@@ -53,11 +54,12 @@ static var _wire_mat: ShaderMaterial = null
 static var _struct_mat: ShaderMaterial = null
 
 
-## The overhead wires' material (utility_wire.gdshader, the poles' and drops' wires).
+## The overhead wires' material (rail_wire.gdshader: utility_wire.gdshader's ribbons, copper, lit by
+## the pole lamps).
 static func wire_material() -> ShaderMaterial:
 	if _wire_mat == null:
 		_wire_mat = ShaderMaterial.new()
-		_wire_mat.shader = load("res://shaders/utility_wire.gdshader")
+		_wire_mat.shader = load("res://shaders/rail_wire.gdshader")
 		_wire_mat.set_shader_parameter("min_px", WIRE_MIN_PX)
 		_wire_mat.set_shader_parameter("fade_start", WIRE_FADE.x)
 		_wire_mat.set_shader_parameter("fade_end", WIRE_FADE.y)
@@ -79,21 +81,27 @@ static func structure_material(base: ShaderMaterial) -> ShaderMaterial:
 
 
 ## One straight piece of wire from a to b, radius r, as a camera-facing ribbon: every vertex on
-## the centre line, the tangent in NORMAL, UV (side, metres along), UV2 (radius, kind).
-static func wire(st: SurfaceTool, a: Vector3, b: Vector3, r: float, kind: float) -> void:
+## the centre line, the tangent in NORMAL, UV (side, metres to the nearest pole: how much of the
+## pole's lamp the wire catches), UV2 (radius, kind). `pa` / `pb` are a's and b's metres to the
+## nearest pole.
+static func wire(st: SurfaceTool, a: Vector3, b: Vector3, r: float, kind: float, pa: float, pb: float) -> void:
 	var d := b - a
 	var len := d.length()
 	if len < 0.001:
 		return
 	var t := d / len
-	var u0 := a.x * 0.7 + a.z * 0.7 + a.y
-	var u1 := u0 + len
-	var pts := [[a, -1.0, u0], [a, 1.0, u0], [b, 1.0, u1], [a, -1.0, u0], [b, 1.0, u1], [b, -1.0, u1]]
+	var pts := [[a, -1.0, pa], [a, 1.0, pa], [b, 1.0, pb], [a, -1.0, pa], [b, 1.0, pb], [b, -1.0, pb]]
 	for v: Array in pts:
 		st.set_normal(t)
 		st.set_uv(Vector2(float(v[1]), float(v[2])))
 		st.set_uv2(Vector2(r, kind))
 		st.add_vertex(v[0])
+
+
+## Metres from s to the nearest pole of the line.
+static func to_pole(line: LightRail, s: float) -> float:
+	var span: Array = line.span_at(s)
+	return maxf(minf(s - float(span[0]), float(span[1]) - s), 0.0)
 
 
 ## The walkway luminaires on a pole of the structure: a bracket out over each walkway, a housing

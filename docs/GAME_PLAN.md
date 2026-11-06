@@ -4737,3 +4737,12 @@ none of either.
   lit structures standing in water mirror their light in it (the islands' towers as columns in the
   bay); a flood is light thrown up a face from its foot, not a face painted the gel's colour.
   LONG_BEACH_SAND=0 / RC5_OIL_ISLANDS=0 are the A/B.
+- **2026-11-06 The rail_aerial refcam: a structure at night carries its own light (rc5-rail-aerial,
+  HANDOFF "The Coral Line's aerial structure at night").** A new reference camera (`rail_aerial`,
+  wave 8's table) under the Coral Line's flyover over the 110 at 20:00. Anything a few millimetres
+  thick (overhead wires) is drawn as a camera-facing ribbon never under a pixel, never as a
+  prism a tenth of a pixel wide; an elevated structure at night is lit by its own fixtures (walkway
+  lamps on the poles, downlights under the girder with pools on the street), and what those
+  fixtures would light (columns, soffit, poles, the wires near each pole) carries that light as
+  emission, on the rail's own copy of a shared material so the freeway is untouched.
+  RC5_RAIL_AERIAL=0 is the A/B.

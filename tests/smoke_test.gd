@@ -3008,6 +3008,8 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	# The oil_islands_dusk refcam (tests/rc5_oil_islands_dusk_checks.gd, LongBeachSand, Rc5OilIslands):
 	# Long Beach's sand, the islands' floods in the bay and on their towers, the camera row.
 	load("res://tests/rc5_oil_islands_dusk_checks.gd").new().run(self, city)
+	# The rail_aerial refcam (tests/rc5_rail_aerial_checks.gd, RcRailAerial): the guideway's wire ribbons, lamps, washes.
+	load("res://tests/rc5_rail_aerial_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()

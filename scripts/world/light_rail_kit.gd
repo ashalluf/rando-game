@@ -70,6 +70,8 @@ var _fine_any := false
 ## The same wires as camera-facing ribbons (RcRailAerial; RC5_RAIL_AERIAL=0 keeps them in `fine`).
 var ribbons := SurfaceTool.new()
 var _ribbons_any := false
+## The s of the next _wire()'s two ends (set by _wires()).
+var _wire_s := Vector2.ZERO
 
 
 func _init(c: CityChunk) -> void:
@@ -406,6 +408,7 @@ func _wires(i: int) -> void:
 	for track: float in [-1.0, 1.0]:
 		var a := _wire_points(sa, track)
 		var b := _wire_points(sb, track)
+		_wire_s = Vector2(sa, sb)
 		_wire(a[0], b[0], 0.0065)
 		_wire(a[1], b[1], 0.0055)
 		# A dropper wherever one falls in this segment (every ~9 m of the span).
@@ -416,6 +419,7 @@ func _wires(i: int) -> void:
 			var sd: float = span[0] + step * float(k)
 			if sd >= sa and sd < sb:
 				var w := _wire_points(sd, track)
+				_wire_s = Vector2(sd, sd)
 				_wire(w[0], w[1], 0.004)
 
 
@@ -446,7 +450,8 @@ func _wire_points(s: float, track: float) -> Array:
 
 func _wire(a: Vector3, b: Vector3, r: float) -> void:
 	if RcRailAerial.enabled:
-		RcRailAerial.wire(ribbons, a, b, r, RcRailAerial.KIND_DROPPER if r < 0.005 else RcRailAerial.KIND_WIRE)
+		RcRailAerial.wire(ribbons, a, b, r, RcRailAerial.KIND_DROPPER if r < 0.005 else RcRailAerial.KIND_WIRE,
+			RcRailAerial.to_pole(line, _wire_s.x), RcRailAerial.to_pole(line, _wire_s.y))
 		_ribbons_any = true
 		return
 	prism(fine, a, b, r, r, 3, _col(WIRE, S_STEEL), false)

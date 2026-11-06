@@ -310,7 +310,9 @@ void fragment() {
 			emit += alb * rail_wash.x * lamp * vec3(1.0, 0.86, 0.66) * (0.06 + 0.94 * exp(-depth / 3.0));
 		} else if (kind != 7) {
 			float down = smoothstep(0.05, -0.85, un.y);
-			emit += alb * rail_wash.y * lamp * vec3(1.0, 0.78, 0.52) * (down + 0.08 * (1.0 - abs(un.y)));
+			// Steel and paint (the overhead poles and their arms) stand in their own walkway lamps.
+			float side = (kind == 5 || kind == 6) ? 6.0 : 0.08;
+			emit += alb * rail_wash.y * lamp * vec3(1.0, 0.78, 0.52) * (down + side * (1.0 - abs(un.y)));
 		}
 	}
 
