@@ -33,6 +33,8 @@ extends RefCounted
 ##
 ## REFINERY=0 in the environment: no entry, no site - the blocks are ordinary industrial (the A/B).
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 const SITE_ID := "refinery"
 
 static var enabled: bool = OS.get_environment("REFINERY") != "0"
@@ -669,6 +671,8 @@ static func add_fx(parent: Node3D, flames: Array, plumes: Array) -> void:
 		mi.custom_aabb = _fx_aabb(flames, 95.0 if RefineryNight.enabled else 40.0, 95.0 if RefineryNight.enabled else 40.0)
 		mi.extra_cull_margin = 2000.0
 		parent.add_child(mi)
+		# The soot trailing off the flames (rc4-refinery-road).
+		RcRefineryRoad.add_smoke(parent, flames)
 	if not plumes.is_empty():
 		var mi := MeshInstance3D.new()
 		mi.name = "RefinerySteam"
@@ -791,8 +795,13 @@ static func _ground(ch: CityChunk, lay: Dictionary, area: Rect2) -> void:
 		return
 	var acc := _acc(ch)
 	for r: Rect2 in _parts(ring, area):
-		FilmStudio._flat(ch, acc.walk, r, CityChunk.SIDEWALK_TOP)
+		if RcRefineryRoad.enabled:
+			RcRefineryRoad.ring_piece(ch, acc.walk, r, rect, CityChunk.SIDEWALK_TOP)
+		else:
+			FilmStudio._flat(ch, acc.walk, r, CityChunk.SIDEWALK_TOP)
 		ch._add_shape(Vector3(r.size.x, 0.3, r.size.y), Vector3(r.get_center().x, CityChunk.SIDEWALK_TOP - 0.15 + ch._gy(r.get_center().x, r.get_center().y), r.get_center().y))
+	# The verge at the fence's foot (rc4-refinery-road).
+	RcRefineryRoad.verge(ch, lay, area, acc.ground)
 	for r: Rect2 in _parts([inner], area):
 		for piece: Rect2 in Parks.minus(r, hard, 0.05):
 			Industrial._ground_rect(acc.ground, ch, piece, BASE_Y, Industrial.G_GRAVEL, 0.4, true)
@@ -924,6 +933,10 @@ static func _commit(ch: CityChunk, lay: Dictionary, area: Rect2) -> void:
 	ch.remove_meta("refinery_acc")
 	if _walk_mat == null:
 		_walk_mat = PropFactory.road("sidewalk", 3.0, Color(1.45, 1.43, 1.38), 7713, 1.5, 0.35)
+		if RcRefineryRoad.enabled:
+			# The pavement ring takes the flares' and masts' light too (rc4-refinery-road).
+			_walk_mat = _walk_mat.duplicate()
+			RcRefineryRoad.dress(_walk_mat, ch.plan)
 	var parts := [["RefineryPlant", acc.st, RefineryKit.material(), true], ["RefineryGround", acc.ground, Industrial.ground_material(), false],
 		["RefineryPavement", acc.walk, _walk_mat, false]]
 	for p: Array in parts:

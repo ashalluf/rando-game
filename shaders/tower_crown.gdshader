@@ -18,6 +18,10 @@ global uniform float night_factor;
 global uniform vec4 sky_tint;
 global uniform vec3 sun_direction;
 global uniform vec3 origin_shift;
+// The helicopter view at night (RcHeliNight): a crown's LID (a face looking up) keeps HN_LID_GLOW
+// of the glow, so from above a lit top is a lit band round a dark roof, not a lightbox. 0 = off.
+global uniform float rc4_heli_night;
+const float HN_LID_GLOW = 0.08;
 // The skyline's glass by day (building.gdshader has the same): the crown mirrors this hour's sky,
 // its clouds, the towers round it and the sun; the ribs are box filtered.
 #include "res://shaders/skyline_glass.gdshaderinc"
@@ -38,10 +42,18 @@ uniform float rib = 1.6;
 uniform float top_bias : hint_range(0.0, 1.0) = 0.35;
 // Height of the part in metres, for the bias above.
 uniform float part_height = 20.0;
+// rc5-wingsuit-golden (Rc5Wingsuit.crown_dusk_hold()): 1 holds the glow back until it is dusk
+// (night_factor is ~0.5 at the 18:00 sunset; at full energy over white against that bright sky
+// every lantern bloomed into a white disc), full again by night_factor 0.95. 0: as before.
+uniform float dusk_hold = 0.0;
 
 void fragment() {
 	float lit = COLOR.a;
 	vec3 glow = COLOR.rgb;
+	if (rc4_heli_night > 0.5) {
+		float wny = normalize((INV_VIEW_MATRIX * vec4(NORMAL, 0.0)).xyz).y;
+		lit *= mix(1.0, HN_LID_GLOW, smoothstep(0.8, 0.97, wny));
+	}
 	float frame = 0.0;
 	bool sg = sg_on();
 	if (pattern == 1) {
@@ -56,6 +68,7 @@ void fragment() {
 	float up = clamp(UV.y / max(part_height, 0.1), 0.0, 1.0);
 	float grade = mix(1.0, 0.55 + 0.9 * up, top_bias);
 	float night = smoothstep(0.15, 0.85, night_factor);
+	float glow_k = mix(1.0, smoothstep(0.55, 0.95, night_factor), dusk_hold);
 	vec3 sky = sky_tint.rgb;
 	vec3 mirror = mix(vec3(0.10), sky, 0.8) * day_mirror * (1.0 - frame) * (1.0 - night);
 	if (sg) {
@@ -81,5 +94,5 @@ void fragment() {
 	METALLIC = mix(day_metallic, 0.0, night * lit);
 	ROUGHNESS = mix(day_roughness, 0.6, frame);
 	SPECULAR = 0.4;
-	EMISSION = mirror + glow * lit * glow_energy * grade * night * (1.0 - 0.85 * frame);
+	EMISSION = mirror + glow * lit * glow_energy * grade * night * glow_k * (1.0 - 0.85 * frame);
 }

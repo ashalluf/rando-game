@@ -28,6 +28,8 @@ extends Vehicle
 ## shaders/emergency_lights.gdshader (a wig-wag worked out from each lens's place on the body);
 ## after dark an OmniLight3D on the roof throws red on the street in step with them (desktop).
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 enum Kind { ENGINE, AMBULANCE }
 enum Mode { DISPATCH, ON_SCENE, LEAVING, TRANSPORT, BACKING, PARKED }
 
@@ -640,6 +642,8 @@ func _back_in(delta: float) -> void:
 func _bay_height(p: Vector2) -> float:
 	var inner: Rect2 = hospital.get("inner", Rect2())
 	if inner.grow(-0.5).has_point(p):
+		if RcHospitalEr.enabled and hospital.has("court"):
+			return RcHospitalEr.court_y_world(func(x: float, z: float) -> float: return _relief(Vector2(x, z)), hospital, p) + road_lift()
 		return float(hospital.get("floor_gy", _relief(p))) + CityChunk.SIDEWALK_TOP + HospitalBuild.LIFT_ROAD + road_lift()
 	return _relief(p) + CityChunk.ROAD_TOP + road_lift()
 

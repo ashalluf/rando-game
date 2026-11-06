@@ -11,6 +11,8 @@ extends Node3D
 ##   - loose props (trash cans and the like, RigidBody3D on the props layer) inside
 ##     `push_radius` are blown outward.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 ## Height of the hub over the ground (m) where the wash is full, and where it is gone.
 @export var full_height: float = 7.0
 @export var reach: float = 36.0

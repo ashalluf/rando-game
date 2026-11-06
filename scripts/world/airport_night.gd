@@ -23,6 +23,8 @@ extends RefCounted
 ##   throws a long pool down the runway ahead (landing_pool(), one additive quad a jet).
 ## Every number is a constant here; nothing rolls.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 static var enabled: bool = OS.get_environment("AIRPORT_NIGHT") != "0"
 
 ## How far a mast's floods reach (metres, the pool's radius) and their strength on the concrete
@@ -144,7 +146,7 @@ static func landing_pool(jet: Node3D, above: float, fwd: Vector3) -> void:
 	if pool == null:
 		pool = MeshInstance3D.new()
 		pool.name = "LandingPool"
-		pool.mesh = PropFactory.light_pool(Color(1.0, 0.95, 0.84), LANDING_POOL_STRENGTH, 1.4)
+		pool.mesh = FwdReviewH.display_pool(PropFactory.light_pool(Color(1.0, 0.95, 0.84), LANDING_POOL_STRENGTH, 1.4))
 		pool.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		pool.top_level = true
 		jet.add_child(pool)

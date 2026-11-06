@@ -7,6 +7,8 @@ extends Pedestrian
 ## when the performer finishes a song or lands a freeze (Busker.applause_until_ms): both hands
 ## brought together in front of the chest by the performer's own arm solve.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 var home := Vector2.ZERO
 var home_yaw: float = 0.0
 var performer: Busker

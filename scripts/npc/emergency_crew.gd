@@ -19,6 +19,8 @@ extends Pedestrian
 ## blue shirt and navy trousers. Kneeling, holding the line and pushing the stretcher are poses
 ## solved per rig from its own rest pose over the idle clip (RoughSleeper's method).
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 enum Role { FIRE, MEDIC }
 enum Task { GO, WORK, RETURN }
 ## What a crew member does at the scene (from its place in the crew).

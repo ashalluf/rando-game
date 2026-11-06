@@ -17,6 +17,7 @@ street errands, reference cameras), batch 7 (the marketplace lane, shop-window v
 businesses) and batch 8 (street signs as real models, five street lamp types), plus the fixes
 for CI runs 355-357 (a turning car's room in its new lane, errands never parking a placed car,
 the car lights check's pick race), then apartments and tower gondolas (2026-10-29, build 361).
+**Wave 8 (2026-11-05): start at docs/HANDOFF.md section 00000000000** - main is batch 51; 25 cloud sessions (roster `sessions_w8.tsv` on `fleet/brief`, lead notes in its LEAD_HANDOFF.md).
 **Wave 4 (2026-10-31): start at docs/HANDOFF.md section 0000000000** - main is batch 25 (the golden-hour review) plus the CI 394 flake fixes; 45 cloud sessions run on `wt/<slug>` branches (roster on `fleet/brief`), the lead merges them in batches.
 **Wave 3 (2026-10-29)**: 23 cloud sessions finishing wave 2's paused tasks plus `rock-outcrops` and
 `facades-gta` (owner: "make it look like GTA 6"); start at docs/HANDOFF.md section 00000000.
@@ -146,6 +147,12 @@ cars lifts `PhysicsBudget.max_active_bodies` for it (a busy city sits at the cap
 the SAME frame when a live system re-checks the condition (CarPanic's kerb); a system that sends
 walkers off (doors, errands) takes plain `_lives()` walkers without `no_trim` only; a shared grid
 keyed on the camera reads the game window's camera; gate loops run from a separate worktree.
+**Wave 8** (docs/HANDOFF.md "The gate's intermittent failures, wave 8"): a timer that decides what
+physics does (settle, freeze, age) runs on the physics step, never the frame time (a loaded frame is
+seconds: `Ragdoll.PHYSICS_TICK`); a spawn PhysicsBudget refuses still draws its rolls (else a block
+built at the body cap is another block: `CityChunk.BUDGET_ROLLS`); "the plain crowd" is `StreetErrands.plain()` (the script), never
+`_lives()` (valets, vendors, buskers ... say true); stage what CrowdFlow must see well inside its
+35 m `RANGE` of the camera.
 
 Download a Linux headless-capable build with:
 
@@ -595,6 +602,12 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   shown only at HIGH / MEDIUM. `RoofRain`: one MultiMesh of crown splashes animated in GDScript on
   the roofs (`Vehicle._model_top_y` over the cabin) of the nearest cars while it rains. Checks:
   `tests/weather_la_checks.gd`; stills in docs/HANDOFF.md 9ck.
+- The brush fire at dusk (wave 8, refcam `brush_fire` in `tools/refcams/cameras_w8.json`,
+  docs/HANDOFF.md "The brush fire on a Santa Ana evening"): `BrushFireLook`
+  (`scripts/world/brush_fire_look.gd`): SantaAnaFx's line sunk behind the crest on a flank curve
+  (fire_glow `look`), a dense laid-over column (brush_smoke `look`), a `SmokePall` downwind, ash;
+  DayNight's Santa Ana sky / fog go smoky amber from dusk (`sky()` / `fog()`, 0 by day).
+  `BRUSH_FIRE_LOOK=0` is the A/B; checks `tests/rc5_brush_fire_checks.gd`.
 - June gloom at street level (wave 5, refcam `marine_morning` in `tools/refcams/cameras_w5.json`,
   docs/HANDOFF.md "June gloom at street level"): `MarineMorning` (`scripts/world/marine_morning.gd`,
   pure) - under the marine layer overnight and in the morning the streets are damp (`damp()`, a
@@ -1394,6 +1407,16 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   (`cuts_in()`), macro_ground's `cut_rect2` sinks the plane; LightRailSystem / LightRailTrain draw
   tunnel trains while `MetroStation.showing`. `METRO_STATION=0` is the A/B; probe
   `tools/metro/probe.gd`; checks `tests/metro_underground_checks.gd`.
+- The metro station refcam (wave 7, `metro_station` in `tools/refcams/cameras_w7.json`, its
+  `rail_at` key holds a train at the terminus; docs/HANDOFF.md "The metro station refcam"):
+  `MetroLook` (`scripts/world/metro_look.gd`): the floors mirror the light lines
+  (metro_station.gdshader `floor_mirror()`, halved on Forward+), ad lightboxes from the billboard
+  atlas (K_AD 18, atlas UV in the mesh) where blank map boards stood, a lift car, the bullet's "C"
+  on the cars, the cars' saloons lit by their LEDs underground (lrv_glass `underground`,
+  `MetroLook.saloon()`). `MetroCrowd` (`scripts/npc/metro_crowd.gd`): MetroRiders ride the bank's
+  escalators (level 2, standing on the step), alighters ride up, arrivals refill the island while
+  `MetroStation.showing`. `METRO_LOOK=0` / `METRO_CROWD=0` the A/Bs; checks
+  `tests/rc4_metro_station_checks.gd`.
 - Freight rail (2026-10-05, "freight trains on the industrial rail"; HANDOFF 9do): the **Arroyo
   Pacific's Harbor Subdivision** (invented railroad, mark APXR) down ALAMEDA ST (a pinned real
   street that runs the whole map). **The line is a DATA TABLE** (`FreightRail`,
@@ -1459,6 +1482,15 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   FreightStock's too (`RiverBuild._track_run()`). Known gaps: the river's own
   rail-bridge spur (LaRiver) is not joined to this line; Alameda's left-turners may still cross
   the median tracks at a gated crossing; the covered way's interior is not modelled.
+- The freight yard at 16:30 (wave 7, refcam `freight_yard` in `tools/refcams/cameras_w7.json`, its
+  `freight_into` holds the departing train; docs/HANDOFF.md "The freight yard at 16:30"):
+  `RcFreightYard` (`scripts/world/rc4_freight_yard.gd`): the yard's timber ties are drawn (a tie
+  MultiMesh's range was measured to a 520 m chunk's centre: `tie_range()`), a northward track piece
+  keeps its ties (FreightKit.ties() threw the ladder's kilometres away), the ladder has a bed, weeds
+  along every bed in 40 m cells, crushed-rock ballast and graffiti / weathered panels on cars (the
+  `rc4` uniforms of freight_track / freight_stock), the valleys between storage beds filled level
+  (`throat_fill()`: open, each stood up as a wedge), switch stands at the turnouts. `RC4_FREIGHT_YARD=0` is the A/B; checks
+  `tests/rc4_freight_yard_checks.gd`.
 - Cars fly (owner, 2026-09-20: "easily fly cars around the way I fly the main character"). A
   car that leaves the ground goes into stabilised flight (`Vehicle._fly()`): it holds itself
   level instead of tumbling, the stick aims it (W/S nose down/up, A/D turn with a bank), and
@@ -1630,8 +1662,8 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   the wave; later rounds: a rolling lit dust front, the plume's value range, panel debris, the fires'
   underlight on the cap, a held stem, fuel trails and flames up the wreck's sides, a soft crater.
   `EXPLOSIONS_4=0` is the A/B (`BLAST_DUST_ROLL`, `BLAST_VALUE`, `BLAST_CHUNKS`, `BLAST_UNDERLIGHT`,
-  `BLAST_STEM`, `BLAST_WRECK_FIRE`, `BLAST_CRATER`, `BLAST_FLAMES`, `BLAST_PIT`, `BLAST_QUIET`, `BLAST_CORE`, `BLAST_RIBBONS`, `BLAST_FACADES`, `BLAST_DUST_DARK`, `BLAST_SHOCK`, `BLAST_NIGHT`, `BLAST_STREAKS` =0 each part; flame tongues `shaders/flame_tongue.gdshader`, the traced pit `shaders/blast_pit.gdshader`); strips blast_room_shot.gd (`GAS=1`,
-  `WEB=1`, `CAR=1 CHAIN=1`, `NIGHT=1 WET=1`, `PROPS=1`); checks `tests/explosions_4_checks.gd`.
+  `BLAST_STEM`, `BLAST_WRECK_FIRE`, `BLAST_CRATER`, `BLAST_FLAMES`, `BLAST_PIT`, `BLAST_QUIET`, `BLAST_CORE`, `BLAST_RIBBONS`, `BLAST_FACADES`, `BLAST_DUST_DARK`, `BLAST_SHOCK`, `BLAST_NIGHT`, `BLAST_STREAKS`, `BLAST_RING`, `BLAST_WALL`, `BLAST_MASONRY`, `BLAST_GROUND_FLASH`, `BLAST_RIBBON_SOFT`, `BLAST_RING_AIR`, `BLAST_BURN`, `BLAST_SCORCH`, `BLAST_VOLUME_ROOM`, `BLAST_PANELS`, `BLAST_FLAME5`, `BLAST_POOL_LIGHT`, `BLAST_HOT_CORE`, `BLAST_FUEL_PUDDLES`, `BLAST_FLAME_FWD` =0 each part; a secondary pop never takes the last volume slot (`Blast3.takes_fireball(true)`); the ring and ground flash are the AIR's view (faded near and grazing); flame tongues `shaders/flame_tongue.gdshader`, the traced pit `shaders/blast_pit.gdshader`); strips blast_room_shot.gd (`GAS=1`,
+  `WEB=1`, `CAR=1 CHAIN=1`, `NIGHT=1 WET=1`, `PROPS=1`, `FACADE=1`, `UP=150`); checks `tests/explosions_4_checks.gd`.
 - The mayhem refcam (2026-11-01, docs/HANDOFF.md "The mayhem refcam"): `mayhem` in
   `tools/refcams/cameras_w5.json` is STAGED (`"stage": "mayhem"` -> `tools/refcams/mayhem_stage.gd`:
   hero firing, a car blast, a burning wreck, a police standoff, fleeing people). `RcMayhem`
@@ -1963,6 +1995,16 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   light keeps `landing_side` of its glare off axis; a patrol helicopter's shaft is `PATROL_BEAM` of a
   pursuit's. A refcam row's staged aircraft prints `REFCAM <name> air at x,y,z`. `AIRPORT_NIGHT=0`
   is the A/B; `jet_shot.gd NIGHT=1 [AN=0]` both renderers; checks `tests/rc3_airport_night_checks.gd`.
+- The terminal's departures kerb (wave 7, refcam `terminal_curb` in `tools/refcams/cameras_w7.json`,
+  docs/HANDOFF.md "The terminal's departures kerb"): `TerminalCurb` (`scripts/world/terminal_curb.gd`,
+  one hook at the end of `Landmarks._build_dropoff()`, near copy only) lays a kerb stone with a white
+  face, steel bollards, concrete slabs, door pylons, loading plates, benches, a check-in podium,
+  carts, a planted median across the lanes, and glass vestibules (`vestibule()`, from
+  AirportTerminal); `CurbTraveller`s stand in groups at pure `spots()` (all under the terminal's
+  chunk) with code-built luggage laid for those who spawned; `loop_speed()` (TrafficManager's loop)
+  stops a share of kerb-lane cars at the kerb on their hazards; `loop_car()` adds taxis and white
+  shuttle vans. `TERMINAL_CURB=0` is the A/B; probe `tools/terminal_curb/probe.gd`; checks
+  `tests/rc4_terminal_curb_checks.gd`.
 - Shop signs: storefront sign bands carry real names. `Building` picks how many window bays
   make one shop per face (`_shop_spans()`, hashed from the seed, never from `_rng`) and passes
   it to the shader as `shop_span`, so the bands the shader draws and the `TextMesh` names the
@@ -2120,6 +2162,16 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   street lamps (group `street_lamp_light`) cast dual-paraboloid shadows at HIGH on Forward+, the lamp
   models on render layer 18 out of their casters. `NIGHT_LAMPS=0` / `LAMP_SHADOWS=0` the A/B; scene
   `tools/night_lamps/lamp_street.tscn` (Forward+ in minutes); checks `tests/night_lamps_checks.gd`.
+- The night ground (wave 8, refcam `gas_station_night` in `tools/refcams/cameras_w8.json`,
+  docs/HANDOFF.md "The gas station at 23:30"): `NightGround` (`scripts/world/night_ground.gd`) -
+  street-lamp omnis fall off d^-2 over 2 x the head's height (NightLamps.POINT_FALLOFF in tune_light; the light under
+  a head unchanged), a street lamp's pool on Compatibility adds `POOL_COMPAT` of itself
+  (light_pool `street_compat`, as Forward+'s street_forward). `GasNight` (`scripts/world/gas_night.gd`,
+  hooks in Roadside._gas()): the forecourt's UV2 carries the canopy (roadside.gdshader
+  `gas_forecourt()`: each LED panel's light and its mirror in the concrete), a car at a pump and its
+  driver (`PUMP_CAR=1` / the row's `pump_car` forces). `NIGHT_GROUND=0` / `GAS_NIGHT=0` the A/Bs;
+  refcams `NIGHT_AB=1` re-renders a frame with lamps, pools, moon and ambient each off; checks
+  `tests/rc5_gas_station_night_checks.gd`.
 - Night atmosphere (2026-10-30, docs/HANDOFF.md "Night street atmosphere"): `NightAtmos`
   (`scripts/world/night_atmos.gd`): camera-facing halos round every lamp head
   (`atmos_glow_halo`) and lit shop front (`atmos_shop_glow`), a drawn light cone under each FULL
@@ -2149,6 +2201,13 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   and a distance fade.
   `NIGHT_AERIAL=0` the A/B; `tools/rc2_night_aerial/hide_probe.gd` pins a glow on its node; checks
   `tests/rc2_night_aerial_checks.gd`.
+- Downtown from a helicopter at night (wave 7, refcam `heli_night` in `tools/refcams/cameras_w7.json`,
+  docs/HANDOFF.md "Downtown from a helicopter at 22:30"): `RcHeliNight`
+  (`scripts/world/rc4_heli_night.gd`, the `rc4_heli_night` global): a lit crown's LID keeps
+  `LID_GLOW` of its glow (tower_crown.gdshader: a lit band round a dark roof, not a lightbox), a far
+  helipad's green perimeter is a row of lamps (building_lod kind 5, `PAD_LAMP_EVERY`), the unfinished
+  towers carry a few lit floors and red lights on their frames. `RC4_HELI_NIGHT=0` is the A/B;
+  checks `tests/rc4_heli_night_checks.gd`.
 - The night street review (2026-10-30, docs/HANDOFF.md "The night street at eye level"):
   `NightStreetReview` (`scripts/world/night_street_review.gd`) holds the balance: the moon's key
   (`MOON` 0.09: at 0.3 it lit streets evenly blue at ~45 % of the noon sun and hid the lamps),
@@ -2159,6 +2218,13 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   point, collapsed while dry); road.gdshader's mirrored windows smear (`mirror_window*`,
   `mirror_sky`). `NIGHT_STREET_REVIEW=0` is the A/B; bookmarks `tools/night_street/` (shoot.sh
   full city, shoot_fwd.sh small scenes, measure.py); checks `tests/night_street_review_checks.gd`.
+- The thunderstorm downtown (2026-11-05, refcam `storm_downtown` in `tools/refcams/cameras_w8.json`,
+  its `storm_flash` key holds a strike; docs/HANDOFF.md "The thunderstorm downtown"): `RcStorm`
+  (`scripts/world/rc5_storm.gd`): at night a strike's light is 0.3 of StormDrama's, the sky's flash
+  in its cubemap pass (`flash_cube`: ambient, mirrors, aerial fog) 0.12, tighter and colder
+  (`flash_color`); in a storm the lamps' wet streaks break up (night_wet `storm`), the curtain's night
+  veil / sheets thin (`night_veil`, `night_sheets`, `thin`), the litter stays low. `RC5_STORM=0` is
+  the A/B; checks `tests/rc5_storm_downtown_checks.gd`.
 - The rainy night street (2026-10-31, docs/HANDOFF.md "The rainy night street, refcam review"):
   `RainStreetNight` (`scripts/world/rain_street_night.gd`): NightAtmos' lamp streak is a soft
   rippled column peaked at the mirror point (night_wet `look2`), `WetCarGlints` lays the same streak
@@ -2283,6 +2349,14 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   slow (`TrafficManager._street_kind()`, its roll reused). `LOWRIDERS=0` the A/B, `LOWRIDER_MEET=1`
   forces meets on, `LOWRIDER_POSE=i:hop:0.7` freezes row car i mid-routine; `car_shot.gd --each=25,26
   HYDRAULICS=hop`; probe `tools/lowrider_probe.gd`; checks `tests/lowriders_checks.gd`.
+- The lowrider meet at eye level (wave 7 refcam `lowrider_meet` in `tools/refcams/cameras_w7.json`,
+  docs/HANDOFF.md "The lowrider meet at eye level"): `LowriderMeetLook`
+  (`scripts/world/lowrider_meet_look.gd`, one hook in `LowriderMeet._park()`): a parked row car is
+  empty (lamps off) in a hashed display stance (`stance_for()`: laid, locked, three, nose;
+  `Hydraulics.set_stance()`), a three-wheel lifts its wheel `three_lift` 0.45 m, the crowd rings the
+  performing cars and sits in the chairs (`people_spots()`, `sitter_spots()`). The row's
+  `lowrider_meet` key holds meets on and poses cars. `RC4_LOWRIDER_MEET=0` is the A/B; checks
+  `tests/rc4_lowrider_meet_checks.gd`.
 - Night aerial (2026-10-05, VISUAL_ROADMAP #62, docs/HANDOFF.md "The night aerial"): past the
   streamed range the city's night is worked out per pixel in the far shaders, never simulated
   or placed. **Traffic lights**: `shaders/far_traffic.gdshaderinc` (`traffic_lights()`,
@@ -2631,6 +2705,15 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   Stills: `HOSPITAL=front|bay|roof|aerial` (`HOSPITAL_AT=medical`, `HOSPITAL_T` how far into the
   bay) on `still_shot.gd` (`HospitalStage`); probe `tools/hospital/probe.tscn` (every hospital
   and its EYEs); checks `tests/hospital_checks.gd`.
+- The ER at night (2026-11-02, refcam `hospital_er` in `tools/refcams/cameras_w7.json`, staged by
+  `"stage": "hospital"` -> `tools/refcams/hospital_stage.gd`; docs/HANDOFF.md "The ER's ambulance
+  court at night"): `RcHospitalEr` (`scripts/world/rc4_hospital_er.gd`, hooks in HospitalBuild
+  `_ground()` / `_er_bay()` and `EmergencyCar._bay_height()`): the court and the walk beside it are
+  a LEVEL deck at the campus floor (`court_y()`: the block's highest corner) with an eased ramp the
+  last `RAMP_FROM` m to the pavement, own mesh and collision (the relief-following slab sank 1.9 m
+  under the bays and the ambulances at the medical centre); a deep red light box raised clear of
+  the fascia, a lit soffit and LED panels, two floods on the fascia, the ER wall glazed.
+  `RC4_HOSPITAL=0` is the A/B; checks `tests/rc4_hospital_er_checks.gd`.
 - Service vehicles (2026-10-05, "the city's working vehicles doing their jobs"; HANDOFF 9dm):
   `ServiceVehicles` (`scripts/vehicles/service_vehicles.gd`) - a side-loader garbage truck, a
   street sweeper, a rollback tow truck, an ice-cream truck and a delivery van (BodyType
@@ -2711,6 +2794,15 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   core. Trap: a shader that writes POSITION in one branch uses it for EVERY vertex - write it in
   the other branch too. `POLICE_NIGHT_LOOK=0` is the A/B; small street `tools/police_night/police_shot.gd`
   (`VIEW=chase|low|block`, `RAIN=`, `T=`, `STRIP=`); checks `tests/police_night_look_checks.gd`.
+- The police pursuit (2026-11-05, refcam `police_pursuit` in `tools/refcams/cameras_w8.json`, a
+  `drive` row's `pursuit` key staged by `tools/refcams/pursuit_stage.gd`; docs/HANDOFF.md "The police
+  pursuit at night"): `PursuitLook` (`scripts/npc/pursuit_look.gd`): the helicopter's spot at
+  `SPOT_GAIN`, its pool faint and on the ground, its shaft faded at the foot and near the lens
+  (searchlight_beam `foot_fade`, `near_*`); an LED triple flash (`flash_side()` = the `pattern` 1
+  strobe of police_lights / police_wash, checked); an LED light bar (`light_bar_mesh()`, the bar
+  shader's `led`); the wash pool a point source at bar height (`point_pool`). Trap: Helicopter and
+  PoliceNightLook re-show their pieces every frame, so hiding one for an A/B does nothing (switch
+  its input off). `PURSUIT_LOOK=0` is the A/B; checks `tests/rc5_police_pursuit_checks.gd`.
 - Character arms: the generated clips were authored for arms that hang straight, but each
   generated rig is bound in whatever pose its mesh came out in (A-pose, or a palms-up shrug
   with the forearms raised), and the clips drive the arm bones as if that were the rest pose -
@@ -2756,6 +2848,16 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   suit. `WINGSUIT=0` is the A/B; stills `WINGSUIT=glide|fall` on `still_shot.gd` (`WS_INPUT`,
   `WS_TIME`, `WS_LOOK`); checks `tests/wingsuit_checks.gd` (room part; alone:
   `tools/wingsuit/checks_only.tscn`, seconds).
+- The wingsuit at golden hour (wave 8, refcam `wingsuit_golden` in `tools/refcams/cameras_w8.json`,
+  its `wingsuit` key stages the glide - `tools/refcams/wingsuit_stage.gd`, shot from his own chase
+  camera; docs/HANDOFF.md "The wingsuit at golden hour"): WingsuitFx `look2` builds each membrane
+  as an INFLATED two-skin wing (16 x 9 grid, `cell_depth`, cells bulging between the seams; UV2.y +4
+  the bottom skin) with a nylon sheen; the vapour starts at 20 m/s, fatter, lit by the sun and the
+  sky (`tree_sun`, `sky_tint`). `Rc5Wingsuit`: THE LATTICE's roof skylight lattice, the concert
+  hall's steel under a low sun (brushed_steel `look`: at 250 m the 18:00 haze IS the sail's colour,
+  only face-to-face contrast reads), lit crowns that wait for dusk (tower_crown `dusk_hold`). Refcam FOV
+  is VERTICAL (60 made a 6 m chase a speck). `WINGSUIT_LOOK=0` / `RC5_WINGSUIT=0` the A/Bs; checks
+  `tests/rc5_wingsuit_golden_checks.gd`.
 - Effects: `WeaponFX` builds everything in code (tracers, muzzle flash, impacts, explosions).
   An explosion is layered: an `OmniLight3D` flash, a white-hot core, alpha-blended fireball
   puffs, slow smoke, additive sparks, a ground shockwave ring, lit debris, a scorch `Decal`
@@ -3658,6 +3760,15 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   .culvert_mesh`; a drop inlet in the ditch when the road is benched). `_plant_hills` skips the bed
   after its rolls. `ARROYOS=0` is the A/B; probes `tools/arroyos/` (`net_probe` a map,
   `probe` culvert EYEs); checks `tests/arroyos_checks.gd`.
+- The hill home's pool deck at dusk (wave 8, refcam `hill_home_dusk` in
+  `tools/refcams/cameras_w8.json`, estate 392; docs/HANDOFF.md "The hill home's pool deck at dusk"):
+  `Rc5HillHome` (`scripts/world/rc5_hill_home.gd`): hill_glass `rc5` one open-plan room lit in
+  downlight pools (no bay partitions; the pane random quantised - an interpolated varying through a
+  sin hash is per-pixel static), hill_pool `rc5` lamp-lit dark water mirroring the lit glass beside
+  it (offset in COLOR.b, `pool_wall()`), an additive spill on the paving (`hh_spill`,
+  `shaders/rc5_hill_spill.gdshader`), BackyardKit's loungers, no terrace tree in the pool's view.
+  `RC5_HILL_HOME=0` is the A/B; probe `tools/rc5_hill_home/probe.tscn` (EST=); checks
+  `tests/rc5_hill_home_dusk_checks.gd`.
 - Far estates (2026-10-05, docs/HANDOFF.md "Hillside estates at night"): past the FULL chunks
   (LOD chunks and Skyline) `EstateFar.parts(plan, m, real)` (pure, hashes of the seed) adds to
   HillHomeKit's house, from `HillHomeKit.plan_home()`: the pad's garden over the pavers, the
@@ -3907,6 +4018,14 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   joints filtered per axis (`joint2()`), flow stains, a canyon bounce on what the sun misses, two
   graffiti layers and pieces on the ramp walls; `RiverDebris` lays weeds and litter on FULL beds.
   `RIVER_LOOK=0` is the A/B; checks `tests/rc2_river_checks.gd`.
+- The LA River at night (wave 7, refcam `river_night` in `tools/refcams/cameras_w7.json`,
+  docs/HANDOFF.md "The LA River at night"): `RiverNight` (`scripts/world/river_night.gd`, the
+  `river_night` global): every bridge a chunk builds is noted (`note()` in RiverBridges.jobs()) and
+  the last six go to both river materials as arrays in TRUE world (`shaders/river_night.gdshaderinc`):
+  the ribbon's arches washed by their LEDs, under-deck fixtures (real lenses, `fixtures()`) pooling on
+  bed, banks and piers, the low flow and damp silt mirroring ribs, lamps and fixtures, the floor's
+  ambient held down by AO. All behind `lamp_factor` (day bit-identical); `RIVER_NIGHT=0` is the A/B;
+  checks `tests/rc4_river_night_checks.gd`.
 - The coast highway (2026-10-05, docs/HANDOFF.md "The coast highway"): north of the beach town,
   where the front range meets the sea. `CoastHighway` (`scripts/world/coast_highway.gd`,
   `MacroMap.coast_highway`, built in `setup()` before the hill roads) is a pure plan in
@@ -4065,6 +4184,15 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   MultiMeshBatch instance's default custom is Color.BLACK (alpha 1), which light_pool.gdshader
   takes as a NightLamps point source - a pool needs `Color(0, 0, 0, 0)` (`POOL_CUSTOM`).
   `PORT_NIGHT=0` is the A/B; checks `tests/rc4_port_night_checks.gd`.
+- The refinery's road at night (wave 7, refcam `refinery_night`, docs/HANDOFF.md "The refinery's road
+  at night"): `RcRefineryRoad` (`scripts/world/rc4_refinery_road.gd`): road.gdshader's
+  `shaders/refinery_road.gdshaderinc` (behind `rr_on`, 0 on every other road) lights the roads and
+  block pavements within `NEAR` of the plant from its flares and fence-line masts (light x albedo,
+  patchy damp, glints), the perimeter lamps are patchy (a share out: INSTANCE_CUSTOM.b in
+  street_lamp.gdshader), the pavement ring is wound face up with kerb faces (FilmStudio._flat()
+  winds DOWN: culled), a weedy verge at the fence foot, soot off the flares
+  (`refinery_flare_smoke.gdshader`), tank floods in fans (`rc4_look`). `RC4_REFINERY_ROAD=0` is the
+  A/B; checks `tests/rc4_refinery_road_checks.gd`.
 - The oil islands (2026-10-30, docs/HANDOFF.md "The oil islands"): three decorated drilling
   islands in San Pedro Bay 600-700 m off the Long Beach sand (the FORM of the real ones; names and
   the operator invented). A DATA TABLE (`OilIslands`, `scripts/world/oil_islands.gd`: anchors,
@@ -4653,6 +4781,13 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   are baked `SkaterPerson` figures that wake into live people when hit or near gunfire.
   `SKATE_PARK=0` is the A/B, `SKATE_T=` / `SKATE_HOLD=1` the clock, `SKATE_DEBUG=1` prints EYEs;
   probe `tools/skate_park/probe.gd`; checks `tests/skate_park_checks.gd`.
+- The skate park refcam (wave 8, `skate_park` in `tools/refcams/cameras_w8.json`, docs/HANDOFF.md
+  "THE PIT at 16:30 from the deck"): `RcSkatePark` (`scripts/world/rc5_skate_park.gd`) -
+  skate_park.gdshader's `look5` (used concrete: pours, the wheel-rubber band, floor grime, a waxed
+  coping, dirt round the lip), the pool air `POOL_AIR` over the coping, the boardwalk's painted
+  boards / murals lit (`paint()`; they were unshaded). A row's `skate_t` holds SkateParkLife's
+  clock; `tools/rc5_skate_park/air_probe.gd` lists air times. `RC5_SKATE=0` the A/B; checks
+  `tests/rc5_skate_park_checks.gd`.
 - Pier park (2026-10-05, "an amusement park on a pier, Santa Monica-style, original"; HANDOFF 9ca):
   RANDO PIER (the `pier` landmark, (-940, -350)) is `PierPark` (`scripts/world/pier_park.gd`):
   the pier plus GULLWING PARK on a platform off its south side. Everything sits in the PARK'S
@@ -4868,6 +5003,14 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   included by building.gdshader AND building_lod.gdshader (change one, both change). Landmark
   facade windows are coverage by pixel footprint. `CIVIC_GROUNDS=0` / `ROOF_WEATHER=0` the A/B;
   probe `tools/civic_grounds/probe.tscn`; checks `tests/rc_downtown_aerial_checks.gd`.
+- STARLIGHT PLAZA on an event night (wave 8, refcam `arena_night` in `tools/refcams/cameras_w8.json`,
+  its `arena_event` key = ARENA_EVENT; docs/HANDOFF.md "STARLIGHT PLAZA on an event night"):
+  `ArenaNight` (`scripts/world/arena_night.gd`, hooks in LandmarkArenaDistrict): LED blades and
+  parapet coves on the plaza's blank walls and its name lit, near and far; each screen's light on
+  the paving (`shaders/arena_spill.gdshader` picks the screen's slide colour as led_screen.gdshader
+  does - change both; checked), a cool omni on Forward+ desktop; the hotel's crown lit from inside;
+  on event nights (`event_tonight()`, a hash) searchlight carts (SkyBeam) on the plaza and by the
+  marquee and a fuller plaza. `ARENA_NIGHT=0` is the A/B; checks `tests/rc5_arena_night_checks.gd`.
 - Broadway's theatre district (2026-10-05, HANDOFF "Broadway"): `Broadway`
   (`scripts/world/broadway.gd`) places eleven invented movie palaces by their REAL house numbers on
   S Broadway (`THEATRES`, `address_z()` through the real cross streets) on the Broadway-fronting lot
@@ -6122,6 +6265,15 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   `tools/construction/probe.gd` (sites, closures and EYEs round a point), `chunk_probe.gd`,
   `compile.gd`; stills `tools/construction/kit_shot.gd` (the kit alone, seconds). Checks:
   `tests/construction_checks.gd`.
+- The construction site at dusk (wave 8, refcam5 `construction_dusk` in tools/refcams/cameras_w8.json,
+  docs/HANDOFF.md "The construction site at dusk"): `ConstructionDusk`
+  (`scripts/world/construction_dusk.gd`, hooks in construction.gd): a late shift (`late()`, crews
+  on until `SHIFT_END` 20:30) with two more at the gate; LED fittings under every open floor and
+  light towers on the deck (warm glows on Construction's lights mesh, which takes a colour per
+  light; two `lamp_light` omnis off the web); construction.gdshader's `dusk_glass` (sky to the
+  horizon, lit city below it, fit-out storeys lit behind the glass, soffits washed) and
+  `printed_posters` (StreetWear's paper atlas). `CONSTRUCTION_DUSK=0` is the A/B;
+  `tools/construction/site_probe.gd` frames a site; checks `tests/rc5_construction_dusk_checks.gd`.
 - Street vendors (VISUAL_ROADMAP #52, 2026-10-04: "taco trucks at night, fruit carts under
   umbrellas"): `StreetVendors` (`scripts/world/street_vendors.gd`, static) - taco trucks at the
   kerb with a lit menu board, the serving window open under its propped flap, a lit kitchen
@@ -6213,6 +6365,12 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   `StreetVendor`s and `MarketShopper`s, `CityChunk.market_road` puts them on the asphalt).
   `FARMERS_MARKET=0` the A/B, `MARKET_DAY=1`, `MARKET_HOUR=h`. Probe:
   `tools/farmers_market/probe.gd`; checks: `tests/farmers_market_checks.gd`.
+- The farmers' market from the aisle (wave 8, refcam `farmers_market` in `tools/refcams/cameras_w8.json`,
+  its `market_day` key; docs/HANDOFF.md "The farmers' market from the aisle"): produce piled in hex
+  layers, the first as caps (`FarmersMarketKit._heap()`, a table under 14k triangles), farmers_market.gdshader's `skin_relief` /
+  `cloth_drape` / `grain_along` (derivative bumps, no tangents), festoon bulbs code 13 (glass by
+  day), printed cartons, `MAX_SHOPPERS` 46. `RC5_MARKET=0` is the A/B; the kit alone in seconds
+  `tools/farmers_market/kit_shot.gd`; checks `tests/rc5_farmers_market_checks.gd`.
 - Film shoots (2026-10-30, HANDOFF "Film shoots on location"): `FilmShoot`
   (`scripts/world/film_shoot.gd`, pure) closes one local street per `CELL` 2.3 km by hash, the
   farmers' market's way (its own salts; never a market's street or the chunk that builds one -
@@ -6598,6 +6756,12 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   the shallows. Never set its velocities in a tick that applies impulses (`_spin()`). The hero is
   drawn seated (`BoatRidePose`); FX `BoatWake`. `BOATS=0` the A/B; stills `BOAT=` on still_shot.gd;
   checks `tests/speedboats_checks.gd`.
+- The speedboat at golden hour (2026-11-05, refcam `speedboat_golden` in `tools/refcams/cameras_w8.json`,
+  its `boat` key staged by `tools/refcams/boat_stage.gd`; docs/HANDOFF.md "The speedboat at golden
+  hour"): `BoatSea` (`scripts/vehicles/boat_sea.gd`) - driven boats at sea hand their wakes to
+  ocean.gdshader through `OceanTraffic.push_wakes()` (alone: `push_alone()`), `wake_glow` braids the
+  wash and warms / lights the foam, BoatWake throws chine spray sheets (flat foam quads off at sea),
+  `transom()` letters the boat's name. `BOAT_SEA=0` is the A/B; checks `tests/rc5_speedboat_checks.gd`.
 - Swimming (2026-10-05, docs/HANDOFF.md "Swimming"): `Swim` (`scripts/player/swim.gd`, the
   player's child; `swim.step()` is the first thing in Player's tick after the car and does the whole
   tick in water). Where water is: `SwimWater` (`scripts/world/swim_water.gd`) - the sea and the bay
@@ -6704,6 +6868,30 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   `WARM=0 REHEARSE=1`: the full warm-up no longer fits). `MacroMap.bake()` memoises a pixel's raw
   height (byte-identical, `bake_probe.tscn FULL=1`). Never `x is T` on a list entry that can be
   freed: `is_instance_valid()` first.
+- The Mac launch (2026-11-05, docs/HANDOFF.md "The Mac launch", docs/PLAYING_ON_MAC.md): the
+  window presents frames for the WHOLE load. `LoadPulse` (`scripts/util/load_pulse.gd`) draws the
+  loading art on its own RenderingServer canvas and `tick()` presents it with `force_draw()` from
+  inside the long loops (`raw_height_at()`, chunk builds, far landmarks and tiles, LoadClock
+  stages) - any new load step longer than ~1 s gets a `LoadPulse.tick()` in its loop. The main
+  scene is `scenes/boot.tscn`: scripts compiled a few a frame (never on a loader thread: the
+  cyclic preloads broke), then on RenderingDevice renderers every spatial shader compiled ONE A
+  FRAME (Godot compiles a material shader when a surface first uses it and the main thread waits
+  for it: met during the city build, each was a frozen frame). The window's 3D is OFF while
+  loading; the loading screen then feeds a 4 px off-screen viewport (any 3D render hands every
+  surface's pipelines to the worker threads) and `settle()` / `drain()` wait on fence tasks with
+  frames moving. Master bus muted until the fade. Quality ignores the loading screen's frames (it
+  demoted to LOWEST). Shader baking stays OFF on 4.7.2 (godot#123266, #124539). `LOAD_PULSE=0` /
+  `BOOT_COMPILE=0` the A/B; `LOADING frame gap:` lines name any stall; probe
+  `tools/mac_launch/pulse_probe.tscn`; checks `tests/mac_launch_checks.gd`.
+- The boot compile (2026-11-06, docs/HANDOFF.md "The boot compile"): any mention of a class name
+  (a type, `X.f()`, `X.C`) compiles that script IN FULL, so 485 scripts are one cycle compiled by
+  one load() (`tools/boot_compile/deps.py`: every script's dependencies, the SCCs, `--why A B`).
+  Each carries `static func _static_init() -> void: LoadPulse.compiled()`, which Godot runs as that
+  script finishes compiling: the boot's picture moves inside the compile. A new script in the cycle:
+  `python3 tools/boot_compile/deps.py --hook` (`--unhooked` lists them). Never give a hooked script a
+  `_static_init` of its own without that call. Measure with `tools/load_time/load_time.sh boot`
+  (BOOT_QUIT=1) or `tools/boot_compile/compile_probe.tscn` (headless: the longest still steps);
+  checks `tests/boot_compile_checks.gd`.
 - Performance: `Quality` node in the city scene (`scripts/util/quality.gd`) starts desktop at
   **HIGH** (owner, 2026-09-21: "I need it PS5 level graphics" - global illumination is the single
   biggest difference between this and a modern-looking game) and steps down to MEDIUM, LOW and
@@ -7249,6 +7437,13 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   few frames (a muzzle flash) does not veil the fog: the fog's temporal blend damps it.
   `fwd_block_shot.gd BLOCKS=0` is a weather sky on Forward+ in three minutes; `FLASH=` holds a
   muzzle flash. `FWD_REVIEW_G=0` is the A/B; checks `tests/fwd_review_g_checks.gd`.
+- And one more (fwd-review-h, 2026-11-05, HANDOFF "Forward+ review h"): **a light LEVEL a
+  renderer-space or display-number shader works out itself (a falloff, a pool's alpha) is raw on
+  both** - Compatibility draws colour x level, Forward+ ~colour x level^0.45 (a tank 150 m from a
+  flare glowed orange all over). Hand it over with `fh_level()` / `fh_display()`
+  (`shaders/fwd_review_h.gdshaderinc`), or add a broad light_pool in display numbers
+  (`display_add_fwd`, `FwdReviewH.display_pool()`). Linear-on-both (cs_out) shaders are safe.
+  `FWD_REVIEW_H=0` the A/B; checks `tests/fwd_review_h_checks.gd`.
 - Native screenshots without a browser: `tools/glshot/building_shot.gd` (one building),
   `tools/glshot/block_shot.tscn` (a few FULL city blocks alone, no far city: a block's ground and
   furniture) and `tools/glshot/city_shot.gd` (the city at a `--spawn`) render with the real

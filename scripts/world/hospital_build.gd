@@ -15,6 +15,8 @@ extends RefCounted
 ## the layout's seed only (a private RandomNumberGenerator seeded from it for the planting), never
 ## the chunk's or the block's rng.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 ## The thin ground pieces' lift over the pavement (m): lawn under paving under asphalt.
 const LIFT_LAWN := 0.03
 const LIFT_PAVE := 0.05
@@ -280,10 +282,18 @@ static func _ground(ch: CityChunk, st: Dictionary) -> void:
 			ch._add_slab(Vector3(r.get_center().x, CityChunk.SIDEWALK_TOP + LIFT_LAWN * 0.5, r.get_center().y), Vector3(r.size.x, LIFT_LAWN, r.size.y),
 					ch.style.asphalt, false, asphalt_mat)
 		return
+	# The court and the walk beside it: a level deck with a ramp to the street (RcHospitalEr).
+	var deck := RcHospitalEr.enabled
+	if deck:
+		RcHospitalEr.court(ch, st, lay, asphalt_mat, paving_mat)
 	for r in asphalt:
+		if deck and r == asphalt[3]:
+			continue
 		ch._add_slab(Vector3(r.get_center().x, CityChunk.SIDEWALK_TOP + LIFT_ROAD * 0.5, r.get_center().y), Vector3(r.size.x, LIFT_ROAD, r.size.y),
 				ch.style.asphalt, false, asphalt_mat)
 	for r in paving:
+		if deck and r == paving[2]:
+			continue
 		ch._add_slab(Vector3(r.get_center().x, CityChunk.SIDEWALK_TOP + LIFT_PAVE * 0.5, r.get_center().y), Vector3(r.size.x, LIFT_PAVE, r.size.y),
 				ch.style.sidewalk, false, paving_mat)
 	# The kerb cuts: a concrete apron over the pavement and a lip down into the gutter.
@@ -561,8 +571,10 @@ static func _er_bay(ch: CityChunk, st: Dictionary) -> void:
 		batch.add("h_pool", PropFactory.light_pool(Color(0.92, 0.96, 1.0), 1.15),
 				Transform3D(Basis(Vector3.RIGHT, -PI * 0.5).scaled(Vector3(7.0, 1.0, 7.0)), _p(lay, wall_u + 4.5, b.y, y_court + 0.02)))
 	for f: float in [0.35, 0.8]:
+		var pv := lerpf(court.position.y, court.end.y, f)
+		var py := RcHospitalEr.court_y(func(x: float, z: float) -> float: return ch._gy(x, z), lay, wall_u + 16.0, pv) if RcHospitalEr.enabled else y_court
 		batch.add("h_pool", PropFactory.light_pool(Color(1.0, 0.86, 0.62), 0.9),
-				Transform3D(Basis(Vector3.RIGHT, -PI * 0.5).scaled(Vector3(11.0, 1.0, 11.0)), _p(lay, wall_u + 16.0, lerpf(court.position.y, court.end.y, f), y_court + 0.02)))
+				Transform3D(Basis(Vector3.RIGHT, -PI * 0.5).scaled(Vector3(11.0, 1.0, 11.0)), _p(lay, wall_u + 16.0, pv, py + 0.02)))
 	# The ER doors at the back of the bays (the podium's wall, facing the street): a wide pair at
 	# the middle bay with a lit transom, and a single pair at the third; a portal frame round them.
 	var out := _d(lay, 1.0, 0.0)
@@ -582,12 +594,12 @@ static func _er_bay(ch: CityChunk, st: Dictionary) -> void:
 	# The EMERGENCY sign: a light box on the podium wall over the canopy, red letters lit.
 	var mid := (canopy.position.y + canopy.end.y) * 0.5
 	var sign_w := 15.5
-	var sy := y0 + BAY_CANOPY_H + 4.3
+	var sy := y0 + BAY_CANOPY_H + (RcHospitalEr.SIGN_RISE if RcHospitalEr.enabled else 4.3)
 	_fbox(g, lay, "h_metal", wall_u, mid - sign_w * 0.5, wall_u + 0.45, mid + sign_w * 0.5, sy - 1.2, sy + 1.25, Color.WHITE, 0.05)
 	# A red light box with white letters: the way an ER sign reads from a block away at night
 	# (red letters on a lit white face wash out to pink).
 	var red := sign_material("white_er", SIGN_WHITE_FACE, SIGN_WHITE_GLOW, 2.4, 0.3)
-	var box_mat := sign_material("er_box", SIGN_RED_FACE, SIGN_RED_GLOW, 1.5, 0.25, true)
+	var box_mat := RcHospitalEr.box_material() if RcHospitalEr.enabled else sign_material("er_box", SIGN_RED_FACE, SIGN_RED_GLOW, 1.5, 0.25, true)
 	var face := MeshInstance3D.new()
 	face.name = "ERSignFace"
 	var qm := QuadMesh.new()
@@ -599,10 +611,19 @@ static func _er_bay(ch: CityChunk, st: Dictionary) -> void:
 	node.add_child(face)
 	_text(node, "ERSign", "EMERGENCY", ER_LETTER, red, _p(lay, wall_u + 0.52, mid, sy + 0.02), out, 900.0)
 	var white := sign_material("white", SIGN_WHITE_FACE, SIGN_WHITE_GLOW, 2.2, 0.25)
-	_text(node, "AmbulanceWords", "AMBULANCE ENTRANCE", 0.42, white, _p(lay, cu1 + 0.12, mid, y0 + BAY_CANOPY_H + 0.5), out, 130.0)
+	if RcHospitalEr.enabled:
+		_text(node, "AmbulanceWords", "AMBULANCE ENTRANCE", RcHospitalEr.FASCIA_LETTER, white, _p(lay, cu1 + 0.16, mid, y0 + BAY_CANOPY_H + 0.5), out, 160.0)
+		RcHospitalEr.canopy(ch, g, lay, node, batch, y_court, y0 + BAY_CANOPY_H)
+		var dspec: Array = []
+		for di in doors.size():
+			dspec.append([doors[di], 1.9 if di == 0 else 1.4])
+		node.set_meta("rc4_glaze", RcHospitalEr.glazing(g, lay, wall_u, (lay.podium as Rect2).position.y + 0.6, (lay.podium as Rect2).end.y - 0.6, dspec, y0))
+	else:
+		_text(node, "AmbulanceWords", "AMBULANCE ENTRANCE", 0.42, white, _p(lay, cu1 + 0.12, mid, y0 + BAY_CANOPY_H + 0.5), out, 130.0)
 	# The red glow it throws on the court at night.
 	batch.add("h_pool_red", PropFactory.light_pool(Color(1.0, 0.18, 0.12), 0.7),
-			Transform3D(Basis(Vector3.RIGHT, -PI * 0.5).scaled(Vector3(12.0, 1.0, 7.0)), _p(lay, cu1 + 3.0, mid, y_court + 0.025)))
+			Transform3D(Basis(Vector3.RIGHT, -PI * 0.5).scaled(Vector3(12.0, 1.0, 7.0)), _p(lay, cu1 + 3.0, mid,
+				(RcHospitalEr.court_y(func(x: float, z: float) -> float: return ch._gy(x, z), lay, cu1 + 3.0, mid) if RcHospitalEr.enabled else y_court) + 0.025)))
 	# The parked ambulance, backed into the first bay, nose to the street.
 	var am := ambulance_mesh()
 	if am != null:

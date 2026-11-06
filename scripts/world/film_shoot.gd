@@ -27,6 +27,8 @@ extends RefCounted
 ##
 ## `FILM_SHOOT=0` in the environment turns it off (the A/B): no shoot, the street is open.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 # --- Tunables --------------------------------------------------------------------------------
 
 ## Map cell (m) holding at most one shoot, and the odds a cell has one.

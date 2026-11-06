@@ -6,6 +6,8 @@ extends SkeletonModifier3D
 ## by dismount_rider(); the base it solves from is his rest pose. The fingers are left to the
 ## clip and the grip modifier, so they close round the grips.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 var bike: Motorcycle
 var player: Node3D
 var state: Dictionary = {}

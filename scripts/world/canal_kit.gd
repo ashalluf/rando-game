@@ -10,6 +10,8 @@ extends RefCounted
 ## Every writer here winds its faces itself (front = counter-clockwise as seen, Godot's rule) and
 ## sets flat normals, so nothing depends on SurfaceTool.generate_normals() over a chunk.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 ## The dock stands this far from the canal's centre line (its middle), the boat beside it at BOAT_O.
 const DOCK_O := 5.2
 const BOAT_O := 3.25

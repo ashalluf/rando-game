@@ -9,7 +9,7 @@ extends SceneTree
 ##     --audio-driver Dummy --path . --script tools/explosions_2/blast_room_shot.gd --resolution 960x540
 ##
 ## Env: OUT (stem; `_t<seconds>.png` each), TIMES, NIGHT=1 (no sun, a dark sky, night_factor 1),
-## GOLDEN=1 (a low warm sun, a peach horizon), SUN=pitch,yaw (degrees, the sun turned), WET=1 (a glossy wet road), PROPS=1 (bins and parked cars in the shock ring),
+## GOLDEN=1 (a low warm sun, a peach horizon), SUN=pitch,yaw (degrees, the sun turned), WET=1 (a glossy wet road), PROPS=1 (bins and parked cars in the shock ring), FACADE=1 (a rocket into a building's face, 6 m up), UP=m (the camera that high, looking down),
 ## CAR=1 (a parked car's own explosion: fuel fireball and toss; CHAIN=1 two more cars beside it), DIST (camera metres from the
 ## blast, default 34), HEIGHT (camera eye, 1.7), RADIUS (9), SCALE (slow motion before 1 s,
 ## 0.375 = 0.05 s a frame), LATE (after 1 s, 2.0), CAM_X (camera sideways, -4), LOOK_Y (aim height,
@@ -129,6 +129,18 @@ func _initialize() -> void:
 		load("res://scripts/weapons/weapon_fx.gd")._web_cache = 1
 	var radius := float(_env("RADIUS", "9"))
 	var at := centre + Vector3(1.5, 0.6, 0.0)
+	if OS.get_environment("FACADE") == "1":
+		# FACADE=1: a rocket into the left building's street face, 6 m up (the face is found by a ray).
+		var sp := root.get_world_3d().direct_space_state
+		var hitf := sp.intersect_ray(PhysicsRayQueryParameters3D.create(centre + Vector3(0.0, 6.0, -14.0), centre + Vector3(-30.0, 6.0, -14.0), 1))
+		at = (hitf.position as Vector3) + (hitf.normal as Vector3) * 0.3 if not hitf.is_empty() else centre + Vector3(-10.5, 6.0, -14.0)
+		cam.global_position = at + Vector3(float(_env("DIST", "30")) * 0.75, 1.7 - at.y + centre.y, float(_env("DIST", "30")) * 0.66)
+		cam.look_at(at + Vector3(0.0, 2.0, 0.0))
+	if OS.get_environment("UP") != "":
+		# UP=metres: seen from the air (flying), looking down at the blast from a slant.
+		var up := float(OS.get_environment("UP"))
+		cam.global_position = at + Vector3(-up * 0.25, up, up * 0.55)
+		cam.look_at(at)
 	if OS.get_environment("PROPS") == "1":
 		# PROPS=1: bins and two parked cars in the blast's shock ring (12-20 m), to see it kick them.
 		for k in 6:

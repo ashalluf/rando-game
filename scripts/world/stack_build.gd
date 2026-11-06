@@ -12,6 +12,8 @@ extends RefCounted
 ## tapered hammerhead cap, the main line's replacement ones with a wider head; each lights the
 ## street under it at night. Collision: a banked box per segment, a cylinder per column.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 ## A davit light every so many connector segments (FreewayStack.LINK_STEP apart).
 const LIGHT_EVERY := 5
 const CAP_DEPTH := 2.2

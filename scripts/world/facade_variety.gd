@@ -11,6 +11,8 @@ extends RefCounted
 ## `FACADES_GTA=0` in the environment turns the whole pass off (the A/B): the walls, the caps and
 ## the far boxes draw exactly as before.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 static var enabled: bool = OS.get_environment("FACADES_GTA") != "0"
 
 ## The curtain wall systems (fx_system()): a flush unitised wall, deep fins, slab bands.

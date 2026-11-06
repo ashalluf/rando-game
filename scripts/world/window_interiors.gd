@@ -12,6 +12,8 @@ extends RefCounted
 ## `WINDOW_INTERIORS=0` in the environment turns it off (the A/B): the `window_interiors` global
 ## goes to 0 and every window is the first pass's office.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 static var enabled: bool = OS.get_environment("WINDOW_INTERIORS") != "0"
 
 ## window_interiors.gdshaderinc's WI_HOME_* (per mille of buildings, by Building.WindowStyle).

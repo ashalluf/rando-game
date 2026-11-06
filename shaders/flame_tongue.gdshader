@@ -23,6 +23,17 @@ uniform vec3 mid = vec3(1.25, 0.56, 0.08);
 uniform vec3 cool = vec3(0.6, 0.17, 0.025);
 uniform vec3 smoke = vec3(0.045, 0.036, 0.028);
 uniform float soft_distance = 0.4;
+// Round 18 (look5): from 5 m a row of tongues read as crisp orange paper spikes of one height.
+// Each tongue's height now flickers on its own clock, a fine third octave opens holes and wisps
+// in its flesh, and the outer flame is thin and see-through round an opaque hot core. 0 is the
+// round-6 tongue bit for bit.
+uniform float look5 = 0.0;
+// Round 20 (the lead: check on Forward+): these colours were tuned as display numbers on the
+// Compatibility renderer; Forward+ takes the same numbers as LINEAR, so on the Mac every tongue
+// drew pale yellow-cream with no red tips. Forward+ decodes them this far toward linear (1 = all
+// the way, measured against opengl3 at 0, 0.6 and 1; 0 = the
+// old numbers). Compatibility is untouched.
+uniform float fwd_decode = 0.0;
 
 varying flat float v_seed;
 varying float v_life;
@@ -45,7 +56,13 @@ void vertex() {
 void fragment() {
 	float u = UV.x * 2.0 - 1.0;
 	// 0 at the root, 1 at the tip; each card's own height (a row of equal tongues is a fence).
-	float h = (1.0 - UV.y) / (0.5 + 0.5 * fract(v_seed * 7.31));
+	float hs = 0.5 + 0.5 * fract(v_seed * 7.31);
+	if (look5 > 0.0) {
+		// Each tongue its own height, breathing: lunges up and drops back on its own clock.
+		float fl = texture(noise3d, vec3(v_seed * 11.0, TIME * 0.9, 0.3)).r;
+		hs = mix(hs, (0.5 + 0.6 * fract(v_seed * 7.31)) * (0.75 + 0.55 * fl), look5);
+	}
+	float h = (1.0 - UV.y) / hs;
 	if (h >= 1.0) {
 		discard;
 	}
@@ -62,6 +79,12 @@ void fragment() {
 	// Torn into licks: the fine noise lifts pieces off as the tongue rises, a lump broken free.
 	float tear = smoothstep(0.0, 0.2, n2 * 1.1 + 0.55 - h * 1.15 + 0.35 * (n1 - 0.5));
 	float shape = body * tear;
+	if (look5 > 0.0) {
+		// A finer octave climbing faster: holes and wisps in the flesh, never in the root's core.
+		float n3 = texture(noise3d, vec3(u * 1.3 + v_seed * 3.0, h * 2.6 - tt * 2.1, v_seed * 2.3 + 0.8)).r;
+		float hole = smoothstep(0.38, 0.62, n3 + 0.55 - h * 0.7 + 0.35 * (1.0 - abs(ux) / max(w, 0.02)));
+		shape *= mix(1.0, hole, look5);
+	}
 	if (shape < 0.003) {
 		discard;
 	}
@@ -77,8 +100,17 @@ void fragment() {
 	// The ramp's life: its brightness against its brightest key (1.3), and its fade.
 	float lum = clamp(dot(COLOR.rgb, vec3(0.30, 0.55, 0.15)) / 0.85, 0.15, 1.2);
 	col *= mix(1.0, lum, 1.0 - spent);
+#if CURRENT_RENDERER != RENDERER_COMPATIBILITY
+	if (fwd_decode > 0.0) {
+		vec3 c = max(col, vec3(0.0));
+		vec3 lin = mix(c / 12.92, pow((c + 0.055) / 1.055, vec3(2.4)), step(vec3(0.04045), c));
+		col = mix(col, lin, fwd_decode);
+	}
+#endif
 	ALBEDO = col;
 	ALPHA = clamp(COLOR.a * 1.15, 0.0, 1.0) * shape * mix(1.0, 0.18, spent) * (1.0 - smoothstep(0.7, 1.0, h));
+	// The outer flame is thin gas: see-through, the hot core opaque.
+	ALPHA *= mix(1.0, 0.62 + 0.38 * smoothstep(0.0, 0.4, core), look5);
 
 	float depth = textureLod(depth_texture, SCREEN_UV, 0.0).r;
 #if CURRENT_RENDERER == RENDERER_COMPATIBILITY

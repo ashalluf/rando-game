@@ -40,6 +40,13 @@ uniform float reflect_emit = 0.6;
 uniform vec3 ground_color = vec3(0.07, 0.065, 0.055);
 // Past this distance the furniture is under a pixel: the room is drawn as its average.
 uniform float detail_far = 140.0;
+// The pool deck at dusk (Rc5HillHome; RC5_HILL_HOME=0 sets it 0, the room exactly as before): one
+// open-plan room with no partition between the bays (through side glass at a grazing look they were
+// a row of flat lit walls), `rc5_depth` deep, lit in pools under its downlights with the dark
+// between them, the walls scalloped, the far end dimmer, at `rc5_gain` of the old light.
+uniform float rc5 = 0.0;
+uniform float rc5_depth = 8.5;
+uniform float rc5_gain = 0.62;
 
 varying vec3 wpos;
 varying vec3 wnrm;
@@ -80,6 +87,11 @@ void fragment() {
 	vec3 sky = cs_srgb_to_linear(sky_tint.rgb);
 	vec3 mirror = mix(ground_color * (0.4 + 0.6 * dot(sky, vec3(0.33))), sky * mix(0.9, 1.2, clamp(R.y, 0.0, 1.0)), smoothstep(-0.06, 0.1, R.y));
 	float rnd = COLOR.a;
+	// The pane's random is the same at every vertex, but interpolated it wobbles by an ulp, which
+	// the sin hashes below turn into per-pixel static (a binary speckle over every lit room).
+	if (rc5 > 0.5) {
+		rnd = floor(rnd * 255.0 + 0.5) / 255.0;
+	}
 	vec3 tone = cs_srgb_to_linear(COLOR.rgb);
 
 	// Room space: x along the wall (UV.x), y up (UV.y), z into the room.
@@ -95,7 +107,9 @@ void fragment() {
 	float detail = 1.0 - smoothstep(detail_far * 0.6, detail_far, dist);
 
 	// The room's shell.
-	float t = depth / d.z;
+	bool open_plan = rc5 > 0.5;
+	float room_d = open_plan ? rc5_depth : depth;
+	float t = room_d / d.z;
 	int surf = 0; // 0 back wall, 1 floor, 2 ceiling, 3 side wall
 	if (d.y < 0.0) {
 		float tf = -o.y / d.y;
@@ -105,7 +119,7 @@ void fragment() {
 		if (tc < t) { t = tc; surf = 2; }
 	}
 	float ts = (d.x > 0.0 ? (x1 - o.x) : (x0 - o.x)) / (abs(d.x) < 1e-4 ? 1e-4 * sign(d.x + 1e-6) : d.x);
-	if (ts > 0.0 && ts < t) { t = ts; surf = 3; }
+	if (ts > 0.0 && ts < t && !open_plan) { t = ts; surf = 3; }
 	vec3 p = o + d * t;
 	vec3 alb;
 	float lx = (p.x - x0) / bay;
@@ -129,20 +143,28 @@ void fragment() {
 	// Furniture: a low sofa against the back, a coffee table, a floor lamp.
 	float hit_t = t;
 	bool lamp_hit = false;
-	if (br < 0.75 && detail > 0.01) {
-		float ts2 = slab(o, d, vec3(x0 + 0.7, 0.0, depth - 1.15), vec3(x1 - 0.7, 0.78, depth - 0.25));
+	int nb = open_plan ? 3 : 1;
+	for (int k = 0; k < nb; k++) {
+		float bj = bi + float(k) * (d.x >= 0.0 ? 1.0 : -1.0);
+		float xa = bj * bay;
+		float xb = xa + bay;
+		float brj = h11(bj * 7.13 + rnd * 91.7);
+		if (brj >= 0.75 || detail <= 0.01) {
+			continue;
+		}
+		float ts2 = slab(o, d, vec3(xa + 0.7, 0.0, depth - 1.15), vec3(xb - 0.7, 0.78, depth - 0.25));
 		if (ts2 > 0.0 && ts2 < hit_t) {
 			hit_t = ts2;
 			vec3 q = o + d * ts2;
-			vec3 fab = mix(vec3(0.70, 0.67, 0.62), vec3(0.16, 0.16, 0.17), step(0.45, h11(bi * 2.3)));
+			vec3 fab = mix(vec3(0.70, 0.67, 0.62), vec3(0.16, 0.16, 0.17), step(0.45, h11(bj * 2.3)));
 			alb = fab * (q.y > 0.74 ? 1.0 : 0.82);
 		}
-		float tt = slab(o, d, vec3(x0 + 1.5, 0.0, depth - 2.5), vec3(x1 - 1.5, 0.42, depth - 1.75));
+		float tt = slab(o, d, vec3(xa + 1.5, 0.0, depth - 2.5), vec3(xb - 1.5, 0.42, depth - 1.75));
 		if (tt > 0.0 && tt < hit_t) {
 			hit_t = tt;
 			alb = vec3(0.16, 0.10, 0.07);
 		}
-		float lxp = x0 + 0.45;
+		float lxp = xa + 0.45;
 		float tl = slab(o, d, vec3(lxp - 0.2, 1.25, depth - 0.65), vec3(lxp + 0.2, 1.6, depth - 0.25));
 		if (tl > 0.0 && tl < hit_t) {
 			hit_t = tl;
@@ -151,7 +173,7 @@ void fragment() {
 		}
 	}
 	p = o + d * hit_t;
-	float depth_k = clamp(p.z / depth, 0.0, 1.0);
+	float depth_k = clamp(p.z / room_d, 0.0, 1.0);
 
 	// Light. By day the sky through the glass, weaker inward; at night the room's own lights.
 	float day = 1.0 - clamp(night_factor, 0.0, 1.0);
@@ -162,20 +184,43 @@ void fragment() {
 	float pool = exp(-dot(cell, cell) * 7.0);
 	float wash = surf == 2 ? 0.35 : mix(0.6, 1.0, pool * (surf == 1 ? 1.0 : 0.6)) * mix(1.0, 0.75, p.y / ceiling);
 	vec3 night_l = lit_color * lit_energy * wash * lit;
+	if (open_plan) {
+		// Downlights in pools, the dark between them; the walls scalloped from the ceiling down; the
+		// far end of a deep room dimmer.
+		float pool2 = exp(-dot(cell, cell) * 14.0);
+		float l;
+		if (surf == 2 && hit_t == t) {
+			l = 0.12 + 0.25 * pool2;
+		} else if (surf == 0 && hit_t == t) {
+			float fx = fract(p.x / 1.5) - 0.5;
+			float scal = exp(-fx * fx * 18.0) * smoothstep(0.4, 2.5, ceiling - p.y + 0.2) * (1.0 - smoothstep(2.2, 2.8, p.y));
+			l = 0.18 + 0.95 * scal;
+		} else {
+			l = 0.12 + 1.05 * pool2;
+		}
+		night_l = lit_color * lit_energy * rc5_gain * l * mix(1.0, 0.55, depth_k) * lit;
+	}
 	vec3 room = alb * (day_l + night_l);
 	if (surf == 2 && hit_t == t) {
 		// The downlights themselves.
 		float spot = 1.0 - smoothstep(0.05, 0.09, length(cell * vec2(1.5, 1.6)));
-		room += lit_color * 4.0 * spot * lit * detail;
+		room += lit_color * 4.0 * spot * lit * detail * (open_plan ? 1.3 : 1.0);
 	}
 	if (lamp_hit) {
 		room += lit_color * 2.6 * lit;
 	}
 	// A sheer curtain drawn across a share of the bays, glowing when the room is lit.
 	float curtain = step(0.78, h11(bi * 4.7 + rnd * 13.0));
-	room = mix(room, vec3(0.86, 0.83, 0.77) * (day_l * 1.6 + lit_color * lit_energy * 0.75 * lit), curtain * 0.7);
+	if (open_plan) {
+		// A sheer: soft vertical folds, the room's light glowing through it, the room half seen.
+		float fold = 0.78 + 0.22 * sin(UV.x * 13.0 + sin(UV.x * 3.1) * 1.7);
+		vec3 sheer = vec3(0.86, 0.83, 0.77) * (day_l * 1.6 + lit_color * lit_energy * rc5_gain * 0.42 * lit) * fold;
+		room = mix(room, sheer, curtain * 0.55 * smoothstep(0.05, 0.25, UV.y) * (1.0 - smoothstep(2.5, 2.75, UV.y)));
+	} else {
+		room = mix(room, vec3(0.86, 0.83, 0.77) * (day_l * 1.6 + lit_color * lit_energy * 0.75 * lit), curtain * 0.7);
+	}
 	// Under a pixel the room is its average.
-	vec3 avg = tone * 0.6 * (day_l + lit_color * lit_energy * 0.8 * lit);
+	vec3 avg = tone * 0.6 * (day_l + lit_color * lit_energy * (open_plan ? 0.8 * rc5_gain * 0.5 : 0.8) * lit);
 	room = mix(avg, room, detail);
 	// Mullion-free panes are a single sheet: a faint edge darkening at the bay lines reads as the
 	// silicone joint between them.

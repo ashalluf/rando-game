@@ -24,6 +24,8 @@ extends RefCounted
 ## buildings as HouseKit's LOD boxes and a relief floor for collision. The far city's capture
 ## (capture_steps()) records the buildings' boxes; Skyline asks GolfFar for the turf and canopies.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 const LIFT := 0.0
 ## Turf grid (m): FULL and LOD.
 const CELL_FULL := 1.6

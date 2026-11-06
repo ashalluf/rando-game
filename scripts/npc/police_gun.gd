@@ -6,6 +6,8 @@ extends Weapon
 ## (Avatar.hold_gun) holds this one: the hands go on `grip_right` / `grip_left`, the gun rides
 ## at `hold_hip` and comes up to `hold_aim`.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 ## Pistol (false) or carbine (true). Set before the gun joins the tree.
 var carbine: bool = false
 

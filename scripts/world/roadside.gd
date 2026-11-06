@@ -20,6 +20,8 @@ extends RefCounted
 ##   buildings and the canopy as a slab.
 ## All names are invented; prices too.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 enum Kind { FAST_FOOD, GAS, CAR_WASH, AUTO, DINER, STAND }
 const KIND_NAMES := ["fast_food", "gas", "car_wash", "auto", "diner", "stand"]
 
@@ -255,7 +257,7 @@ static func _prop(s: Site, kind: String, key: String, mesh: Mesh, local: Transfo
 
 
 ## A ground rect of the frame laid over the relief (4 m cells), `lift` over the pad's floor.
-static func _ground(s: Site, r: Rect2, col: Color, lift: float = GROUND_LIFT) -> void:
+static func _ground(s: Site, r: Rect2, col: Color, lift: float = GROUND_LIFT, uv_off: Vector2 = Vector2.ZERO, u2: Vector2 = Vector2(0.75, 0.0)) -> void:
 	var nx := clampi(ceili(r.size.x / 4.0), 1, 24)
 	var nz := clampi(ceili(r.size.y / 4.0), 1, 24)
 	var pts := []
@@ -266,7 +268,7 @@ static func _ground(s: Site, r: Rect2, col: Color, lift: float = GROUND_LIFT) ->
 			var lz := r.position.y + r.size.y * j / nz
 			var p := s.at(Vector3(lx, 0.0, lz))
 			p.y = TOP + s.ch._gy(p.x, p.z) + lift
-			row.append([p, Vector2(lx, lz)])
+			row.append([p, Vector2(lx, lz) - uv_off])
 		pts.append(row)
 	for j in nz:
 		for i in nx:
@@ -274,7 +276,7 @@ static func _ground(s: Site, r: Rect2, col: Color, lift: float = GROUND_LIFT) ->
 			var b: Array = pts[j][i + 1]
 			var cc: Array = pts[j + 1][i + 1]
 			var d: Array = pts[j + 1][i]
-			s.ground.face(a[0], b[0], cc[0], d[0], [a[1], b[1], cc[1], d[1]], Vector3.UP, col, Vector2(0.75, 0.0))
+			s.ground.face(a[0], b[0], cc[0], d[0], [a[1], b[1], cc[1], d[1]], Vector3.UP, col, u2)
 
 
 ## A painted line on the ground from `a` to `b` (frame XZ), `width` wide.
@@ -544,7 +546,13 @@ static func _gas(s: Site) -> void:
 	var pen := s.pen
 	var K := RoadsideKit
 	# Forecourt: concrete under the canopy and in front of the store, aprons to the street.
-	_ground(s, Rect2(-hw + 1.0, cz0 - 1.5, s.w - 2.0, store.position.y - cz0 + 1.5), K.c(Color(0.74, 0.73, 0.7), K.K_CONCRETE))
+	var fc := Rect2(-hw + 1.0, cz0 - 1.5, s.w - 2.0, store.position.y - cz0 + 1.5)
+	if GasNight.enabled:
+		# GasNight: the canopy's LED panels light and mirror in the forecourt (roadside.gdshader).
+		_ground(s, fc, K.c(Color(0.74, 0.73, 0.7), K.K_CONCRETE), GROUND_LIFT, cc, GasNight.forecourt_u2(s.yaw, cw, cd))
+		GasNight.stats.forecourts += 1
+	else:
+		_ground(s, fc, K.c(Color(0.74, 0.73, 0.7), K.K_CONCRETE))
 	var drive_w := 8.0
 	_frontage(s, [Vector2(-hw + 2.0, -hw + 2.0 + drive_w), Vector2(hw - 2.0 - drive_w, hw - 2.0)])
 	# --- The canopy: deck, fascia all round (brand stripe under a white lightbox band), the
@@ -581,6 +589,7 @@ static func _gas(s: Site) -> void:
 	var n_isl := clampi(int(cw / 6.5), 2, 4)
 	var isl_len := clampf(cd - 2.5, 5.0, 8.0)
 	var two := isl_len >= 6.8
+	var islands: Array = []
 	for i in n_isl:
 		var ix := cc.x - cw * 0.5 + (i + 0.5) * cw / n_isl
 		var iy := s.dy(ix, cc.y)
@@ -601,6 +610,7 @@ static func _gas(s: Site) -> void:
 		pen.box(Vector3(ix, iy + 3.2, cc.y), Vector3(0.48, 0.12, 0.48), K.c(c2, K.K_FIXED), K.RM_PAINT)
 		s.ch._add_shape(Vector3(0.46, col_h, 0.46), s.at(Vector3(ix, iy + col_h * 0.5, cc.y)), s.yaw)
 		var pumps: Array = [-isl_len * 0.27, isl_len * 0.27] if two else [-isl_len * 0.22]
+		islands.append([ix, iy, pumps.map(func(z: float) -> float: return cc.y + z)])
 		for pz: float in pumps:
 			var at := Vector3(ix, iy + 0.18, cc.y + pz)
 			_prop(s, "pump", "rs_disp", RoadsideKit.dispenser(), Transform3D(Basis(Vector3.UP, PI * 0.5), at), Color(c1.r, c1.g, c1.b, s.rng.randf()), Vector3(0.6, 2.3, 1.2))
@@ -638,9 +648,14 @@ static func _gas(s: Site) -> void:
 	# --- The price sign: a pole sign at the street corner, a lit brand head over the LED prices.
 	_price_sign(s, Vector2(-side * (hw - 1.6), -hd + 1.8), bname, c1, c2)
 	# Night.
-	_pool(s, cc, Vector2(cw + 6.0, cd + 6.0), Color(1.0, 1.0, 1.0, 1.4))
+	_pool(s, cc, Vector2(cw + 6.0, cd + 6.0), Color(1.0, 1.0, 1.0, GasNight.POOL_ALPHA if GasNight.enabled else 1.4))
 	_pool(s, Vector2(store.get_center().x, front - 2.5), Vector2(sw + 2.0, 6.0), Color(1.0, 0.96, 0.88, 0.9))
-	_light(s, Vector3(cc.x, under - 0.6, cc.y), 16.0, Color(0.95, 0.97, 1.0))
+	if GasNight.enabled:
+		var spot: Array = GasNight.light_spot(cc, cw, cd, under)
+		_light(s, spot[0], spot[1], Color(0.95, 0.97, 1.0))
+		GasNight.dress(s, islands, cc)
+	else:
+		_light(s, Vector3(cc.x, under - 0.6, cc.y), 16.0, Color(0.95, 0.97, 1.0))
 
 
 ## Flat lit lettering straight on a face (no raceway): a fascia band's brand name.

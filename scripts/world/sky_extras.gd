@@ -10,6 +10,8 @@ extends Node
 ## trail aged `a` seconds is where the jet was then, moved downwind since, which for a straight
 ## track at a steady speed is still a straight line (`_push_trails()`). Nothing else is simulated.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 ## Cumulus: the deck's base and depth (m), the size of the weather map's tile and the billows (m).
 @export var cloud_base: float = 1450.0
 @export var cloud_depth: float = 1700.0
@@ -62,6 +64,7 @@ func setup(sky: ShaderMaterial, seed_value: int) -> void:
 		_sky.set_shader_parameter("painted_night_gain", 1.0)
 		_sky.set_shader_parameter("painted_city_light", 0.0)
 	FwdReviewG.apply_sky(_sky)
+	FwdReviewH.apply()
 	_sky.set_shader_parameter("cloud_base", cloud_base / 1000.0)
 	_sky.set_shader_parameter("cloud_depth", cloud_depth / 1000.0)
 	if textures():

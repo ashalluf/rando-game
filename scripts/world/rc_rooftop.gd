@@ -9,6 +9,8 @@ extends RefCounted
 ##     shaders/offshore_island.gdshaderinc), not a hard dark brown strip.
 ## RC_ROOFTOP=0 is the A/B of all of it (the city exactly as before).
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 static var enabled := OS.get_environment("RC_ROOFTOP") != "0"
 
 

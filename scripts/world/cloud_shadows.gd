@@ -78,10 +78,12 @@ func _ready() -> void:
 func _process(_delta: float) -> void:
 	if _sky == null or _mat == null:
 		return
-	var volume := float(_sky.get_shader_parameter("cloud_volume")) > 0.5 \
-		and float(_sky.get_shader_parameter("cloud_detail")) > 0.5
+	# Forward+ review h: a parameter nobody has set yet reads null (the first frames, before
+	# SkyExtras hands the volume over), and float(null) is a script error every frame.
+	var volume := FwdReviewH.param(_sky, "cloud_volume") > 0.5 \
+		and FwdReviewH.param(_sky, "cloud_detail") > 0.5
 	var sun := _sun_dir()
-	var cov := float(_sky.get_shader_parameter("cloud_coverage"))
+	var cov := FwdReviewH.param(_sky, "cloud_coverage")
 	var darken := float(_day.get("weather_darken")) if _day else 0.0
 	var marine := float(_day.get("marine")) if _day else 0.0
 	var s := strength_for(strength, sun.y, cov, darken, marine, sun_low, sun_high, overcast_from, overcast_to)

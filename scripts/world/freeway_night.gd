@@ -21,6 +21,8 @@ extends Node3D
 ##
 ## FREEWAY_NIGHT=0 in the environment is the A/B: the old pool, no lights, no layer, the old reach.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 static var enabled: bool = OS.get_environment("FREEWAY_NIGHT") != "0"
 
 ## The cobra pool's quad (metres along the road, across it) centred on the head's foot: across it

@@ -15,6 +15,8 @@ extends RefCounted
 ## pumpjacks (still nodding), tanks and rigs as far boxes. The capture: the hill as tilted slabs, the
 ## pumpjacks, tanks and masts as boxes.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 ## Ground grid step (m), near and far.
 const GROUND_STEP := 2.0
 const GROUND_STEP_LOD := 8.0

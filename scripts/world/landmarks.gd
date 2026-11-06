@@ -5,6 +5,8 @@ extends RefCounted
 ## that contains the anchor builds the detailed version, and CityStreamer keeps a far version
 ## of every landmark alive so the skyline never loses them. All names and designs are original.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 const SIGN_TEXT := "SHALLUFERWOOD"
 ## The second hill sign, on the affluent slope below the first.
 const HILLS_SIGN_TEXT := "SHALLUFER HILLS"
@@ -209,6 +211,8 @@ static func people_steps(lm: Dictionary, chunk: CityChunk) -> Array[Callable]:
 		return PierPark.people_steps(lm.anchor, chunk)
 	if lm.id == PuebloLane.ID:
 		return PuebloLane.people_steps(lm, chunk)
+	if lm.id == "terminal":
+		return TerminalCurb.people_steps(chunk)
 	var none: Array[Callable] = []
 	return none
 
@@ -678,8 +682,10 @@ static func _build_dropoff(parent: Node3D, statics: StaticBody3D, macro: MacroMa
 	# tree columns standing in it (AirportTerminal), and the departures signs hang under it.
 	var cc := curb.get_center()
 	var strip := _box(parent, statics, Vector3(curb.size.x + 20.0, 0.24, curb.size.y + 1.0), Vector3(cc.x, y + 0.12, cc.y + 0.5), Color(0.8, 0.79, 0.76), detailed)
-	strip.material_override = PropFactory.pbr("sidewalk", 3.0, Color(0.95, 0.95, 0.95))
+	strip.material_override = PropFactory.pbr("sidewalk", 3.0, Color(0.95, 0.95, 0.95)) if not TerminalCurb.enabled else TerminalCurb.paving()
 	# The DEPARTURES boards hang on the head house's tree columns (AirportTerminal).
+	# The kerb's bollards, signs, furniture, luggage and the planted median (TerminalCurb).
+	TerminalCurb.build(parent, statics, macro, detailed)
 
 
 ## Three hangars with barrel roofs, a fuel farm and a beacon at the east end of the field.

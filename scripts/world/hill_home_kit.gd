@@ -45,6 +45,8 @@ extends RefCounted
 ## glass band on each wing's view face that glows warm after dark (INSTANCE_CUSTOM.g), so the
 ## hills twinkle across the basin.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 ## Off, the estates get the old Building slab (the A/B: HILL_HOMES=0 in the environment).
 static var enabled: bool = OS.get_environment("HILL_HOMES") != "0"
 
@@ -97,8 +99,8 @@ const STEEL := Color(0.13, 0.13, 0.13)
 const FAR_GLASS := Color(0.10, 0.12, 0.13)
 
 ## Materials of the house meshes (HouseKit's, plus the hillside glass and the pool water).
-const MATS := ["h_wall", "h_siding", "h_trim", "h_door", "h_metal", "h_dark", "h_roof", "h_flat", "hh_glass", "hh_water"]
-const NO_SHADOW := ["hh_glass", "h_dark", "hh_water"]
+const MATS := ["h_wall", "h_siding", "h_trim", "h_door", "h_metal", "h_dark", "h_roof", "h_flat", "hh_glass", "hh_water", "hh_spill"]
+const NO_SHADOW := ["hh_glass", "h_dark", "hh_water", "hh_spill"]
 
 
 static func _h01(parts: Array) -> float:
@@ -534,7 +536,7 @@ static func _plan_site(h: Dictionary, ps: int, s: int, _plan: CityPlan) -> void:
 		var fr: Vector2 = h.terraces[i]
 		for k in int((fr.y - fr.x) / 4.5):
 			var tp := Vector2(fr.x + 2.0 + float(k) * 4.5, Dp + TERRACE_STEPS[0] + 2.0)
-			if _h01([ps, s, "terr_tree", i, k]) < 0.7:
+			if _h01([ps, s, "terr_tree", i, k]) < 0.7 and not Rc5HillHome.blocks_view(h, tp):
 				trees.append(["olive" if _h01([ps, s, "terr_kind", i, k]) < 0.6 else "cypress", tp, _range(Vector2(4.0, 9.0), [ps, s, "tth", i, k])])
 	h.trees = trees
 
@@ -673,11 +675,15 @@ static func material(name: String) -> Material:
 		"hh_glass":
 			var g := ShaderMaterial.new()
 			g.shader = load("res://shaders/hill_glass.gdshader")
+			Rc5HillHome.material(name, g)
 			m = g
 		"hh_water":
 			var w := ShaderMaterial.new()
 			w.shader = load("res://shaders/hill_pool.gdshader")
+			Rc5HillHome.material(name, w)
 			m = w
+		"hh_spill":
+			m = Rc5HillHome.spill_material()
 		_:
 			m = HouseKit.material(name)
 	_mats[name] = m

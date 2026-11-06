@@ -18,6 +18,8 @@ extends RefCounted
 ## building, a surface per material), materials LandmarkMats. Coordinates are world, y up from
 ## MacroMap.tarmac_top.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 const TOWER_SHAFT_TOP := 58.0
 const TOWER_CAB_TOP := 66.0
 ## The top of the tower's roof (the rotating beacon sits on it: Airport.lights_mesh()).
@@ -113,10 +115,15 @@ static func build_head_house(parent: Node3D, statics: StaticBody3D, macro: Macro
 	g.box("concrete", Vector3((hh.position.x + hh.end.x) * 0.5, y0 + 0.25, front - 0.4), Vector3(hh.size.x, 0.5, 0.8), Color.WHITE)
 	if detailed:
 		var x := hh.position.x + 15.0
+		var vi := 0
 		while x < hh.end.x - 10.0:
-			g.box("metal", Vector3(x, y0 + 1.75, front - 1.6), Vector3(7.0, 3.5, 3.2), Color(0.85, 0.86, 0.88), Basis(), 0.04)
-			g.box("dark", Vector3(x, y0 + 1.5, front - 3.22), Vector3(5.6, 2.9, 0.06), Color.WHITE)
+			if TerminalCurb.enabled:
+				TerminalCurb.vestibule(g, x, front, y0, vi)
+			else:
+				g.box("metal", Vector3(x, y0 + 1.75, front - 1.6), Vector3(7.0, 3.5, 3.2), Color(0.85, 0.86, 0.88), Basis(), 0.04)
+				g.box("dark", Vector3(x, y0 + 1.5, front - 3.22), Vector3(5.6, 2.9, 0.06), Color.WHITE)
 			x += 30.0
+			vi += 1
 	# The roof: steel on top, slatted soffit underneath, a fascia round the edge.
 	var nx := 24 if detailed else 8
 	for i in nx:

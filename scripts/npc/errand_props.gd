@@ -10,6 +10,8 @@ extends RefCounted
 ## the car reads as a door standing open (CLAUDE.md, Street errands). Shared meshes, one per body
 ## type and per load; one material per paint colour.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 ## How far a driver's door swings open (radians) and how long it takes (seconds).
 const DOOR_SWING := 1.08
 const DOOR_TIME := 0.85

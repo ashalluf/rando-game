@@ -31,6 +31,8 @@ extends RefCounted
 ## get the ground as slabs (partitioned, never stacked) and the buildings and bleachers as far
 ## boxes.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 ## Off: no block is rolled a rec park or a school (the A/B: PARKS=0 on still_shot.gd and
 ## tools/lot_coverage.gd; it must be set before the plan's blocks are asked for).
 static var enabled: bool = OS.get_environment("PARKS") != "0"

@@ -18,6 +18,8 @@ extends RefCounted
 ## headland (carve(), one line in MacroMap.height_at()); the hills' scatter, planting and far trees
 ## keep off it (covers()). LIGHTHOUSES=0 in the environment: none of it (the A/B).
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 const LIGHT_ID := "gull_point_light"
 const GATE_ID := "harbor_gate_light"
 const SEG_PREFIX := "breakwater_"

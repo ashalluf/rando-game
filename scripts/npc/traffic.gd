@@ -7,6 +7,8 @@ extends Node3D
 ## streets around the airport, whose drop-off loop (MacroMap.terminal_loops) carries its own
 ## bumper-to-bumper crawl while the player is near the terminal.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 ## Cars around the player at density 1.0 (downtown core); density scales it down elsewhere.
 @export var max_cars: int = 14
 ## Cars crawling the airport drop-off loop.
@@ -1229,7 +1231,10 @@ func _spawn_loop_car(loop_index: int, t: float) -> void:
 	var at := _loop_point(loop, t)
 	var pos2: Vector2 = at[0]
 	var dir2: Vector2 = at[1]
-	var car := _new_car()
+	# A taxi or a shuttle van now and then (TerminalCurb: built off a hash, the stream untouched).
+	var car: Vehicle = TerminalCurb.loop_car(hash([plan.seed, loop_index, int(t), loop_cars.size(), Engine.get_physics_frames()]))
+	if car == null:
+		car = _new_car()
 	car.traffic = {"loop": loop_index, "t": t, "speed": loop_speed * _rng.randf_range(0.85, 1.1)}
 	car.freeze_mode = RigidBody3D.FREEZE_MODE_KINEMATIC
 	car.freeze = true
@@ -1262,11 +1267,15 @@ func _drive_loops(delta: float) -> void:
 			var ahead: Vehicle = group[(k + 1) % group.size()]
 			var gap: float = fposmod(ahead.traffic.t - car.traffic.t, total) if ahead != car else total
 			var speed: float = minf(car.traffic.speed, maxf(0.0, (gap - loop_gap * 0.75) * 1.5))
+			# The kerb lane's drop-offs (TerminalCurb): stop at the kerb on the hazards, pulled in.
+			var kerb: Array = TerminalCurb.loop_speed(car, i, speed, delta)
+			speed = kerb[0]
 			car.traffic.t = fposmod(car.traffic.t + speed * delta, total)
 			car.traffic_speed = speed
 			var at := _loop_point(loop, car.traffic.t)
 			var pos2: Vector2 = at[0]
 			var dir2: Vector2 = at[1]
+			pos2 += Vector2(-dir2.y, dir2.x) * float(kerb[1])
 			_place(car, WorldState.to_local(Vector3(pos2.x, macro.dropoff_top + car.road_lift(), pos2.y)), atan2(-dir2.x, -dir2.y), 0.0)
 
 
