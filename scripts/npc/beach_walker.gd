@@ -18,6 +18,9 @@ var z_hi: float = 0.0
 var _to_water: bool = true
 ## In street clothes, not swimwear (the night's strollers by a lit pier, RcPierNight).
 var clothed: bool = false
+## Going home at the end of the day (MarineEvening.leavers()): up the beach from where it stands to
+## the back of the sand, then along it, at a walk with somewhere to be.
+var leaving: bool = false
 
 
 func _init() -> void:
@@ -34,6 +37,8 @@ func _ready() -> void:
 			_carry_board()
 	# A beach pace: an amble.
 	walk_speed = _rng.randf_range(0.9, 1.25)
+	if leaving:
+		walk_speed = _rng.randf_range(1.15, 1.4)
 	cross_chance = 0.0
 
 
@@ -56,6 +61,10 @@ func _random_ring_point(_sidewalk: float) -> Vector2:
 		z = clampf(position.z + _rng.randf_range(-35.0, 35.0), z_lo, z_hi)
 	var cx := macro.coast_x(z)
 	var w := macro.beach_width_at(z)
+	if leaving and is_inside_tree():
+		# Up to the back of the sand (the path, the town), then on along it.
+		z = clampf(position.z + _rng.randf_range(-12.0, 12.0), z_lo, z_hi)
+		return Vector2(macro.coast_x(z) + macro.beach_width_at(z) * _rng.randf_range(0.86, 0.96), z)
 	if board >= 0:
 		_to_water = not _to_water
 		if _to_water:
