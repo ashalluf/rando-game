@@ -4598,3 +4598,8 @@ none of either.
   frame); shop doors and far-walker borrowing take only the plain crowd by script (a valet was sent
   through a door for good); the crowd-flow passing check meets nearest the camera. RAGDOLL_PHYSICS_TICK=0
   is the A/B.
+- 2026-11-06 (fleet wave 8, rc5-friday-lights): a school stadium on its game night is lit by real
+  spotlights from its standards (not additive pools), and its game is baked figures (players, officials,
+  seated fans) rather than live people: ~460 people in view must cost like scenery. A facility rect
+  that crosses a chunk border is built by the chunk owning its centre (the school car park was bare
+  asphalt). RC5_FRIDAY_LIGHTS=0 is the A/B.

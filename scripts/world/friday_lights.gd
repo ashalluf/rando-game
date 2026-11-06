@@ -39,7 +39,7 @@ const BLOOM_SIZE := 9.0
 const FIGURE_DRAW := 320.0
 const FIGURE_SHADOW := 60.0
 ## The rigs players and officials wear the uniform on (trousers, short hair: PoliceOfficer's).
-const PLAYER_MODELS := [0, 3, 5, 7, 9]
+const PLAYER_MODELS := [0, 3, 7]
 ## The rigs and look salts of the home crowd (the bonfire's clothed people).
 const FAN_MODELS := [0, 3, 4, 7, 12, 13, 14, 16]
 const FAN_SALTS := [7, 11]
