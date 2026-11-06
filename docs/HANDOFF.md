@@ -32809,8 +32809,13 @@ NightLife's premiere. The engine's own roof OmniLight still runs off the wall cl
 its flash drifts from the lenses; the wash, which is what is seen, is in step); the wash's banks
 assume the lens shader's +across side is the car's +x (not measured per body).
 
-**Numbers** (opengl3 refcams, before = main with FS_T=0.6, after = this branch, same eye): see the
-table on `shots/rc5-fire-station-night`. Checks: `tests/rc5_fire_station_night_checks.gd` (the row
+**Numbers** (opengl3 refcams, before = main 12042fe2 with FS_T=0.6, after = this branch, same eye):
+luminance p5/p50/p95 5/54/173 -> 5/53/172 (the before's frame is brighter only for the white box
+truck its engine drove into), 6.97 M -> 6.57 M triangles, 3,864 -> 3,673 draws (the truck again;
+the station's dressing is one mesh, its lights four OmniLights on desktop, each lit unit's wash three
+quads). The ten original cameras against main 8c0de652: eight ok, street_night and freeway flagged
+by live traffic (a bus, different cars in frame; neither view holds a station). Gate (SHARDS=3):
+6,596 checks, 0 failed, shard peak RSS 3.95 GB. Checks: `tests/rc5_fire_station_night_checks.gd` (the row
 looks at a station across its street; the setback and its switch; the path out starts inside the
 bay and lands on the lane heading down it, stepping evenly down the ramp; stop_gap both ways, not
 past, not another road, a gone unit stops nobody; the wash's red and its clock; a unit really sent
