@@ -26,6 +26,18 @@ func run(t: Node, city: Node3D) -> void:
 	for key in ["state", "_previous", "blend", "wetness", "drying", "_forced", "_timer"]:
 		saved[key] = weather.get(key)
 	var saved_hour: float = float(day.get("hour"))
+	# This file is not awaited, so nothing stands the player at home first: the camera is wherever
+	# the part before it left it, and from 200 m up it is half in the deck (shuffled gate 803 on
+	# wt/gate-flakes-3: "under the deck (0.61)"). A camera of its own, 12 m over the street there.
+	var old_cam := city.get_viewport().get_camera_3d()
+	var cam := Camera3D.new()
+	city.add_child(cam)
+	var at := old_cam.global_position if old_cam else Vector3.ZERO
+	var plan: CityPlan = city.get("plan")
+	var tw := WorldState.to_world(at)
+	var gy: float = plan.height_at(Vector2(tw.x, tw.z)) if plan else 0.0
+	cam.global_position = WorldState.to_local(Vector3(tw.x, gy + 12.0, tw.z))
+	cam.make_current()
 	_marine(city, weather, day)
 	_santa_ana(city, weather, day)
 	_heat(weather, day)
@@ -38,6 +50,9 @@ func run(t: Node, city: Node3D) -> void:
 		weather.set(key, saved[key])
 	day.set("hour", saved_hour)
 	_settle(weather, day)
+	if is_instance_valid(old_cam):
+		old_cam.make_current()
+	cam.queue_free()
 
 
 func _settle(weather: Node, day: Node) -> void:

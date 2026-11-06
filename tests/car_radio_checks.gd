@@ -142,9 +142,14 @@ func _drive(player: Player, car: Vehicle, radio: CarRadio) -> void:
 
 	var tunes0 := radio.tunes
 	player.enter_vehicle(car)
+	# The card is read the frame the radio takes the car: its age runs on the (capped) frame time,
+	# and the frames a loaded shard took to start the stream aged it past 3 s (shuffled gate 803).
+	var took := await _until(func() -> bool: return radio.car == car, 90)
+	var card_ok := took and radio.tunes > tunes0 and radio.card_kind == "tune" and radio.card_age < 3.0
+	var card_was := "tunes %d -> %d, %s, %.2f s" % [tunes0, radio.tunes, radio.card_kind, radio.card_age]
 	var ok := await _until(func() -> bool: return radio.car == car and radio.playing(), 90)
 	_check(ok and radio.station == expect, "entering the car tunes its station and plays (station %d, playing %s)" % [radio.station, str(radio.playing())])
-	_check(radio.tunes > tunes0 and radio.card_kind == "tune" and radio.card_age < 3.0, "and asks for the station card")
+	_check(card_ok, "and asks for the station card (%s)" % card_was)
 	var music: AudioStreamPlayer = radio.get_node_or_null("Music")
 	_check(music != null and music.bus == CarRadio.BUS, "the music plays on the Radio bus")
 	var np := radio.now_playing()

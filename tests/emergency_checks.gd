@@ -317,6 +317,14 @@ func _fire_call(player: Player) -> void:
 	_check(left and unit.crew_aboard == unit.crew_alive, "the crew climbs back in and the engine leaves")
 
 
+## The world layer's top under true world `w` (local y), or a large number when there is none.
+func _ground_y(space: PhysicsDirectSpaceState3D, w: Vector3) -> float:
+	var l := _ws.to_local(w)
+	var q := PhysicsRayQueryParameters3D.create(Vector3(l.x, l.y + 20.0, l.z), Vector3(l.x, l.y - 30.0, l.z), 1)
+	var hit := space.intersect_ray(q)
+	return (hit.position as Vector3).y if not hit.is_empty() else 1.0e6
+
+
 ## A body on the pavement, an ambulance at the kerb: a paramedic kneels at it, the other brings the
 ## stretcher, they take it away and leave.
 func _down_call(player: Player) -> void:
@@ -333,7 +341,12 @@ func _down_call(player: Player) -> void:
 		q.shape = box
 		q.collision_mask = 1 | 4
 		q.transform = Transform3D(Basis.IDENTITY, _ws.to_local(cand) + Vector3.UP * (CityChunk.SIDEWALK_TOP - CityChunk.ROAD_TOP + 0.25 + 0.8))
-		if space.intersect_shape(q, 1).is_empty():
+		# And a kerb a pushed cot can climb: the stretcher medic stood 0.6 m under the body's
+		# pavement for 45 s, pushing (shuffled gate 803 on wt/gate-flakes-3; where the street runs
+		# across a slope the pavement stands higher than the road).
+		var lane := _road_point(40.0 + 5.0 * k, _plan.road_width(CityPlan.AXIS_X, 0) * 0.5 - 2.0)
+		var step := absf(_ground_y(space, cand) - _ground_y(space, lane))
+		if space.intersect_shape(q, 1).is_empty() and step < 0.3:
 			at = cand
 			break
 	player.global_position = _ws.to_local(_road_point(70.0, -6.0)) + Vector3.UP * 1.0
@@ -343,7 +356,9 @@ func _down_call(player: Player) -> void:
 	ped.position = _ws.to_local(at) + Vector3.UP * 0.3
 	_city.add_child(ped)
 	await _ticks(5)
+	seed(9301) # the fling's tumble is the global rng's (where the body lands)
 	ped.knock(Vector3(0.0, 1.0, 0.5))
+	randomize()
 	var doll: Ragdoll = ped._doll
 	await _ticks(60)
 	_check(doll != null and is_instance_valid(doll), "somebody knocked down is a body on the street")
