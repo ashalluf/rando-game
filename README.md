@@ -10,3 +10,7 @@ Rain bookmark on the WEB build (SwiftShader), `?spawn=2359.4,880,0,12,2&hour=13&
 - `06_strip_*.jpg` - probe strips: p2 (wet_world, sun, omni, Quality steps), p21 (all non-chunk children hidden in four groups), p23 (ballpark_glow, street_wear, mural hidden).
 
 Not fixed; see docs/HANDOFF.md, the web-hero-blue third pass section.
+
+Update (main at batch 56, c0c77a59):
+- `07_after_main_batch56_web_rain_frame22_clean.jpg` - the same bookmark on the newest main, frame 22: no lime wedges, hero dark.
+- `08_strip_main_batch56_frames3_to_22.jpg` - five reports, frames 3-22, no change applied: clean throughout.
