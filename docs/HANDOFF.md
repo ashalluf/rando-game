@@ -29933,3 +29933,245 @@ only gets shorter on a slow frame; nothing found).
 
 **Runs** (`SHARDS=3`, shuffled, ~32 min each, shards 3.2-3.7 GB RSS): 21101 (cut short by a tool
 limit at ~4,800 checks: the valet), 21202 PASSED 5,797, 21303 PASSED 5,797 (both on 7f68e37f). Final unshuffled gate on the branch merged with main (batch 53a): FINAL_HERE.
+
+## 9mt. The farmers' market from the aisle: the farmers_market refcam, 2026-11-05 (fleet wave 8, refcam5 `farmers_market`, branch `wt/rc5-farmers-market`)
+
+**The camera.** `farmers_market` in `tools/refcams/cameras_w8.json`: Palm St's market (seed 1337,
+the Saturday market round (1253, -3833)) at 10:00 clear, 1.65 m over the asphalt in the middle of
+the aisle at its west end, looking east down the two rows of canopies. Its `market_day` key sets
+`MARKET_DAY=1` and `MARKET_HOUR` = the row's hour before the city loads (refcams_shot.gd
+`_market_day()`), so the stalls are up whatever the load's day and the chunks built during the load
+are built at the shot's hour.
+
+**What read fake, worst first** (before: `01_before_farmers_market.jpg` on `shots/rc5-farmers-market`):
+1. **The produce was a tray of toys**: fruit on a 2-radius grid with 20 % jitter over a flat dome
+   of the goods' colour, 6 x 3-segment ellipsoids, every skin smooth plastic. Now
+   (`FarmersMarketKit._heap()`) round goods are a hexagonal layer a little tighter than touching
+   with a second layer in its hollows over the crown, the fill darkened to read as the shadow between
+   them, 8-10 segments (the packed first layer drawn as a two-ring cap: only its top shows between
+   its neighbours), a five-sepal calyx on tomatoes (`_calyx()`); the
+   shader's `skin_relief` adds a derivative bump (`fm_bump()`: no tangents needed) - pebbly on the
+   rough skins (avocado, citrus, peach: UV2.x roughness 0.42-0.62 and up), a faint dimple on the
+   glossy ones - and a blush mottle across each fruit; leaves get a crinkle. Bunches and carrots keep
+   their grid.
+2. **Table cloths were the sides of boxes**: `cloth_drape` hangs the cloth in folds on its side faces
+   (the model-space normal is passed as a varying; folds widen toward the hem, valleys darker, the
+   gingham's verticals bunch into them). Sandbags (UV2.x 0.95) are left out.
+3. **Festoon bulbs were lit yellow balls at 10:00**: a new code 13 (`C_GLASS_BULB`) is clear glass by
+   day with a faint filament and the warm light at night; `bulb_day` 0.6 -> 0.18.
+4. **The near aisle was empty**: `MAX_SHOPPERS` 34 -> 46 at the peak (the crowd cap still rules).
+5. Smaller: produce cartons are printed and taped (`_carton()`: flap seam, tape over it and down the
+   ends, hand holes, an ink band and block on the long faces), and the aluminium's brushed grain runs
+   along the legs (`grain_along`; it ran across them, so the near leg was a stack of ripples).
+
+**The other ten cameras** (`compare` against main at batch 52): eight unchanged; street_night and
+freeway flagged only for a bus and a box truck the live traffic put in the frame.
+
+**A/B.** `RC5_MARKET=0` (`FarmersMarketKit.rc5` false): the old heaps, segment counts and plain
+boxes bit for bit (a produce table is 8,706 triangles again), the shader uniforms at their old
+values, code 12 bulbs, 34 shoppers.
+
+**Tools.** `tools/farmers_market/kit_shot.gd`: every goods table under a canopy in two rows on a
+plain ground, sun and sky, seconds a frame (`CAM`, `LOOK`, `FOV`; prints each table's triangles).
+
+**Frame cost** (the refcam's own numbers, opengl3 1280 x 720): main 6.12 M triangles, 3,407 draws,
+2.27 M shadow; the branch before merging main's batch 52 6.50 M, 3,457, 2.45 M; the merged head
+5.36 M, 3,420, 2.45 M (main re-shot at batch 52 still read 6.12 M: the difference is what the live
+crowd and vans put in the frame, so read the branch's own +6 % as the honest cost). A produce table is 8-13k triangles near (6.4-10k before; the
+farmers_market_checks budget of 14k holds; a first try at 25-27k failed it). The far level and the shadow twin are
+unchanged (crates and heaps). Checks: `tests/rc5_farmers_market_checks.gd`.
+
+**Not done.** The vans behind the stalls are the road van's far twin (8k triangles) even at 3 m;
+the canopy underside has no seams; nothing here is judged on Forward+ (the bump and the folds are
+normal-only and should hold; the bulb glass is a plain albedo).
+
+## 9mu. The police pursuit at night (refcam5 `police_pursuit`, wave 8, rc5-police-pursuit)
+
+**The camera.** `police_pursuit` in `tools/refcams/cameras_w8.json`: 22:00 clear, the player's own
+black coupe east on Wilshire at x 1150 at 60 km/h (toward the downtown skyline), seen through his
+chase camera, two cruisers on his rear quarters (one in the kerb lane, one flanking in the oncoming
+lane), three stars, the police helicopter's searchlight on him. Staged by the `drive` row's new
+optional `pursuit` key (`tools/refcams/pursuit_stage.gd`, called from chase_stage.gd; keys in the
+README): the police switched on but dispatching nothing of their own, the cruisers `scripted` and
+held at his speed and lane offset every physics tick (brake off, mask world only), the helicopter
+staged by `AirTraffic.stage("police")` from his camera, the chase camera's look held a few degrees
+off. `POLICE_PURSUIT=0` stages none of it; `PURSUIT_AB=1` saves the frame again with each piece
+switched off.
+
+**What read as a game, worst first, and what changed** (`PursuitLook`, `scripts/npc/pursuit_look.gd`;
+`PURSUIT_LOOK=0` is the A/B of all of it):
+
+1. **The searchlight was a flat white disc ~30 m across** that swallowed the road, the lane paint
+   and the cars' wheels, and its shaft was a pale veil over the top half of the frame. Three things
+   landed on one spot: the SpotLight3D, an additive pool (1.6 plus a 2.6 core, 1.25 x the beam's
+   width + 2 m, lifted 25 cm so it painted over the tyres and kerbs) and the drawn shaft's foot. Now
+   the spot does the lighting (`SPOT_GAIN` 0.6, `SPOT_EDGE` 0.3: a hotter middle and a soft rim), the
+   pool is only the hot middle (0.32 / 0.55, the beam's width, 4 cm over the ground) and the shaft
+   fades out over its last 22 % and inside 6-45 m of the lens (searchlight_beam.gdshader
+   `foot_fade`, `near_from` / `near_to`, 0 = the old shaft).
+2. **No red or blue on the street in most frames.** The bar strobed each bank twice in a tenth of a
+   cycle: a bank lit 36 % of the time, so most stills (and most frames) showed the bar's lenses and
+   nothing on the street. `PursuitLook.flash_side()` is an LED triple flash (three pulses a side over
+   0.42 of each half: lit 72 %), carried as `pattern` 1 by police_lights.gdshader and
+   police_wash.gdshader (the same expression, checked) and returned by `PoliceCar.flash_side()`, which
+   PoliceNightLook's real lights follow.
+3. **The wash pool drowned the frame once lit.** With the new pattern the old pool (a soft dot flat
+   out to ~13 m) turned the road round two cruisers beside the camera into one blue-white and pink
+   sheet. police_wash.gdshader's `point_pool` is the light of a lamp at bar height,
+   E ~ (1 + r^2/h^2)^-1.5 (h 2.6 m, `point_gain` 0.12), faded out by 6-13 m; the lit lens's glare is
+   0.3 m (`WASH_GLARE`, was 0.7: a red smear the width of the roof at 5 m). The facade wash (seen on
+   Forward+, where it clipped to a flat red rectangle once lit most of the time) falls off inside its
+   quad and is a third as strong under the same switch.
+4. **The light bar was six flat unshaded boxes** - two coloured bricks from the chase camera.
+   `PursuitLook.light_bar_mesh()` is a low LED bar the old one's size: a chamfered black housing under
+   a clear tinted dome, red bank, clear takedown lamps, blue bank, end caps; police_lights.gdshader's
+   `led` draws rows of LED pods in the dome (dim coloured chips and grey reflectors when off,
+   white-hot chips in a glowing dome when lit, a view-space sheen). One surface, ~200 triangles.
+
+**Traps.** `Helicopter._aim_gear()` re-sets the spot's, pool's and shaft's visibility every frame,
+and PoliceNightLook re-shows every glow and light: hiding one of them for an A/B changes nothing
+(three rounds were lost to that). pursuit_stage's A/B switches their INPUTS off (the helicopter's
+`searchlight_energy`, the pieces' transparency, the wash material's gains). A driverless physical
+cruiser keeps its parking brake on: pushed along by velocity its wheels skid and DrivingFX throws
+smoke and sparks (its brake is zeroed each tick); and the cars held at speed by velocity still threw
+DrivingFX sparks off some body contact the staging did not pin down, so it raises `spark_speed` for the
+shot.
+
+**Numbers** (refcams opengl3, police_pursuit, the same framing with PURSUIT_LOOK=0 and on): luma
+p5/p50/p95 7/147/237 -> 5/69/221, mean saturation 0.22 -> 0.31, triangles 5.71 M both, draws 3,283 ->
+3,265. Forward+ on lavapipe: `tools/police_night/police_shot.gd` (T=0.05, PURSUIT_LOOK=0 / 1) renders
+clean; at that instant the old pattern is dark and the new one lit, the facade wash soft. The ten
+original cameras (`compare`, main 10568972 against the merged branch): eight within tolerance;
+street_noon and freeway flagged by live traffic alone (a bus a few metres on, a box truck against a
+motorbike in the lane). Gate (SHARDS=3), two runs: before the merge 5,812 of 5,813 (the failure,
+"cruisers drive in and engage (227 m -> 13 m)", passes alone - SMOKE_PARTS=city_polish: 227 m -> 21 m,
+engaged; this branch does not touch the police AI); after merging main 10568972, 5,932 of 5,934 (two
+checks in downtown_street_closeup_checks, "Batch_sg_plate differs", which pass alone: 32 of 32), peak
+3.8 GB a shard. Both look like shard-order flakes; neither file names anything changed here.
+
+**Not done / not verified.** Forward+ (the Mac) not seen in the city: there the real strobe lights
+(PoliceNightLook's budget) and the volumetric searchlight also act (the drawn shaft is hidden at
+HIGH); the bar and the wash were checked on a small Forward+ scene (below). The facades on Wilshire
+stand past the wash's 16 m wall reach, so no wall wash in this view. The cruisers are staged, not
+driving PoliceChase's tactics.
+
+## 9mv. The brush fire on a Santa Ana evening (refcam5 `brush_fire`), 2026-11-05 (agent branch `wt/rc5-brush-fire`; VISUAL_ROADMAP ?)
+
+**The camera.** `brush_fire` in `tools/refcams/cameras_w8.json`: Elm Blvd at 7th St in midtown,
+eye (7, 1.7 agl, 420), yaw 3 (straight at the fire: LaWeather.fire_site() is (-100, 470, -1400) on
+the default seed, 1.8 km off), pitch 12, 18:30 in a Santa Ana, fov 55. No staging keys. Framing:
+the boulevard's signal mast and the hill sign's summit under the fire, two buildings either side.
+`tools/rc5_brush_fire_probe.gd` prints the fire site, the districts round midtown and the roads
+near the fire's x.
+
+**What gave it away (the before, main):** (1) the fire was a ruler-straight row of flame tongues
+520 m wide hovering ABOVE the summit in the sky - the site is the real crest, the horizon plane
+draws the ridge lower out there; (2) the column was a thin string of separate orange blobs,
+lit the same orange top to bottom, rising straight up; (3) the sky was a clean lavender dusk,
+nothing of the smoke in it (DayNight's Santa Ana hooks all fade out with `dusk`); (4) the
+litter was a few specks.
+
+**Fixes** (`BrushFireLook`, `scripts/world/brush_fire_look.gd`, the numbers; `BRUSH_FIRE_LOOK=0`
+is the A/B and gives every old number back):
+- The fire line (fire_glow.gdshader `look`): tongues on a curve that falls down both flanks
+  (`FLANK_FALL` card heights at its ends), its crest `LINE_SINK` 40 m under the site, the card's
+  foot `FOOT_DROP` 70 m under it, so the hill in front hides the line's foot and the fire reads as
+  burning just over the ridge, flaring through where it is tall; broken into runs with flare-ups,
+  a smouldering ember band under the line, the glow hugging the line.
+- The column (brush_smoke.gdshader `look`): 150 puffs to 520 m, rising slower and laid over hard
+  (`PLUME_LEAN` 1.25 against 0.55), denser puffs with self-shaded cores (`CORE_SHADE`), the low
+  sun's colour half greyed by the smoke, the fire's light on the undersides only near the foot
+  (`GLOW_FALL` 170 m); a wider foot.
+- The pall: a second CPUParticles3D (`SmokePall`, local, 46 flat puffs 0.7-1.5 km across, 650-1050
+  m up, strung out downwind and drifting at 9-14 m/s) - the brown sheet over the basin downwind.
+- The sky (one hook each in DayNight's Santa Ana sky block and fog block): from dusk on, the
+  horizon toward amber-brown (`SMOKE_RIM`, a dark rust at night), the zenith muddied, the depth
+  fog brown (`sky_weight()`: 0 by day - the wind still clears the basin - and in other weather).
+- Litter 160 at 0.11-0.26 m (was 90 at 0.08-0.22) and 120 ash flakes round the player.
+
+**Checks** `tests/rc5_brush_fire_checks.gd`: the row (midtown, toward the fire, 18:30 Santa Ana),
+the sky weight (none by day / without the wind, amber at dusk), forcing the Santa Ana at 18:30
+browns the fog, builds the pall and ash, the column and card take the look and the card stands
+under the site; all gone in clear weather.
+
+**Cost.** The pall is 46 transparent puffs in one draw, ash one draw; the refcam's draws went
+2,370 -> ~2,540 between the before (pitch 9) and the after (pitch 12, more of the city in frame):
+not comparable; the new nodes are 2 draws.
+
+**Not done / not verified.** Forward+ not seen (opengl3 stills only): the smoke's cs_out colour
+and the additive card are unchanged in kind, but the brown fog through AgX on the Mac is
+unproved. The fire still has no shadow of its own (the sun is down at 18:30; by day the column
+casts none - Godot's particles cast no shadow here). The line's sink is a fixed 40 m: a seed
+whose fire crest the horizon plane draws close to true would show less flame. No smoke smell in
+the audio, no fire sound.
+
+## 9mw. The freight yard at 16:30 (wave 7, rc4-freight-yard, refcam `freight_yard`)
+
+**The view.** A new reference camera in `tools/refcams/cameras_w7.json`: the Arroyo Pacific yard
+(9do) at 16:30 clear, eye level (1.7 m over the plan ground, about 1 m over the ballast) where the
+ladder meets the storage tracks, (3399.0, 2712.0) looking north (yaw 4, pitch 2, fov 55): the
+departing train on the east main to the left, the storage tracks and their standing cuts fanning
+off the ladder, the gantry cranes, container stacks and high masts to the right. The row's
+`freight_into` (211 s into the yard stand; the stand is 150 s, so the train is ~60 s into pulling
+out, its north end ~100 m ahead) holds the freight line's clock for the shot (`_freight_clock()` in
+refcams_shot.gd). The first framing (the south throat at z 2745) looked over 200 m of empty dirt: the
+ladder is one long diagonal (slope 0.21) and the storage tracks only start north of it.
+
+**What gave it away (worst first) and what was done** - all in `RcFreightYard`
+(`scripts/world/rc4_freight_yard.gd`), one hook line each in FreightKit / FreightYard /
+FreightStock, `RC4_FREIGHT_YARD=0` the A/B:
+1. **The yard's rails lay on bare ballast: no ties anywhere in the yard.** A chunk's timber ties
+   are one MultiMesh with `visibility_range_end` 260 m, and a node's range is measured to the centre
+   of its bounds: the yard's blocks are ~520 m wide, so from the storage tracks the centre was out
+   of range. `tie_range()` sets the range from the batch's own extent (260 m past its farthest tie).
+2. **The ladder had neither ties nor a bed**: `FreightKit.ties()` divided by `maxf(zb - za, 1e-4)`,
+   so every piece laid northward (the whole ladder) threw its ties kilometres off the track; and the
+   ladder's rails floated 0.65 m over the dirt. The divisor keeps its sign now and
+   `ladder_ballast()` lays a bed with shoulders under each ladder piece (a hair under the storage
+   tracks' beds where they overlap, or the two z-fight).
+3. **The ground was sterile**: `weeds()` puts VacantKit's foxtail / oat tufts along every bed's
+   toes and up in the ballast by the rails, mustard and fennel on the ladder's open side and the
+   west main's edge, by hash of seed + spot, batched in 40 m cells (`fy_tuft_<v>_<cell>`: a
+   chunk-wide batch has the trap of fix 1).
+4. **The ballast read as a cobbled street** from eye height (round domes of one size):
+   freight_track.gdshader's `rc4` pass draws flat-faced crushed stones of two sizes (Voronoi F1 / F2:
+   each stone's own tilt split across a line, dark crevices, warm and cool granite casts).
+5. **The cars were clean painted boxes**, the autoracks a flat grey wall filling a third of the
+   frame: freight_stock.gdshader's `rc4` pass paints graffiti pieces from the street wear tag atlas
+   (`freight_tags()`: a throw-up low on most car sides, a handstyle higher on some, old ones flaking,
+   some buffed out) and weathers the perforated panels (each pressed panel leaning its own way, the
+   two deck rails, rust runs, grime from the sill). The atlas is the one sampler added.
+6. **A grey wedge stood up in the middle of the throat** (wave 8, the resumed session): the open
+   V-valley between two neighbouring storage beds (1.1 m of dirt between 0.4 m beds), whose far side
+   is the next bed's west shoulder lit by the afternoon sun, narrowing to a point where the ladder's
+   bed crosses it. Real yards are ballasted level between tracks. `throat_fill()` fills each valley
+   between storage tracks under 6 m apart level (16 mm under the beds, so their shoulders fall away
+   under it) from under the ladder's bed (its south edge follows the ladder's west edge, `valleys()`,
+   pure) to the shorter track's bumper, in 8 m pieces each built by the chunk its middle is in, and
+   slopes its north end down; the ladder's west shoulder is left out among the beds (`in_storage()`)
+   and the weeds in a valley stand on the fill.
+7. **Switch stands** (base, post, lever, yellow and red target) at every turnout, on the ladder's bed
+   on its open east side (`stand_spots()`, pure: they first stood 2.45 m off the track, 0.4 m over the
+   dirt).
+
+**Frame cost** (refcams GEO, opengl3, freight_yard, before = `RC4_FREIGHT_YARD=0`): 4.65 M ->
+4.86 M triangles (+4.4 %), 1,641 -> 1,662 draws, shadow 0.98 -> 1.04 M. The weeds' cells are most of the
+extra draws; the throat fill is a few quads a chunk.
+
+**Gate** (wave 8, SHARDS=3): merged with main at b45ba911+, 5806 checks passed, 0 failed, peak 3,792 MB; merged again with main (78 commits later), 5925 of 5927 passed, peak 3,790 MB - the two failures are `downtown_street_closeup_checks` ("the same props in the same places with it off", `Batch_sg_plate` differs), which pass alone (`SMOKE_PARTS=downtown_street_closeup_checks`, 32 of 32): a shard-order flake outside the yard. **The ten refcams** (cameras.json, `RC4_FREIGHT_YARD=0` against on):
+9 of 10 identical within the noise (pixels 0.01-4.2 %, triangles within 2.5 %); freeway flagged
+(11 % of pixels, -4.9 % triangles): only the live freeway traffic differs (other cars in other
+lanes), the scene is the same.
+
+**Tools.** `tools/rc4_freight_yard/probe.gd` (headless: the yard's tracks, cuts per track, masts,
+cranes and the train's north end over the pull-out), `chunk_probe.gd` (every yard chunk built FULL:
+its tie, timber and car batches). The yard alone in a minute: `tools/glshot/block_shot.tscn`
+`EYE=3399.8,1.7,2712,4,2` (no train); the stock alone: `tools/freight/stock_shot.tscn` (`ORDER=`).
+
+**Not done / not verified.** Forward+ (the Mac) not seen: the graffiti and ballast are albedo and
+normal only, in linear, so they should hold, but the cars' paint under AgX is unchecked (as in 9do).
+The ladder's turnouts are still plain rail crossings (no switch points or frogs: the stands are
+the only turnout hardware); the departing train's head-end units stand north of the frame's
+vanishing point behind its autoracks; the autoracks' long flat flank still fills the left third.
+
+**Checks:** `tests/rc4_freight_yard_checks.gd`.

@@ -602,6 +602,12 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   shown only at HIGH / MEDIUM. `RoofRain`: one MultiMesh of crown splashes animated in GDScript on
   the roofs (`Vehicle._model_top_y` over the cabin) of the nearest cars while it rains. Checks:
   `tests/weather_la_checks.gd`; stills in docs/HANDOFF.md 9ck.
+- The brush fire at dusk (wave 8, refcam `brush_fire` in `tools/refcams/cameras_w8.json`,
+  docs/HANDOFF.md "The brush fire on a Santa Ana evening"): `BrushFireLook`
+  (`scripts/world/brush_fire_look.gd`): SantaAnaFx's line sunk behind the crest on a flank curve
+  (fire_glow `look`), a dense laid-over column (brush_smoke `look`), a `SmokePall` downwind, ash;
+  DayNight's Santa Ana sky / fog go smoky amber from dusk (`sky()` / `fog()`, 0 by day).
+  `BRUSH_FIRE_LOOK=0` is the A/B; checks `tests/rc5_brush_fire_checks.gd`.
 - June gloom at street level (wave 5, refcam `marine_morning` in `tools/refcams/cameras_w5.json`,
   docs/HANDOFF.md "June gloom at street level"): `MarineMorning` (`scripts/world/marine_morning.gd`,
   pure) - under the marine layer overnight and in the morning the streets are damp (`damp()`, a
@@ -1476,6 +1482,15 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   FreightStock's too (`RiverBuild._track_run()`). Known gaps: the river's own
   rail-bridge spur (LaRiver) is not joined to this line; Alameda's left-turners may still cross
   the median tracks at a gated crossing; the covered way's interior is not modelled.
+- The freight yard at 16:30 (wave 7, refcam `freight_yard` in `tools/refcams/cameras_w7.json`, its
+  `freight_into` holds the departing train; docs/HANDOFF.md "The freight yard at 16:30"):
+  `RcFreightYard` (`scripts/world/rc4_freight_yard.gd`): the yard's timber ties are drawn (a tie
+  MultiMesh's range was measured to a 520 m chunk's centre: `tie_range()`), a northward track piece
+  keeps its ties (FreightKit.ties() threw the ladder's kilometres away), the ladder has a bed, weeds
+  along every bed in 40 m cells, crushed-rock ballast and graffiti / weathered panels on cars (the
+  `rc4` uniforms of freight_track / freight_stock), the valleys between storage beds filled level
+  (`throat_fill()`: open, each stood up as a wedge), switch stands at the turnouts. `RC4_FREIGHT_YARD=0` is the A/B; checks
+  `tests/rc4_freight_yard_checks.gd`.
 - Cars fly (owner, 2026-09-20: "easily fly cars around the way I fly the main character"). A
   car that leaves the ground goes into stabilised flight (`Vehicle._fly()`): it holds itself
   level instead of tumbling, the stick aims it (W/S nose down/up, A/D turn with a bank), and
@@ -2762,6 +2777,15 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   core. Trap: a shader that writes POSITION in one branch uses it for EVERY vertex - write it in
   the other branch too. `POLICE_NIGHT_LOOK=0` is the A/B; small street `tools/police_night/police_shot.gd`
   (`VIEW=chase|low|block`, `RAIN=`, `T=`, `STRIP=`); checks `tests/police_night_look_checks.gd`.
+- The police pursuit (2026-11-05, refcam `police_pursuit` in `tools/refcams/cameras_w8.json`, a
+  `drive` row's `pursuit` key staged by `tools/refcams/pursuit_stage.gd`; docs/HANDOFF.md "The police
+  pursuit at night"): `PursuitLook` (`scripts/npc/pursuit_look.gd`): the helicopter's spot at
+  `SPOT_GAIN`, its pool faint and on the ground, its shaft faded at the foot and near the lens
+  (searchlight_beam `foot_fade`, `near_*`); an LED triple flash (`flash_side()` = the `pattern` 1
+  strobe of police_lights / police_wash, checked); an LED light bar (`light_bar_mesh()`, the bar
+  shader's `led`); the wash pool a point source at bar height (`point_pool`). Trap: Helicopter and
+  PoliceNightLook re-show their pieces every frame, so hiding one for an A/B does nothing (switch
+  its input off). `PURSUIT_LOOK=0` is the A/B; checks `tests/rc5_police_pursuit_checks.gd`.
 - Character arms: the generated clips were authored for arms that hang straight, but each
   generated rig is bound in whatever pose its mesh came out in (A-pose, or a palms-up shrug
   with the forearms raised), and the clips drive the arm bones as if that were the rest pose -
@@ -6305,6 +6329,12 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   `StreetVendor`s and `MarketShopper`s, `CityChunk.market_road` puts them on the asphalt).
   `FARMERS_MARKET=0` the A/B, `MARKET_DAY=1`, `MARKET_HOUR=h`. Probe:
   `tools/farmers_market/probe.gd`; checks: `tests/farmers_market_checks.gd`.
+- The farmers' market from the aisle (wave 8, refcam `farmers_market` in `tools/refcams/cameras_w8.json`,
+  its `market_day` key; docs/HANDOFF.md "The farmers' market from the aisle"): produce piled in hex
+  layers, the first as caps (`FarmersMarketKit._heap()`, a table under 14k triangles), farmers_market.gdshader's `skin_relief` /
+  `cloth_drape` / `grain_along` (derivative bumps, no tangents), festoon bulbs code 13 (glass by
+  day), printed cartons, `MAX_SHOPPERS` 46. `RC5_MARKET=0` is the A/B; the kit alone in seconds
+  `tools/farmers_market/kit_shot.gd`; checks `tests/rc5_farmers_market_checks.gd`.
 - Film shoots (2026-10-30, HANDOFF "Film shoots on location"): `FilmShoot`
   (`scripts/world/film_shoot.gd`, pure) closes one local street per `CELL` 2.3 km by hash, the
   farmers' market's way (its own salts; never a market's street or the chunk that builds one -

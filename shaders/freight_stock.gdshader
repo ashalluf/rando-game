@@ -23,11 +23,18 @@ uniform vec3 grime_color = vec3(0.075, 0.058, 0.042);
 uniform vec3 rust_color = vec3(0.19, 0.075, 0.028);
 uniform float lamp_energy = 14.0;
 uniform float board_energy = 2.2;
+// The freight yard refcam (RcFreightYard; 0 with RC4_FREIGHT_YARD=0, the old look bit for bit):
+// graffiti pieces from the street wear tag atlas on a car's sides, rust runs and grime on an
+// autorack's perforated panels, the panels' sheen broken up.
+uniform float rc4 = 0.0;
+uniform sampler2D tag_atlas : filter_linear_mipmap, repeat_disable;
+uniform float tag_odds = 0.8;
 
 varying vec3 mp;
 varying vec3 mn;
 varying vec4 inst;
 varying vec3 paint;
+varying vec3 wz;
 
 // FreightStock.PALETTE (sRGB), kept equal (the checks compare them).
 const vec3 PALETTE[28] = vec3[](
@@ -56,9 +63,75 @@ float vn(vec2 p) {
 }
 
 
+uint fs_ihash(uint x) {
+	x ^= x >> 16u;
+	x *= 0x7feb352du;
+	x ^= x >> 15u;
+	x *= 0x846ca68bu;
+	x ^= x >> 16u;
+	return x;
+}
+
+
+float fs_h01(uint x) {
+	return float(fs_ihash(x) & 0xFFFFFFu) / 16777216.0;
+}
+
+
+// Graffiti paints (linear), as river_concrete.gdshader's.
+const vec3 TAG_PAINTS[10] = vec3[](
+	vec3(0.70, 0.70, 0.66), vec3(0.04, 0.04, 0.045), vec3(0.62, 0.08, 0.05), vec3(0.06, 0.18, 0.55),
+	vec3(0.75, 0.55, 0.06), vec3(0.08, 0.40, 0.18), vec3(0.55, 0.12, 0.45), vec3(0.85, 0.30, 0.05),
+	vec3(0.30, 0.62, 0.78), vec3(0.62, 0.62, 0.62)
+);
+
+
+// One or two pieces on a car's side: `u` metres along the side as a viewer reads it, `v` metres
+// up; `car` the car's seed and the side. Big throw-ups and roller letters low on the body, a
+// handstyle or two higher; some old and flaking, now and then one buffed out in a grey patch.
+vec3 freight_tags(vec3 col, float u, float v, uint car, float detail) {
+	for (uint k = 0u; k < 2u; k++) {
+		uint tk = car * 7u + k * 131u + 9001u;
+		if (fs_h01(tk) >= (k == 0u ? tag_odds : tag_odds * 0.45)) {
+			continue;
+		}
+		uint cell = fs_ihash(tk + 1u) % 16u;
+		if (k == 0u) {
+			cell = 8u + cell % 8u;
+		}
+		float h = k == 0u ? mix(1.5, 2.4, fs_h01(tk + 2u)) : mix(0.55, 0.95, fs_h01(tk + 2u));
+		float w = h * 2.0;
+		float u0 = mix(-7.5, 7.5 - w, fs_h01(tk + 3u));
+		float v0 = k == 0u ? mix(1.05, 1.5, fs_h01(tk + 4u)) : mix(2.6, 3.3, fs_h01(tk + 4u));
+		vec2 local = vec2((u - u0) / w, (v - v0) / h);
+		if (local.x <= 0.0 || local.x >= 1.0 || local.y <= 0.0 || local.y >= 1.0) {
+			continue;
+		}
+		vec2 cxy = vec2(float(cell % 4u), float(cell / 4u));
+		vec3 m = texture(tag_atlas, (cxy + vec2(local.x, 1.0 - local.y)) / 4.0).rgb;
+		vec3 fill = TAG_PAINTS[fs_ihash(tk + 5u) % 10u];
+		vec3 outline = TAG_PAINTS[fs_ihash(tk + 6u) % 10u];
+		float age = fs_h01(tk + 7u);
+		float flake = smoothstep(0.4, 0.8, vn(vec2(u, v) * 2.3) + age * 0.4);
+		float a = 0.92 * (1.0 - flake * 0.55) * (0.85 + 0.15 * detail);
+		if (age > 0.88) {
+			vec2 bl = abs(local - 0.5);
+			float buff = 1.0 - smoothstep(0.4, 0.5, max(bl.x * 0.92, bl.y));
+			col = mix(col, vec3(0.16, 0.15, 0.14), buff * 0.85);
+		} else {
+			col = mix(col, outline, m.g * a);
+			col = mix(col, fill, m.r * a);
+			col = mix(col, vec3(0.85), m.b * a * 0.8);
+		}
+	}
+	return col;
+}
+
+
 void vertex() {
 	mp = VERTEX;
 	mn = NORMAL;
+	wz = normalize((MODEL_MATRIX * vec4(0.0, 0.0, 1.0, 0.0)).xyz);
 	inst = INSTANCE_CUSTOM;
 	int code = int(round(INSTANCE_CUSTOM.r));
 	paint = PALETTE[clamp(code / 16, 0, 27)];
@@ -203,10 +276,44 @@ void fragment() {
 		}
 	}
 
+	vec3 n_tilt = vec3(0.0);
+	if (rc4 > 0.5 && lamps < -0.5 && (painted || part == 11) && abs(mn.x) > 0.6) {
+		// The perforated panels weather too (they were skipped): grime up from the sill, rust
+		// runs from the top chord, a sun-faded patchiness panel to panel.
+		if (part == 11) {
+			float panel = vn(vec2(floor(mp.z / 1.55) * 3.7 + seed * 13.0, 0.5));
+			alb *= 0.86 + 0.24 * panel;
+			float streak = smoothstep(0.58, 0.9, vn(vec2(sp.x * 5.0, sp.y * 0.3)) * (0.55 + 0.45 * vn(vec2(sp.x * 0.6, 7.7))));
+			alb = mix(alb, rust_color * 1.2, streak * smoothstep(1.5, 5.2, mp.y) * (0.25 + 0.6 * wear) * 0.7);
+			alb = mix(alb, grime_color * 1.6, (1.0 - smoothstep(1.2, 2.8, mp.y)) * (0.3 + 0.4 * vn(sp * vec2(0.9, 2.4))) * 0.8);
+			rough = 0.7;
+			// The side is a row of pressed panels between posts, not one sheet: each panel leans a
+			// little its own way (it catches the sun differently), dark deck rails cross it at the
+			// two deck levels.
+			float pid = floor(mp.z / 1.55);
+			float lean = (h12(vec2(pid, seed * 31.0)) - 0.5) * 0.22;
+			n_tilt = vec3(0.0, 0.0, lean);
+			float deck = 0.0;
+			for (int dk = 0; dk < 2; dk++) {
+				float yd = dk == 0 ? 2.75 : 4.25;
+				deck = max(deck, 1.0 - smoothstep(0.03, 0.07, abs(mp.y - yd)));
+			}
+			alb = mix(alb, vec3(0.03), deck * 0.75);
+		}
+		float side = sign(mn.x);
+		float u = side > 0.0 ? -mp.z : mp.z;
+		uint car = uint(floor(seed * 65521.0)) * 2u + (side > 0.0 ? 1u : 0u);
+		float px = length(fwidth(mp.zy));
+		alb = freight_tags(alb, u, mp.y, car, 1.0 - smoothstep(0.02, 0.2, px));
+	}
+
 	float wet = clamp(road_wetness, 0.0, 1.0) * smoothstep(0.2, 0.9, mn.y);
 	alb *= mix(1.0, 0.75, wet);
 	rough = mix(rough, 0.2, wet * 0.7);
 
+	if (rc4 > 0.5 && n_tilt.z != 0.0) {
+		NORMAL = normalize(NORMAL + mat3(VIEW_MATRIX) * wz * n_tilt.z);
+	}
 	ALBEDO = cs_out(alb * mix(0.55, 1.0, ao));
 	ROUGHNESS = rough;
 	METALLIC = metal;
