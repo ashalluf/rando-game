@@ -32749,3 +32749,71 @@ boats' own white hulls are not in the water's light list (the boats are mirrored
 MarinaGolden's trace at night); the restaurants' terraces have no string lights or diners; the
 lights' columns are not occluded by the docks' floats (only by boats); the moonlit hulls still read
 a little flat grey.
+
+## 9d?. The surf at dawn from the water (fleet wave 8, refcam5 `surf_dawn`, branch `wt/rc5-surf-dawn`)
+
+**The view.** A new reference camera, `surf_dawn` in `tools/refcams/cameras_w8.json`: 07:00 clear,
+from the water on the wave's shoulder just past the break off the beach town (eye (-786, 1.8, 774),
+looking south down the line, fov 40), a surfer riding a set wave toward the lens, the power plant,
+the pier and the dawn lineup beyond. Two staging keys: `beach_stage` (BeachActivity's BEACH_STAGE z,
+set before the city loads) and `surf_gain` (Weather.surf_gain for this shot, 1.7: a chest-to-head
+high morning set; put back for the next camera). Decided: stage a bigger swell day for this one
+camera rather than raise every clear day's surf - the beach, sunset and pier views are tuned on the
+0.9 m face, and from water level a 0.8 m face is a bump nobody can ride in a still.
+
+**What read fake, in the order the eye found it** (stills on `shots/rc5-surf-dawn`):
+1. *Nobody was riding a wave.* BeachActivity's ride slid the rider shoreward at the crests' speed at
+   `Surf.crest_height()` x 0.75 with no idea where the ocean shader's crests were: from the water he
+   stood on flat sea, or was buried inside a wave's back. `SurfRide` (`scripts/world/surf_ride.gd`,
+   pure) locks a rider onto wave n of surf.gdshaderinc - the crest is where the phase
+   `(s + wob(p)) / L + t / T` is n, solved by two fixed-point passes (wob reads the point) - and puts
+   him `FACE_SHARE` 0.35 of the front face's width landward of it, on `SeaSurface.height()` (the
+   ocean's vertex stage in GDScript), tipped to the face's slope (`MAX_TILT`), the board 11 cm over
+   the computed surface (`RIDE_LIFT`: on a 27-degree face the drawn water a few cm off him stands
+   higher, and at 0 the board was under it). Time is `SeaSurface.now()`, or 0 while the stills hold
+   TIME. A paddler catches the wave whose crest comes up behind (`wave_at()`). Staged
+   (`stage_pick()`): within `STAGE_REACH` 40 m of the staged z, the wave whose crest is nearest
+   `STAGE_SIG` 0.94 of its own break point (throwing its lip), preferring a set wave; the staged ride
+   re-picks when the sea state changes (the row's surf_gain lands after the chunk is built) and moves
+   the lineup out past THIS sea's break. The checks prove crest = phase n and the surf highest there.
+2. *Dotted rectangles all over the water.* Not glints: the ripple normal is a value noise whose
+   gradient is EXACTLY zero along its lattice lines (the fade's derivative `6f(1 - f)` is 0 at whole
+   numbers), so wherever the swell's own normal faced a low sun the sparkle (`pow(n.h, 620)`) lit a
+   grid of dots and dashes - in patches, since the swell's normal is per vertex. Each ripple octave is
+   now the sum of two value noises on lattices turned 35 degrees apart (`ripple_grad()`, variance
+   kept; `ripple_rot`), and the close-up capillaries' second octave likewise (`capillary_rot`).
+   Measured with `tools/rc5_surf_dawn/water_ab.gd` (the held frame again with the glints off, the
+   close-up pass off, ...: the dots survived both, which pinned it on the base ripple).
+3. *A ruler-straight line along every wave.* The light through a standing face (`face_glow`) was
+   front-face only and stopped dead at the crest: a teal / dark step along each crest. `crest_carry`
+   runs it over the first 16 % of the back. (Another straight line, at the foot of a bigger face, is
+   the near-shore trough floor's knee: softening it, `k` scaled by the face height, made the drawn
+   sea throw broken whitewater over a whole near face in some frames, so it was taken back out; the
+   camera is framed so the trough is not under the lens.)
+4. *A wave with no spray.* `RcSurfDawn.spray()`: the rail spray thrown off the board's tail up the
+   face, and the lip's mist torn back to sea by the morning's offshore breeze, both on BoatWake's
+   backlit spray material, within `SPRAY_REACH` 160 m of the camera, off when the ride ends.
+5. *An empty lineup at first light.* Dawn is a surf break's busiest hour while the sand is empty:
+   `dawn_surfers()` seats up to `DAWN_SURFERS` 4 more a stretch from 06:30, easing out by 10:00
+   (new indices after the hour's own, so nothing else moves). The glitter cells are thinned
+   (`glint_keep` 0.3, the dot anywhere in its cell): on a face turned to the sun nearly every cell
+   flashed, which drew a grid too.
+
+**Numbers** (refcams opengl3, the final eye): RC5_SURF_DAWN=0 1,457k triangles / 751 draws, on
+1,469k / 764 (the spray emitters and the extra surfers). Luminance p50 156 both; the frame is mostly
+sea.
+
+**A/B**: `RC5_SURF_DAWN=0` (`SurfRide.enabled`): the old ride, no spray, no dawn surfers, the ocean's
+ripple_rot / crest_carry / capillary_rot 0 and glint_keep 1 (set by `RcSurfDawn.apply_ocean()`
+from Weather). The row's staging keys stay (they are the camera, not the fix).
+
+**Tools.** `tools/rc5_surf_dawn/probe.gd` (headless, the crests and gains round Z, the staged rider;
+GAIN=), `tools/rc5_surf_dawn/water_ab.gd` (extends still_shot.gd, TREES_AB=1: the held frame again
+with the sea's passes off one by one; REPEAT=n more frames; GAIN=). Checks
+`tests/rc5_surf_dawn_checks.gd`.
+
+**Not verified / left.** Forward+ (lavapipe) - the ocean changes are normal-only and a uniform gate,
+no colour arithmetic, but the crest glow on the Mac is not seen. The rider's pose is the old baked
+`surf_ride` (arms out, a stiff stance); a carving pose and the board's wake on the face are the
+next things. The surf at gain 1 is unchanged: an everyday clear morning is still a small day. The
+sky at 07:00 reads close to mid-morning (DayNight / DawnReview's, not touched here).

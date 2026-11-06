@@ -40,6 +40,15 @@ uniform float glint_tilt = 0.22;
 uniform float glint_cos = 0.9980;
 uniform float glint_energy = 70.0;
 uniform float glint_life = 0.35;
+// rc5-surf-dawn: the share of facet cells that can flash at all, and the dot placed anywhere in its
+// cell (0.12..0.88, not 0.25..0.75). On a wave face turned to a low sun nearly every cell's facet
+// reflected it and the glitter drew as a regular grid of dots. 1 = every cell, the old placement
+// (RC5_SURF_DAWN=0 sets it back through RcSurfDawn.apply_ocean()).
+uniform float glint_keep = 1.0;
+// rc5-surf-dawn: the capillaries' second octave turned 35 degrees (see ocean.gdshader ripple_rot: one
+// value noise's gradient is 0 along its lattice lines, and two on parallel lattices still lit the
+// sparkle in a grid). 0 = the old parallel octave.
+uniform float capillary_rot = 0.0;
 // Light through the thin top of a wave (LINEAR): green-blue, by sun height and how thin the water is
 // along the view; and the deep water's own blue scatter seen looking down into it, which the bake's
 // near-black deep colour cannot carry close to (faded out by `scatter_fade`).
@@ -258,8 +267,15 @@ vec2 oc_capillary(vec2 w, vec2 wind_d, float px, float t) {
 	// Stretched across the wind (crests across it), moving down it at a capillary's speed.
 	vec2 q = vec2(dot(w, wv), dot(w, wp) * 0.42) / capillary_size - vec2(t * 2.6, 0.0);
 	vec3 r = oc_noised(q);
-	vec3 r2 = oc_noised(q * 2.3 + vec2(5.1, 1.7) - vec2(t * 1.4, t * 0.6));
-	vec2 dq = r.yz + r2.yz * 0.55;
+	vec2 dq;
+	if (capillary_rot > 0.5) {
+		mat2 rot = mat2(vec2(0.8192, 0.5736), vec2(-0.5736, 0.8192));
+		vec3 r2 = oc_noised(rot * q * 2.3 + vec2(5.1, 1.7) - vec2(t * 1.4, t * 0.6));
+		dq = r.yz + transpose(rot) * r2.yz * 0.55;
+	} else {
+		vec3 r2 = oc_noised(q * 2.3 + vec2(5.1, 1.7) - vec2(t * 1.4, t * 0.6));
+		dq = r.yz + r2.yz * 0.55;
+	}
 	vec2 g = wv * dq.x + wp * (dq.y * 0.42);
 	return g * (capillary_slope * keep);
 }
@@ -286,7 +302,8 @@ vec2 oc_glint_octave(vec2 w, vec3 n, vec3 v, vec3 L, float px, float t, float ce
 	vec3 nf = normalize(n + vec3(tilt.x, 0.0, tilt.y));
 	float a = dot(reflect(v, nf), L);
 	float hit = smoothstep(glint_cos, mix(glint_cos, 1.0, 0.6), a);
-	vec2 at = oc_hash22(ci + gen * 5.3 + 3.1) * 0.5 + 0.25;
+	vec2 at = oc_hash22(ci + gen * 5.3 + 3.1) * mix(0.5, 0.76, step(glint_keep, 0.999)) + mix(0.25, 0.12, step(glint_keep, 0.999));
+	hit *= step(oc_hash12(ci + gen * 3.9 + 41.0), glint_keep);
 	float r0 = 0.12;
 	float r = max(r0, px / cell * 0.7);
 	float shape = 1.0 - smoothstep(r * 0.35, r, length(f - at));

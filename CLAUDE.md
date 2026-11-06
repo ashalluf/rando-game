@@ -6756,6 +6756,17 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   (camera-facing clumps cut flat at the waterline), `SeaLife.SPRAY_RING` rings where a back breaks
   the surface or a bird sits down, sea_life.gdshader `skin2` the dolphin's wet skin.
   `SEA_SPRAY=0` is the A/B; checks `tests/rc5_sea_life_checks.gd`.
+- The surf at dawn (wave 8, refcam `surf_dawn` in `tools/refcams/cameras_w8.json`, its `beach_stage`
+  key = BEACH_STAGE and `surf_gain` = Weather.surf_gain for the shot; docs/HANDOFF.md "The surf at
+  dawn from the water"): `SurfRide` (`scripts/world/surf_ride.gd`, pure) puts a riding surfer on
+  wave n of surf.gdshaderinc (crest where the phase is n, `FACE_SHARE` down the front face, height
+  and slope from SeaSurface; TIME 0 under held stills), `stage_pick()` a set wave throwing its lip;
+  `RcSurfDawn` (`scripts/world/rc5_surf_dawn.gd`, hooks in BeachActivity and Weather): the board on
+  the face, rail spray and lip mist, dawn-patrol surfers, and the ocean's `ripple_rot` /
+  `capillary_rot` (two value noises on turned lattices: one noise's gradient is 0 on its lattice
+  lines and the sparkle drew a dotted grid), `crest_carry`, `glint_keep`. `RC5_SURF_DAWN=0` is the
+  A/B; probes `tools/rc5_surf_dawn/` (`probe.gd` the wave, `water_ab.gd` the sea's passes); checks
+  `tests/rc5_surf_dawn_checks.gd`.
 - Beach life (VISUAL_ROADMAP #60, 2026-10-05: "a Los Angeles beach on a warm afternoon"):
   `BeachLife` (`scripts/world/beach_life.gd`, static) fills the sand `CityChunk._build_beach()`
   lays. **Everything is a hash of seed + a WORLD cell of shore (`CELL_Z` 6.5 m) + the hour the

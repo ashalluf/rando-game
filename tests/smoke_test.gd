@@ -3074,6 +3074,9 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	# The marina_night refcam (tests/rc5_marina_night_checks.gd, MarinaNight): the lights the water
 	# mirrors, the restaurants' fronts and names, the jib covers, the camera row.
 	load("res://tests/rc5_marina_night_checks.gd").new().run(self, city)
+	# The surf_dawn refcam (tests/rc5_surf_dawn_checks.gd, SurfRide / RcSurfDawn): the rider on the
+	# drawn wave, the dawn lineup, the de-latticed ripple and glitter, the camera row.
+	load("res://tests/rc5_surf_dawn_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()

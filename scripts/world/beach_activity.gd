@@ -106,7 +106,7 @@ func _build_water() -> void:
 		var mi := _figure(mesh, null)
 		_water.append({"node": mi, "kind": "swim", "s": s, "z": z, "yaw": _h(["swim_yaw", i]) * TAU,
 			"phase": _h(["swim_ph", i]) * TAU, "sink": 1.28})
-	for i in int(_counts.get("surfers", 0)):
+	for i in int(_counts.get("surfers", 0)) + RcSurfDawn.dawn_surfers(_hour, _h(["dawn_patrol"])):
 		var who := _person(i, "surfer")
 		var sit := BeachFigure.beach_mesh(who[2], RoughSleeper.Pose.SIT, "surf_sit", who[1], who[0])
 		if sit == null:
@@ -251,6 +251,7 @@ func _surf_tick(w: Dictionary, dt: float) -> void:
 				w.s = float(w.s) - speed * 0.85 * dt
 				w.z = float(w.z) + float(w.dir_z) * speed * 0.7 * dt
 			if float(w.s) < 12.0 or absf(float(w.z) - float(w.z_home)) > 45.0:
+				RcSurfDawn.stop_spray(w)
 				w.state = "out"
 				w.yaw = PI * 0.5
 				body.mesh = meshes.paddle

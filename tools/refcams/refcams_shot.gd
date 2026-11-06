@@ -23,6 +23,9 @@ extends "res://tools/glshot/still_shot.gd"
 var _out_dir := "build/refcams/latest"
 
 
+var _surf_gain_was := -1.0
+
+
 func _initialize() -> void:
 	Engine.set_meta("postfx_motion_blur", 0.0)
 	# Shader TIME is held at its first instant (still_shot's DIFF trick) unless LIVE_TIME=1: the sea,
@@ -98,6 +101,12 @@ func _run() -> void:
 		if not _hero.is_empty():
 			_hero_start(player, eye, y)
 		_set_weather(weather, String(cam.get("weather", "clear")))
+		# A row's optional "surf_gain" (wave 8's surf_dawn): Weather.surf_gain for this shot (a
+		# bigger swell day), put back for the next camera.
+		if weather and weather.get("surf_gain") != null:
+			if _surf_gain_was < 0.0:
+				_surf_gain_was = float(weather.get("surf_gain"))
+			weather.set("surf_gain", float(cam.get("surf_gain", _surf_gain_was)))
 		_bonfire_lit_for(cam)
 		if day:
 			day.set("hour", float(cam.hour))

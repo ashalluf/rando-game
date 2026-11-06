@@ -211,6 +211,7 @@ func _ready() -> void:
 			_fog_height0 = _env.fog_height
 			_fog_height_density0 = _env.fog_height_density
 	_ocean = PropFactory.ocean_material()
+	RcSurfDawn.apply_ocean(_ocean)
 	# Deferred: a child's _ready() runs before its parent's, and CityStreamer._ready() is what
 	# creates `plan`, so calling this directly reads null and silently pushes nothing. The shader's
 	# defaults happen to match MacroMap's today, which is exactly why this went unnoticed - change

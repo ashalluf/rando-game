@@ -28,7 +28,7 @@ const FACE_SHARE := 0.35
 const STAGE_GAIN := 1.08
 const STAGE_SIG := 0.94
 ## How far along the shore (m) the stage looks either side of the staged z, in steps of STAGE_STEP.
-const STAGE_REACH := 14.0
+const STAGE_REACH := 40.0
 const STAGE_STEP := 0.5
 
 

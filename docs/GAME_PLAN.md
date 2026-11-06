@@ -4908,3 +4908,13 @@ none of either.
   term is never a uniform glow in its ripples (that reads as paving). The jetty nav lights stay
   out of this frame (occluded by boats from every headwalk spot that holds the restaurants).
   MARINA_NIGHT=0 is the A/B.
+- **2026-11-06 The surf at dawn: a surfer on the wave that is drawn (rc5-surf-dawn, HANDOFF "The
+  surf at dawn from the water").** A new reference camera (`surf_dawn`, wave 8's table) on the
+  wave's shoulder at 07:00, a staged rider coming down the line. A rider rides the ocean shader's
+  own wave (SurfRide: the crest of wave n of surf.gdshaderinc, the face's height and slope from
+  SeaSurface), never a height of his own; the view stages a bigger swell day (`surf_gain` 1.7, a
+  chest-to-head-high set) rather than raising every clear day's surf, which the beach and sunset
+  views are tuned on. Dawn is the lineup's busiest hour. The sea's ripple and capillaries are each
+  two value noises on turned lattices (one noise's gradient is zero along its lattice lines, which
+  the sun's sparkle drew as a dotted grid), the crest's light runs over its top. RC5_SURF_DAWN=0 is
+  the A/B.

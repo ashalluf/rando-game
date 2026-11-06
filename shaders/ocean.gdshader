@@ -231,6 +231,17 @@ uniform float chop_fade = 260.0;
 uniform float ripple_size = 2.6;
 uniform float ripple_height = 0.30;
 uniform float ripple_fine_height = 0.055;
+// rc5-surf-dawn: each ripple octave is the sum of two value noises, the second turned 35 degrees
+// and offset (`ripple_grad()`). One value noise's gradient is exactly zero along every lattice line
+// (its fade's derivative is 0 at whole numbers), so the sun's sparkle (pow(n.h, 620)) lit a regular
+// grid of dots and dashes wherever the swell's own normal faced the sun - the dotted rectangles on a
+// low-sun sea. 0 = the old single noise (RC5_SURF_DAWN=0, set by RcSurfDawn.apply_ocean()).
+uniform float ripple_rot = 1.0;
+// rc5-surf-dawn: the light through a standing face (face_glow) carried over the crest onto the first
+// metres of its back, as the thin top of a real crest is lit through on both sides. Front-face only,
+// it stopped dead at the crest, which drew every wave as a ruler-straight teal / dark line across
+// the sea. 0 = the old step (RC5_SURF_DAWN=0).
+uniform float crest_carry = 1.0;
 // Ripple LOD, in metres from the camera. A wave that is a pixel across cannot be drawn, only
 // aliased: past this the short swells are faded out of the GEOMETRY, which is the only place the
 // shimmer can be cured, and the long ones carry the shape on alone. It is also what the far
@@ -438,6 +449,19 @@ vec3 noised(vec2 x) {
 	return vec3(a + k1 * u.x + k2 * u.y + k3 * u.x * u.y,
 		du.x * (k1 + k3 * u.y),
 		du.y * (k2 + k3 * u.x));
+}
+
+
+// The ripple's gradient at `x` (see ripple_rot): noised()'s, or with ripple_rot the mean of it and a
+// turned, offset copy's (variance kept: the two are independent), whose lattice zeros never line up.
+vec2 ripple_grad(vec2 x) {
+	vec2 g = noised(x).yz;
+	if (ripple_rot > 0.001) {
+		mat2 rot = mat2(vec2(0.8192, 0.5736), vec2(-0.5736, 0.8192));
+		vec2 gb = transpose(rot) * noised(rot * x + vec2(31.7, 7.3)).yz;
+		g = mix(g, (g + gb) * 0.7071, ripple_rot);
+	}
+	return g;
 }
 
 
@@ -780,12 +804,10 @@ void fragment() {
 	if (chop > 0.001) {
 		float rs = 1.0 / max(ripple_size, 0.05);
 		vec2 rp = w * rs + vec2(TIME * 0.13, TIME * -0.10);
-		vec3 r1 = noised(rp);
-		grad = r1.yz * (rs * ripple_height * chop);
+		grad = ripple_grad(rp) * (rs * ripple_height * chop);
 		grad_lens = grad;
 		if (rich && chop_fine > 0.001) {
-			vec3 r2 = noised(rp * 2.9 + vec2(17.0, 5.0) - vec2(TIME * 0.21, TIME * 0.17));
-			grad += r2.yz * (rs * 2.9 * ripple_fine_height * chop_fine);
+			grad += ripple_grad(rp * 2.9 + vec2(17.0, 5.0) - vec2(TIME * 0.21, TIME * 0.17)) * (rs * 2.9 * ripple_fine_height * chop_fine);
 			// Capillary ripples a few centimetres across, crests across the wind.
 			if (near_c > 0.001 && dist < 90.0) {
 				grad += oc_capillary(w, wind_dir, px_m, TIME) * (chop_fine / max(chop_strength, 0.01)) * near_c;
@@ -979,7 +1001,7 @@ void fragment() {
 			net = mix(net, 0.7, smoothstep(0.24 / 4.0, 0.24 / 1.2, px_m));
 			ww *= mix(1.0, net, (1.0 - fresh * 0.8) * 0.85 * near_c);
 		}
-		face_glow = (front ? smoothstep(0.35, 0.95, face_m) : 0.0) * steep * (1.0 - broken * 0.75)
+		face_glow = (front ? smoothstep(0.35, 0.95, face_m) : crest_carry * (1.0 - smoothstep(0.0, 0.16, u)) * (1.0 - smoothstep(0.0, 0.16, u))) * steep * (1.0 - broken * 0.75)
 			* smoothstep(0.1, 0.5, menv * g);
 		// Lit through by the sun: green water filtering whatever colour the sun is, so the golden
 		// hour's glow is a warm jade rather than a neon teal.

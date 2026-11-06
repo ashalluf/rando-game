@@ -298,3 +298,9 @@ builds every yard sale for a Saturday at the row's hour (YARD_SALE_DAY / YARD_SA
 
 `marina_night` (rc5-marina-night): the marina at 21:00 clear from the north end of the east
 headwalk, west down the lane along the north quay (no staging keys). `MARINA_NIGHT=0` is its A/B.
+`surf_dawn` (rc5-surf-dawn): a surfer riding a set wave at 07:00 clear, from the water on the wave's
+shoulder just past the break off the beach town, looking down the line. Its optional `beach_stage`
+key is BeachActivity's BEACH_STAGE z (set before the city loads: the chunk there gathers its surfers,
+one riding the wave SurfRide.stage_pick() finds) and `surf_gain` is Weather.surf_gain for the shot
+(put back for the next camera). `tools/rc5_surf_dawn/probe.gd` prints the crests round a z and the
+staged rider (GAIN=, Z=).
