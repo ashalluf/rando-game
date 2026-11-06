@@ -26966,9 +26966,22 @@ merged with main and gated green this time). Judged on blast_room_shot.gd at 5 m
    (`BlastPool.flame_gain`, scaling the tongues' size) and fewer of them on a small one. The trail
    cap is 16 puddles. Stills 82-83.
 
+8. **Round 20, the lead: round 19 on Forward+** (small scenes under lavapipe, `tools/glshot`'s
+   blast room through `--rendering-driver vulkan`, stills 85-87). (a) The hot core: added in linear
+   HDR over a volume that is already white-hot at 0.1 s, it bloomed into a flat white sun disc on
+   Forward+ (37.7k clipped pixels in the frame against 6.1k with it off; fine on opengl3). On
+   Forward+ it is now a fifth of the numbers, capped below blackbody4's white plateau
+   (`bb(min(k, 0.86))`), with a lumpier edge, and the card starts at 0.3 of its size and grows with
+   the ball: 18.3k clipped, a lumpy white-hot ball, mean brightness +6 against +41 before. (b) The
+   puddle flames: `flame_tongue.gdshader`'s colours were tuned as display numbers on opengl3, and
+   Forward+ took them as LINEAR, so every tongue drew pale yellow-cream with no red tips. Forward+
+   now decodes them (`fwd_decode`, measured at 0, 0.6 and 1 against opengl3: 1 matches;
+   `BLAST_FLAME_FWD=0` the A/B, `BLAST_FLAME_FWD_DECODE=` for stills). Compatibility is untouched
+   by both.
+
 Looked at and left: the night rocket at 60 m reads dim in the test room (no auto exposure there,
 and the night flash was held down on purpose in round 5); a pool fire still reads partly as a row of
-tongues (round 19 breaks the trail into puddles; the main pool is still one ring). Stills 73-83.
+tongues (round 19 breaks the trail into puddles; the main pool is still one ring). Stills 73-87.
 
 ## 9lb. The camera lens (wave 5, `camera-lens`)
 
@@ -30512,6 +30525,71 @@ needs eyes). The crane's jib-tip and counter-jib lamps are still lamp boxes, not
 slew). A round glare blob on the glass in this view is a street lamp's halo, not the site's. The
 crews stand; nobody pours, and the hoist's car does not move. Columns on the open floors are lit
 only by the OmniLights.
+
+## 9nb. The wingsuit at golden hour (wave 8, refcam5 `wingsuit_golden`, branch `wt/rc5-wingsuit-golden`)
+
+A new reference camera: the hero in his wingsuit at 18:00 clear, shot from his OWN chase camera
+6 m behind, gliding ~120 m over Bunker Hill toward the downtown skyline (row in
+`tools/refcams/cameras_w8.json`, `REFCAMS_JSON=tools/refcams/cameras_w8.json python3
+tools/refcams/refcams.py run <dir> --only wingsuit_golden`, ~10 minutes and ~7.8 GB once the
+shader caches are warm; the first launch on a fresh box took 14 minutes and peaked at 11 GB).
+
+**Staging.** The row's `wingsuit` key is handled by `tools/refcams/wingsuit_stage.gd` (loaded by
+path from refcams_shot.gd, like the chase car's chase_stage.gd): the city is streamed round `at`
+(TRUE world, y over the plan's ground), then he is launched `lead` seconds back along the trim glide
+path (14 degrees down) at `speed`, the suit opened, the stick held at `input`, the suit's chase
+camera set to `dist` and `fov` and turned to `look` (yaw off his heading, pitch); the lead-in runs
+with 3D off and the last half second drawn. The log prints where he is at the shot (2439.6, 145.6,
+-881.7 against 2440, 145.1, -880 wanted), his speed (45 m/s), and whether the vapour trails.
+**Trap: a refcam's `fov` is VERTICAL** (Camera3D keeps the height): 60 is 91 degrees across, and
+the first framing put a 6 m chase's hero at a ninth of the frame. The row uses 44, and looks from
+12 degrees off his tail on the sun's side, 12 degrees down: straight behind and level, a gliding
+wingsuit is edge-on.
+
+**What read fake, worst first, and what changed:**
+1. The suit was a flat sheet: from a chase camera the wings were a dark line, and close up a
+   membrane with no volume. `WingsuitFx.look2` builds each membrane as an INFLATED two-skin wing
+   on a 16 x 9 grid (was 9 x 6): top and bottom skins apart by an airfoil's depth (`cell_depth`
+   0.11 m arm wings, 0.085 m tail; deepest a third back from the leading edge, none at the trailing
+   edge or the wingtip, where the skins meet), the top skin bulging between the chordwise seams
+   like ram-air cells (`cell_bulge`); UV2.y + 4 marks the bottom skin. The fabric shader takes a
+   satin sheen (RIM) and a brighter backlight under the pass. ~920 vertices in all (was 210),
+   rebuilt on skeleton_updated as before, the player's only.
+2. The vapour never showed: it started at 32 m/s and a trimmed glide is 30-45, and it was a 5 cm
+   white thread end-on to the chase camera. Now from 20 m/s, 0.16 m at birth, alpha 0.55, and in
+   the shader (`look`) the colour of the sky round it (never under half white) plus the sun's
+   forward scatter (`tree_sun`, `sun_direction`). The first version used the sky's linear colour
+   as is and drew a dark grey wisp at sunset, when the sun is on the horizon and tree_sun is ~0.
+3. THE LATTICE museum's roof, right under the glide, was one flat 52 m white slab, the brightest
+   thing in the frame. `Rc5Wingsuit.museum_roof()` lays the real building's skylight lattice:
+   dark glazing inset 2.4 m, deep ribs on the veil's cell grid (near and far copies alike).
+4. (The lead's review of the first stills.) The concert hall's steel sails under him read as flat
+   beige cardboard. Two findings, each from a render: (a) a debug that painted the steel pure red
+   came back (240, 89, 38) with green and blue flat - the evening height fog pooling at street level
+   adds a flat haze over the whole hall at 250 m, so anything darker than the fog only sinks into
+   its beige (a first try that mirrored the hour's sky in the emitted share changed nothing
+   visible); (b) the sun at 18:00 is in the SOUTH-west (DayNight: toward (-0.65, 0.11, 0.75)),
+   so from this north-west camera the visible faces are the shaded ones - a "face the sun" lobe
+   darkened exactly those into the fog. What shipped, brushed_steel `look`
+   (Rc5Wingsuit.steel_look()): the emitted mirror is this hour's sky (sky_tint's horizon through
+   cs_as_uniform, brighter toward the sun, a cooled zenith, the dark street under the horizon)
+   with a tone per panel, a mild face term (0.55..1), and the sun mirrored broad along the brushing
+   by the REFLECTED direction (pow 4 toward the sun, x3) - a bright streak that runs across each
+   curved sail where it turns the sun to the eye, the only thing that stands out of the fog -,
+   the renderer's own flat reflection cut to under half, the sun's glint capped at 1.6 and tinted.
+   All faded in as the sun sinks (none from ~29 degrees up): noon unchanged. In the camera the
+   west sails show streaks and darker turns; the middle of the hall still reads mostly as fog
+   colour (honest: a modest gain). Forward+: `tools/glshot/far_landmark_shot.gd GOLDEN=1` under
+   lavapipe (the hall alone; no sky radiance or fog there, so its base is darker than the city's).
+5. The lit crowns blew out to white discs at 18:00: DayNight's night_factor is already 0.7 at the
+   sunset (1 - clamp((elevation + 0.05) x 6)), and the crowns glowed from 0.15. tower_crown
+   `dusk_hold` (Rc5Wingsuit.crown_dusk_hold(), set by LandmarkDowntown._glow_material()) scales the
+   glow by smoothstep(0.55, 0.95, night_factor): a third at the sunset, full by 18:18 (so the
+   golden_aerial camera is unchanged).
+
+`WINGSUIT_LOOK=0` is the suit's A/B (the flat sheets, the old vapour), `RC5_WINGSUIT=0` the world's
+(the flat roof, the old steel, the crowns' early glow). `tools/glshot/far_landmark_shot.gd` takes `GOLDEN=1` now (a sun
+6 degrees up in the west under a sunset horizon). Checks: `tests/rc5_wingsuit_golden_checks.gd`.
 
 ## 9d?. The lighthouse from the breakwater at night, 2026-11-06 (fleet wave 8, agent branch `wt/rc5-lighthouse-night`; VISUAL_ROADMAP "?")
 

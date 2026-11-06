@@ -4669,6 +4669,13 @@ none of either.
   mirror; anything pasted on a hoarding is printed (StreetWear's bills), never a flat colour block.
   CONSTRUCTION_DUSK=0 is the A/B.
 
+- 2026-11-05 (wave 8, rc5-wingsuit-golden): a new reference camera, `wingsuit_golden` - the hero in
+  his wingsuit from his own chase camera at 18:00 over Bunker Hill. The suit's membranes are inflated
+  two-skin wings with cells, not single sheets (a chase camera sees a glide edge-on); the vapour
+  starts at a trimmed glide's speed and takes the sky's and the sun's light; the museum roof under
+  the glide gets its skylight lattice, the concert hall's steel reads by face-to-face contrast under
+  a low sun, and the lit crowns wait for dusk (night_factor is 0.7 at the sunset). A refcam row's fov is vertical. WINGSUIT_LOOK=0 / RC5_WINGSUIT=0 are the A/Bs.
+
 - 2026-11-06 (wave 8, rc5-lighthouse-night): a new reference camera, `lighthouse_night`
   (cameras_w8.json), looks at Gull Point light from the breakwater at 22:00. Decisions: a light beam
   is drawn as light scattered by the air (a volume integrated along the eye ray), never as a lit

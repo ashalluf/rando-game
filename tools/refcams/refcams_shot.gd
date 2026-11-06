@@ -111,6 +111,13 @@ func _run() -> void:
 			drive = load("res://tools/refcams/chase_stage.gd").new()
 			await drive.call("run", self, cam, player)
 			fov = player.get("camera").fov
+		elif cam.has("wingsuit"):
+			# A "wingsuit" row (cameras_w8.json, wingsuit_golden): the hero gliding in his suit, the
+			# shot from his own chase camera (tools/refcams/wingsuit_stage.gd).
+			OS.set_environment("EYE", "")
+			drive = load("res://tools/refcams/wingsuit_stage.gd").new()
+			await drive.call("run", self, cam, player)
+			fov = player.get("camera").fov
 		elif cam.has("boat"):
 			# A "boat" row (cameras_w8.json, speedboat_golden): the player at the helm under way
 			# off the coast, a free chase eye on the hull (tools/refcams/boat_stage.gd).
