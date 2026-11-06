@@ -4563,7 +4563,8 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   (`shaders/suburb_spill.gdshader` reads the pane's lit / TV roll from HouseNights' hash: key in the
   instance COLOR.r, the pane's 8-bit roll in .g) and switches house_glow's lantern wash (point-source
   falloff, the cap's cut) and house_lamp's framed lens (`suburb_night` uniform). `SUBURB_NIGHT=0` is
-  the A/B (`SUBURB_MOON=0` the moon alone); checks `tests/rc5_suburb_night_checks.gd`.
+  the A/B (`SUBURB_MOON=0` the moon alone; re-judged with NightGround in, it still takes the
+  pavement 79 -> 53 of 255, so it stays); checks `tests/rc5_suburb_night_checks.gd`.
 - Yard sales (2026-10-30, docs/HANDOFF.md "Weekend yard sales"): `YardSales`
   (`scripts/world/yard_sales.gd`, one line after each `Backyards.block()` in YardFill) - a hash of
   seed + lot holds a sale on Saturday / Sunday (`sale_info()`, `state_at()`: SETUP / OPEN /

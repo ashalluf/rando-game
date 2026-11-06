@@ -30560,6 +30560,14 @@ freeway flagged by its own traffic (other cars in the lane ahead in the two runs
 in that view). suburb_night itself: p50 31 -> 30, p95 112 -> 89 (the moonlit pavement and yards),
 the lit pavement at the eye 109 -> 82.
 
+**The moon cut re-judged with NightGround in** (batch 56, `main` 9edd6b1e; the lead asked: keep the
+camera-gated cut only if the street still reads too moonlit with rc5-gas-station-night's NightGround).
+Two shots of suburb_night from one merge, opengl3 (`build/refcams/ng_moon_on`, `ng_moon_off`):
+everything on p5/p50/p95 3/27/68; `SUBURB_MOON=0` 4/28/92. Region means (pavement at the eye /
+driveway / road / house wall): on 53/60/15/13, `SUBURB_MOON=0` 79/84/26/13 - without the cut the
+pavement and the yards stand where they did before NightGround (76/70/16 in the first all-on shot), a
+pale moonlit grey under the lamps. NightGround does not reach this street's pavement; the cut stays.
+
 **Not done / seen:** the near houses' street windows are dark in this frame by their own rolls, not
 a bug (`tools/rc5_suburb_night/house_probe.gd -- --spawn=1979,4256.8` lists every house round the eye
 with its key and 21:30 rolls): the nearest (1986, 4269, key 610) is lived-in with 0.34 of its rooms
