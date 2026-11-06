@@ -219,6 +219,13 @@ static func people_steps(lm: Dictionary, chunk: CityChunk) -> Array[Callable]:
 		steps.append(chunk._count_crowd_room)
 		for i in extra:
 			steps.append(chunk._spawn_walker.bind(lane_w, 2.0, rng))
+		if debug:
+			steps.append(func() -> void:
+				var n := 0
+				for c in chunk.get_children():
+					if c is Pedestrian and lane_w.grow(1.0).has_point(Vector2(c.position.x, c.position.z)):
+						n += 1
+				print("PUEBLO lane walkers %d (base %d + extra %d), pedestrians in the city %d" % [n, PuebloLaneLook.LANE_BASE, extra, chunk.get_tree().get_nodes_in_group("pedestrian").size()]))
 	return steps
 
 
@@ -309,7 +316,7 @@ static func _build_into(info: Dictionary, parent: Node3D, statics: StaticBody3D,
 				var c := xf * Vector3(0, PuebloMarket.STALL_H * 0.5, -PuebloMarket.STALL_D * 0.5)
 				LandmarkGeo.shape_box(statics, c, Vector3(PuebloMarket.STALL_W - 0.1, PuebloMarket.STALL_H, PuebloMarket.STALL_D - 0.6), xf.basis)
 		_tick("stalls")
-		_pergola(parent, g, statics, L, y0)
+		_pergola(parent, g, statics, L, y0, solid)
 		_tick("pergola")
 		_fill(g, batch, parent, statics, L, y0)
 	else:
@@ -404,7 +411,10 @@ static func _materials(g: LandmarkGeo, y0: float) -> void:
 static func _ground(g: LandmarkGeo, batch: MultiMeshBatch, L: Dictionary, y0: float, detailed: bool) -> void:
 	var s: Rect2 = L.site
 	g.use("pave", LandmarkMats.paving("pavers", 2.4, Color(0.9, 0.82, 0.72), SEED_BASE, 0.0, 0.3))
-	g.use("lane_brick", LandmarkMats.paving("brick_red", 1.4, PuebloLaneLook.brick_tint(), SEED_BASE + 1, 0.0, PuebloLaneLook.brick_wear()))
+	var lane_brick := LandmarkMats.paving("brick_red", 1.4, PuebloLaneLook.brick_tint(), SEED_BASE + 1, 0.0, PuebloLaneLook.brick_wear())
+	if PuebloLaneLook.enabled:
+		lane_brick.set_shader_parameter("albedo_desat", PuebloLaneLook.BRICK_DESAT)
+	g.use("lane_brick", lane_brick)
 	g.use("plaza_tile", LandmarkMats.paving("pavers", 1.0, Color(0.95, 0.66, 0.5), SEED_BASE + 2, 0.0, 0.3))
 	g.cap("pave", LandmarkGeo.ccw(_poly(s)), y0 + 0.03)
 	var lane: Rect2 = L.lane
@@ -938,22 +948,39 @@ static func _lane_pools(batch: MultiMeshBatch, L: Dictionary, y0: float) -> void
 
 ## The pergola: posts at the lane's edges, beams across, joists along, the vines on top (grape and
 ## wisteria from ClimbingPlants' atlas), and its leaves' shadow twin.
-static func _pergola(parent: Node3D, g: LandmarkGeo, statics: StaticBody3D, L: Dictionary, y0: float) -> void:
+static func _pergola(parent: Node3D, g: LandmarkGeo, statics: StaticBody3D, L: Dictionary, y0: float, solid: PuebloMarket.Acc = null) -> void:
 	var lane: Rect2 = L.lane
 	var xa := lane.position.x + 0.35
 	var xb := lane.end.x - 0.35
 	var n := int(lane.size.y / PERGOLA_PITCH)
 	var H := PERGOLA_H
+	# PuebloLaneLook: the timbers as the market's grained timber (K_WOOD, the grain along each
+	# member's local Y, so beams and joists are turned to lie along it), each its own weathered tone.
+	var grained := PuebloLaneLook.enabled and solid != null
+	var along_x := Basis(Vector3(0, -1, 0), Vector3(1, 0, 0), Vector3(0, 0, 1))
+	var along_z := Basis(Vector3(1, 0, 0), Vector3(0, 0, 1), Vector3(0, -1, 0))
 	for i in n + 1:
 		var z := lane.position.y + lane.size.y * float(i) / float(n)
 		for x: float in [xa, xb]:
-			g.box("timber", Vector3(x, y0 + H * 0.5, z), Vector3(0.22, H, 0.22), Color.WHITE)
+			if grained:
+				solid.set_look(PuebloLaneLook.timber(h01([SEED_BASE, "post", i, x])), PuebloMarket.K_WOOD)
+				solid.box(Transform3D(Basis(), Vector3(x, y0 + H * 0.5, z)), Vector3(0.22, H, 0.22))
+			else:
+				g.box("timber", Vector3(x, y0 + H * 0.5, z), Vector3(0.22, H, 0.22), Color.WHITE)
 			LandmarkGeo.shape_box(statics, Vector3(x, y0 + H * 0.5, z), Vector3(0.22, H, 0.22))
-		g.box("timber", Vector3(lane.get_center().x, y0 + H + 0.12, z), Vector3(xb - xa + 0.8, 0.24, 0.16), Color.WHITE)
+		if grained:
+			solid.set_look(PuebloLaneLook.timber(h01([SEED_BASE, "beam", i])), PuebloMarket.K_WOOD)
+			solid.box(Transform3D(along_x, Vector3(lane.get_center().x, y0 + H + 0.12, z)), Vector3(0.24, xb - xa + 0.8, 0.16))
+		else:
+			g.box("timber", Vector3(lane.get_center().x, y0 + H + 0.12, z), Vector3(xb - xa + 0.8, 0.24, 0.16), Color.WHITE)
 	var nj := int((xb - xa) / 0.75)
 	for j in nj + 1:
 		var x := xa + (xb - xa) * float(j) / float(nj)
-		g.box("timber", Vector3(x, y0 + H + 0.31, lane.get_center().y), Vector3(0.08, 0.14, lane.size.y + 0.6), Color(0.92, 0.92, 0.92))
+		if grained:
+			solid.set_look(PuebloLaneLook.timber(h01([SEED_BASE, "joist", j])).lightened(0.06), PuebloMarket.K_WOOD)
+			solid.box(Transform3D(along_z, Vector3(x, y0 + H + 0.31, lane.get_center().y)), Vector3(0.08, lane.size.y + 0.6, 0.14))
+		else:
+			g.box("timber", Vector3(x, y0 + H + 0.31, lane.get_center().y), Vector3(0.08, 0.14, lane.size.y + 0.6), Color(0.92, 0.92, 0.92))
 	# The vines: cards over the joists, ragged by noise so the sun comes through in patches,
 	# leaves hanging under the beams, grape bunches and wisteria racemes.
 	var leaf := ClimbingPlants.Acc.new()

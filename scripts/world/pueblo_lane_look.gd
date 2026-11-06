@@ -8,6 +8,7 @@ extends RefCounted
 ##   packed at lunch), the extra walkers spawned after the lane's own on their own seeded stream;
 ## - a seller in every `VENDOR_EVERY`-th stall (was 4);
 ## - the lane's brick a worn, browner clay (`BRICK_TINT`, `BRICK_WEAR`) rather than an orange sheet;
+## - the pergola's timbers grained (the market's K_WOOD), not flat brown boxes;
 ## - weathered stall paint (pueblo_market.gdshaderinc `weather`: sun-faded, chipped to grey timber,
 ##   scuffed and dirty at the foot), 0 = the old paint bit for bit.
 
@@ -28,6 +29,8 @@ const VENDOR_EVERY := 2
 ## The lane's brick: tint on the brick_red set and wear (PuebloLane._ground()).
 const BRICK_TINT := Color(0.8, 0.7, 0.64)
 const BRICK_WEAR := 0.55
+## And how far toward grey (road.gdshader albedo_desat): the brick_red set is an orange photo.
+const BRICK_DESAT := 0.32
 ## The stall paint's weathering (pueblo_market.gdshaderinc `weather`).
 const PAINT_WEATHER := 1.0
 
@@ -55,6 +58,11 @@ static func brick_tint() -> Color:
 
 static func brick_wear() -> float:
 	return BRICK_WEAR if enabled else 0.25
+
+
+## A pergola timber's colour, sRGB, from a 0..1 hash: weathered brown, some greyer, some darker.
+static func timber(h: float) -> Color:
+	return Color(0.4, 0.29, 0.2).lerp(Color(0.44, 0.38, 0.32), h * 0.7).darkened(0.12 * fposmod(h * 7.0, 1.0))
 
 
 static func paint_weather() -> float:
