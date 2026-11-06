@@ -41,6 +41,10 @@ static func attach(ch: CityChunk) -> Array[Callable]:
 				rects.append(s.clear)
 		if not rects.is_empty():
 			steps.append(func() -> void: ch._run_last(clear_ground.bind(ch, rects)))
+		# The air a pair's jump flies through: no tree crown in it (StuntJumpFX, after every roll).
+		var flights := StuntJumpFX.flights_in(ch.plan, r)
+		if not flights.is_empty():
+			steps.append(func() -> void: ch._run_last(StuntJumpFX.clear_flights.bind(ch, flights)))
 	return steps
 
 
