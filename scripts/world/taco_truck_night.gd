@@ -23,6 +23,8 @@ extends RefCounted
 ##
 ## `RC5_TACO=0` is the A/B (the truck as it was).
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 ## Off: the truck as before (the A/B).
 static var enabled: bool = OS.get_environment("RC5_TACO") != "0"
 

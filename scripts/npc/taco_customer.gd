@@ -7,6 +7,8 @@ extends StreetVendor
 ## their spot like a cart vendor does (StreetVendor._work), in the crowd cap and the "pedestrian"
 ## group like anyone.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 ## Where the window is (in the parent chunk's space), set by StreetVendors.spawn_vendor.
 var window_at := Vector3.INF
 ## Share of the regulars who text while they wait.
