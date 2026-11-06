@@ -11,3 +11,10 @@ from tools/refcams (1280x720). Before = `JET_FINAL=0`, same eye and staging.
   vanish into the sky, the nacelles' bellies and the gear are black blobs; after, the city's glow
   on everything facing down, the gear painted as gear (grey legs, black tyres round hubs) and lit
   by the landing lights.
+- 05_jet_alone_below_before_after.jpg - tools/rc5_airport_final/final_shot.gd, the jet alone at
+  night from the refcam's angle, no lights mesh: JF=0 left, the pass right.
+- 06_gear_side_before_after.jpg - the gear and nacelle from the side (bright ambient to see the
+  shapes): before top, after bottom.
+
+The after stills (02, 04) are the final numbers: the city glow (0.075, 0.058, 0.042) linear, 55 %
+less on bare metal.
