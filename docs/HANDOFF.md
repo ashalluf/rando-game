@@ -32047,8 +32047,8 @@ is ALU: a loop of up to 48 lights (most rejected by the across test) and 3 front
 at night only.
 
 **The original cameras.** Only `beach` (600 m) and `pier_night` (510 m) are within a kilometre of
-the marina; both were shot with `MARINA_NIGHT=0` and on from the same commit and compared (numbers
-in the report below). The other eight are 1-3.7 km away and never build a FULL marina chunk (the
+the marina; both were shot with `MARINA_NIGHT=0` and on from the same commit and compared: identical
+(0.00 % pixels changed, triangles and draws equal). The other eight are 1-3.7 km away and never build a FULL marina chunk (the
 MarinaGolden / MarinaNight node is made only by one).
 
 **Checks**: `tests/rc5_marina_night_checks.gd` (the lights where MarinaBuild draws them, every
