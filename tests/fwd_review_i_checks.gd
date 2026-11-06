@@ -67,7 +67,7 @@ func run(t: Node, _city: Node3D) -> void:
 		"police_wash", "fireworks", "night_wet", "fire_glow", "light_pool"]
 	for n: String in adds:
 		var c := _code("res://shaders/%s.gdshader" % n)
-		if c.contains("blend_add") and (c.contains("CURRENT_RENDERER") or c.contains("cs_linear_renderer()") or c.contains("cs_out(") or c.contains("fi_add(") or c.contains("cs_as_uniform(")):
+		if c.contains("blend_add") and (c.contains("CURRENT_RENDERER") or c.contains("cs_linear_renderer()") or c.contains("cs_out(") or c.contains("fi_add(") or c.contains("fi_add_hdr(") or c.contains("cs_as_uniform(")):
 			handed += 1
 		else:
 			_t._check(false, "fwd-review-i: %s.gdshader is additive and hands nothing over on Forward+" % n)

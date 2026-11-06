@@ -31258,6 +31258,8 @@ small scenes has SDFGI, and every fix is an additive amount, not GI.
 **Tools:** `tools/fwd_review_i/night_bits.gd` (`SCENE=runway|fire`, `FIX=0` the old materials,
 `CAM` / `LOOK`; either renderer in a minute); `police_shot.gd VIEW=bar`.
 
+**Gate:** SHARDS=3 on main 6f5af3d2 + this branch: 6,292 of 6,294 passed, peak RSS 3,856 MB a shard; the two failures were this file's own scan missing `fi_add_hdr(` (fixed; the four touched files' checks then 74 / 74).
+
 **Frame cost:** nothing added (no node, mesh, material or draw; an sRGB decode of a colour per lit
 pixel of three additive materials on Forward+ only). Checks: `tests/fwd_review_i_checks.gd` (the
 include, the beam and glow hand-overs, the pools and the switch, every wave 7-8 additive quad handing
