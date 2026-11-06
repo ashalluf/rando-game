@@ -39,6 +39,7 @@ func _initialize() -> void:
 	_golf_group()
 	_bonfire_lit()
 	_lowrider_meet()
+	_arena_event()
 	# OCCLUSION=0: occlusion culling off (still_shot's switch), to tell what is culled in plain sight.
 	if OS.get_environment("OCCLUSION") == "0":
 		get_root().use_occlusion_culling = false
@@ -106,6 +107,12 @@ func _run() -> void:
 			drive = load("res://tools/refcams/chase_stage.gd").new()
 			await drive.call("run", self, cam, player)
 			fov = player.get("camera").fov
+		elif cam.has("boat"):
+			# A "boat" row (cameras_w8.json, speedboat_golden): the player at the helm under way
+			# off the coast, a free chase eye on the hull (tools/refcams/boat_stage.gd).
+			OS.set_environment("EYE", "")
+			drive = load("res://tools/refcams/boat_stage.gd").new()
+			await drive.call("run", self, cam, player)
 		else:
 			_place(player, fov)
 			# The marine layer's morning damp (MarineMorning) wants the hour and the eye: soaked at once.
@@ -134,6 +141,8 @@ func _run() -> void:
 						park = null
 			if i == frames - 3:
 				_stage_freeway_cars(cam, scene)
+			if cam.has("skate_t") and (i == stage_at or i >= frames - 3):
+				_skate_clock(cam)
 			await process_frame
 			_place(player, fov)
 			if day:
@@ -385,6 +394,18 @@ func _bonfire_lit() -> void:
 			OS.set_environment("BONFIRE_LIT", str(int(cam.bonfire_lit)))
 
 
+## A row's optional "arena_event" (wave 8's arena_night): 1 makes tonight an event night at the
+## arena (ArenaNight, as ARENA_EVENT=1: searchlights, the fuller plaza), 0 a quiet one. Set before the
+## city loads, when a camera of this run asks (the plaza is planned as its chunk builds).
+func _arena_event() -> void:
+	if OS.get_environment("ARENA_EVENT") != "":
+		return
+	var only := OS.get_environment("ONLY").split(",", false)
+	for cam: Dictionary in _cameras().get("cameras", []):
+		if cam.has("arena_event") and (only.is_empty() or String(cam.name) in only):
+			OS.set_environment("ARENA_EVENT", str(int(cam.arena_event)))
+
+
 func _bonfire_lit_for(cam: Dictionary) -> void:
 	if not cam.has("bonfire_lit") and OS.get_environment("BONFIRE_LIT") == "":
 		return
@@ -549,6 +570,18 @@ func _hero_report(player: Node3D, shot: String) -> void:
 ## A camera row's optional `port_t` (wave 7, port_night): the container terminal's clock
 ## (PortLife.clock, seconds) held there for the shot, so the cranes, tractors and straddle carriers
 ## stand where the row was framed for. Rows without it let the clock run as before.
+## A row's optional "skate_t" (wave 8's skate_park): THE PIT's skaters held at that clock (seconds;
+## SkateParkLife.set_clock + hold, as SKATE_T= / SKATE_HOLD=1), so a rider is where the row was framed
+## (mid-air). Set while the shot waits (the park's life exists once its chunk is built); rows without
+## the key leave the clock alone.
+func _skate_clock(cam: Dictionary) -> void:
+	var sl: GDScript = load("res://scripts/world/skate_park_life.gd")
+	sl.set("hold", true)
+	for n in get_root().find_children("*", "", true, false):
+		if n.get_script() == sl:
+			n.call("set_clock", float(cam.skate_t))
+
+
 func _port_clock(cam: Dictionary) -> void:
 	var pl: GDScript = load("res://scripts/world/port_life.gd")
 	if cam.has("port_t"):

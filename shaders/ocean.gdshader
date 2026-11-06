@@ -137,6 +137,10 @@ const int WAKES = 16;
 uniform vec4 wake_a[16];
 uniform vec4 wake_b[16];
 uniform int wake_count = 0;
+// BoatSea (rc5-speedboat): the wakes' foam also scatters the horizon's light and, toward a low sun,
+// the sun's own (bubbles are lit through, not only from above). 0 = the foam as it was, lit by
+// the renderer alone (sky ambient: blue-grey under an orange evening sky).
+uniform float wake_glow = 0.0;
 uniform float pier_light = 9.0;
 uniform float pier_lamp_size = 0.55;
 // The city behind the beach, mirrored the same way off a wall of lit windows and street lamps
@@ -364,10 +368,32 @@ float wake_foam(vec2 w, float px, out float slick) {
 		// a pale scar of bubbles down the trail.
 		float al = max(along, 0.0);
 		float half_w = beam * 0.45 + al * 0.05;
+		// BoatSea: a ragged edge that wanders (a straight-edged band read as a beam of light).
+		half_w *= 1.0 + wake_glow * 0.7 * (vnoise(vec2(al * 0.09, fi + 1.7)) - 0.5);
 		float churn = vnoise(vec2(al * 0.22 - TIME * 0.7, ac * 0.6) + fi)
 			* 0.6 + vnoise(vec2(al * 0.07, ac * 0.25 + TIME * 0.1) + fi + 9.0) * 0.4;
 		float core = 1.0 - smoothstep(half_w * 0.25, half_w, ac);
 		float white = exp(-al / (10.0 + spd * 3.5)) * smoothstep(0.25, 0.7, churn + 0.25);
+		if (wake_glow > 0.001) {
+			// Marbled: the wash is streaks of foam drawn out down the trail with dark water between,
+			// and boiling solid white for the first metres off the transom.
+			// Warped across by a slower field, so the lines braid and part instead of running
+			// ruler-straight down the trail.
+			float acw = ac + (vnoise(vec2(al * 0.16, ac * 0.35) + fi + 61.0) - 0.5) * 2.2
+				+ (vnoise(vec2(al * 0.55, ac * 0.9) + fi + 67.0) - 0.5) * 0.7;
+			float streak = vnoise(vec2(al * 0.07 - TIME * 0.04, acw * 1.7) + fi + 5.0) * 0.6
+				+ vnoise(vec2(al * 0.2, acw * 4.1) + fi + 13.0) * 0.4;
+			streak = streak * 0.8 + vnoise(vec2(al * 0.6 - TIME * 0.3, acw * 7.0) + fi + 17.0) * 0.2;
+			// Sparse lines of foam on a faint aerated sheet, not a milky band.
+			white *= mix(1.0, 0.12 + 0.95 * smoothstep(0.5, 0.74, streak), wake_glow);
+			// The boil off the transom: churned in lumps a few tens of centimetres across that roll
+			// and break up, thinning to the marbled streaks within a few boat lengths.
+			float near_b = 1.0 - smoothstep(0.0, 3.0 + spd * 0.35, al);
+			float boil = vnoise(vec2(al * 0.9 - TIME * 2.0, ac * 1.4) + fi + 21.0) * 0.5
+				+ vnoise(vec2(al * 2.3 + TIME * 1.3, ac * 3.7) + fi + 31.0) * 0.3
+				+ vnoise(vec2(al * 5.1, ac * 6.3 - TIME * 1.7) + fi + 37.0) * 0.2;
+			white = max(white, wake_glow * near_b * smoothstep(0.45, 0.62, boil + 0.12 * near_b));
+		}
 		float scar = 0.22 * smoothstep(0.3, 0.7, churn) * (1.0 - smoothstep(trail * 0.4, trail, al));
 		float wash = core * max(white, scar) * smoothstep(-beam * 0.5, 0.0, along);
 		// The Kelvin arms from the bow: the bow wave curling white along the hull, then thin lines
@@ -382,7 +408,11 @@ float wake_foam(vec2 w, float px, out float slick) {
 		float bow_wave = exp(-ab / max(hull * 0.35, 2.0)) * smoothstep(1.0, 4.0, spd);
 		arm *= max(crests * exp(-ab / (hull + 14.0 + spd * 6.0)), bow_wave)
 			* smoothstep(0.3, 0.75, vnoise(vec2(ab * 0.12, ac * 0.4) + fi + 3.0) + 0.2) * smoothstep(-1.0, 1.5, along_b);
-		foam = max(foam, max(wash, arm * 0.6) * run);
+		// BoatSea: an arm at speed is a ridge whose crest breaks in patches (whitecaps strung along
+		// it), not a painted line: broken up along its length.
+		arm *= mix(1.0, smoothstep(0.38, 0.68, vnoise(vec2(ab * 0.32, ac * 0.9) + fi + 41.0) * 0.7
+			+ vnoise(vec2(ab * 1.1, ac * 2.3) + fi + 47.0) * 0.3), wake_glow * 0.85);
+		foam = max(foam, max(wash, arm * mix(0.6, 0.95, wake_glow)) * run);
 		slick = max(slick, (1.0 - smoothstep(arm_c * 0.5, arm_c, ac)) * run * smoothstep(0.0, beam * 2.0, along_b));
 	}
 	return clamp(foam, 0.0, 1.0);
@@ -1090,7 +1120,8 @@ void fragment() {
 	ww *= detail;
 	// Foam is a rough white surface lit by the sky, not a light source: it goes darker at night
 	// and under a storm along with everything else.
-	vec3 foam_lit = foam_color * sky_light;
+	// BoatSea: a wake's foam a touch warmer than the surf's (it is lit by the evening, not the sky alone).
+	vec3 foam_lit = mix(foam_color, foam_color * vec3(1.08, 1.0, 0.9), wake_glow * wake) * sky_light;
 	body = mix(body, foam_lit, foam);
 	body = mix(body, whitewater_color * sky_light * mix(1.0, 0.55, night_factor) * ww_tone, ww);
 	float white = max(foam, ww);
@@ -1221,6 +1252,13 @@ void fragment() {
 	ALBEDO = body * dim * (1.0 - painted);
 	EMISSION = mirror * (1.0 - painted) + fb * dim * painted + night_em
 		+ foam_color * haze * (0.45 * contact * detail * dim);
+	if (wake_glow > 0.001 && wake > 0.001) {
+		vec2 vh = normalize(view_dir.xz + vec2(0.00001));
+		vec2 sh = normalize(sun_n.xz + vec2(0.00001));
+		float toward = pow(max(dot(vh, sh), 0.0), 3.0) * (1.0 - smoothstep(0.08, 0.55, sun_n.y)) * smoothstep(-0.04, 0.03, sun_n.y);
+		EMISSION += foam_color * (haze * 0.4 + sun_col * toward * 0.35 * sky_light) * wake * smoothstep(0.08, 0.5, wake) * detail * dim
+			* wake_glow * (1.0 - night_factor) * (1.0 - painted);
+	}
 	if (pw_gain > 0.0 && lamp_factor > 0.01) {
 		// The piers' lamps on the water round them (RcPierNight): the body lit, foam brightest.
 		EMISSION += (ALBEDO + vec3(pw_water)) * cs_as_uniform(pier_wash(vec3(w.x, world_pos.y, w.y))) * lamp_factor;

@@ -295,6 +295,13 @@ already mapped so milestone 2 is script-only.
 
 ## Decisions log
 
+- **2026-11-02 The terminal's departures kerb (rc4-terminal-curb, HANDOFF "The terminal's
+  departures kerb").** A landmark's people and their props are dealt from ONE pure list of spots,
+  and the props are laid only for the people who actually spawned (a bag with nobody beside it
+  reads as abandoned); a landmark that spans several chunks spawns its people from the chunk that
+  builds it, not from its own owned rect. The airport loop's kerb lane stops cars by a hash of the
+  car and its lap (no state outside the car's traffic dict). TERMINAL_CURB=0 is the A/B.
+
 - **2026-11-02 The pier by day (rc3-pier-day, HANDOFF "The pier by day from the deck").** A deck
   the camera stands on is worked out per board in its own shader (transverse boards, gaps,
   weathering, wear) rather than a tiled plank photo, which smooths into a brown sheet at grazing
@@ -4011,6 +4018,11 @@ none of either.
   cause, not tuned per renderer - the traced room behind every window is display numbers and is
   decoded on Forward+ like the wall and the glass round it; and a closed cloud deck on Forward+
   runs into its own haze at the horizon like the painted one on the web. FWD_REVIEW_G=0 is the A/B.
+- 2026-11-05 (Forward+ review h, wave 8): a light a shader works out itself (a falloff, a pool's
+  coverage) lives in the same space as the colours it multiplies - a display-number or
+  renderer-space shader hands its light level over decoded on Forward+, and a broad additive pool
+  tuned on the stills adds in display numbers there - so a fall-off judged on the opengl3 stills
+  falls off the same on the Mac. FWD_REVIEW_H=0 is the A/B.
 - **2026-10-31 The first minute is part of the load (loading-first-frame, HANDOFF "The first
   minute").** Whatever play would build in its first seconds - the traffic, the streamer's own
   window, wave 3's first-use pipelines - is built behind the shade, and nothing the loading screen
@@ -4556,3 +4568,33 @@ none of either.
   takes the volume a chain's next car needs; torn sheets and faceted lumps replace flat debris
   cards; flame tongues breathe to their own heights; the burning pool's light hangs in its flames.
   Each part has its own =0 switch.
+- **2026-11-05 The skate park refcam: used concrete and lit paint (rc5-skate-park, HANDOFF "THE PIT
+  at 16:30 from the deck").** A new reference camera (`skate_park`, wave 8's table
+  `tools/refcams/cameras_w8.json`) stands on THE PIT's high deck by the pool at 16:30, a skater
+  held mid-air over the far coping (the row's `skate_t`), the boardwalk and its palms behind.
+  Decisions: a skate park's concrete is never clean - a cooler grey shotcrete with pours, a
+  broad band of wheel rubber round the transition that reads from across the park, grime at the
+  floor, a waxed coping and dirt round the lip on the deck; an air clears the coping by most of a
+  metre or it reads as standing; painted signs and murals are LIT paint (they were unshaded,
+  flat glowing colour). RC5_SKATE=0 is the A/B.
+- **2026-11-05 The arena_night refcam: an event plaza is lit by its own screens and walls
+  (rc5-arena-night, HANDOFF "STARLIGHT PLAZA on an event night").** A new reference camera
+  (`arena_night`, wave 8's table) stands in STARLIGHT PLAZA's crowd at 21:00 looking at the screen
+  wall, the theatre and HOTEL ALTAIR. Decisions: a landmark's blank wall gets architectural light
+  (LED blades, parapet coves, its name lit) rather than staying a dark box; a giant screen lights
+  the ground in front of it in the colour it is showing, worked out by the screen's own shader
+  maths (never a second clock); a hotel's crown is lit from inside; LED is a dull line by day; an
+  event night (a hash per night, ARENA_EVENT forces it) brings searchlights and a fuller plaza.
+  ARENA_NIGHT=0 is the A/B.
+- **2026-11-05 The speedboat refcam: a boat under way writes its wake into the sea (rc5-speedboat,
+  HANDOFF "The speedboat at golden hour").** A new reference camera (`speedboat_golden`, wave 8's
+  table) chases the SALTRUNNER at 60 km/h into the 17:45 sun path. Decisions: the player's boats hand
+  their wakes to the ocean shader exactly as the scripted vessels do (one list, nearest first), never
+  as particle quads on the water; a wake's foam is braided lines on an aerated sheet that emits the
+  evening's light, not a lit white band; spray is a low sheet off the chines; a boat's transom carries
+  its invented name. BOAT_SEA=0 is the A/B.
+- 2026-11-05 (fleet wave 8, gate-flakes-2): the gate's last open flakes. A jointed doll's settle and
+  freeze clocks run on the physics step (a long frame froze dolls mid-fall, in play too on a slow
+  frame); shop doors and far-walker borrowing take only the plain crowd by script (a valet was sent
+  through a door for good); the crowd-flow passing check meets nearest the camera. RAGDOLL_PHYSICS_TICK=0
+  is the A/B.

@@ -348,7 +348,7 @@ static func _pool_line() -> Array:
 			10:
 				d = 0.3
 				ev = "ollie"
-				h = 1.9
+				h = RcSkatePark.pool_air()
 			11:
 				d = 0.32
 			33:

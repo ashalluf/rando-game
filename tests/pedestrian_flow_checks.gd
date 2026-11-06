@@ -29,8 +29,21 @@ func run(t: Node, city: Node3D) -> void:
 	# follower notices its leader gone late). Batch 29's gate failed both; widen it for the run.
 	var range_was := Pedestrian.physics_range
 	Pedestrian.physics_range = 100000.0
-	await _follower(city, chunk)
-	await _passing(city, chunk)
+	if OS.get_environment("FLOW_STATES") == "1":
+		var w: Node = _tree.root.find_child("Weather", true, false)
+		var dn: Node = _tree.root.find_child("DayNight", true, false)
+		for st in [[0, 13.0], [2, 13.0], [3, 13.0], [4, 9.0], [5, 13.0], [0, 22.0], [2, 22.0], [0, 6.5], [0, 18.5]]:
+			print("FLOWSTATE weather %d hour %.1f" % [st[0], st[1]])
+			if w:
+				w.call("force_state", st[0])
+			if dn:
+				dn.set("hour", st[1])
+			await _ticks(30)
+			await _follower(city, chunk)
+			await _passing(city, chunk)
+	for r in maxi(int(OS.get_environment("FLOW_REPEAT")), 1):
+		await _follower(city, chunk)
+		await _passing(city, chunk)
 	Pedestrian.physics_range = range_was
 	await _kerb(city, chunk)
 	await _doors(city)
@@ -160,7 +173,7 @@ func _strip(city: Node3D, chunk: Node3D, nearer: bool = false) -> Array:
 	var cw := WorldState.to_world(cam.global_position) if cam else Vector3(rect.get_center().x, 0.0, rect.position.y)
 	var x0 := clampf(cw.x, rect.position.x + 12.0, rect.end.x - 26.0)
 	# The north pavement at the camera's x. (`nearer` takes the south one when the camera is nearer it,
-	# since avoidance only runs within CrowdFlow.RANGE of the camera; nothing uses it now. Moving the
+	# since avoidance only runs within CrowdFlow.RANGE of the camera; the passing pair uses it. Moving the
 	# strip off pavement furniture was tried too: it put the pair where both walked off east to the
 	# same spot every time - shuffled gates 7101, 8101, 9101 - so the strip stays where it was.)
 	var z := rect.position.y + 2.0
@@ -182,16 +195,27 @@ func _follower(city: Node3D, chunk: Node3D) -> void:
 	var n := 0
 	var start := Vector2(l.position.x, l.position.z)
 	var dodges0 := int(CrowdFlow.stats.get("dodges", 0))
+	# The pair every half second, printed when the check fails (the lead's 1303 / 6101 / 18505:
+	# the follower 2 m off the whole way; not seen in any run of this file alone).
+	var trace: Array = []
 	for i in 60 * 9:
 		await _tree.physics_frame
 		if i > 150:
 			sum += Vector2(f.position.x, f.position.z).distance_to(Vector2(l.position.x, l.position.z))
 			n += 1
+		if i % 30 == 0 and is_instance_valid(l) and is_instance_valid(f):
+			trace.append("%d L %s v%.2f F %s v%.2f gap %.2f lead %s act %d/%d pause %.1f/%.1f stride %d/%d kin %s/%s slot %s hd %.2f lyaw %.2f" % [i, Vector2(l.position.x, l.position.z) - at, l._speed,
+				Vector2(f.position.x, f.position.z) - at, f._speed, Vector2(f.position.x, f.position.z).distance_to(Vector2(l.position.x, l.position.z)),
+				f.flow.get("leader") != null, l._act, f._act, l._pause_left, f._pause_left, l._lod_stride, f._lod_stride, l._kinematic, f._kinematic,
+				str(f.flow.get("slot")), float(f.flow.get("hd", 0.0)), l._visual.rotation.y] + " fw %.2f lw %.2f piv %s rain %s/%s cross %d/%d ring %s/%s" % [f.walk_speed, l.walk_speed, f._pivoting, l.rain != null, f.rain != null, f._cross, l._cross, f.ring, l.ring] + " near " + _solid_near(f))
 	var moved := Vector2(l.position.x, l.position.z).distance_to(start)
 	var mean := sum / maxf(float(n), 1.0)
 	_check(f.flow.get("leader") != null and mean < 1.6 and moved > 6.0,
 		"a follower walks beside its leader and stands with it when it stops (mean %.2f m apart, leader went %.1f m, grouped %s; %d prop dodges city-wide meanwhile, end gap %.1f m, follower at %s)" % [mean, moved, f.flow.get("leader") != null,
 			int(CrowdFlow.stats.get("dodges", 0)) - dodges0, Vector2(f.position.x, f.position.z).distance_to(Vector2(l.position.x, l.position.z)), Vector2(f.position.x, f.position.z) - at])
+	if not (f.flow.get("leader") != null and mean < 1.6 and moved > 6.0) or OS.get_environment("FLOW_DEBUG") == "1":
+		for line in trace:
+			print("FLOW_FOLLOWER ", line)
 	l.queue_free()
 	await _ticks(2)
 	for i in 30:
@@ -202,10 +226,36 @@ func _follower(city: Node3D, chunk: Node3D) -> void:
 	f.queue_free()
 
 
+## What stands within 1.2 m of a walker at knee height (the follower trace: pavement clutter that
+## goes with the hour and the day is the first suspect).
+func _solid_near(p: Node3D) -> String:
+	var q := PhysicsShapeQueryParameters3D.new()
+	var sh := SphereShape3D.new()
+	sh.radius = 1.2
+	q.shape = sh
+	q.transform = Transform3D(Basis(), p.global_position + Vector3.UP * 0.6)
+	q.collision_mask = 1 | 4
+	q.exclude = [(p as CollisionObject3D).get_rid()] if p is CollisionObject3D else []
+	var names: Array = []
+	for h: Dictionary in p.get_world_3d().direct_space_state.intersect_shape(q, 16):
+		var c: Object = h.get("collider")
+		if c is Node:
+			names.append("%s@%s" % [(c as Node).name, str(h.get("shape", 0))])
+	return ",".join(names)
+
+
 func _passing(city: Node3D, chunk: Node3D) -> void:
-	var s := _strip(city, chunk)
+	# CrowdFlow steps a walker round others only within RANGE (35 m) of the camera. Started at the
+	# camera's x and walking east, the pair met ~34.6 m from it (B set off beyond it): a camera a
+	# few metres further off - the spring arm against whatever an earlier file or the hour left by
+	# the player - and they walked through each other (the lead's 1202 / 12202 / batch 37). They
+	# meet at the point of the pavement nearest the camera now, on the nearer pavement.
+	var s := _strip(city, chunk, true)
 	var rect: Rect2 = s[0]
 	var at: Vector2 = s[1]
+	var cam0 := _tree.root.get_camera_3d()
+	var cx := WorldState.to_world(cam0.global_position).x if cam0 else at.x
+	at.x = clampf(cx, rect.position.x + 12.5, rect.end.x - 12.5) - 6.5
 	var a := _walker(chunk, rect, at, 90201)
 	var b := _walker(chunk, rect, at + Vector2(13.0, 0.0), 90202)
 	await _ticks(30) # the LOD pass: near enough to step through move_and_slide
@@ -221,12 +271,19 @@ func _passing(city: Node3D, chunk: Node3D) -> void:
 	var seen_max := -1
 	var flow_cam := -2.0
 	var grid_cells := -1
+	var ptrace: Array = []
 	# 25 s: in CI 400's shard the pair stepped round each other (0.64 m) but had not passed by 14 s.
 	for i in 60 * 25:
 		await _tree.physics_frame
 		var pa := Vector2(a.position.x, a.position.z)
 		var pb := Vector2(b.position.x, b.position.z)
 		closest = minf(closest, pa.distance_to(pb))
+		if i % 20 == 0:
+			var c3 := _tree.root.get_camera_3d()
+			ptrace.append("%d A %s v%.2f B %s v%.2f cam %.1f/%.1f flowcam %.1f grid %d stride %d/%d kin %s/%s" % [i, pa - at, a._speed, pb - at, b._speed,
+				c3.global_position.distance_to(a.global_position) if c3 else -1.0, c3.global_position.distance_to(b.global_position) if c3 else -1.0,
+				CrowdFlow._cam.distance_to(a.global_position) if CrowdFlow._cam != Vector3.INF else -1.0, (CrowdFlow._prev as Dictionary).size(),
+				a._lod_stride, b._lod_stride, a._kinematic, b._kinematic])
 		# What a saw of b in CrowdFlow's grid (the lead's batch-37 shard: camera 24 m off, strides 1,
 		# flow on, and still no sidestep at all).
 		if pa.distance_to(pb) < CrowdFlow.LOOK:
@@ -244,6 +301,9 @@ func _passing(city: Node3D, chunk: Node3D) -> void:
 			seen_max, flow_cam, grid_cells, int(a.flow.get("gid", 0)) if is_instance_valid(a) else -1, int(b.flow.get("gid", 0)) if is_instance_valid(b) else -1,
 			a.collision_layer if is_instance_valid(a) else -1, b.collision_layer if is_instance_valid(b) else -1,
 			a.visible if is_instance_valid(a) else false, b.visible if is_instance_valid(b) else false])
+	if not (passed and closest > 0.45) or OS.get_environment("FLOW_DEBUG") == "1":
+		for line in ptrace:
+			print("FLOW_PASSING ", line)
 	a.queue_free()
 	b.queue_free()
 

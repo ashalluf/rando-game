@@ -36,6 +36,8 @@ func run(t: Node, city: Node3D) -> void:
 	var off: CityChunk = city._new_chunk(k, CityChunk.Level.FULL)
 	off.build()
 	StreetCloseup.enabled = true
+	# (CI run 424: these two builds differed in a full shard, the city at PhysicsBudget's cap - a
+	# refused car or can skipped its rolls; CityChunk.BUDGET_ROLLS, gate_flakes_2_checks.)
 	_ab(on, off)
 	_drop(on)
 	_drop(off)
@@ -139,6 +141,13 @@ func _ab(on: CityChunk, off: CityChunk) -> void:
 			var b: Dictionary = rb[i]
 			# A cafe set slides along the kerb out of a bus shelter's way (its rolls unchanged).
 			same = same and a.id == b.id and ((a.position as Vector3).is_equal_approx(b.position) or String(a.kind) == "cafe")
+	if not same:
+		for i in mini(ra.size(), rb.size()):
+			var a: Dictionary = ra[i]
+			var b: Dictionary = rb[i]
+			if a.id != b.id or not ((a.position as Vector3).is_equal_approx(b.position) or String(a.kind) == "cafe"):
+				print("STREET_CLOSEUP_AB first differing prop %d: on %s %s at %s, off %s %s at %s" % [i, a.id, a.kind, a.position, b.id, b.kind, b.position])
+				break
 	_t._check(same, "street closeup: the same props in the same places with it off (%d / %d)" % [ra.size(), rb.size()])
 	var counts := true
 	var bad := ""
@@ -151,6 +160,7 @@ func _ab(on: CityChunk, off: CityChunk) -> void:
 		if int(non.get(key, -1)) != int(noff[key]):
 			counts = false
 			bad = key
+			print("STREET_CLOSEUP_AB %s: on %d, off %d" % [key, int(non.get(key, -1)), int(noff[key])])
 	_t._check(counts, "street closeup: every other batch has the same instances with it off%s" % ("" if bad == "" else " (%s differs)" % bad))
 	var strip := off.get_node_or_null("Batch_gutter") as MultiMeshInstance3D
 	_t._check(off.get_node_or_null("KerbFace") == null and strip != null and strip.multimesh.mesh == PropFactory.gutter(),

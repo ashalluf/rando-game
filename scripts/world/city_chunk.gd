@@ -73,6 +73,10 @@ const SIDEWALK_TOP := 0.25
 ## (_add_ground_grid). False casts the whole grid again, the A/B (`GROUND_SHADOW=0` on
 ## still_shot.gd).
 static var ground_skirt_shadows: bool = true
+## A spawn PhysicsBudget refuses (parked cars, trash cans, barrels, tyres) still draws its rolls,
+## so a block is the same whatever the city's body count (BUDGET_ROLLS=0: the old refusal before
+## the rolls, which built another block at the cap - the A/B).
+static var BUDGET_ROLLS: bool = OS.get_environment("BUDGET_ROLLS") != "0"
 ## Ground slabs whose top is at most this far over the pavement are "on the ground" for that rule.
 const GROUND_RIM_TOP := 0.5
 ## Grass tufts per square metre of lawn, and the cap for one patch. A tuft is 160 triangles
@@ -732,7 +736,7 @@ func _build_airport() -> void:
 		# The drop-off curb in front of the terminal is packed (owner: "jampacked").
 		var curb_rng := RandomNumberGenerator.new()
 		curb_rng.seed = plan.seed ^ 0x7e5
-		_spawn_crowd(macro.terminal_curb, 4.0, style.airport_crowd, curb_rng)
+		_spawn_crowd(macro.terminal_curb, 4.0, TerminalCurb.walkers(style.airport_crowd), curb_rng)
 	if level == Level.FULL:
 		# Flyable jets on the taxiway and the remote stands, owned like parked cars (city root,
 		# freed with the chunk unless someone flew them away).
@@ -3102,11 +3106,19 @@ func _park_car(spot: Array, rng: RandomNumberGenerator, max_cars: int, count: Ar
 	# frozen wheels divide by zero and poison the body with NaN - but an undisturbed one
 	# sleeps (Vehicle.settle()), so a parked car nobody touches costs close to nothing.
 	# PhysicsBudget still caps the total, and Quality halves that cap below its top level.
-	if count[0] >= max_cars or rng.randf() > 0.55 or not PhysicsBudget.can_spawn():
+	if count[0] >= max_cars or rng.randf() > 0.55 or (not BUDGET_ROLLS and not PhysicsBudget.can_spawn()):
 		return
 	spot.append(true) # decided by this pass (parked or kept clear): BusyStreets' extras leave it
 	var car := Vehicle.random_car(rng)
 	var flip := rng.randf() < 0.5
+	# PhysicsBudget full: the car is not placed, but only after its rolls, and it counts, so the
+	# block's stream runs the same either way. Refused before the rolls, a block built while the
+	# city sat at the body cap rolled every later car, can, hydrant and shelter differently: the
+	# same seed built another block (the gate's street_closeup rebuild, CI run 424).
+	if not PhysicsBudget.can_spawn():
+		car.free()
+		count[0] += 1
+		return
 	if _kerb_reserved(spot):
 		# After the rolls, so the chunk rng runs the same whether or not the spot is used, and it
 		# counts as a car, as the vendors' and the market's spots below do: a kerb kept clear that
@@ -3921,15 +3933,19 @@ func _build_sidewalk_props(rect: Rect2, params: Dictionary, rng: RandomNumberGen
 			var spin := rng.randf_range(0.0, TAU)
 			_add_prop("hydrant", Vector3(p.x, SIDEWALK_TOP, p.y), Color(0.85, 0.15, 0.12), StreetFurniture.hydrant_instances(plan.seed, aged, spin, Vector3(p.x, SIDEWALK_TOP, p.y), inward),
 				[[Vector3(0.3, 0.8, 0.3), Vector3(p.x, SIDEWALK_TOP + 0.4, p.y), 0.0]])
-		if cans_left > 0 and rng.randf() < 0.6 and PhysicsBudget.can_spawn():
+		if cans_left > 0 and rng.randf() < 0.6 and (BUDGET_ROLLS or PhysicsBudget.can_spawn()):
 			cans_left -= 1
 			var p := a + dir * rng.randf_range(4.0, length - 4.0) + inward * 1.3
-			var can := TrashCan.new()
-			can.rusty = rng.randf() < 0.35
-			can.style = StreetFurniture.bin_style(block_district)
-			can.position = Vector3(p.x, SIDEWALK_TOP + 0.02 + _gy(p.x, p.y), p.y)
-			can.rotation.y = rng.randf_range(0.0, TAU)
-			add_child(can)
+			var rusty := rng.randf() < 0.35
+			var turn := rng.randf_range(0.0, TAU)
+			# The rolls first, the can only with room in PhysicsBudget (as _park_car).
+			if PhysicsBudget.can_spawn():
+				var can := TrashCan.new()
+				can.rusty = rusty
+				can.style = StreetFurniture.bin_style(block_district)
+				can.position = Vector3(p.x, SIDEWALK_TOP + 0.02 + _gy(p.x, p.y), p.y)
+				can.rotation.y = turn
+				add_child(can)
 	_build_clutter(rect, edges, params, rng)
 	StreetDetail.build_block(self, rect, edges, params, block_district, rng)
 	# The shelters of the bus lines' stops on this block (hash-seeded, no rng).
@@ -4399,6 +4415,8 @@ func _build_clutter(_rect: Rect2, edges: Array, params: Dictionary, rng: RandomN
 				], [[Vector3(1.57, 1.11, 0.44), at + Vector3(0.0, 0.56, 0.0), yaw]])
 		elif roll < 0.7:
 			if not PhysicsBudget.can_spawn():
+				if BUDGET_ROLLS:
+					rng.randf_range(0.0, TAU) # the barrel's turn, so the stream runs the same
 				continue
 			var barrel := PhysicsProp.new()
 			var cyl := CylinderShape3D.new()
@@ -4412,7 +4430,13 @@ func _build_clutter(_rect: Rect2, edges: Array, params: Dictionary, rng: RandomN
 			var stack := rng.randi_range(1, 3)
 			for k in stack:
 				if not PhysicsBudget.can_spawn():
-					break
+					if not BUDGET_ROLLS:
+						break
+					# The tyre's three rolls, so the stream runs the same.
+					rng.randf_range(-0.05, 0.05)
+					rng.randf_range(-0.05, 0.05)
+					rng.randf_range(0.0, TAU)
+					continue
 				var tyre := PhysicsProp.new()
 				var disc := CylinderShape3D.new()
 				disc.radius = 0.3

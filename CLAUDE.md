@@ -147,6 +147,12 @@ cars lifts `PhysicsBudget.max_active_bodies` for it (a busy city sits at the cap
 the SAME frame when a live system re-checks the condition (CarPanic's kerb); a system that sends
 walkers off (doors, errands) takes plain `_lives()` walkers without `no_trim` only; a shared grid
 keyed on the camera reads the game window's camera; gate loops run from a separate worktree.
+**Wave 8** (docs/HANDOFF.md "The gate's intermittent failures, wave 8"): a timer that decides what
+physics does (settle, freeze, age) runs on the physics step, never the frame time (a loaded frame is
+seconds: `Ragdoll.PHYSICS_TICK`); a spawn PhysicsBudget refuses still draws its rolls (else a block
+built at the body cap is another block: `CityChunk.BUDGET_ROLLS`); "the plain crowd" is `StreetErrands.plain()` (the script), never
+`_lives()` (valets, vendors, buskers ... say true); stage what CrowdFlow must see well inside its
+35 m `RANGE` of the camera.
 
 Download a Linux headless-capable build with:
 
@@ -1974,6 +1980,16 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   light keeps `landing_side` of its glare off axis; a patrol helicopter's shaft is `PATROL_BEAM` of a
   pursuit's. A refcam row's staged aircraft prints `REFCAM <name> air at x,y,z`. `AIRPORT_NIGHT=0`
   is the A/B; `jet_shot.gd NIGHT=1 [AN=0]` both renderers; checks `tests/rc3_airport_night_checks.gd`.
+- The terminal's departures kerb (wave 7, refcam `terminal_curb` in `tools/refcams/cameras_w7.json`,
+  docs/HANDOFF.md "The terminal's departures kerb"): `TerminalCurb` (`scripts/world/terminal_curb.gd`,
+  one hook at the end of `Landmarks._build_dropoff()`, near copy only) lays a kerb stone with a white
+  face, steel bollards, concrete slabs, door pylons, loading plates, benches, a check-in podium,
+  carts, a planted median across the lanes, and glass vestibules (`vestibule()`, from
+  AirportTerminal); `CurbTraveller`s stand in groups at pure `spots()` (all under the terminal's
+  chunk) with code-built luggage laid for those who spawned; `loop_speed()` (TrafficManager's loop)
+  stops a share of kerb-lane cars at the kerb on their hazards; `loop_car()` adds taxis and white
+  shuttle vans. `TERMINAL_CURB=0` is the A/B; probe `tools/terminal_curb/probe.gd`; checks
+  `tests/rc4_terminal_curb_checks.gd`.
 - Shop signs: storefront sign bands carry real names. `Building` picks how many window bays
   make one shop per face (`_shop_spans()`, hashed from the seed, never from `_rng`) and passes
   it to the shader as `shop_span`, so the bands the shader draws and the `TextMesh` names the
@@ -4714,6 +4730,13 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   are baked `SkaterPerson` figures that wake into live people when hit or near gunfire.
   `SKATE_PARK=0` is the A/B, `SKATE_T=` / `SKATE_HOLD=1` the clock, `SKATE_DEBUG=1` prints EYEs;
   probe `tools/skate_park/probe.gd`; checks `tests/skate_park_checks.gd`.
+- The skate park refcam (wave 8, `skate_park` in `tools/refcams/cameras_w8.json`, docs/HANDOFF.md
+  "THE PIT at 16:30 from the deck"): `RcSkatePark` (`scripts/world/rc5_skate_park.gd`) -
+  skate_park.gdshader's `look5` (used concrete: pours, the wheel-rubber band, floor grime, a waxed
+  coping, dirt round the lip), the pool air `POOL_AIR` over the coping, the boardwalk's painted
+  boards / murals lit (`paint()`; they were unshaded). A row's `skate_t` holds SkateParkLife's
+  clock; `tools/rc5_skate_park/air_probe.gd` lists air times. `RC5_SKATE=0` the A/B; checks
+  `tests/rc5_skate_park_checks.gd`.
 - Pier park (2026-10-05, "an amusement park on a pier, Santa Monica-style, original"; HANDOFF 9ca):
   RANDO PIER (the `pier` landmark, (-940, -350)) is `PierPark` (`scripts/world/pier_park.gd`):
   the pier plus GULLWING PARK on a platform off its south side. Everything sits in the PARK'S
@@ -4929,6 +4952,14 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   included by building.gdshader AND building_lod.gdshader (change one, both change). Landmark
   facade windows are coverage by pixel footprint. `CIVIC_GROUNDS=0` / `ROOF_WEATHER=0` the A/B;
   probe `tools/civic_grounds/probe.tscn`; checks `tests/rc_downtown_aerial_checks.gd`.
+- STARLIGHT PLAZA on an event night (wave 8, refcam `arena_night` in `tools/refcams/cameras_w8.json`,
+  its `arena_event` key = ARENA_EVENT; docs/HANDOFF.md "STARLIGHT PLAZA on an event night"):
+  `ArenaNight` (`scripts/world/arena_night.gd`, hooks in LandmarkArenaDistrict): LED blades and
+  parapet coves on the plaza's blank walls and its name lit, near and far; each screen's light on
+  the paving (`shaders/arena_spill.gdshader` picks the screen's slide colour as led_screen.gdshader
+  does - change both; checked), a cool omni on Forward+ desktop; the hotel's crown lit from inside;
+  on event nights (`event_tonight()`, a hash) searchlight carts (SkyBeam) on the plaza and by the
+  marquee and a fuller plaza. `ARENA_NIGHT=0` is the A/B; checks `tests/rc5_arena_night_checks.gd`.
 - Broadway's theatre district (2026-10-05, HANDOFF "Broadway"): `Broadway`
   (`scripts/world/broadway.gd`) places eleven invented movie palaces by their REAL house numbers on
   S Broadway (`THEATRES`, `address_z()` through the real cross streets) on the Broadway-fronting lot
@@ -6659,6 +6690,12 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   the shallows. Never set its velocities in a tick that applies impulses (`_spin()`). The hero is
   drawn seated (`BoatRidePose`); FX `BoatWake`. `BOATS=0` the A/B; stills `BOAT=` on still_shot.gd;
   checks `tests/speedboats_checks.gd`.
+- The speedboat at golden hour (2026-11-05, refcam `speedboat_golden` in `tools/refcams/cameras_w8.json`,
+  its `boat` key staged by `tools/refcams/boat_stage.gd`; docs/HANDOFF.md "The speedboat at golden
+  hour"): `BoatSea` (`scripts/vehicles/boat_sea.gd`) - driven boats at sea hand their wakes to
+  ocean.gdshader through `OceanTraffic.push_wakes()` (alone: `push_alone()`), `wake_glow` braids the
+  wash and warms / lights the foam, BoatWake throws chine spray sheets (flat foam quads off at sea),
+  `transom()` letters the boat's name. `BOAT_SEA=0` is the A/B; checks `tests/rc5_speedboat_checks.gd`.
 - Swimming (2026-10-05, docs/HANDOFF.md "Swimming"): `Swim` (`scripts/player/swim.gd`, the
   player's child; `swim.step()` is the first thing in Player's tick after the car and does the whole
   tick in water). Where water is: `SwimWater` (`scripts/world/swim_water.gd`) - the sea and the bay
@@ -7318,6 +7355,13 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   few frames (a muzzle flash) does not veil the fog: the fog's temporal blend damps it.
   `fwd_block_shot.gd BLOCKS=0` is a weather sky on Forward+ in three minutes; `FLASH=` holds a
   muzzle flash. `FWD_REVIEW_G=0` is the A/B; checks `tests/fwd_review_g_checks.gd`.
+- And one more (fwd-review-h, 2026-11-05, HANDOFF "Forward+ review h"): **a light LEVEL a
+  renderer-space or display-number shader works out itself (a falloff, a pool's alpha) is raw on
+  both** - Compatibility draws colour x level, Forward+ ~colour x level^0.45 (a tank 150 m from a
+  flare glowed orange all over). Hand it over with `fh_level()` / `fh_display()`
+  (`shaders/fwd_review_h.gdshaderinc`), or add a broad light_pool in display numbers
+  (`display_add_fwd`, `FwdReviewH.display_pool()`). Linear-on-both (cs_out) shaders are safe.
+  `FWD_REVIEW_H=0` the A/B; checks `tests/fwd_review_h_checks.gd`.
 - Native screenshots without a browser: `tools/glshot/building_shot.gd` (one building),
   `tools/glshot/block_shot.tscn` (a few FULL city blocks alone, no far city: a block's ground and
   furniture) and `tools/glshot/city_shot.gd` (the city at a `--spawn`) render with the real

@@ -40,6 +40,7 @@ uniform float roof_dust : hint_range(0.0, 1.5) = 1.0;
 global uniform float road_wetness;
 global uniform float lamp_factor;
 #include "res://shaders/port_flood.gdshaderinc"
+#include "res://shaders/fwd_review_h.gdshaderinc"
 
 const float HL = 6.096;
 const float HH = 1.2955;
@@ -438,6 +439,6 @@ void fragment() {
 	// The terminal's floodlights after dark (PortNight; PORT_NIGHT=0 leaves port_night 0).
 	if (port_night > 0.5 && flood_count > 0 && lamp_factor > 0.01) {
 		float fl = min(port_flood(v_wp + origin_shift, normalize(v_wn)), flood_cap);
-		EMISSION = albedo * col(flood_tint) * fl * flood_gain * lamp_factor;
+		EMISSION = albedo * col(flood_tint) * fh_level(fl * flood_gain * lamp_factor);
 	}
 }
