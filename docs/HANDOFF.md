@@ -33276,3 +33276,78 @@ Foliage cells, judged on the Mac (FOLIAGE_CELLS=1 FOLIAGE_CELL=48 / 64). (3) The
 (no LODs, 0.28-0.36 M shadow at the aerials). (4) Trash-bag piles (0.1 M, code mesh, no LOD or
 light twin). (5) Not looked at on Forward+ (geometry-only cuts; the canopy's level is the only
 shape change and it is under a pixel by construction).
+
+## 9d?. The service alley at noon (refcam `alley_noon`), 2026-11-06 (agent branch `wt/rc5-alley-noon`)
+
+**The camera.** A new reference view in `tools/refcams/cameras_w8.json`: `alley_noon`, the downtown
+service alley of block 28,-4 (an east-west run x 3005-3100 at z -671.5, 6 m wide, nine dumpsters,
+four grease bins, two cooks, a van, 114 wear pieces) at (3052, 1.7 agl, -671.0), yaw -90 (east),
+pitch 3, FOV 55, 12:00 clear: halfway down, the cook on his smoke break at a dumpster on the left,
+carts, a back door with its stoop and a steaming kitchen exhaust, the concrete V-gutter, and the
+bright street (and the camp past the chain-link) at the mouth. Run it with
+`REFCAMS_JSON=tools/refcams/cameras_w8.json python3 tools/refcams/refcams.py run <dir> --only alley_noon`.
+Found with `tools/alleys/probe.tscn -- AREA=1700,-1700,3900,2000 WALLED=0.6` and `BUILD=bx,bz`
+(props per alley); four candidates were shot from one load (`shots/rc5-alley-noon` 00_*): 28,-4
+looking east won (the only one with the cook in the frame). It has no fire escape (that alley rolls
+none) and its grease bins are behind the lens; 24,-7 has a fire escape and grease bins but no cook.
+
+**What read as a game** (main, shots 01), in the order the eye found it, fixed behind
+**`AlleyNoon`** (`scripts/world/alley_noon.gd`, `ALLEY_NOON=0` the A/B), one hook line each in
+`AlleyKit.cart()` / `mattress()` / `back_door()` and `Alleys.ground_material()`:
+1. **Blue-white splotches all over the slab.** AlleyNight's standing water (puddles "that never dry",
+   for the night's mirror) under a noon sky: each puddle reflected the open sky through the engine
+   (roughness 0.03), so the alley floor read as spilt pale paint - on Forward+ too (the small scene
+   below). By day (`day_dry` on the ground's SHARED material, so every chunk copy inherits it, times
+   `1 - lamp_factor`) the slab's dips dry (threshold up), the gutter run narrows and breaks into short
+   lengths, the darkening eases to a film, and what water is left mirrors the ALLEY: `day_mirror()`
+   follows the reflected ray to the wall `wall_back` past the alley's edge (shaded foot, sunlit top
+   from `day_sun_from`..`day_sun_to`, sky over `day_wall_top`), EMITTED by water's own Fresnel (F0
+   0.03), with the engine's specular turned down to 0.12 in the water. At lamp_factor 1 every day
+   term is 0: the night's water is the old code exactly.
+2. **Box carts.** The 96-gallon carts in the foreground were two boxes and a slab. Now moulded on the
+   same footprint: a body tapering to the foot with chamfered corners, a moulded rib, a rim, a domed
+   lid with a front lip and grip, the handle on its posts, wheel housings, an axle and 0.15 m wheels
+   with hubs (~370 triangles, was ~90).
+3. **Blank mattress.** A pale box leaning on the wall. Now bowed out at the belly, its face a quilted
+   grid (5 x 8 cells puffed `PUFF`, pulled in at the tufts `TUFT`, flat shaded so the sun picks the
+   quilting out), piped round the face, grimy toward the foot, a stain placed by a hash of where it
+   stands (~250 triangles).
+4. **White stoops.** The back doors' concrete stoops were bright 0.72 white blocks floating on the
+   slab: worn concrete (0.52, toned by a hash), a darker nosing and a grime lip on the slab.
+Every variation is a hash of where the prop stands (IndustrialKit's placement), never an rng:
+AlleyKit's rngs make the same calls, so no prop moves (checked: the refcam chunk's prop counts are
+equal on and off).
+
+**Looked at and left:** the floor and walls in shade read cool blue-grey on the opengl3 still (the
+sky ambient on Compatibility; a canyon's warm bounce off the sunlit wall is SDFGI / SSIL's job on
+Forward+, not proved here); the wheat-paste stack on the left wall reads a little like a stack of
+paper; the right wall is a glazed facade (the Building's back face), as for every alley.
+
+**Forward+.** The city OOMs lavapipe, so the water and the props are proved on
+`tools/rc5_alley_noon/noon_shot.tscn` (a 40 m alley on the real ground material with the water on,
+20 m walls, a noon sun, a cart pair, a mattress, a stoop and a dumpster written by AlleyKit into the
+alleys' real upright material; `ALLEY_NOON=0`, `NIGHT=1`, `CLOSE=1`; either renderer): off, the
+same pale splotches on both renderers; on, a dry slab with a few dark damp patches, the same on both
+(shots 04). With `NIGHT=1` the ground is pixel-identical on and off (only the new props differ).
+
+**Cost.** The refcam's chunk: alley upright triangles 21,994 -> 24,208 (+10 %, the carts and
+mattresses), same draws. The refcam (GEO, opengl3 1280x720, ALLEY_NOON=0 -> on, same commit):
+3,152,771 -> 3,177,994 triangles (+0.8 %), 2,059 -> 2,067 draws (+0.4 %); luminance p5/p50/p95
+17/47/120 -> 16/46/118.
+
+**Ten-camera compare** (`refcams.py compare`, the ten originals + alley_night + alley_noon,
+ALLEY_NOON=0 against on, same commit): only `freeway` is flagged, for moved traffic (its cars differ
+run to run, the deck is kilometres from any alley); every other camera within 1 level, under 2 %
+pixels (alley_night 0.35 %: its carts and mattresses; alley_noon p50 -1). `alley_night` keeps its
+water.
+
+**Checks** `tests/rc5_alley_noon_checks.gd`: the cart, mattress and stoop written in IndustrialKit's
+form (every triangle facing its normal, inside the old footprint, on the ground, off the wall; the
+stoop darker), the old props back with it off, the shared ground material's `day_dry` and the
+shader's gates, the refcam chunk's props equal on and off. **Gate** (SHARDS=3, merged with main
+`a870978b`): 6,632 checks passed, 0 failed (peak RSS 3,916 MB a shard).
+
+**Not done / not verified.** The day mirror is a model (two flat walls, a sunlit band from fixed
+heights), not the real facades; the cook and props are not staged (the load's crowd room decides
+whether the cook stands there); the shade's colour was not tuned (Compatibility only); no fire
+escape in this frame.
