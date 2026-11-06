@@ -176,6 +176,8 @@ static func stage(tree: SceneTree, scene: Node, _cam: Camera3D, _player: Node3D,
 	if node != null and Onlookers.enabled:
 		var sc: Dictionary = node.stage(Onlookers.Kind.WRECK, WorldState.to_world(_car.global_position), _car, int(spec.get("count", 10)))
 		print("REFCAM crash: %d onlookers in place" % (sc.members as Array).size())
+		for m: Pedestrian in sc.members:
+			print("REFCAM crash:   onlooker %s at %s" % [Onlookers.Role.keys()[int(m.watch.role)], WorldState.to_world(m.global_position)])
 	# Let the car settle on its wheels (the front pair up on the kerb), the airbags sag and the
 	# onlookers walk to their places.
 	for i in int(spec.get("settle", 150)):
@@ -191,6 +193,24 @@ static func stage(tree: SceneTree, scene: Node, _cam: Camera3D, _player: Node3D,
 	for i in 4:
 		await tree.process_frame
 		place.call()
+	# Nobody standing in the lens or between it and the nose.
+	var eye_l := WorldState.to_local(eye)
+	var nose_l := _car.global_transform * Vector3(0.0, 0.5, -dmg._len * 0.5)
+	for p in tree.get_nodes_in_group("pedestrian"):
+		var n := p as Node3D
+		if n == null:
+			continue
+		var q := Geometry3D.get_closest_point_to_segment(n.global_position + Vector3.UP, eye_l, nose_l)
+		if q.distance_to(n.global_position + Vector3.UP) < 0.9:
+			n.visible = false
+	var fl := CrashAftermath.instance()
+	var pool_at := "none"
+	if fl != null and not fl._pools.is_empty() and is_instance_valid(fl._pools[fl._pools.size() - 1][0]):
+		var pm := fl._pools[fl._pools.size() - 1][0] as MeshInstance3D
+		pool_at = "%s visible %s" % [WorldState.to_world(pm.global_position), pm.is_visible_in_tree()]
+	print("REFCAM crash: crush %.2f m, pools %d (last at %s), steam %s, bonnet %.2f rad" % [dmg._crumple.crush_at_end(-1.0) if dmg._crumple else 0.0,
+			fl.pools_made if fl else 0, pool_at, _car.find_child("RadiatorSteam", true, false) != null,
+			dmg._breakup.bonnet_angle if dmg._breakup else -1.0])
 	print("REFCAM crash: lamp %s/%s at %s lean %.2f, car at %s, eye %s" % [lamp_ch.key, lamp_rec.id, lamp_w, float(lamp_rec.get("lean_angle", 0.0)), cw, eye_text])
 
 

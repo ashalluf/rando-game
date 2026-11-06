@@ -177,7 +177,14 @@ static func _size(kind: int, rng: RandomNumberGenerator) -> Vector3:
 			return Vector3(rng.randf_range(1.2, 2.6), 0.25, rng.randf_range(1.0, 2.0))
 
 
+## The colours below are linear; handed over as sRGB with vertex_color_is_srgb so both renderers
+## draw the same (Compatibility drew a linear 0.03 as pitch black: CrashAftermath's pass).
 static func _color(kind: int, rng: RandomNumberGenerator, paint: Color) -> Color:
+	var c := _color_linear(kind, rng, paint)
+	return c.linear_to_srgb() if CrashAftermath.enabled else c
+
+
+static func _color_linear(kind: int, rng: RandomNumberGenerator, paint: Color) -> Color:
 	var v := rng.randf_range(0.85, 1.15)
 	match kind:
 		Kind.BUMPER:
@@ -242,6 +249,7 @@ static func _material() -> StandardMaterial3D:
 	if _mat == null:
 		_mat = StandardMaterial3D.new()
 		_mat.vertex_color_use_as_albedo = true
+		_mat.vertex_color_is_srgb = CrashAftermath.enabled
 		_mat.roughness = 0.45
 		_mat.metallic_specular = 0.6
 		_mat.cull_mode = BaseMaterial3D.CULL_DISABLED

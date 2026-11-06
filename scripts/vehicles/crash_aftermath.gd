@@ -152,13 +152,22 @@ func _leak(car: Vehicle, cd: CrashDeform) -> void:
 	var dmg := cd.dmg
 	var xf := car.global_transform
 	# Under the radiator: a little behind what is left of the nose.
-	var nose := -dmg._len * 0.5 + cd.crush_at_end(-1.0) + 0.35
+	var nose := -dmg._len * 0.5 + cd.crush_at_end(-1.0) + 0.2
 	var at := xf * Vector3(0.0, dmg._ride + 0.3, nose)
 	var space := get_world_3d().direct_space_state
 	var q := PhysicsRayQueryParameters3D.create(at + Vector3.UP * 0.4, at + Vector3.DOWN * 3.0, 1)
-	q.exclude = [car.get_rid()]
-	var hit := space.intersect_ray(q)
-	if hit.is_empty():
+	var skip: Array[RID] = [car.get_rid()]
+	var hit := {}
+	# The floor, not what the car hit (a pole's box stands right there): skip anything not face up.
+	for k in 4:
+		q.exclude = skip
+		hit = space.intersect_ray(q)
+		if hit.is_empty() or (hit.normal as Vector3).y > 0.7:
+			break
+		skip.append(hit.rid)
+	if OS.get_environment("CRASH_DEBUG") != "":
+		print("CRASH_AFTERMATH pool ray from %s: %s" % [at, str(hit)])
+	if hit.is_empty() or (hit.normal as Vector3).y <= 0.7:
 		return
 	var ground: Vector3 = hit.position
 	var gn: Vector3 = (hit.normal as Vector3).normalized()
@@ -168,6 +177,10 @@ func _leak(car: Vehicle, cd: CrashDeform) -> void:
 	if down.length() < 0.01:
 		down = fwd
 	down = Vector3(down.x, 0.0, down.z).normalized()
+	# The burst radiator throws it forward out of the nose first; a gentle slope bends its run.
+	var slope := clampf(sqrt(maxf(1.0 - gn.y * gn.y, 0.0)) / 0.06, 0.0, 1.0)
+	var f2 := Vector3(fwd.x, 0.0, fwd.z).normalized()
+	down = (f2 * (1.0 - 0.6 * slope) + down * (0.4 + 0.6 * slope)).normalized()
 	var mat := ShaderMaterial.new()
 	mat.shader = SHADER
 	mat.render_priority = -2
@@ -207,7 +220,7 @@ func _leak(car: Vehicle, cd: CrashDeform) -> void:
 	# Steam out of the crushed nose.
 	steam = _steam()
 	car.add_child(steam)
-	steam.position = Vector3(0.0, dmg._ride + (dmg._top - dmg._ride) * 0.45, -dmg._len * 0.5 + cd.crush_at_end(-1.0) + 0.45)
+	steam.position = Vector3(0.0, dmg._ride + (dmg._top - dmg._ride) * 0.62, -dmg._len * 0.5 + cd.crush_at_end(-1.0) + 0.45)
 	if dmg._staged:
 		steam.preprocess = 4.0
 	(_pools[slot] as Array)[3] = steam
@@ -219,7 +232,7 @@ func _steam() -> CPUParticles3D:
 	var p := CPUParticles3D.new()
 	p.name = "RadiatorSteam"
 	p.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	p.amount = WeaponFX._count(26)
+	p.amount = WeaponFX._count(34)
 	p.lifetime = 2.6
 	p.lifetime_randomness = 0.3
 	p.local_coords = false
@@ -232,15 +245,15 @@ func _steam() -> CPUParticles3D:
 	p.gravity = Vector3(0.25, 0.55, 0.0)
 	p.damping_min = 0.2
 	p.damping_max = 0.5
-	p.scale_amount_min = 0.35
-	p.scale_amount_max = 0.6
+	p.scale_amount_min = 0.45
+	p.scale_amount_max = 0.8
 	var curve := Curve.new()
 	curve.max_value = 4.0
 	curve.add_point(Vector2(0.0, 0.4))
 	curve.add_point(Vector2(0.5, 1.4))
 	curve.add_point(Vector2(1.0, 2.6))
 	p.scale_amount_curve = curve
-	p.color_ramp = WeaponFX._ramp([Color(1, 1, 1, 0.0), Color(1, 1, 1, 0.45), Color(1, 1, 1, 0.22), Color(1, 1, 1, 0.0)])
+	p.color_ramp = WeaponFX._ramp([Color(1, 1, 1, 0.0), Color(1, 1, 1, 0.7), Color(1, 1, 1, 0.38), Color(1, 1, 1, 0.0)])
 	p.color = Color(0.92, 0.93, 0.95, 0.75)
 	p.angle_min = -180.0
 	p.angle_max = 180.0

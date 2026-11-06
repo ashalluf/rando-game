@@ -1574,6 +1574,16 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   Panels turned well open cut triangles they stretch (`cr_open_w()` / `cr_torn()` in
   car_crumple.gdshaderinc). `CRASH_BREAKUP=0` is the A/B; stills `DAMAGE=front50|side70|
   corner70,wheeloff,drag|front60,airbag` on car_shot.gd; checks `tests/car_crash_3_checks.gd`.
+- A crash a minute on (wave 8, refcam `crash_closeup` in `tools/refcams/cameras_w8.json`, staged by
+  `"stage": "crash"` -> `tools/refcams/crash_stage.gd`; docs/HANDOFF.md "The crash at arm's length"):
+  `CrashAftermath` (`scripts/vehicles/crash_aftermath.gd`): a pole noted for the frame
+  (`note_pole()`, from PropBreak.smash_ahead) makes CrashDeform's zone a tall narrow V
+  (`crumple_shape.w` 1 in car_crumple.gdshaderinc; no hanging bumper); a bonnet under
+  `bonnet_fly_over` pops (`POP_REST`) instead of swinging open; a front crush leaks oil and coolant
+  (`shaders/crash_fluids.gdshader`, one quad a pool, the ray skips what is not floor) and the
+  radiator steams; CarCloseup's BumperBands ride the crumple; CrashDebris' colours sRGB on both
+  renderers. `CRASH_AFTERMATH=0` is the A/B; `DAMAGE=pole55` on car_shot.gd; checks
+  `tests/rc5_crash_closeup_checks.gd`.
 - What a blast leaves behind (2026-10-05, fleet task "explosions", docs/HANDOFF.md, section at
   the end): `Explosion.blast()` ends with ONE call, `BlastAftermath.blast()`
   (`scripts/weapons/blast_aftermath.gd`): a CRATER where it hit the ground (generated albedo +

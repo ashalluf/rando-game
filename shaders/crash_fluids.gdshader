@@ -19,7 +19,7 @@ uniform float size = 3.6;
 // How much of it is coolant (0 a pool of oil alone).
 uniform float coolant = 1.0;
 uniform vec3 oil_color = vec3(0.012, 0.010, 0.008);
-uniform vec3 coolant_color = vec3(0.016, 0.040, 0.010);
+uniform vec3 coolant_color = vec3(0.040, 0.150, 0.022);
 uniform vec3 damp_color = vec3(0.035, 0.034, 0.032);
 
 float cf_hash(vec2 p) {
@@ -61,11 +61,11 @@ void fragment() {
 	float aa = max(fwidth(length(p)), 0.004);
 	// Oil: a small pool under the sump (a little behind the middle), slow to spread.
 	vec2 oc = -fl * 0.12;
-	float oil_r = 0.12 + 0.30 * g;
+	float oil_r = 0.14 + 0.36 * g;
 	float oil_d = length((p - oc) * vec2(1.0, 0.85)) - oil_r * (1.0 + n * 0.55 + n2 * 0.2);
 	float oil = 1.0 - smoothstep(-aa, aa, oil_d);
 	// Coolant: a wider sheet, and a tongue run downhill that narrows to a thread.
-	float cool_r = 0.2 + 0.62 * g;
+	float cool_r = 0.25 + 0.8 * g;
 	float body = length(p) - cool_r * (1.0 + n * 0.7 + n2 * 0.25);
 	float run = 0.15 + 1.35 * s;
 	float t_along = clamp(dot(p, fl) / max(run, 0.01), 0.0, 1.0);
@@ -87,7 +87,7 @@ void fragment() {
 	vec3 col = damp_color;
 	col = mix(col, coolant_color * (0.85 + n2 * 0.4), c2);
 	col = mix(col, oil_color + film * 0.025 * rim, oil);
-	float a = max(max(oil * 0.92, c2 * 0.7), damp * 0.4);
+	float a = max(max(oil * 0.94, c2 * 0.66), damp * 0.45);
 	ALBEDO = cs_out(col);
 	ALPHA = a;
 	ROUGHNESS = mix(0.32, 0.04, max(oil, c2));
