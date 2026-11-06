@@ -2514,6 +2514,7 @@ static func beach_sand_material() -> ShaderMaterial:
 	mat.set_shader_parameter("tile_m", 2.0)
 	BeachGolden.dress_sand(mat)
 	mat.set_shader_parameter("night_look", 0.0 if OS.get_environment("RC4_BONFIRE") == "0" else 1.0)
+	mat.set_shader_parameter("moon_band_soft", 1.0 if RcPowerPlant.enabled else 0.0)
 	_cache["beach_sand_mat"] = mat
 	return mat
 

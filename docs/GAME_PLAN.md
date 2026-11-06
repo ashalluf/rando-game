@@ -4668,3 +4668,9 @@ none of either.
   read by at dusk; glass on a half-finished tower shows the fit-out lit behind it, not a black
   mirror; anything pasted on a hoarding is printed (StreetWear's bills), never a flat colour block.
   CONSTRUCTION_DUSK=0 is the A/B.
+- **2026-11-06 The power_plant_dusk refcam: an industrial plant at night is lit by its own lamps
+  (rc5-power-plant-dusk, HANDOFF "The power plant at dusk from the beach").** A lamp box that
+  lights nothing is a sticker; every lamp the plant carries (wall packs, landing lamps, eave
+  floods, stack uplights, yard masts) lights the walls round it through the shader (a TRUE-world
+  source table, no OmniLights), and glazing set into cladding stands well clear of the depth
+  buffer's step at the distance it is seen from. RC5_POWER_PLANT=0 is the A/B.
