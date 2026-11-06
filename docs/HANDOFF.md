@@ -32522,3 +32522,82 @@ lens in the off run; nothing of this draws by day.
 fog there: the HIGH hand-over is unchanged code). The canopy still carries its own small name under
 the board. The searchlight drums read as black cylinders from across the street (the lens faces up).
 The hazards are faint at this distance. The bouncers still do not stop anyone.
+
+## 9oh. Lake Shallufer's dam from the lake trail: the reservoir_dam refcam (wave 8, refcam5 `rc5-reservoir-dam`, branch `wt/rc5-reservoir-dam`)
+
+**The camera.** `reservoir_dam` in `tools/refcams/cameras_w8.json`: 10:30 clear, standing at the
+rail of an overlook on the lake's east trail (eye 272.75 m, 1.68 m over the deck, `agl` false),
+looking west-south-west across the water at the arch dam 150 m off: the crest and its lanterns, both
+intake towers with their copper domes, the water mirroring them and the chaparral banks, the
+bathtub ring along the far shore. The trail itself runs along a chain-link fence the whole way round
+(four framings were tried from its centre line; every one was looking through or along the fence),
+so the view needed somewhere to stand - see fix 3.
+
+**What gave it away, in the order the eye found it, and what was done** (all behind
+`RC5_RESERVOIR=0`, `Rc5Reservoir`, scripts/world/rc5_reservoir.gd):
+
+1. **The water was a pale cyan swimming pool.** reservoir_water.gdshader traces its own mirror (the
+   ridge table, the sky) and EMITS it, but left SPECULAR at 0.5, so on Compatibility the engine
+   added its sky radiance on top: every mirrored hill was washed to the sky's colour (the canals had
+   the same bug, Rc4Canals). Under `rc5`: SPECULAR 0 on Compatibility; on Forward+ 0 only where the
+   trace meets the ridge or the dam (`hill_cover`, the emitted mirror then at full), so SSR and the
+   sky radiance still serve the sky. The traced mirror also draws, where the reflected ray meets
+   them, the dam's upstream face (the arc: shade, the algae line, the calcified band, the parapet
+   broken by its piers) and both intake towers (`tower_a/b`: x, z, radius, the house's top over the
+   level - set by `Rc5Reservoir.water()` from where `_intake_tower()` stands them; shaft, windowed
+   gallery, copper dome); the mirrored sky deepens quickly above its horizon band; the mirrored
+   hills get chaparral clumps and the bathtub ring's pale band at their foot; the body is a deep
+   green-brown.
+2. **Green pillows along the lake below the trail** (and smooth domes ahead of the camera on the
+   trail itself). Not planting: the hide probe (tools/rc2_night_aerial/hide_probe.gd) pinned them on
+   `Terrain`. The trail's bench was a smoothstep blend that lifted the bank's own humps to the trail
+   height, drawn on a 32-48-a-side tile (5-8 m a vertex), so a 3 m bench and its banks fell between
+   the vertices as rounded lumps. Now `Reservoir._carve()` grades the bench (a 1:1 cut out to 8 m,
+   a 2:1 rock fill out to 3 m, both steepening after, nothing past 14 m: `BANK_*`, `FILL_*`), and a
+   FULL chunk the trail runs through samples its terrain at 64 a side (`Rc5Reservoir.tile_n()`, one
+   hook line in `CityChunk._sample_terrain()`). 96 looked the same at a third more triangles. The
+   lake still fits (the reservoir probe's WET_OVER: one cell exactly at the level, within the
+   checks' 2 cm; area 6.50 -> 6.46 ha).
+3. **No view: the fence.** The lake-side chain-link runs round the whole trail. An OVERLOOK
+   (`Rc5Reservoir.overlook()`, pure: the east-side trail point nearest 160 m from the dam whose lake
+   side faces the dam best), the fence open there (`fence_open()` in `LandmarkReservoir._fence()`),
+   pines kept out of its view: a half-octagon balcony 1.2 m out over the bank on a wall 12 m deep,
+   in the dam's own dress - the crest's pierced balustrade panels (reservoir_railing.gdshader, the
+   panel length the crest's), posts and coping, but 1.22 m tall (the crest's 1.75 m stood over a
+   person's eye) - and a bench. Built into the trim mesh with collision (`build_overlook()`).
+4. **The fence was a cage of 25 cm diamonds.** chain_link.gdshader's UV is metres along a one-metre
+   panel (`LotFill.chain_link_panel()`) that every instance stretches to its run's length, so every
+   chain-link fence in the city (car parks, the trail, ...) drew its 6 cm weave 2-3 times wide and
+   squashed. `scale_uv` multiplies UV.x by the instance's x scale (MODEL_MATRIX[0]); set on the
+   panel's material only - the meshes that borrow it (police stations, civic, ridges) are unscaled,
+   so they do not change.
+5. **The trail was a flat pale ribbon with a boulder on it.** reservoir_dam's `trail2`: darker
+   decomposed granite with a dark fringe worn into the bank, a wandering walked line, round jittered
+   pebbles (a first try on a square grid drew a checkerboard), rain runnels; RockBuild's scree now
+   asks `Reservoir.keep_clear()` as its outcrops did (`scree_ok()`; the boulder on the trail was an
+   outcrop's scree). And hill_scatter's `rc5_edge` tears the scatter clumps' outlines into foliage
+   lobes where the dome turns away (faded once a lobe is under ~2 pixels).
+
+**Numbers** (refcams opengl3, 1280x720, the camera's eye; before = main 6f5af3d2):
+p5/p50/p95 71/138/186 -> 63/133/196, saturation 0.346 -> 0.348, CCT 8740 -> ~7800 K (the cyan
+gone); triangles 1.68 M -> 2.26 M (camera 1.16 -> ~1.52 M, shadows 0.52 -> 0.74 M), draws 633 ->
+688. The rise is the trail chunks' finer terrain (the hill shells draw the same mesh in layers) and
+only where the trail's chunks are FULL; elsewhere nothing changes. Load peak 3.7 GB.
+
+**Stills** (shots/rc5-reservoir-dam): 03 before at the camera's eye (main: no overlook, the eye
+over the bank), 04 after; 01 / 05 the water fix alone from a first overlook site; 02 the trail and
+its fence on main; 06 the graded bank without the pillows.
+
+**The ten original cameras** (cameras.json, main c2fcfcef against this branch): nine within every
+tolerance (pixel MAD 0.01-1.52); `freeway` flagged (p50 -7) for its live traffic only - different
+cars on the deck in each run, the road, barriers and towers identical.
+
+**Tools.** `tools/rc5_reservoir/trail_probe.tscn` prints the trail every few metres with its
+distance and bearing to the dam, and the overlook with the camera's EYE (headless, seconds).
+
+**Not done / not verified.** Forward+ not seen (lavapipe): the `hill_cover` hand-over between the
+emitted mirror and SSR / the sky radiance needs the Mac. The mirrored dam is the arc and its parapet,
+not the lanterns' columns (those are still the night streaks only); the mirrored towers are two
+cylinders with a dome, their footbridges not mirrored. The overlook is one, on this seed's east
+trail; another seed puts it wherever the score says. The fill's top edge on the far bank shows a
+slight sawtooth at 64 a side.

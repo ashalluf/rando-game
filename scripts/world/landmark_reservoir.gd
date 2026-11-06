@@ -185,6 +185,8 @@ static func _parts(res: Reservoir) -> Dictionary:
 		_water_mat.shader = load("res://shaders/reservoir_water.gdshader")
 	p.water = _water(res)
 	var dm := dam_material()
+	Rc5Reservoir.dam(dm)
+	Rc5Reservoir.water(_water_mat, res)
 	dm.set_shader_parameter("res_level", res.level)
 	dm.set_shader_parameter("res_crest", res.crest)
 	dm.set_shader_parameter("res_toe", res.toe)
@@ -212,6 +214,7 @@ static func _parts(res: Reservoir) -> Dictionary:
 	ctx.geo = tg
 	_parapets(ctx)
 	_footbridge_truss(ctx)
+	Rc5Reservoir.build_overlook(ctx)
 	p.trim_tris = tg.triangles
 	p.trim = _commit(tg)
 	coll.append_array(tg.collision)
@@ -929,6 +932,9 @@ static func _fence(res: Reservoir, batch: MultiMeshBatch) -> void:
 			var a := line[k] + n
 			var b := line[k + 1] + n
 			var mid := (a + b) * 0.5
+			# The overlook's opening (Rc5Reservoir).
+			if Rc5Reservoir.fence_open(res, mid):
+				continue
 			var length := a.distance_to(b)
 			var yaw := atan2(-(b - a).y, (b - a).x)
 			batch.add("res_fence_post", post, Transform3D(Basis().scaled(Vector3(1.0, fh, 1.0)), Vector3(a.x, y + fh * 0.5, a.y)))
@@ -960,6 +966,9 @@ static func _pines(res: Reservoir, macro: MacroMap, batch: MultiMeshBatch) -> vo
 			if down and h < res.level + 1.2:
 				continue
 			if res.keep_clear(p, h, 0.0):
+				continue
+			# Nothing planted in the overlook's view (Rc5Reservoir).
+			if Rc5Reservoir.enabled and not Rc5Reservoir.overlook(res).is_empty() and p.distance_to(Rc5Reservoir.overlook(res).centre) < 12.0:
 				continue
 			var s := 0.75 + float(absi(hs / 7) % 100) / 180.0
 			var yaw := float(absi(hs / 13) % 628) * 0.01

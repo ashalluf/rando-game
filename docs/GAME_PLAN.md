@@ -4881,3 +4881,13 @@ none of either.
   from AFTERGLOW at 23:30. A venue that dresses a shop owns that shop's sign band (a club's fascia
   board stands over Building's, hiding its name), and a beam is drawn from the lamp: a shaft fades
   up into the sky, never in from a start 34 m up. RC5_CLUB_LINE=0 is the A/B.
+- **2026-11-06 The reservoir_dam refcam: a lake mirrors what stands round it (rc5-reservoir-dam,
+  HANDOFF "Lake Shallufer's dam from the lake trail").** A new reference camera (`reservoir_dam`,
+  wave 8's table) on an overlook of the east lake trail at 10:30, looking at the arch dam.
+  Decisions: a traced water mirror owns the reflection - the engine's own sky reflection is off
+  where the trace draws something (all of it on Compatibility), or the sky is added twice and the
+  lake turns into a cyan pool; what stands at the water (the dam's face, its towers) is traced as
+  geometry, not as a ridge table; a 3 m bench needs terrain vertices finer than 3 m (the trail's
+  chunks sample at 64 a side) and graded banks, never a smooth blend; the lake fence gets an overlook
+  where the view is, built in the dam's own balustrade; chain-link UVs are true metres whatever an
+  instance's stretch (a city-wide fix). RC5_RESERVOIR=0 is the A/B.
