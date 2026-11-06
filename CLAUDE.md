@@ -5250,6 +5250,16 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   centre (it was bare asphalt), full on a game night (`LotFill._car_park(..., fill_at)`).
   `RC5_FRIDAY_LIGHTS=0` is the A/B; probe `tools/rc5_friday_lights/probe.gd`; checks
   `tests/rc5_friday_lights_checks.gd`.
+- The school drop-off (2026-11-06, refcam `school_morning` in tools/refcams/cameras_w8.json,
+  docs/HANDOFF.md "The school drop-off at 07:50"): `RcSchoolMorning` (`scripts/world/rc5_school_morning.gd`):
+  a school's buses on a -x / -z kerb are parked by the chunk that owns that road
+  (`Schools.park_kerb_buses()`, one hook in `begin_build()`: they were never parked); in `DROP_HOURS`
+  parents' cars (driver in, hazards) stand in a drop-off zone beside the buses (`dropoff_rect()`,
+  pure; the kerb's parked cars keep off it in `_kerb_taken()`) and `SchoolStaff` (a crossing guard
+  with a STOP paddle, a supervisor in hi-vis, parents) on the pavement; the wings' street face gets
+  sunshades, sills and fins (`wing_relief()`); the marquee stands past the bus zone (`sign_s()`).
+  `RC5_SCHOOL_MORNING=0` is the A/B; probe `tools/rc5_school_morning/probe.gd`; checks
+  `tests/rc5_school_morning_checks.gd`.
 
 - Historic core (2026-10-05, docs/HANDOFF.md "The historic core"): `HistoricCore`
   (`scripts/world/historic_core.gd`) dresses every Building fronting Spring St or Main St between

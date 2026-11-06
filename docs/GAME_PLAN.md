@@ -4828,3 +4828,10 @@ none of either.
   streaks along their path, never camera-facing balls (they cut flat at the waterline); anything
   that breaks the surface leaves a ring that ages out. The surf's whitewater not reading from a
   pier end was left to the ocean's owners (shared by every beach view). SEA_SPRAY=0 is the A/B.
+- **2026-11-06 The school run (rc5-school-morning, HANDOFF "The school drop-off at 07:50").** A new
+  reference camera (`school_morning`, wave 8's table): an elementary school's front at 07:50. A
+  feature placed on a road belongs to the chunk that owns that road, not the block it serves: the
+  buses of every school whose loading zone was on its -x / -z kerb had never been parked. At the
+  school run the kerb is a drop-off (parents' cars waiting with their hazards on, a crossing guard,
+  adults at the gate; never children, the project's rule). A sign that stands behind the vehicles
+  parked in front of it is not a sign: it moved past the loading zone. RC5_SCHOOL_MORNING=0 is the A/B.
