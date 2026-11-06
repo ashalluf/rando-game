@@ -4737,3 +4737,13 @@ none of either.
   lit structures standing in water mirror their light in it (the islands' towers as columns in the
   bay); a flood is light thrown up a face from its foot, not a face painted the gel's colour.
   LONG_BEACH_SAND=0 / RC5_OIL_ISLANDS=0 are the A/B.
+- **2026-11-06 The reservoir_dam refcam: a lake mirrors what stands round it (rc5-reservoir-dam,
+  HANDOFF "Lake Shallufer's dam from the lake trail").** A new reference camera (`reservoir_dam`,
+  wave 8's table) on an overlook of the east lake trail at 10:30, looking at the arch dam.
+  Decisions: a traced water mirror owns the reflection - the engine's own sky reflection is off
+  where the trace draws something (all of it on Compatibility), or the sky is added twice and the
+  lake turns into a cyan pool; what stands at the water (the dam's face, its towers) is traced as
+  geometry, not as a ridge table; a 3 m bench needs terrain vertices finer than 3 m (the trail's
+  chunks sample at 96 a side) and graded banks, never a smooth blend; the lake fence gets an overlook
+  where the view is, built in the dam's own balustrade; chain-link UVs are true metres whatever an
+  instance's stretch (a city-wide fix). RC5_RESERVOIR=0 is the A/B.

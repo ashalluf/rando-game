@@ -4297,6 +4297,16 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   `calm2_*` (set by CityStreamer) holds the crags off it. Probe: `tools/reservoir/probe.tscn`
   (level, dam, lake, trail, walls, timings; `OUT=` a contour map; `SEED=`); compile check
   `tools/reservoir/compile.gd`. Checks: `tests/reservoir_checks.gd`.
+- Lake Shallufer from its trail (wave 8, refcam `reservoir_dam` in `tools/refcams/cameras_w8.json`,
+  docs/HANDOFF.md "Lake Shallufer's dam from the lake trail"): `Rc5Reservoir`
+  (`scripts/world/rc5_reservoir.gd`): reservoir_water's `rc5` (no engine specular on Compatibility,
+  none over the traced ridge on Forward+; the dam's face, parapet and the intake towers mirrored), an
+  overlook in the dam's balustrade on the east trail (`overlook()`, pure; the fence open there), the
+  trail bench graded 1:1 cut / 2:1 fill in `Reservoir._carve()` on a 96-a-side tile (`tile_n()`, one
+  hook in `_sample_terrain()`: 5-8 m vertices drew the bench as green pillows), the DG trail
+  (`trail2`), scree off the trail, chain_link's `scale_uv` (LotFill's stretched panels drew the
+  weave 2-3x wide city-wide), hill_scatter's `rc5_edge` (torn clump outlines). `RC5_RESERVOIR=0` is
+  the A/B; probe `tools/rc5_reservoir/trail_probe.tscn`; checks `tests/rc5_reservoir_dam_checks.gd`.
 - The far ranges (2026-10-30, docs/HANDOFF.md "The far ranges"): the back and east ranges are
   crest lines (`FarRanges`, `scripts/world/far_ranges.gd`, from `MacroMap._range_heights_at()`:
   the old front face to the full line, a wandering crest, a few big summits, a long fall behind;

@@ -18,8 +18,8 @@ func _ready() -> void:
 	var o := Rc5Reservoir.overlook(res)
 	if not o.is_empty():
 		var c: Vector2 = o.centre
-		var eye := c + (o.out as Vector2) * 1.2
+		var eye := c + (o.out as Vector2) * 1.5
 		var mid := res.arc_point((res.dam_a0 + res.dam_a1) * 0.5, Reservoir.DAM_RADIUS)
 		var d := mid - eye
-		print("OVERLOOK at %s out %s centre %s EYE %.1f,%.2f,%.1f yaw %.1f dam %.0f m ground %.2f" % [o.at, o.out, c, eye.x, res.level + Reservoir.TRAIL_RISE + 0.07 + 1.65, eye.y, rad_to_deg(atan2(-d.x, -d.y)), d.length(), macro.height_at(eye)])
+		print("OVERLOOK at %s out %s centre %s EYE %.1f,%.2f,%.1f yaw %.1f dam %.0f m ground %.2f" % [o.at, o.out, c, eye.x, res.level + Reservoir.TRAIL_RISE + 0.07 + 1.68, eye.y, rad_to_deg(atan2(-d.x, -d.y)), d.length(), macro.height_at(eye)])
 	get_tree().quit()

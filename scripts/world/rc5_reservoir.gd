@@ -40,6 +40,13 @@ static var enabled: bool = OS.get_environment("RC5_RESERVOIR") != "0"
 const OVERLOOK_DIST := 160.0
 const OVERLOOK_R := 3.66
 const OVERLOOK_OPEN := 4.4
+## How far past the trail's lake edge the balcony's centre stands (it projects over the bank on its
+## wall, so the water shows over the balustrade from its rail), and how deep the wall goes.
+const OVERLOOK_OUT := 1.2
+const WALL_DEPTH := 12.0
+## The balcony's plinth and balustrade panel (m): 1.22 m to the top of the coping.
+const PLINTH_H := 0.3
+const PANEL_H := 0.8
 
 ## The trail's bench is graded (Reservoir._carve()): a 1:1 cut out to BANK_EASE past its edge and a
 ## FILL_GRADE fill (rise per metre: a rock-faced bank, no further into the lake than the old blend)
@@ -98,7 +105,7 @@ static func scree_ok(ch: CityChunk, q: Vector2) -> bool:
 
 ## The overlook on `res`'s trail: {"line", "k", "at" (trail point), "out" (toward the lake),
 ## "centre" (the balcony's centre)}, or {} (no trail, or the pass off). Pure: the trail point east
-## of the dam's middle whose distance to it is nearest OVERLOOK_DIST and that looks at the dam.
+## of the dam's middle near OVERLOOK_DIST whose lake side faces the dam best.
 static func overlook(res: Reservoir) -> Dictionary:
 	if not enabled or res == null or res.trail.is_empty():
 		return {}
@@ -108,6 +115,7 @@ static func overlook(res: Reservoir) -> Dictionary:
 	_overlook = {}
 	var mid := res.arc_point((res.dam_a0 + res.dam_a1) * 0.5, Reservoir.DAM_RADIUS)
 	var best := INF
+	var pick := {}
 	for li in res.trail.size():
 		var line: PackedVector2Array = res.trail[li]
 		for k in range(4, line.size() - 4):
@@ -116,23 +124,23 @@ static func overlook(res: Reservoir) -> Dictionary:
 			# East of the dam's middle and upstream of it, looking back down the lake at it.
 			if d.x < 40.0 or d.y > -80.0:
 				continue
-			var score := absf(d.length() - OVERLOOK_DIST)
+			var o := _lake_out(res, line, k)
+			# Near OVERLOOK_DIST, and the balcony facing the dam (the trail square to the view).
+			var score := absf(d.length() - OVERLOOK_DIST) + 160.0 * (1.0 - o.dot(-d.normalized()))
 			if score < best:
 				best = score
-				_overlook = {"line": li, "k": k}
+				pick = {"line": li, "k": k, "out": o}
+	_overlook = pick
 	if _overlook.is_empty():
 		return _overlook
 	var line2: PackedVector2Array = res.trail[int(_overlook.line)]
 	var k2: int = _overlook.k
 	var dir := (line2[mini(k2 + 1, line2.size() - 1)] - line2[maxi(k2 - 1, 0)]).normalized()
-	var n := Vector2(-dir.y, dir.x)
-	var hl := res.macro.height_at(line2[k2] + n * 6.0)
-	var hr := res.macro.height_at(line2[k2] - n * 6.0)
-	var out := n if hl < hr else -n
+	var out: Vector2 = _overlook.out
 	_overlook.at = line2[k2]
 	_overlook.dir = dir
 	_overlook.out = out
-	_overlook.centre = line2[k2] + out * 1.5
+	_overlook.centre = line2[k2] + out * (1.5 + OVERLOOK_OUT)
 	return _overlook
 
 
@@ -151,6 +159,13 @@ static func tile_n(ch: CityChunk, n: int) -> int:
 			if rect.has_point(p):
 				return maxi(n, TRAIL_TILE_N)
 	return n
+
+
+## The way from trail point k down to the lake (its normal on the lower side, over 6 m).
+static func _lake_out(res: Reservoir, line: PackedVector2Array, k: int) -> Vector2:
+	var dir := (line[mini(k + 1, line.size() - 1)] - line[maxi(k - 1, 0)]).normalized()
+	var n := Vector2(-dir.y, dir.x)
+	return n if res.macro.height_at(line[k] + n * 6.0) < res.macro.height_at(line[k] - n * 6.0) else -n
 
 
 ## True where the fence is left out for the overlook (a fence segment's midpoint).
@@ -186,9 +201,11 @@ static func build_overlook(ctx: Dictionary) -> void:
 		var th := PI * float(i) / float(sides)
 		pts.append(c + along * cos(th) * r + out * sin(th) * r)
 	var c3 := Vector3(c.x, y + 0.02, c.y)
-	var y_foot := y - 5.0
-	var ph := LandmarkReservoir.PLINTH_H
-	var rt := LandmarkReservoir.RAIL_TOP
+	var y_foot := y - WALL_DEPTH
+	# Lower than the crest's (1.75 m): an overlook is looked over. The panel's openings stop under
+	# 0.7 m (reservoir_railing.gdshader's spring + half an opening), so a 0.8 m panel keeps them.
+	var ph := PLINTH_H
+	var rt := PANEL_H
 	var yc := y + ph + rt
 	var t := LandmarkReservoir.PARAPET_T
 	for i in sides:
