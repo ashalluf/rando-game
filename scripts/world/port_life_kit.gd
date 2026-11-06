@@ -65,6 +65,8 @@ static func warm() -> void:
 	canopy_mesh(PortGate.LANES)
 	portal_mesh(PortGate.LANES)
 	office_mesh()
+	if RcPortGate.enabled:
+		RcPortGate.barrier_mesh()
 
 
 ## A wheel on the ground at (x, z): tyre with a painted rim, its axis along Z.
@@ -282,6 +284,8 @@ static func _chassis(b: B, lv: int) -> void:
 ## A gate booth on its island, its long axis along Z (the lanes run along Z): a kiosk with glass
 ## on the lane sides, a roof, a kerb and bollards at the ends.
 static func booth_mesh() -> ArrayMesh:
+	if RcPortGate.enabled:
+		return _mesh("booth_rc5", RcPortGate.booth)
 	return _mesh("booth", _booth)
 
 
@@ -318,6 +322,8 @@ static func _booth(b: B, lv: int) -> void:
 ## The canopy over `lanes` lanes and their islands (centred, lanes along Z): columns on the
 ## islands, a deep fascia, floodlights under it.
 static func canopy_mesh(lanes: int) -> ArrayMesh:
+	if RcPortGate.enabled:
+		return _mesh("canopy_rc5_%d" % lanes, RcPortGate.canopy.bind(lanes))
 	return _mesh("canopy_%d" % lanes, _canopy.bind(lanes))
 
 
@@ -350,7 +356,7 @@ static func _canopy(b: B, lv: int, lanes: int) -> void:
 ## The OCR / radiation portal over the lanes: a truss frame on posts with camera heads aimed down
 ## each lane and a lit sign band.
 static func portal_mesh(lanes: int) -> ArrayMesh:
-	return _mesh("portal_%d" % lanes, _portal.bind(lanes))
+	return _mesh(("portal_rc5_%d" if RcPortGate.enabled else "portal_%d") % lanes, _portal.bind(lanes))
 
 
 static func _portal(b: B, lv: int, lanes: int) -> void:
@@ -361,7 +367,11 @@ static func _portal(b: B, lv: int, lanes: int) -> void:
 	for i in lanes + 1:
 		var x := -hw + GATE_ISLAND_W * 0.5 + i * (GATE_LANE_W + GATE_ISLAND_W)
 		b.box(Vector3(x - 0.2, 0.18, -0.2), Vector3(x + 0.2, y0, 0.2))
-		if lv <= 1:
+		if lv <= 1 and RcPortGate.enabled:
+			RcPortGate.detector(b, lv, x)
+			b.color = PortKit.GREY
+			b.part = PortKit.S_PAINT
+		elif lv <= 1:
 			# A radiation detector panel on each post.
 			b.color = Color(0.85, 0.85, 0.82)
 			b.box(Vector3(x - 0.45, 0.6, -0.5), Vector3(x + 0.45, 4.2, 0.5))

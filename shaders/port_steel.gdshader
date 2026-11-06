@@ -220,6 +220,20 @@ void fragment() {
 		albedo = col(vec3(0.45, 0.04, 0.03));
 		rough = 0.2;
 		emit = col(vec3(1.0, 0.06, 0.03)) * (0.2 + 1.6 * lamp_factor);
+	} else if (part == 15) {
+		// RcPortGate: a gate booth's glass with its lit cabin behind it (the back wall, the desk
+		// and its screens, the ceiling panel), tinted and less a mirror the more square you look.
+		float h = UV.y;
+		vec3 cabin = vec3(0.46, 0.45, 0.42);
+		cabin = mix(cabin, vec3(0.58, 0.55, 0.49), step(h, 1.38));
+		float scr = step(abs(fract(UV.x * 0.62 + 0.25) - 0.5), 0.16) * step(1.42, h) * step(h, 1.78);
+		cabin = mix(cabin, vec3(0.08, 0.1, 0.12), scr);
+		cabin = mix(cabin, vec3(0.92, 0.92, 0.88), smoothstep(2.36, 2.44, h));
+		float fres = pow(1.0 - clamp(dot(normalize(NORMAL), normalize(VIEW)), 0.0, 1.0), 3.0);
+		albedo = col(vec3(0.1, 0.12, 0.13));
+		rough = 0.08;
+		metal = 0.25;
+		emit = col(cabin) * (0.32 + 0.5 * lamp_factor) * (1.0 - 0.7 * fres);
 	} else if (part == 8) {
 		albedo = col(vec3(0.5, 0.05, 0.03));
 		emit = col(vec3(1.0, 0.08, 0.04)) * (0.8 + 3.0 * lamp_factor);
