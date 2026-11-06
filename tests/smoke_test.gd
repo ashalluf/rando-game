@@ -3079,6 +3079,9 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	# The coast highway's beach houses (tests/coast_houses_checks.gd, CoastHouses): forms by hash, setbacks,
 	# glass walls to the sea, footprints and collision kept, the plan unchanged.
 	load("res://tests/coast_houses_checks.gd").new().run(self, city)
+	# The stunt_jump refcam (tests/rc5_stunt_jump_checks.gd, StuntJumpFX): the flight box, the hanging
+	# wheels, the launch's dust and grit, the tread plate.
+	await load("res://tests/rc5_stunt_jump_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()

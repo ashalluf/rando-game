@@ -303,3 +303,12 @@ Spring Blvd bridge looking south, a northbound stack train coming on under the b
 `freight_s` key ("<s>[:<dir>[:<seconds before>]]", FREIGHT_S) holds the freight line's clock with a
 train's leading end at s (dir 0 north), `freight_kind` (0 stack, 1 manifest, 2 autorack) picks the
 consist (FREIGHT_KIND). `tools/freight/probe.gd` prints the junctions' s.
+
+## Wave 8's cameras (`cameras_w8.json`)
+
+`stunt_jump` (rc5-stunt-jump): `"stage": "stunt"` with a `stunt` key runs `stunt_stage.gd`: a car
+held mid-flight `t` s after a StuntRamps site's lip at `speed` m/s (`site` an id from
+`tools/stunt_ramps/probe.tscn`, `body`, `paint`, `pitch`, `roll`), the jump's look given that
+age by StuntJumpFX.stage() (dust, clods, hanging wheels), the free eye and its aim point in the
+RAMP's frame (`eye`, `look`: +Z the way it is ridden, origin at its foot). Env `STUNT_EYE=x,y,z`,
+`STUNT_LOOK=x,y,z`, `STUNT_T`, `STUNT_SPEED` override the row for framing.

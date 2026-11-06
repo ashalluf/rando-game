@@ -2536,6 +2536,15 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   after `max_seconds`, or as soon as anything else writes the time scale; it also presses a car onto
   the loop's track. `STUNT_RAMPS=0` / `STUNT_SLOWMO=0` the A/B; probe `tools/stunt_ramps/probe.tscn`;
   stills `STUNT=<kind|id>[:t]` on `still_shot.gd`; checks `tests/stunt_ramps_checks.gd`.
+- The stunt jump (wave 8, refcam `stunt_jump` in `tools/refcams/cameras_w8.json`, staged by its
+  `stunt` key -> `tools/refcams/stunt_stage.gd`; docs/HANDOFF.md "The stunt jump off the freeway
+  pair"): `StuntJumpFX` (`scripts/world/stunt_jump_fx.gd`): a freeway pair's launch carries a pure
+  `flight` box and its FULL chunks collapse the tree crowns in it (`_run_last`, after every roll);
+  StuntDirector's arm calls `launch()` (lip plume, wheel trail, clods), `tick()` lands it (dust,
+  sparks); an airborne physical car's wheels ease to the stop (`hang()` in Vehicle._update_wheels;
+  `hang_pose()` for placed cars); the landing's front is hazard-banded; stunt_ramp `look5` the
+  plate. The landing sits 5 m under the deck's barriers: from the launch side it shows only UNDER
+  the deck. `RC5_STUNT_JUMP=0` is the A/B; checks `tests/rc5_stunt_jump_checks.gd`.
 - Motorcycles (2026-10-06, docs/HANDOFF.md "Motorcycles"): `Motorcycle`
   (`scripts/vehicles/motorcycle.gd`, extends Vehicle; BodyType MOTO_SPORT / MOTO_CRUISER /
   MOTO_SCOOTER appended, BODY_ODDS 0) - bodies from `tools/make_motorcycles.py` (Blender or the

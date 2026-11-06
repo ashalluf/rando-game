@@ -32859,3 +32859,61 @@ already reviewed there, and the rest is HouseKit's materials. The far boxes do n
 setbacks or the pitched roofs (one box a house, as before). The gable's sea glass reads grey by day
 from a grazing angle (the mirror). No HouseNights key on the street-side windows (house_glass's old
 night look).
+
+## 9om. The stunt jump off the freeway pair (wave 8 refcam5, `wt/rc5-stunt-jump`, 2026-11-06)
+
+A new reference camera, `stunt_jump` in `tools/refcams/cameras_w8.json`: a red muscle car 0.42 s
+off the lip of the freeway pair's launch kicker (`stunt_pair_1_227_a`, x 3547, z 2833 on seed 1337,
+riding south over the 105) at 30 m/s, 16:30 clear, from a crane-style eye 10 m beside and 10.5 m
+over the kicker's foot looking down the run toward the freeway. In frame: the kicker's deck and
+rails, the car mid-flight, the freeway and its traffic, the landing under the deck, the footbridge.
+
+**Staging** (`tools/refcams/stunt_stage.gd`, `"stage": "stunt"`): the car is a placed kinematic
+Vehicle (`traffic` with `tb_foot`, so no brake lamps or floating red road wash), at the ballistic
+point of `t` (tools/stunt_ramps/stage.gd's math), the eye and aim point in the ramp's frame.
+Framing with `STUNT_EYE` / `STUNT_LOOK` / `STUNT_T` / `STUNT_SPEED`.
+
+**What read fake, worst first, and what changed** (`StuntJumpFX`, `scripts/world/stunt_jump_fx.gd`):
+1. The car flew through a tree. The right of way's eucalyptus row (YardFill / LaTrees) stands in
+   the jump's arc between the kicker and the deck. Each launch site now carries a pure `flight`
+   box (foot to the landing's end, the width + 5 m each side; StuntRamps._pair, no roll) and every
+   FULL chunk it reaches collapses the tree crowns (`tree_`, `la_`, `palm_` batches) standing in
+   it as a `_run_last` step (`StuntBuild.attach()` -> `StuntJumpFX.clear_flights()`).
+2. Nothing came off the ramp. `StuntJumpFX.launch()` (called by StuntDirector the moment it arms a
+   lip for the player's car): a dust plume at the lip, a stream of dust off the wheels (play: an
+   emitter riding the car for `TRAIL_SECONDS`; a still: emission points along the arc flown),
+   dirt clods thrown on with the car, a cloud where the tyres left the run-up; `tick()` sees the
+   car come back down after > 0.5 s in the air and `land()` throws dust and sparks. One-shot
+   CPUParticles3D under the scene (DrivingFX's lit puff material, colours over 1 like the boost
+   trail), `MAX_BURSTS` 4, freed after 6 s. Build them configured and NOT emitting, add, then
+   `restart()`: added to the tree emitting (the default) and made one-shot after, an emitter never
+   took its points or its preprocess (the wheel trail drew nothing).
+3. The wheels sat tucked up as if parked. An airborne physical car's wheels now ease to the
+   springs' stop (`HANG` 0.17 m over `HANG_SECONDS`, `StuntJumpFX.hang()` in
+   `Vehicle._update_wheels()`: one hook, `_hang_air` the time all wheels are off); a placed car
+   (no physics wheels) is posed there by `hang_pose()`.
+4. The landing read as a shipping container. It sits 14 m past the deck with its top 5 m UNDER the
+   deck's barriers, so from the launch side it shows only under the deck (seeing it over the deck
+   takes an eye ~30 m up: (10.3 a - 5.4 b) / 14 with a, b the eye's distances to the landing and
+   the far barrier). Its closed front, the face toward the launch, is hazard-banded now (StuntKit
+   `_framed()`), and the hazard bands are box-filtered by the pixel (they crawled on a big face).
+5. The tread plate was a flat blue-grey sheet. stunt_ramp.gdshader `look5` (0 = the old plate):
+   welded 1.22 x 2.44 m sheets (dark seam, bright bead, box-filtered), zinc spangle, a tone per
+   sheet, long rubber streaks in the wheel paths heaviest at the foot, the run-up's dirt carried up
+   the first metres, duller zinc (metallic 0.45; at 0.85 it mirrored the sky blue).
+
+**Numbers** (opengl3 1280x720, the camera, RC5_STUNT_JUMP=0 -> on): luminance p50 72 -> 86,
+p95 175 -> 183, saturation 0.364 -> 0.344; triangles 3.20 M -> 3.26 M (+1.8 %), draws 1,726 ->
+1,756 (+30: the emitters), shadow triangles 1.128 M -> 1.147 M. Peak RSS of the one-camera run
+5.1 GB.
+
+**A/B**: `RC5_STUNT_JUMP=0` (no flight boxes cleared, no bursts, no hanging, the old plate and
+landing front). **Checks**: `tests/rc5_stunt_jump_checks.gd` (the row, every launch's flight box
+over its lip and its landing, purity, the hang's curve and limits, the plate's uniform, the
+emitters a launch / landing makes and none under the A/B, no crown left in a pair's flight box in
+the two chunks it crosses). Stills: `shots/rc5-stunt-jump`.
+
+**Not verified**: the dust and the clods on Forward+ (opengl3 stills only; the puff material is
+DrivingFX's, lit, so it should hold); the bursts in play (only the still path's emitters were
+seen, and the play path through StuntDirector is checked for its emitter count, not looked at);
+the hang's feel on a real landing (the springs take over again the tick a wheel touches).
