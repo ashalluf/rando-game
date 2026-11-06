@@ -30632,9 +30632,13 @@ What gave it away (main, `01_before_friday_lights.jpg` on shots/rc5-friday-light
    stadium_bank_glow shader, 9 m, energy 0.85): the hot core and soft skirt that say "floodlights"
    from the car park.
 
-Numbers (opengl3 refcam, this eye): p50 20 -> 27, p95 138 -> 155, crush 17.5 % -> 10.9 %;
-triangles 4.57 M -> 5.08 M, draws 3058 -> 3199 (the fans' and players' looks a draw each per 32 m
-cell; the player rigs cut to three for it). `RC5_FRIDAY_LIGHTS=0` is the A/B (exactly main).
+Numbers (opengl3 refcam, this eye, merged with batch 58): p50 20 -> 26, p95 138 -> 143, crush
+17.5 % -> 11.1 %; triangles 4.57 M -> 5.08 M, draws 3058 -> 3201 (the fans' and players' looks a draw
+each per 32 m cell; the player rigs cut to three for it). Forward+ (lavapipe, the stadium's block
+alone from the south end of the track, 90 frames): luma p5/p50/p95 12/26/58 -> 26/49/135, nothing
+clipped. The ten original cameras off vs on: two flagged (street_noon, freeway), both only moving
+traffic (a bus, cars); every building pixel identical. `RC5_FRIDAY_LIGHTS=0` is the A/B (exactly
+main). The valley block round this school OOMs lavapipe at BLOCKS=1 (13 GB): use BLOCKS=home.
 
 Not done: the baked people do not react to gunfire (they have no bodies: a CampFigure body each
 would be ~460 nodes); the players stand still (no play runs); no visitors' stands (a school has one
