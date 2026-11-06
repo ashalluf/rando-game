@@ -4600,6 +4600,13 @@ none of either.
   floor, a waxed coping and dirt round the lip on the deck; an air clears the coping by most of a
   metre or it reads as standing; painted signs and murals are LIT paint (they were unshaded,
   flat glowing colour). RC5_SKATE=0 is the A/B.
+- **2026-11-05 The storm_downtown refcam: a night strike is a flash, not a sunrise (rc5-storm-downtown,
+  HANDOFF "The thunderstorm downtown").** A new reference camera (`storm_downtown`, wave 8's table)
+  stands on Flower St at 20:30 in a storm with a strike held for the still (`storm_flash` row key).
+  Decisions: at night lightning lights the street a little and the cloud round the bolt a lot - the
+  flash's share in the sky's cubemap pass (ambient, mirrors, aerial fog) is cut, its colour cold;
+  a storm breaks the lamps' wet-road reflections into short runs (plain rain keeps the long ones);
+  a storm's night curtain draws its streaks, not an even warm veil. RC5_STORM=0 is the A/B.
 - **2026-11-05 The arena_night refcam: an event plaza is lit by its own screens and walls
   (rc5-arena-night, HANDOFF "STARLIGHT PLAZA on an event night").** A new reference camera
   (`arena_night`, wave 8's table) stands in STARLIGHT PLAZA's crowd at 21:00 looking at the screen

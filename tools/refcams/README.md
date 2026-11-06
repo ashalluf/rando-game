@@ -226,6 +226,12 @@ Its optional `skate_t` key holds SkateParkLife's clock (seconds, the riders held
 refcams_shot.gd, as SKATE_T= / SKATE_HOLD=1), so the first pool rider is at the top of his
 frontside air over the far coping. `tools/rc5_skate_park/air_probe.gd` lists every rider's air times.
 
+`storm_downtown`: Flower St south of 8th
+toward the towers, 20:30 storm, five staged street cars. Its optional `storm_flash` key
+(`{"dist": m, "az": degrees (0 = +x, -90 = north), "hold": level}`) forces a strike through
+`Weather.force_strike()` as the staging starts and holds its flash and bolt (StormDrama) until the
+shot is saved.
+
 ## Wave 8's cameras (`cameras_w8.json`)
 
 Run with `REFCAMS_JSON=tools/refcams/cameras_w8.json`. `speedboat_golden` (rc5-speedboat): the

@@ -2960,6 +2960,9 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	load("res://tests/rc4_terminal_curb_checks.gd").new().run(self, city)
 	# The skate park refcam (tests/rc5_skate_park_checks.gd, RcSkatePark): used concrete, the pool air, lit boardwalk paint.
 	load("res://tests/rc5_skate_park_checks.gd").new().run(self)
+	# The storm_downtown refcam (tests/rc5_storm_downtown_checks.gd, RcStorm): the night flash, the
+	# storm curtain at night, the lamp streaks in a storm, the litter, the camera row.
+	load("res://tests/rc5_storm_downtown_checks.gd").new().run(self, city)
 	# Forward+ review h (tests/fwd_review_h_checks.gd, FwdReviewH): waves 6-7's look work on the Mac's renderer.
 	load("res://tests/fwd_review_h_checks.gd").new().run(self, city)
 	# STARLIGHT PLAZA on an event night (tests/rc5_arena_night_checks.gd, ArenaNight): the screens'
