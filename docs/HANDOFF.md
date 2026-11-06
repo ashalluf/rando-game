@@ -26904,6 +26904,60 @@ Checks: `_round9()`'s last line. Stills 61 on.
    the air. `BLAST_RING=0`. Judged on opengl3 only this round.
 Checks: `_round11()`. Stills 64 on.
 
+**Round 13: the wires, the masonry, the aerial on Forward+** (the lead's next list):
+1. **The debris ribbons drew long straight grey arcs across the sky, like wires.** The strip was
+   ONE triangle strip for every piece, joined by repeating only the next strip's first vertex - so
+   it ran long thin triangles from one piece's trail to the next. Now each segment is its own quad
+   (`PRIMITIVE_TRIANGLES`, no joins), a ribbon is at most `RIB_MAX_LEN` (8 m) back from its piece,
+   broken into puffs (the width swells and the smoke gaps along the path), widening faster with
+   age, and builds up behind the piece rather than at it (seen end on, the opaque heads fanned out
+   as dark petals).
+2. **The heavier masonry burst** (`Blast4._masonry_extra()`, from wall_blast(); `BLAST_MASONRY=0`):
+   slabs of wall thrown out with the chunks, a pale burst of crushed-masonry dust from the hole,
+   and a heap of broken masonry at the foot of the wall that appears as they land and stays
+   `heap_seconds` (90). Trap, the second time: a MultiMesh's box is round its node - the heap sits
+   at the foot with its instances relative to it.
+3. **The 150 m aerial on Forward+** (lavapipe, `UP=150`): the shock ring reads as a pale band round
+   the blast, the cap as grey smoke from 2 s; the fireball itself is small at 0.15 s (a 9 m
+   rocket from 170 m). The bluish wash is the test room's fog.
+Checks: `_round11()`'s last lines. Stills 69 on.
+
+**Rounds 13-18, resumed in wave 8** (the round-13 head's "gate passed" had not been true; it was
+merged with main and gated green this time). Judged on blast_room_shot.gd at 5 m, 9 m, 30-60 m and
+150 m, noon / golden / night, opengl3, and the 5 m view again on Forward+ (lavapipe):
+1. **Round 13, the ground flash from the air.** `Blast4.ground_flash()` (a child of the shock ring,
+   `shaders/blast_ground_flash.gdshader`, additive, fog-free, zero at its edge): the street lit
+   white-orange round the burst for its first ~0.3 s, shrinking into the core's ember glow.
+   `BLAST_GROUND_FLASH=0`.
+2. **Round 14, the 5 m view.** (a) The debris trails were flat bands: two hard edges each, sharp
+   translucent arcs across the frame from inside the smoke. They carry UVs now and wear
+   `shaders/blast_ribbon.gdshader` (round profile across, value-noise tears along;
+   `BLAST_RIBBON_SOFT=0`). (b) The shock ring and the ground flash, made for the air, covered the
+   whole road in flat cream from eye height and drew a pale line along the horizon: both fade with
+   the eye's distance (28-70 m / 25-60 m) and a grazing look (`air_fade`, `BLAST_RING_AIR=0`).
+3. **Round 15, fuel and gas burn longer.** At 0.6-0.8 s a car's or a pump's ball was already a
+   uniform brown "broccoli". `burn5` in blast_volume.gdshader (`BLAST_BURN=0`; 0 is round 14 bit
+   for bit): slower cooling for fuel / gas, the soot shell later, the core's fire held longer; a
+   rocket untouched.
+4. **Round 16, the scorch.** On Forward+ the crater's soot fingers were solid black to their tips:
+   a cartoon starburst stretched toward a low eye. `Blast3.crater_maps()` with `Blast4.scorch_soft`:
+   a dark core with a ragged edge, streaks thinning out, patchy (`BLAST_SCORCH=0`). explosions_3's
+   finger check now reads the cover changing round the circle at 0.5 of the mark.
+5. **Round 17, the chain.** A chain's third car fell back to the fireball CARDS (round orange
+   balls): the first cars' secondary pops held every volume slot (`max_volumes` 4).
+   `Blast3.takes_fireball(is_pop)`: pops leave one slot free; a main blast takes the oldest pop's
+   slot, else a mushroom's past 70 % of its life (`Blast4.volume_room`, `BLAST_VOLUME_ROOM=0`).
+6. **Round 18, 9 m from a car.** Torn panels (`Blast4.panel_mesh()`) are ragged crumpled 14-sided
+   sheets and the wedges seven-sided lumps (`BlastAftermath._chunk_mesh`), not flat cards
+   (`BLAST_PANELS=0`); flame tongues each breathe to their own height, with holes and a
+   see-through outer flame round an opaque core (flame_tongue `look5`, `BLAST_FLAME5=0`); the
+   burning pool's OmniLight hangs 2.3 m up at 4.2 (was 1.1 m at 6.5: a white hot spot burnt into
+   the road through AgX; `BLAST_POOL_LIGHT=0`).
+
+Looked at and left: the night rocket at 60 m reads dim in the test room (no auto exposure there,
+and the night flash was held down on purpose in round 5); a pool fire still reads partly as a row of
+tongues - a low continuous fire bed under them would be the next step. Stills 73-79.
+
 ## 9lb. The camera lens (wave 5, `camera-lens`)
 
 **What.** The camera itself: exposure adaptation, the sun's flare, grain, the bloom's spread.
@@ -29406,6 +29460,117 @@ background. When Godot fixes those: `shader_baker/enabled=true` and `application
 (`rendering/shader_compiler/shader_cache/enabled`, default on: user://shader_cache), the driver
 pipeline cache (default on), macOS's own Metal cache, and LoadCache (the bake and the far city;
 any script change misses it - every new build's first launch is cold).
+
+## 9mn. The terminal's departures kerb (rc4-terminal-curb, wave 7, 2026-11-02)
+
+New reference camera `terminal_curb` (`tools/refcams/cameras_w7.json`): the airport's departures
+drop-off at 08:00 clear, eye level on the kerb under the head house's wing roof at (-408.5, 627.9),
+looking east along the curb. `REFCAMS_JSON=tools/refcams/cameras_w7.json python3
+tools/refcams/refcams.py run <dir> --only terminal_curb`.
+
+**What gave it away (main):** the kerb was a 12 m wide bare grey slab with a white line along its
+edge; the 45 walkers bunched at the strip's two ends (out of shot), three people in view, no
+luggage anywhere; the loop cars crawled bumper to bumper and never stopped at the kerb; the
+vestibules were plain grey boxes with a black panel; across the lanes the city's houses and a
+traffic signal stood in plain view, so it read as a suburban street beside a glass wall.
+
+**Fixed, all in `TerminalCurb` (`scripts/world/terminal_curb.gd`), `TERMINAL_CURB=0` the A/B:**
+1. **The kerb itself** (`build()`, one hook at the end of `Landmarks._build_dropoff()`, near copy
+   only): a granite kerb stone with its face painted white (a loading zone), steel anti-ram
+   bollards every 1.7 m with polished caps and a dark band (gaps at each door), the strip on
+   large-format concrete slabs (`LandmarkMats.paving("concrete", ...)` with 1.5 m joints; the
+   "paving" set was cobbled setts), door pylons by every vestibule (a lit DOOR n box over an
+   invented airline, both faces along the kerb), PASSENGER LOADING ONLY / NO PARKING plates on kerb
+   posts, benches and bin pairs against the glass, a curbside check-in podium with its lit sign, a
+   corral of nested luggage carts; one LandmarkGeo mesh (a surface per material) and one concave
+   collision shape; the lettering is `Airport.merged_text()` (three meshes).
+2. **Travellers with luggage** (`spots()` pure; `CurbTraveller`, `scripts/npc/curb_traveller.gd`,
+   a Pedestrian standing at its spot on the crowd's life clips - phone, talking to its group,
+   folded arms, a coffee, a glance down the lanes for its ride; scared, it runs and walks back):
+   groups of one to four at the kerb facing the lanes, by the doors and along the walk, clear of
+   the columns, pylons, vestibules and furniture, dealt in a hashed order so a crowd cap thins the
+   whole kerb evenly. **They spawn from the chunk that builds the terminal** (`Landmarks.
+   people_steps()`), all of them: the kerb runs over three chunks and an owned-rect filter put
+   only the east third's people down. Their luggage (code-built at real size: a ribbed spinner
+   case, a carry-on with its handle up, a duffel, a carry-on with a backpack leaning on it; muted
+   colours per instance) is ONE batch laid in a last step for the travellers who actually spawned
+   - bags with nobody beside them read as abandoned luggage. The airport chunk's plain kerb
+   walkers drop from 45 to `WALKERS` 12 (`walkers()`): they share the crowd cap. Probe: 60
+   travellers, 12 walkers.
+3. **Cars that pull in** (`loop_speed()`, one hook in `TrafficManager._drive_loops()`): on loop
+   0's kerb leg a car decides per lap (hash of the car and the lap, `STOP_SHARE` 55 %) where it
+   stops, slows to it, pulls `PULL_IN` 1.55 m toward the kerb, stands `DWELL` 9-26 s on its
+   hazards, and goes; the cars behind close up, so the kerb lane is stop-and-go with gaps. On its
+   first tick a car may already be part-way through a stop (so a load opens with cars at the
+   kerb). `loop_car()` makes 22 % of the loop's new cars taxis and 12 % white shuttle vans with a
+   fleet band (the courier livery repainted; built from their own generator, the traffic stream
+   untouched). Probe: 7 of 16 loop cars standing at the kerb.
+4. **Glass vestibules** (`vestibule()`, AirportTerminal asks it in place of the grey boxes):
+   glazed sides and front on the hall's glass, a sliding door's opening with its leaves part open,
+   a steel frame, a canopy slab.
+5. **A planted median across the lanes**: a 2.6 m kerbed planter on the road's north edge with
+   mulch, birds of paradise and agaves (LaTrees) and palms every 14 m, between the lanes and the
+   city's houses.
+
+**Not done / known:** the city block's traffic signal mast still reaches over the loop road's
+west end (it is the city's junction at the block corner); nobody gets out of a stopped car or
+lifts a bag from a boot (the travellers stand, the cars stop); the walkers that remain can still
+stop near the lens on other seeds. The colour work is plain StandardMaterials (no shader), so
+Forward+ was not shot separately.
+
+## 9mo. THE PIT at 16:30 from the deck: the skate park refcam, 2026-11-05 (fleet wave 8 `rc5-skate-park`)
+
+Task (refcam5): a new reference view of THE PIT (SkatePark, docs "THE PIT") at 16:30 clear, eye level
+on the deck by the bowl, a skater held mid-air, the boardwalk and palms behind; judge it, fix the
+worst three to five things.
+
+**The camera.** `skate_park` in `tools/refcams/cameras_w8.json` (new file, wave 8's table):
+eye (-980.3, 6.0 agl, -488.6), yaw -137, pitch -3, fov 55 - on the high deck between the snake run
+and the pool (park-local -2, -15), 1.7 m over it, looking north-east across the pool to its far
+coping, the stair set and street terrace, the boardwalk's palms and shops and the pier. Its new
+optional key `skate_t` (2.4) holds SkateParkLife's clock for the shot (`_skate_clock()` in
+refcams_shot.gd: `hold` on and `set_clock()` on every park life, while the shot waits and in its
+last frames); at 2.4 s the first pool rider is at the top of his frontside air over the north
+coping. `tools/rc5_skate_park/air_probe.gd` lists every rider's air times and heights (headless,
+seconds) for framing other moments.
+
+**What read fake, in the order the eye found it, and what changed** (`RcSkatePark`,
+`scripts/world/rc5_skate_park.gd`; `RC5_SKATE=0` puts all of it back):
+
+1. **The pool and the deck were spotless beige concrete** that merged with the sand behind: no
+   wheel marks, no grime, one even tone. skate_park.gdshader's `look5` (0 = the old shader bit for
+   bit; the park's material sets 1): `bowl_used()` - a cooler grey shotcrete (`bowl5`) with pours
+   and 1-3 m stains, a broad band of wheel rubber round the transition that reads from across the
+   park (its average) and turns into fine carve lines up close, grime and dried water pooled at
+   the floor's middle with blown sand, dirt runs down from the coping, the top bleached;
+   `deck_used()` - a cooler slab, dirt and rubber in a ring round the pool's lip (the
+   superellipse's own distance from SkatePark.POOL_*), skid streaks that keep an average once a
+   pixel spans them, older blotches. Heights use the fragment's model-space y (the floor's UV is
+   plan x / z, not a height).
+2. **The coping was a bright, even ribbon.** `coping_used()`: darker weathered blocks each its own
+   tone, chips and dirt, the top and nose waxed black and ground silver in places, dirt in the
+   mortar.
+3. **The "mid-air" skater stood on the deck.** The pool line's frontside air rose 1.9 m over its
+   chord along the wall - its top 0.28 m over the deck, so the baked rider read as standing beside
+   the coping. `RcSkatePark.POOL_AIR` 2.75: the board now clears the deck by 1.14 m at the top
+   (checked from a fresh sample of the line), the air takes the time a body takes (the line's own
+   rule), nothing else in the lap moves.
+4. **The boardwalk's sign boards, murals, hoardings and art-wall panels were UNSHADED**
+   (`PropFactory.material(c, 0.85, true)`): flat glowing colour with no sun or shadow - the
+   magenta block at the left of the frame was the loudest thing in it. `RcSkatePark.paint()`:
+   lit matte paint, faded 20 % toward an old white, one material a colour; palms' shadows now fall
+   on them.
+
+Not changed: the baked riders' poses (no grab: the air pose is shared by every line's ollies), the
+tile band, the boardwalk's box shops themselves.
+
+**Proof.** `shots/rc5-skate-park`: 01 before (main b45ba911), 02 after, 03 crops before over after.
+Numbers (opengl3, refcams.py): before p5/p50/p95 58/158/202, sat 0.322, 5.84 M tris / 5,118 draws;
+after 55/150/189, sat 0.325, 5.81 M / 5,120 (no geometry added: the frame cost is flat).
+Gate (`SHARDS=3`): 5,811 checks passed, 0 failed, peak 3.8 GB a shard; new checks
+`tests/rc5_skate_park_checks.gd` (shader pass, the air's height, lit paint, the camera row, the A/B).
+Not verified on Forward+ (lavapipe): the concrete colours are linear numbers through the shader's
+existing `cs_out()` path, the same as the park's old ones, so both renderers take them alike.
 ## 9d?. The thunderstorm downtown: the storm_downtown refcam (fleet wave 8, `wt/rc5-storm-downtown`)
 
 **The camera** (new, `tools/refcams/cameras_w8.json`, `storm_downtown`): Flower St just south of

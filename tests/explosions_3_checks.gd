@@ -229,11 +229,17 @@ func _crater_maps() -> void:
 	# Fingers: the soot's reach changes round the circle (a disc would not).
 	var dark := 0
 	var light := 0
+	# explosions-4 round 16 (Blast4.scorch_soft): the fingers are streaks that thin out, so they
+	# are told by the soot's cover changing round the circle (some bins soot, some bare).
+	var soft := Blast4.enabled and Blast4.scorch_soft
+	var ring_r: float = 0.5 if soft else 0.62
+	var dark_a: float = 0.3 if soft else 0.6
+	var dark_r: float = 0.25 if soft else 0.12
 	for i in 72:
 		var a := TAU * float(i) / 72.0
-		var px := Vector2(n * 0.5, n * 0.5) + Vector2(cos(a), sin(a)) * n * 0.5 * 0.62
+		var px := Vector2(n * 0.5, n * 0.5) + Vector2(cos(a), sin(a)) * n * 0.5 * ring_r
 		var c := alb.get_pixel(int(px.x), int(px.y))
-		if c.a > 0.6 and c.r < 0.12:
+		if c.a > dark_a and c.r < dark_r:
 			dark += 1
 		else:
 			light += 1

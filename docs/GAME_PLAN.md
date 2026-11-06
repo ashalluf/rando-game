@@ -295,6 +295,13 @@ already mapped so milestone 2 is script-only.
 
 ## Decisions log
 
+- **2026-11-02 The terminal's departures kerb (rc4-terminal-curb, HANDOFF "The terminal's
+  departures kerb").** A landmark's people and their props are dealt from ONE pure list of spots,
+  and the props are laid only for the people who actually spawned (a bag with nobody beside it
+  reads as abandoned); a landmark that spans several chunks spawns its people from the chunk that
+  builds it, not from its own owned rect. The airport loop's kerb lane stops cars by a hash of the
+  car and its lap (no state outside the car's traffic dict). TERMINAL_CURB=0 is the A/B.
+
 - **2026-11-02 The pier by day (rc3-pier-day, HANDOFF "The pier by day from the deck").** A deck
   the camera stands on is worked out per board in its own shader (transverse boards, gaps,
   weathering, wear) rather than a tiled plank photo, which smooths into a brown sheet at grazing
@@ -4548,6 +4555,23 @@ none of either.
   lit room or pool lights the paving in front of it (an additive spill, display numbers); a pool
   mirrors the lit glass beside it; the terraced garden keeps out of an infinity pool's view (after
   the rolls); a hash fed an interpolated varying is quantised first. RC5_HILL_HOME=0 is the A/B.
+- **2026-11-05 The blast, rounds 13-18 (explosions-4 resumed, wave 8, HANDOFF "The blast, fourth
+  pass").** The aerial view gets a ground flash under the burst; the shock ring and the flash are
+  the air's view only (faded near the eye and at a grazing look: from the street they painted the
+  road cream); debris trails are soft torn wisps, not flat bands; fuel and gas balls burn longer;
+  the crater's soot is a core with thinning streaks, not a black starburst; a secondary pop never
+  takes the volume a chain's next car needs; torn sheets and faceted lumps replace flat debris
+  cards; flame tongues breathe to their own heights; the burning pool's light hangs in its flames.
+  Each part has its own =0 switch.
+- **2026-11-05 The skate park refcam: used concrete and lit paint (rc5-skate-park, HANDOFF "THE PIT
+  at 16:30 from the deck").** A new reference camera (`skate_park`, wave 8's table
+  `tools/refcams/cameras_w8.json`) stands on THE PIT's high deck by the pool at 16:30, a skater
+  held mid-air over the far coping (the row's `skate_t`), the boardwalk and its palms behind.
+  Decisions: a skate park's concrete is never clean - a cooler grey shotcrete with pours, a
+  broad band of wheel rubber round the transition that reads from across the park, grime at the
+  floor, a waxed coping and dirt round the lip on the deck; an air clears the coping by most of a
+  metre or it reads as standing; painted signs and murals are LIT paint (they were unshaded,
+  flat glowing colour). RC5_SKATE=0 is the A/B.
 - **2026-11-05 The storm_downtown refcam: a night strike is a flash, not a sunrise (rc5-storm-downtown,
   HANDOFF "The thunderstorm downtown").** A new reference camera (`storm_downtown`, wave 8's table)
   stands on Flower St at 20:30 in a storm with a strike held for the still (`storm_flash` row key).
