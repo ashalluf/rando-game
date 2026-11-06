@@ -110,6 +110,9 @@ on the east main. Its optional `freight_into` key holds the freight line's clock
 into the yard stand of the trip nearest the yard (`FreightRail.clock_at_yard()`; past 150 s the train
 is pulling out south). `tools/rc4_freight_yard/probe.gd` prints the yard's tracks, cuts and masts and
 the train's ends over the pull-out, `chunk_probe.gd` what each yard chunk lays.
+Run with `REFCAMS_JSON=tools/refcams/cameras_w8.json`. `rush_hour` (rc5-rush-hour): the 105 at 17:40
+clear from the caged footbridge east of the 110 (`fb_f_1_213`), the lens just outside the cage looking
+west down the carriageways into the sun; `shot_frames` 90 lets RushHour's jam build.
 
 ## Running
 

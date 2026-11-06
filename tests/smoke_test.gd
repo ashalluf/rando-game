@@ -3002,6 +3002,9 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	# The port's truck gate at 10:00 (tests/rc5_port_gate_checks.gd, RcPortGate): the camera row,
 	# the booth / canopy / portal kit, the queue, the gate's asphalt.
 	load("res://tests/rc5_port_gate_checks.gd").new().run(self, city)
+	# The rush_hour refcam (tests/rc5_rush_hour_checks.gd, RushHour): the jam by the hour, its slots,
+	# cap and standing gap, the stop-and-go wave, the camera row.
+	load("res://tests/rc5_rush_hour_checks.gd").new().run(self)
 
 	city.queue_free()
 	_world_state().reset()

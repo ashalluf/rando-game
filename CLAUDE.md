@@ -3900,6 +3900,14 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   barriers, never the deck top (`DECK_LAYER`, out of their cull mask); freeway cars' lamps reach
   `FAR_LIGHTS`. refcams' `freeway_cars` key stages freeway traffic. `FREEWAY_NIGHT=0` is the A/B;
   checks `tests/rc3_freeway_night_checks.gd`.
+- The freeway at rush hour (wave 8, refcam `rush_hour` in `tools/refcams/cameras_w8.json`,
+  docs/HANDOFF.md "The freeway at rush hour"): `RushHour` (`scripts/npc/rush_hour.gd`): `level(hour)`
+  shortens FreewayFill's slots, grows the cap (spent ahead of the camera when it looks along the
+  route: `behind()`, `offer()`), closes the standing gap and runs a stop-and-go wave upstream
+  (`wave_cap()`: brake lamps in clusters); freeway spawns no longer wait on PhysicsBudget's cap
+  (`freeway_room()`). `RcRushHour` (`scripts/world/rc5_rush_hour.gd`): aged deck patches
+  (`patch_aged`), a heat-haze floor over a jam (`traffic_haze()`). `RUSH_HOUR=0` / `RC5_RUSH_LOOK=0`
+  the A/Bs; probe `tools/rc5_rush_hour/probe.tscn`; checks `tests/rc5_rush_hour_checks.gd`.
 - The stack from the air (wave 7, refcam `stack_aerial` in `tools/refcams/cameras_w7.json`,
   docs/HANDOFF.md "The four-level stack from the air"): `RcStack` (`scripts/world/rc4_stack.gd`):
   a deck's shade on the right of way falls off with its clearance (`bareness()`: bare only under

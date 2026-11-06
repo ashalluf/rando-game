@@ -51,7 +51,8 @@ static func retire_reach(freeway_range: float) -> float:
 
 ## Cars per live route: `dists` are the routes' distances from the player (metres), `total` the
 ## cap. The route under the player takes a full share, far ones FAR_WEIGHT of one.
-static func shares(dists: Array, total: int, freeway_range: float) -> Array[int]:
+## `far_weight` is FAR_WEIGHT unless RushHour asks for less.
+static func shares(dists: Array, total: int, freeway_range: float, far_weight: float = FAR_WEIGHT) -> Array[int]:
 	var out: Array[int] = []
 	if dists.is_empty():
 		return out
@@ -63,7 +64,7 @@ static func shares(dists: Array, total: int, freeway_range: float) -> Array[int]
 	var sum := 0.0
 	for d in dists:
 		var k := clampf((float(d) - NEAR_ROUTE) / maxf(freeway_range - NEAR_ROUTE, 1.0), 0.0, 1.0)
-		var wi := lerpf(1.0, FAR_WEIGHT, k)
+		var wi := lerpf(1.0, far_weight, k)
 		w.append(wi)
 		sum += wi
 	for wi in w:
@@ -72,33 +73,36 @@ static func shares(dists: Array, total: int, freeway_range: float) -> Array[int]
 
 
 ## The slot index of a car `t` metres along (its lane's own slots).
-static func slot_of(t: float) -> int:
-	return floori(t / LANE_GAP)
+static func slot_of(t: float, gap: float = LANE_GAP) -> int:
+	return floori(t / gap)
 
 
 ## Where in slot `slot` of (route, direction, lane) its car starts: a hash slides it along.
-static func slot_t(ri: int, dir: int, li: int, slot: int) -> float:
+static func slot_t(ri: int, dir: int, li: int, slot: int, gap: float = LANE_GAP) -> float:
 	# An integer hash (a few hundred of these a route each upkeep: no Array to build and hash).
 	var h := (slot * 73856093) ^ (li * 19349663) ^ ((dir + 2) * 83492791) ^ (ri * 2654435761)
 	h = (h ^ (h >> 13)) * 1274126177
 	h = h ^ (h >> 16)
-	return (float(slot) + 0.5 * (1.0 - JITTER) + JITTER * float(posmod(h, 1000)) / 1000.0) * LANE_GAP
+	# A shorter slot (RushHour) slides less, so two cars of one lane keep 10 m between centres.
+	var j := JITTER if gap >= LANE_GAP else clampf(1.0 - 10.0 / gap, 0.0, JITTER)
+	return (float(slot) + 0.5 * (1.0 - j) + j * float(posmod(h, 1000)) / 1000.0) * gap
 
 
 ## The free slots to offer, nearest the player first: Array of [t, dir, li]. `taken` holds the
 ## occupied Vector3i(slot, dir, li); `anchor` is where along the route the player is; `filling`
 ## offers the whole dense window, else only the band past INFLOW_FROM.
-static func candidates(ri: int, anchor: float, total_len: float, taken: Dictionary, filling: bool, lanes: int) -> Array:
+## `gap` is the lanes' slot spacing (RushHour shortens it at the rushes).
+static func candidates(ri: int, anchor: float, total_len: float, taken: Dictionary, filling: bool, lanes: int, gap: float = LANE_GAP) -> Array:
 	var out: Array = []
 	var reach := DENSE_REACH
-	var s0 := slot_of(maxf(0.0, anchor - reach))
-	var s1 := slot_of(minf(total_len, anchor + reach))
+	var s0 := slot_of(maxf(0.0, anchor - reach), gap)
+	var s1 := slot_of(minf(total_len, anchor + reach), gap)
 	for slot in range(s0, s1 + 1):
 		for dir: int in [1, -1]:
 			for li in lanes:
 				if taken.has(Vector3i(slot, dir, li)):
 					continue
-				var t := slot_t(ri, dir, li, slot)
+				var t := slot_t(ri, dir, li, slot, gap)
 				if t <= 1.0 or t >= total_len - 1.0:
 					continue
 				var d := absf(t - anchor)

@@ -1160,7 +1160,8 @@ func _update_la(delta: float, _fog: float, _vol: float) -> void:
 	heat = LaWeather.afternoon_heat(hour) * (1.0 - moon) \
 		* (heat_clear * weight_of(State.CLEAR) + heat_santa_ana * santa_ana_weight + heat_marine * marine_weight * (1.0 - cover))
 	if _haze:
-		_haze.strength = heat
+		# (Over a jammed freeway the exhaust and hot asphalt shimmer at any hour of the rush: RcRushHour.)
+		_haze.strength = maxf(heat, RcRushHour.traffic_haze(weight_of(State.CLEAR) + santa_ana_weight))
 	if _roof_rain:
 		_roof_rain.rain = rain_level
 		_roof_rain.low_detail = _low_detail

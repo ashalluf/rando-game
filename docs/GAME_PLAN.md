@@ -4721,3 +4721,11 @@ none of either.
   them; only their tops show from the street); a gate is busy at 10:00 (fuller lanes, a queue);
   the queue slot north of the portal is a bobtail so nothing runs into the street; the gate is
   paved in asphalt, the yard keeps its concrete. RC5_PORT_GATE=0 is the A/B.
+- **2026-11-06 The rush_hour refcam: the freeway jams at the rushes (rc5-rush-hour, HANDOFF "The
+  freeway at rush hour").** A new reference camera (`rush_hour`, wave 8's table) looks west down
+  the 105 from a footbridge at 17:40. Decisions: freeway cars, kinematic and placed, never wait on
+  PhysicsBudget's cap (a busy city sits at it and the freeway stayed empty); the hour sets how
+  jammed the freeway is (shorter slots, a bigger cap, a closer standing gap) and a stop-and-go wave
+  - a speed limit that runs back up the traffic - makes the brake lamps, never a per-car random
+  brake; at the rushes the cap goes where the camera looks along the route. RUSH_HOUR=0 and
+  RC5_RUSH_LOOK=0 are the A/Bs.
