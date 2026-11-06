@@ -13,3 +13,7 @@ game night, 20:00 clear, from the north-east corner of its car park.
   (lavapipe, fwd_block_shot BLOCKS=home, 90 frames) from the south end of the track: the Mac's
   renderer. Luma p5/p50/p95 12/26/58 -> 26/49/135.
 - `05_after_lot_eye_small_scene.jpg` - the camera's eye in the small scene (block_shot, opengl3).
+- `06_ten_cameras_off_vs_on.jpg` - the ten original refcams with RC5_FRIDAY_LIGHTS=0 vs on: two
+  flagged (street_noon, freeway), both only moving traffic.
+
+`02_after_friday_lights.jpg` is the final run, on the branch merged with main batch 58.
