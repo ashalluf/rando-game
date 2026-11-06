@@ -31011,6 +31011,7 @@ before (old meshes, odds, two slots, concrete).
 
 **Numbers** (refcams opengl3, the port_gate frame): before 1,896,687 triangles / 1,480 draws /
 786 k shadow; after ~1.99 M / 1,544 / 836 k (+5 % triangles, +64 draws: mostly the six extra
+786 k shadow; after 1,993,887 / 1,552 / 836 k (+5 % triangles, +72 draws: mostly the six extra
 trucks, each a Vehicle). Kit: booth 184 -> 548 triangles, canopy 428 -> 918, portal 1,056 ->
 1,398, barrier 142 (`tools/rc5_port_gate/mesh_probe.gd`, headless, seconds, also prints the
 default seed's truck rolls). Luminance p50 79 -> 63 (the darker asphalt).
@@ -32453,3 +32454,7 @@ checks, 3 shards, peak 3.9 GB a shard.
 
 Not verified: the stills are opengl3 (Compatibility). The canopy fabric is plain satin paint (the
 shader's 16 codes are all taken), no weave. The browsers still mostly stand in the aisle.
+The ten original cameras (cameras.json), RC5_PORT_GATE=0 against on from the same branch: 7 ok,
+street_noon / street_night / freeway flagged by pixels only - live traffic (a bus, freeway cars)
+in other places, the scenery identical, triangles within 1.5 % either way (no camera sees the
+port). The canopy's soffit still reads warm (the ground's bounce on a pale grey); not chased.
