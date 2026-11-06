@@ -4872,3 +4872,7 @@ none of either.
   Vehicle.PAINTS: a lot of cars side by side is where a third saturated reads as toys. The roof
   is precast double tees with sealed joints, so the deck shader draws that structure rather than a
   noise. RC5_CAR_PARK_ROOF=0 is the A/B.
+- 2026-11-06 (rc5-yard-sale): a yard sale must read as one from across the street - the tables
+  crammed in two rows with a stash underneath, a pop-up canopy over a table on a share of sales
+  (the silhouette), a blanket of things on the lawn. The new kinds join the row after the old ones,
+  so nothing else of a sale's plan or of the street moves. RC5_YARD_SALE=0 is the A/B.

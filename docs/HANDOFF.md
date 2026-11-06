@@ -32397,3 +32397,48 @@ view; see the follow-up below). Luminance p50 88 -> 88, saturation 0.291 -> 0.28
 not looked at on Forward+ (lavapipe cannot hold the city; a small scene would need the car park
 alone). Downtown's towers still read dark at 18:15 on this renderer - that is the city-wide grade
 and glass at that hour, not this view's to change. The lamps are off at 18:15 (lamp_factor 0).
+
+## 9of. The yard sale from across the street, 2026-11-06 (agent branch `wt/rc5-yard-sale`, fleet wave 8 refcam5)
+
+The camera: `yard_sale` in `tools/refcams/cameras_w8.json` - a valley suburb street (block 11,28 on
+seed 1337) on a Saturday at 09:30 clear, from the pavement across (eye 1078, 1.65, 3851.8), a
+28-degree photo-mode lens looking obliquely through the gap in the far kerb's parked cars at the
+GARAGE SALE of lot 97103. Its staging keys: `yard_sale` 1 (refcams_shot sets `YARD_SALE_DAY=6` and
+`YARD_SALE_HOUR` = the row's hour before the city loads, which YardSales reads into `force_day` /
+`force_hour`: a chunk built during the load would take the load's day and hour) and `clear_cars`
+(metres: vehicles that near the lens are hidden; the near kerb's parked cars filled the frame).
+
+What read fake (worst first) and what changed:
+
+1. **The tables were bare.** From across the street a six-foot table carried four or five small
+   things in one line and read as an empty white plank; real yard sales are crammed. With
+   `Rc5YardSale.enabled` the goods go in two rows (the tall things - boxes, lamps, the fan, the
+   blender, the radio, games - at the back, the rest re-shuffled in front, edge to edge) and every
+   six-foot table with goods has a closed box, a tote and an open box stashed underneath
+   (`YardSaleKit._goods` / `_table6_build`). Triangles a table: 1.5-2.6k (budget 9k).
+2. **No silhouette.** Nothing said "yard sale" from down the street. A share of sales (the new row
+   kind `canopy`, odds 0.5 where it fits: 12 of 56 sales round the suburb bookmark) put up an
+   8 x 8 ft pop-up canopy (four telescoping legs, scissor trusses under the eave, peaked top with
+   a scalloped valance, weight bags) in one of five colours over a table of goods
+   (`Rc5YardSale.canopy()`, `YardSaleKit.table6_into()`); ~2.5-3.2k triangles, its shade on the
+   goods and the browsers.
+3. **Nothing on the ground.** Everything stood on a table or a rack. The new kind `blanket` (odds
+   0.6) spreads a patchwork or striped blanket on the lawn with shoes, a toolbox, a cooler, a crate
+   of records, a rolled rug, a golf bag, frames, a lamp, games (`Rc5YardSale.blanket()`, ~800
+   triangles).
+4. **Framing**: the near kerb's parked cars (`clear_cars`) and the far kerb's (the oblique eye).
+
+The new kinds are offered by `Rc5YardSale.extra_kinds()` after the old ones in `plan_lot()`, keep
+every clearance of the row (`_fits`), and are knockable EncampmentItems like the rest; meshes are
+cached (`canopy_<colour>_<goods>`, `blanket_<v>`) and warmed on the loading screen. Nothing outside
+the yard sales moves. `RC5_YARD_SALE=0` is the A/B (old tables, no canopy or blanket). Checks:
+`tests/rc5_yard_sale_checks.gd` (the row, the kit's budgets and sizes, crammed tables vs the old,
+the share of canopies and blankets, off = the old kinds, the camera's block has a canopy).
+
+Numbers: the camera, after vs RC5_YARD_SALE=0, 4.03 M vs 4.05 M triangles, 1,704 vs 1,721 draws,
+p5/p50/p95 27/143/177 both. The ten original cameras on vs off: nine within noise, `freeway` flagged
+by its live traffic (different cars in the lanes; nothing of this pass in that view). Gate: 6,429
+checks, 3 shards, peak 3.9 GB a shard.
+
+Not verified: the stills are opengl3 (Compatibility). The canopy fabric is plain satin paint (the
+shader's 16 codes are all taken), no weave. The browsers still mostly stand in the aisle.

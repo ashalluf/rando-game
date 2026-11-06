@@ -42,6 +42,7 @@ func _initialize() -> void:
 	_lowrider_meet()
 	_arena_event()
 	_market_day()
+	_yard_sale()
 	# OCCLUSION=0: occlusion culling off (still_shot's switch), to tell what is culled in plain sight.
 	if OS.get_environment("OCCLUSION") == "0":
 		get_root().use_occlusion_culling = false
@@ -222,6 +223,13 @@ func _run() -> void:
 			for p in get_nodes_in_group("pedestrian"):
 				var n := p as Node3D
 				if n and n.global_position.distance_to(_eye_cam.global_position) < float(cam.clear_people):
+					n.visible = false
+		# A row's optional "clear_cars" (metres; wave 8's yard_sale): vehicles within it of the lens
+		# are hidden for the shot (the eye stands on a pavement behind the kerb's parked cars).
+		if cam.has("clear_cars") and _eye_cam:
+			for v in get_nodes_in_group("vehicle"):
+				var n := v as Node3D
+				if n and n.global_position.distance_to(_eye_cam.global_position) < float(cam.clear_cars):
 					n.visible = false
 		for car in _fw_staged:
 			if is_instance_valid(car) and _eye_cam:
@@ -535,6 +543,19 @@ func _market_day() -> void:
 			OS.set_environment("MARKET_DAY", str(int(cam.market_day)))
 			if cam.has("hour") and OS.get_environment("MARKET_HOUR") == "":
 				OS.set_environment("MARKET_HOUR", str(float(cam.hour)))
+
+
+## A row's optional "yard_sale" (wave 8's yard_sale): 1 builds every yard sale for a Saturday at
+## the row's "hour" (YardSales.force_day / force_hour, as YARD_SALE_DAY=6 YARD_SALE_HOUR=h): a chunk
+## built during the load would otherwise take the load's hour and day. Set before the city loads.
+func _yard_sale() -> void:
+	if OS.get_environment("YARD_SALE_DAY") != "":
+		return
+	var only := OS.get_environment("ONLY").split(",", false)
+	for cam: Dictionary in _cameras().get("cameras", []):
+		if int(cam.get("yard_sale", 0)) == 1 and (only.is_empty() or String(cam.name) in only):
+			OS.set_environment("YARD_SALE_DAY", "6")
+			OS.set_environment("YARD_SALE_HOUR", str(float(cam.get("hour", 9.5))))
 
 
 ## A row's optional "golf_group" ("hole:stage[:tee[:count]]", wave 6's golf_morning) puts a group

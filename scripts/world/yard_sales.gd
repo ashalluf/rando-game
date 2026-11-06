@@ -33,8 +33,9 @@ static var enabled: bool = OS.get_environment("YARD_SALES") != "0"
 ## Every candidate lot holds one, today (YARD_SALE=all in the environment, or a test).
 static var force_all: bool = OS.get_environment("YARD_SALE") == "all"
 ## Tests and stills: the hour and the weekday (0 Sunday .. 6 Saturday) to build for (-1: the clock).
-static var force_hour: float = -1.0
-static var force_day: int = -1
+## YARD_SALE_HOUR / YARD_SALE_DAY in the environment set them (refcams' "yard_sale" key).
+static var force_hour: float = OS.get_environment("YARD_SALE_HOUR").to_float() if OS.get_environment("YARD_SALE_HOUR") != "" else -1.0
+static var force_day: int = OS.get_environment("YARD_SALE_DAY").to_int() if OS.get_environment("YARD_SALE_DAY") != "" else -1
 
 enum State { NONE, SETUP, OPEN, LEFTOVER }
 
@@ -93,9 +94,13 @@ const ITEMS := {
 	"bike": {"size": Vector2(1.75, 0.55), "count": [0, 1], "mass": 14.0, "box": Vector3(1.75, 1.0, 0.45)},
 	"boxes": {"size": Vector2(0.95, 0.62), "count": [1, 2], "mass": 10.0, "box": Vector3(0.95, 0.75, 0.62)},
 	"floor_lamp": {"size": Vector2(0.45, 0.45), "count": [0, 1], "mass": 4.0, "box": Vector3(0.4, 1.6, 0.4)},
+	# Rc5YardSale's (offered only while it is on): a pop-up canopy over a table, a blanket of things.
+	"canopy": {"size": Vector2(2.5, 2.5), "count": [0, 1], "goods": true, "mass": 30.0, "box": Vector3(2.44, 2.6, 2.44)},
+	"blanket": {"size": Vector2(1.9, 1.35), "count": [0, 1], "mass": 12.0, "box": Vector3(1.85, 0.4, 1.3)},
 }
 ## Shares of the optional ones.
-const ITEM_ODDS := {"card": 0.55, "rack": 0.62, "sofa": 0.32, "bike": 0.42, "floor_lamp": 0.45, "table6": 0.45, "boxes": 0.5}
+const ITEM_ODDS := {"card": 0.55, "rack": 0.62, "sofa": 0.32, "bike": 0.42, "floor_lamp": 0.45, "table6": 0.45, "boxes": 0.5,
+	"canopy": 0.5, "blanket": 0.6}
 ## The headline on the signs (cumulative odds) and the days line.
 const HEADLINES := ["YARD SALE", "GARAGE SALE", "MOVING SALE", "MULTI FAMILY SALE"]
 const HEADLINE_ODDS := [0.55, 0.8, 0.92]
@@ -251,7 +256,7 @@ static func plan_lot(plan: CityPlan, lp: Dictionary, district: int, day: int, ho
 	blocked.append(Rect2(-100.0, -100.0, U + 200.0, 100.0 + keep))
 	# The things for sale, in the order they go along the row.
 	var want: Array = []
-	for kind: String in ["table6", "rack", "card", "boxes", "sofa", "bike", "floor_lamp"]:
+	for kind: String in ["table6", "rack", "card", "boxes", "sofa", "bike", "floor_lamp"] + Rc5YardSale.extra_kinds():
 		var c: Array = ITEMS[kind].count
 		var n := int(c[0])
 		if int(c[1]) > n and _h01([s, key, "ys_n", kind]) < float(ITEM_ODDS.get(kind, 0.5)):
@@ -472,6 +477,10 @@ static func _build_sale(ch: CityChunk, lp: Dictionary, sale: Dictionary, distric
 				mk = "%s_%d" % [kind, int(it.variant)] if sale.state != State.SETUP or int(it.variant) != 2 else "%s_bare" % kind
 			"boxes":
 				mk = "boxes_%d" % (int(it.variant) % 2)
+			"canopy":
+				mk = "canopy_%d_%d" % [int(it.paint) % Rc5YardSale.canopy_variants(), int(it.variant)]
+			"blanket":
+				mk = "blanket_%d" % (int(it.variant) % 2)
 			"bike":
 				custom = YardSaleKit.bike_paint(int(it.paint))
 		var mesh := YardSaleKit.get_mesh(mk) if kind != "bike" else MicroMesh.whole(MicroMesh.Kind.CRUISER)
