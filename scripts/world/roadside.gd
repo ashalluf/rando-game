@@ -20,6 +20,8 @@ extends RefCounted
 ##   buildings and the canopy as a slab.
 ## All names are invented; prices too.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 enum Kind { FAST_FOOD, GAS, CAR_WASH, AUTO, DINER, STAND }
 const KIND_NAMES := ["fast_food", "gas", "car_wash", "auto", "diner", "stand"]
 

@@ -38,6 +38,8 @@ extends Node3D
 ## out to `radius` metres - the whole basin - and not dropped again unless the player goes far
 ## enough for them to leave that radius.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 ## Blocks per tile edge. Bigger means fewer draw calls and coarser culling granularity.
 const TILE_BLOCKS := 6
 ## Points a hill block tries a planting at (HillPlanting reads what the terrain paints there: a

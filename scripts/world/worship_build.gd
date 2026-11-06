@@ -15,6 +15,8 @@ extends RefCounted
 ## `plan_of()` is pure (the masses as far boxes, the top, the occluders), so the LOD chunks and
 ## the far city draw what the FULL chunk builds.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 const KEEP := 0.02
 
 static var _mats: Dictionary = {}

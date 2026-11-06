@@ -9,6 +9,8 @@ extends StaticBody3D
 ## shows its real interior from further off (CornerStoreSite.shot_until), so the flying stock is seen
 ## through the glass from across the street. `STORE_MAYHEM=0` in the environment turns it off.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 ## How far from the round's point products are knocked off (m), plus `reach_per_damage` a point of
 ## damage (the rifle's 10 is about 0.27 m, a shotgun pellet a little more).
 @export var reach: float = 0.17

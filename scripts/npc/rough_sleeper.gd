@@ -27,6 +27,8 @@ extends Pedestrian
 ## Their clothes go through the character shader as worn, dirty versions of the crowd's looks
 ## (worn_material()).
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 enum Pose { SIT, LIE, SLUMP, CHAIR, STAND, PUSH }
 enum State { POSED, COWER, FLEE, RETURN }
 

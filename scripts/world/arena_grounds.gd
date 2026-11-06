@@ -11,6 +11,8 @@ extends RefCounted
 ## MultiMeshBatch, so a block stays a handful of draw calls. Rolls come from a private rng seeded
 ## per piece, never the chunk rng. Nothing here is named after a real business.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 ## Height of one car-park storey, floor to floor (metres), and the spandrel on each deck edge.
 const GARAGE_STOREY := 3.2
 const SPANDREL := 1.1

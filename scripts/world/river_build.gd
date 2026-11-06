@@ -25,6 +25,8 @@ extends RefCounted
 ## level along the corridor), the channel the river's own profile. Every roll is a hash of the
 ## seed (LaRiver.h01()), never the chunk's rng.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 const KIND_BANK := 0
 const KIND_BED := 1
 const KIND_NOTCH := 2

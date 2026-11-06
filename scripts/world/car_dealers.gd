@@ -28,6 +28,8 @@ extends RefCounted
 ## Brands and lots are this game's own (VELMARA, QUENTIS, ...; LUCKY STAR AUTO, ...) with simple
 ## geometric marks (dealer_sign.gdshader): never a real maker, dealer or logo.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 const DISTRICTS := [CityPlan.District.MIDTOWN, CityPlan.District.SUBURBS]
 ## Share of avenue-wide roads that are auto rows somewhere along their length.
 const ROW_ODDS := 0.32

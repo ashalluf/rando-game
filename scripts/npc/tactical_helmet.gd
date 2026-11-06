@@ -9,6 +9,8 @@ extends RefCounted
 ##
 ## Original: plain shells, no unit patch or insignia.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 ## The shell's standoff off the skull (m) and the extra rise over the crown.
 const STANDOFF := 0.024
 const CROWN_RISE := 0.010

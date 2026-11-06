@@ -23,6 +23,8 @@ extends RefCounted
 ## LOD chunks and the far city keep the plain slab (they never see the ring). `KERBS=0` in the
 ## environment turns it all off (the A/B). Checks: tests/kerbs_checks.gd; probe tools/kerbs/probe.gd.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 static var enabled: bool = OS.get_environment("KERBS") != "0"
 
 ## How wide the ring of pavement built here is, from the kerb line inward (metres). Everything the

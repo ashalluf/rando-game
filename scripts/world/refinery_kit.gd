@@ -12,6 +12,8 @@ extends RefCounted
 ## Every piece appends its lamps to `lights` as [Vector3 position, Color, size (m), kind] for the
 ## billboard light mesh (Refinery.lights_mesh(), shaders/aircraft_lights.gdshader).
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 const K_TANK := 0
 const K_ALU := 1
 const K_STEEL := 2

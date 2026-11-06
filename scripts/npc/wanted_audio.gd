@@ -18,6 +18,8 @@ extends Node
 ## WantedEscalation.radio_gap() seconds, more and more often. No words, no real code.
 ## Everything is synthesised here once (no new audio files).
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 const MIX_RATE := 22050
 ## Radio level (dB, before Sfx.master_volume_db) and the siren voices' trims (dB).
 const RADIO_DB := -15.0

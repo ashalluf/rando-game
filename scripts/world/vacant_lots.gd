@@ -25,6 +25,8 @@ extends RefCounted
 ## ground slab in its dirt or gravel colour, so the gaps show from the air.
 ## Billboards on vacant lots are the Billboards module's (none are added here).
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 ## Off, every lot builds as it did before this (the A/B: VACANT_LOTS=0 in the environment).
 static var enabled: bool = OS.get_environment("VACANT_LOTS") != "0"
 

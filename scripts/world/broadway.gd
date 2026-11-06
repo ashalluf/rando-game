@@ -30,6 +30,8 @@ extends RefCounted
 ##
 ## Off (BROADWAY=0 in the environment): none of it, the A/B for stills and frame counts.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 enum Style { FRENCH, SPANISH, DECO }
 
 ## The avenue and the stretch.

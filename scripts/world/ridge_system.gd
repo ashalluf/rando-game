@@ -15,6 +15,8 @@ extends Node3D
 ## versions of those collapse in the vertex shaders (a texel each in `_cover_tex`), nothing else
 ## is rebuilt. `RIDGES=0` leaves the whole node empty.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 static var covered: Dictionary = {}
 static var dirty := true
 

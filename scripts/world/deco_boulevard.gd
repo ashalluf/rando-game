@@ -29,6 +29,8 @@ extends RefCounted
 ## not FarBuilding's coded copy - the deco facade has no code there.
 ## `DECO=0` in the environment turns it off (the A/B).
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 static var enabled: bool = OS.get_environment("DECO") != "0"
 
 enum Kind { NONE, TOWER, CORNER, THEATRE, APARTMENTS, COURTYARD }

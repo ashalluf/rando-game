@@ -6,6 +6,8 @@ extends Node3D
 ## buildings and full terrain collision so nothing drives into a far building or through a hill.
 ## Children are placed at true world coordinates; the chunk node sits at -WorldState.world_offset.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 enum Level { FULL, LOD }
 
 const BUILDING_SCENE := preload("res://scenes/props/building.tscn")

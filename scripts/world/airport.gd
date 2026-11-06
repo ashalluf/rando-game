@@ -23,6 +23,8 @@ extends RefCounted
 ## runways run east-west, arrivals land westbound on the south runway (27L), departures roll west
 ## on the north one (27R) - MacroMap.arrival_runway / departure_runway.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 # --- Layout ------------------------------------------------------------------------------------
 
 ## The concourse is an arc round this centre (north of the field), CONCOURSE_RADIUS to its centre

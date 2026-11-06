@@ -26,6 +26,8 @@ extends FreewayKit
 ## Into FreewayKit's meshes (its structure shader, its sign paint, its pools): a chunk with the
 ## line draws three more meshes, the gates a few nodes each. Hashes only, no rng.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 const TRACKWAY_EXTRA := 1.45
 const GAUGE := 1.435
 const RAIL_HEAD := 0.072

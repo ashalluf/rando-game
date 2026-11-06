@@ -33,6 +33,8 @@ extends Node3D
 ## strike that many seconds after load, at STORM_FLASH_DIST metres toward STORM_FLASH_AZ degrees
 ## (for stills); STORM_FLASH_HOLD=<level> then holds that flash (and its bolt) for the shot.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 static var enabled: bool = OS.get_environment("STORM_DRAMA") != "0"
 
 ## The storm's wind, the way Weather's rain_wind (6, 0, 2) blows (XZ, unit).

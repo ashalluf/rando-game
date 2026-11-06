@@ -19,6 +19,8 @@ extends Node3D
 ## burning trees and cars - into SMOKE COLUMNS (`SmokeColumn`): a big fire sends a tall dark
 ## column up hundreds of metres, leaning with the wind, one draw each, `max_columns` at a time.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 ## Off: no tree fires, charring or smoke columns (the A/B, `TREE_FIRE=0` in the environment).
 static var enabled: bool = OS.get_environment("TREE_FIRE") != "0"
 ## Trees burning at once (half on the web). Past it nothing new catches.

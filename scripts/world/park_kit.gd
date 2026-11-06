@@ -9,6 +9,8 @@ extends RefCounted
 ## in 32nds, UV face metres (x along the face from its left corner seen from outside, y up from the
 ## box's foot), UV2 = (the box's height, a per-box parameter).
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 # --- Kinds (COLOR.a in 32nds; mirrored in park_walls.gdshader) -----------------------------------
 const K_STEEL := 0
 const K_GALV := 1

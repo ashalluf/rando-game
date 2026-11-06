@@ -11,6 +11,8 @@ extends RefCounted
 ##   nothing to mirror and drew them as black pencil lines across the lanes).
 ## `FREEWAY_LOOK=0` in the environment is the A/B: every value as it was.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 static var enabled := OS.get_environment("FREEWAY_LOOK") != "0"
 
 ## Pixels per tining groove pitch where the grooves start / finish fading (was 0.35 .. 1.0).

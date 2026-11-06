@@ -12,6 +12,8 @@ extends Node3D
 ## own strips are and are never punctured; kinematic traffic has no wheels (it goes physical first
 ## if anything hits it). Gone after `life` seconds, or when the Police node clears.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 ## Across the road (m), set before deploy().
 @export var length: float = 6.0
 ## Depth of the strip front to back (m) and how long it stays down (s).

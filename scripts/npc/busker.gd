@@ -21,6 +21,8 @@ extends Pedestrian
 ## Arms are two-bone solves to points on the instrument; everything is worked out from the
 ## performance clock and a hash of the performer, nothing else rolled.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 ## Seconds a song lasts, and the pause between songs (the watchers clap, the performer nods).
 @export var song_seconds: Vector2 = Vector2(32.0, 58.0)
 @export var break_seconds: float = 4.0

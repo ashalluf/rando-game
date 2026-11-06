@@ -2976,6 +2976,8 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	load("res://tests/rc5_brush_fire_checks.gd").new().run(self, city)
 	# The freight_yard refcam (tests/rc4_freight_yard_checks.gd, RcFreightYard): ties, the ladder, weeds, rock, tags.
 	load("res://tests/rc4_freight_yard_checks.gd").new().run(self, city)
+	# The boot compile (tests/boot_compile_checks.gd, LoadPulse.compiled()): frames inside the cycle's compile.
+	load("res://tests/boot_compile_checks.gd").new().run(self)
 
 	city.queue_free()
 	_world_state().reset()

@@ -18,6 +18,8 @@ extends RefCounted
 ##     carries a line, block_stop() where on a block a stop is, so the traffic (where a bus pulls
 ##     in) and the chunks (where the shelter and the clear kerb are) agree with no shared state.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 const BUS := Vehicle.BodyType.BUS
 const BOX_TRUCK := Vehicle.BodyType.BOX_TRUCK
 const SEMI := Vehicle.BodyType.SEMI

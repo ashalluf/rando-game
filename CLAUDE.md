@@ -6850,6 +6850,15 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   demoted to LOWEST). Shader baking stays OFF on 4.7.2 (godot#123266, #124539). `LOAD_PULSE=0` /
   `BOOT_COMPILE=0` the A/B; `LOADING frame gap:` lines name any stall; probe
   `tools/mac_launch/pulse_probe.tscn`; checks `tests/mac_launch_checks.gd`.
+- The boot compile (2026-11-06, docs/HANDOFF.md "The boot compile"): any mention of a class name
+  (a type, `X.f()`, `X.C`) compiles that script IN FULL, so 485 scripts are one cycle compiled by
+  one load() (`tools/boot_compile/deps.py`: every script's dependencies, the SCCs, `--why A B`).
+  Each carries `static func _static_init() -> void: LoadPulse.compiled()`, which Godot runs as that
+  script finishes compiling: the boot's picture moves inside the compile. A new script in the cycle:
+  `python3 tools/boot_compile/deps.py --hook` (`--unhooked` lists them). Never give a hooked script a
+  `_static_init` of its own without that call. Measure with `tools/load_time/load_time.sh boot`
+  (BOOT_QUIT=1) or `tools/boot_compile/compile_probe.tscn` (headless: the longest still steps);
+  checks `tests/boot_compile_checks.gd`.
 - Performance: `Quality` node in the city scene (`scripts/util/quality.gd`) starts desktop at
   **HIGH** (owner, 2026-09-21: "I need it PS5 level graphics" - global illumination is the single
   biggest difference between this and a modern-looking game) and steps down to MEDIUM, LOW and

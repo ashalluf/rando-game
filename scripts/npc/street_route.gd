@@ -15,6 +15,8 @@ extends RefCounted
 ## +z, and keeps right, so its lane is on the -x side when dir is +1. On an AXIS_Z road it drives
 ## along x and its lane is on the +z side when dir is +1.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 ## Most nodes a search expands before it gives up (the box round the ends is smaller anyway).
 const MAX_EXPAND := 900
 ## Extra intersections searched round the box spanned by the start and the goal.

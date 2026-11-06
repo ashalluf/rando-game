@@ -7,6 +7,8 @@ extends RefCounted
 ## shaders/roadside.gdshader: what a face is rides in its vertex colour's alpha (K_* / 20), its
 ## roughness and metalness in UV2 (see the shader's header). Colours are authored sRGB.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 const K_FIXED := 0
 const K_STEEL := 1
 const K_CONCRETE := 2

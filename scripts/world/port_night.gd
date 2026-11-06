@@ -17,6 +17,8 @@ extends RefCounted
 ## PORT_NIGHT=0 is the A/B: every shader block it adds is behind `port_night`, which stays 0, no
 ## halo is added and the pools keep their old strength.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 static var enabled: bool = OS.get_environment("PORT_NIGHT") != "0"
 
 ## The most sources the shaders take (the default seed's terminal has 30 port chunks and 10 quay cranes: 53).

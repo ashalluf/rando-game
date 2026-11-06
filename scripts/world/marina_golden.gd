@@ -19,6 +19,8 @@ extends Node
 ##
 ## MARINA_GOLDEN=0 is the A/B: no node, `mm_count` 0, `wire_px` 0, `jib_strip` 0 - the old look.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 const MAX_BOATS := 40
 ## Boats within this of the camera are candidates; past it nothing is traced.
 const REACH := 320.0

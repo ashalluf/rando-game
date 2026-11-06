@@ -8,6 +8,8 @@ extends Node3D
 ## light, built apart, turn in step: the angle is worked out from the real clock, never ticked.
 ## Paused (the pause menu, photo mode) it holds where it is, as everything else does.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 ## Seconds a full turn takes, and the start angle (turns).
 @export var period: float = 20.0
 @export var phase: float = 0.0

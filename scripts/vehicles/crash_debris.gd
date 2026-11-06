@@ -11,6 +11,8 @@ extends Node3D
 ## Made by the first crash (ensure()) as a child of the level root (its Node3D children ride the
 ## origin shifts). `CRASH_BREAKUP=0` makes none.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 enum Kind { BUMPER, GRILLE, MIRROR, TRIM, PANEL, HUBCAP }
 
 const CAPACITY := 220

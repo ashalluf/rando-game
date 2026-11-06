@@ -29,6 +29,8 @@ extends RefCounted
 ## the checks and the people ask the same question the build does. Every roll is a hash of
 ## SEED_BASE and a place, never an rng that outlives one piece.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 const ID := "pueblo_lane"
 const NAME := "PASEO DE LAS GOLONDRINAS"
 const PLAZA_NAME := "PLAZA VIEJA"

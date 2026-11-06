@@ -23,6 +23,8 @@ extends RefCounted
 ## nothing else moves); a chunk's state is the meta `hill_scatter`. HILL_PLANTING_2=0 in the
 ## environment is the A/B.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 static var enabled: bool = OS.get_environment("HILL_PLANTING_2") != "0"
 
 ## World grid (metres) a FULL / LOD chunk tries a clump at, and the stand share a point needs.

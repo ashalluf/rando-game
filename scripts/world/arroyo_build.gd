@@ -14,6 +14,8 @@ extends RefCounted
 ## nothing else a seed builds moves; HillPlanting's own planting only skips the bed (after its
 ## rolls, CityChunk._plant_hills()).
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 ## Ground counts as natural (not carved) within this many metres of the raw mountains.
 const NATURAL := 0.3
 ## Tile triangles are drawn again where a corner is within this of the bed (plus half a cell).

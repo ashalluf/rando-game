@@ -8,6 +8,8 @@ extends Node
 ## `alarm_share` of them, rolled from the car (a hash, never an rng). A child node of the car,
 ## made when it goes off and freed when it stops, so a quiet car costs nothing.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 ## How long an alarm sounds (seconds, min..max), rolled per car.
 static var alarm_seconds: Vector2 = Vector2(24.0, 46.0)
 ## Share of parked cars that have an alarm at all.

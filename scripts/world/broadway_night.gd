@@ -14,6 +14,8 @@ extends RefCounted
 ## - the searchlights' shafts are a soft haze from the street, not solid white rods
 ##   (nightlife_beam.gdshader `look3`, `beam()`).
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 static var enabled: bool = OS.get_environment("BROADWAY_NIGHT") != "0"
 
 ## The auditorium's brick (sRGB, a source_color tint divided by the texture's own mean in

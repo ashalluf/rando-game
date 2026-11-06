@@ -6,6 +6,8 @@ extends RefCounted
 ## (tools/night_lamps/lamp_street.tscn); LampShadows is the real shadows. NIGHT_LAMPS=0 in the
 ## environment puts the old pool (a soft dot centred under the head) back, and LampShadows off.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 static var enabled: bool = OS.get_environment("NIGHT_LAMPS") != "0"
 
 ## The pool's across radius as a share of the lamp's pool diameter (StreetLamps.TYPES pool x

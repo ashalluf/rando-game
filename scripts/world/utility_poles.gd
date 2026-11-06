@@ -38,6 +38,8 @@ extends RefCounted
 ##
 ## UTILITY_POLES=0 in the environment is the A/B: the old primitive poles and box cables.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 # --- Tunables ----------------------------------------------------------------------------------
 
 ## Off: the old primitives (the A/B). UTILITY_POLES=0 in the environment.

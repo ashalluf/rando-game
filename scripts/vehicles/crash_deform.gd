@@ -22,6 +22,8 @@ extends Node
 ## car_part_damage.gdshader with the first crumple so a grille or a bumper rides the crushed nose.
 ## `CRASH_DEFORM=0` in the environment turns all of it off (the A/B: the old dents only).
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 static var enabled: bool = OS.get_environment("CRASH_DEFORM") != "0"
 
 const CRUMPLE_CAP := 6

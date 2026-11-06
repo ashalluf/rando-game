@@ -5,6 +5,8 @@ extends Pedestrian
 ## ring - the Esplanade's pavements follow the route, not a rectangle. Everything else (the look,
 ## the gait, panic, being shot or knocked down) is Pedestrian's.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 var rep: ReplicaAreas
 ## The stretch of path distance it keeps to (its chunk's), and which pavement: -1 the ocean-side
 ## walkway, +1 the inland pavement.

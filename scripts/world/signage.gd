@@ -24,6 +24,8 @@ extends RefCounted
 ##
 ## Static: call everything with the chunk.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 # --- Tunables ---------------------------------------------------------------------------
 # These are consts rather than @export because Signage is a static RefCounted that is never
 # instantiated, the same way Commercial and PropFactory hold their numbers.
