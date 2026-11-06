@@ -200,14 +200,14 @@ static var STALE_BUILD_CANCEL: bool = OS.get_environment("STALE_BUILD_CANCEL") !
 ## How many such builds were dropped (the checks read it).
 static var stale_builds_cancelled: int = 0
 ## A teleport (update_streaming(true): the load, a check's or a still's jump, the verify pack, a
-## refcam hop) frees the chunks that leave the window AT ONCE, before it builds the new area,
-## instead of keeping them up for the far city's dissolve (lod_fade_time): across a jump the old
-## area is nowhere near the camera, and kept, it was a whole area's meshes held while the next
-## one was built - every teleport peaked at two areas (memory-audit-w8, docs/HANDOFF.md
-## "Memory after wave 8"). Driving, walking and flying (update_streaming(false)) dissolve as
-## before. TELEPORT_FREE=0 is the A/B.
+## refcam hop) drops the meshes of the chunks that leave the window AT ONCE, hidden, before it
+## builds the new area, instead of keeping them drawn for the far city's dissolve (lod_fade_time):
+## across a jump the old area is nowhere near the camera, and kept, it was a whole area's meshes
+## held while the next one was built - every teleport peaked at two areas (memory-audit-w8,
+## docs/HANDOFF.md "Memory after wave 8"). The nodes go when they always did. Driving, walking and
+## flying (update_streaming(false)) dissolve as before. TELEPORT_FREE=0 is the A/B.
 static var TELEPORT_FREE: bool = OS.get_environment("TELEPORT_FREE") != "0"
-## Chunks freed that way (the checks read it).
+## Chunks emptied that way (the checks read it).
 static var teleport_freed: int = 0
 ## CHUNK_SWAP_LOG=1: every chunk replaced or retired within 2 blocks of the player is printed with
 ## the stack (who swapped it), for the gate's "spawn chunk replaced mid-file".
@@ -465,25 +465,57 @@ func _advance_retiring(delta: float) -> void:
 			_free_retired(k)
 
 
-## Every chunk still standing for its dissolve goes now. Its NODES are queue_free()d as before
-## (freed at the frame's end: a wheel's ground contact or a deferred call may still name one of its
-## bodies this frame, and a node freed mid-frame was a "previously freed" error there), but its
-## meshes are dropped at once, hidden: the frame's end is after the builds this call makes, and the
-## meshes are what made every teleport peak at two areas.
+## Every chunk still standing for its dissolve is emptied now, hidden (_hollow): what holds no body
+## and runs no script is freed, the rest keeps its old lifetime (freed with the chunk by
+## _advance_retiring when the dissolve's time is up) with its meshes emptied - freed mid-frame, a
+## wheel's ground contact still named a body (DrivingFX: "previously freed"). The frame's end is
+## after the builds this call makes: kept whole, every teleport peaked at two areas.
 func _free_retiring_now() -> void:
 	for k in _retiring.keys():
-		var entry: Array = _retiring[k]
-		var chunk: CityChunk = entry[0]
-		_free_retired(k)
-		if is_instance_valid(chunk):
-			chunk.visible = false
-			for n in chunk.find_children("*", "MeshInstance3D", true, false):
-				(n as MeshInstance3D).mesh = null
-			for n in chunk.find_children("*", "MultiMeshInstance3D", true, false):
-				var mm := (n as MultiMeshInstance3D).multimesh
-				if mm != null:
-					mm.mesh = null
-			teleport_freed += 1
+		var chunk: CityChunk = (_retiring[k] as Array)[0]
+		if not is_instance_valid(chunk) or chunk.has_meta("teleport_hollow"):
+			continue
+		chunk.set_meta("teleport_hollow", true)
+		chunk.visible = false
+		_hollow(chunk, true)
+		teleport_freed += 1
+
+
+## Frees `n`'s children that hold no physics body and run no script; a body (and the plain nodes
+## on the way to one) stays, its shapes and meshes dropped. A node with a script is never cut into:
+## it and everything under it stay whole (its own code may still read its children this frame - a
+## ragdoll's skeleton, a gondola's ropes), only their meshes emptied, and one still running this
+## frame not even that. `root` (the chunk) is cut into. True when `n` keeps something.
+static func _hollow(n: Node, root: bool = false) -> bool:
+	if n.get_script() != null and not root:
+		# Still running this frame (a walker, a prop retire() let go): left exactly as it is.
+		if not (n.is_processing() or n.is_physics_processing() or n.is_queued_for_deletion()):
+			_empty_meshes(n)
+		return true
+	var keep := root or n is CollisionObject3D
+	for c in n.get_children():
+		if _hollow(c):
+			keep = true
+		elif c is CollisionShape3D:
+			(c as CollisionShape3D).shape = null
+		else:
+			n.remove_child(c)
+			c.free()
+	if n is MeshInstance3D:
+		(n as MeshInstance3D).mesh = null
+	elif n is MultiMeshInstance3D and (n as MultiMeshInstance3D).multimesh != null:
+		(n as MultiMeshInstance3D).multimesh.mesh = null
+	return keep
+
+
+## Every mesh under `n` (n included) emptied; the nodes, shapes and buffers stay.
+static func _empty_meshes(n: Node) -> void:
+	if n is MeshInstance3D:
+		(n as MeshInstance3D).mesh = null
+	elif n is MultiMeshInstance3D and (n as MultiMeshInstance3D).multimesh != null:
+		(n as MultiMeshInstance3D).multimesh.mesh = null
+	for c in n.get_children():
+		_empty_meshes(c)
 
 
 func _free_retired(k: Vector2i) -> void:
