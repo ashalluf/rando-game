@@ -31981,3 +31981,77 @@ ways (the spray is one draw, the rings are instances of it); luminance p5/p50/p9
 rings that lie on the sea and age out, the staged pod in turn). Kit stills in seconds:
 `tools/sea_life/kit_shot.tscn` (VIEW=dolphin, AGE=; it now shows a ring by the rolling dolphin).
 Not verified on Forward+ (the spray is unshaded and works in linear through color_space).
+
+## 9??. Forward+ review i: waves 7-8's look work on the Mac's renderer (fleet wave 8, session `fwd-review-i`, branch `wt/fwd-review-i`)
+
+Same method as reviews a-h: each feature in a SMALL scene on Forward+ under lavapipe beside the
+same frame on opengl3; stills and their README on `shots/fwd-review-i`. Scope: every shader changed
+since fwd-review-h's last merge of main (batch 53) through batch 62 (45 files), with the sessions'
+own "Forward+ not verified" notes as the target list (jet take-off, brush fire, construction dusk,
+cemetery mist, suburb night, speedboat wake, port gate, rush-hour haze, oil-island mirror).
+
+**Static pass** (render modes, colour-space includes, how every new ALBEDO / EMISSION is handed
+over): the cs_out / linear-on-both shaders (fireworks look5, wingsuit fabric and vapour, brush smoke,
+cemetery mist, taco steam, refinery flare smoke, freight stock / track, roadside, street vendor,
+farmers market, police wash, night wet, oil island + its mirror) and the display-number ones with
+their own Forward+ branch (arena spill, suburb spill, house glow's suburb lantern, hill spill, blast
+hot core, flame tongue's `fwd_decode`, construction's `disp()` / `to_lit()` incl. the dusk glass)
+are consistent by construction. The cemetery mist's depth read takes Forward+'s ndc z = depth
+(reverse-Z) and Compatibility's depth x 2 - 1: right. The construction soffit's `!FRONT_FACING`
+test reads the GEOMETRIC normal (a vertex varying), not NORMAL: right. Three shaders broke the
+rule, all the same way: **an unshaded `blend_add` quad writing its amount raw with ALPHA 1**, whose
+authors wrote (twice in comments) that "the same numbers on both renderers" keep it faint - but
+Forward+ adds in linear, so a 0.07 amount shows ~0.29 there and a 3 % tail ~19 %.
+
+**Fixed** (behind `FWD_REVIEW_I=0`, `FwdReviewI` / scripts/world/fwd_review_i.gd, the `fwd_review_i`
+shader global; Compatibility bit-identical by construction):
+1. **The jet's landing-light beams** (jet_beam.gdshader, JetTakeoff, wave 8): a solid cream rod on
+   Forward+, a faint shaft on opengl3. `fi_add()` (shaders/fwd_review_i.gdshaderinc).
+2. **The runway's edge-light pools** (JetTakeoff.infield(): a 16 m light_pool quad per edge light,
+   white 0.55 / blue 0.35, on light_pool's default linear add): bright blue and cream discs down both
+   edges on the Mac. `FwdReviewI.display_pool()` (fwd-review-h's `display_add_fwd` path). Stills 01, 02.
+3. **The brush fire's glow card** (fire_glow.gdshader, SantaAnaFx / BrushFireLook): the glow's tail
+   drew an orange BOX with straight sides round the line 3 km off. `fi_add_hdr()`: the part up to 1
+   handed over, the flame core above 1 kept raw (continuous at 1). Still 03.
+
+**Looked at, nothing to fix (Forward+ against opengl3):** the taco truck at night
+(`vendor_shot.gd NIGHT=1`), the farmers' market kit (`farmers_market/kit_shot.gd`), the fireworks'
+look5 (`rc5_fireworks/fw_shot.gd`; the opengl3 tool's sky differs, the show agrees), the pursuit's LED
+bar close up (`police_night/police_shot.gd VIEW=bar`, new view; Forward+ brighter only by its real
+strobe lights), the vessels' wakes at 17:36 (`ocean_traffic/vessel_shot.tscn`; the usual sea-tone gap;
+the speedboat's `wake_glow` sun term uses a raw `sun_col` like the ocean's older terms - left), the
+construction kit at night (its dusk glass is not in the kit; display-number shader, static pass only).
+
+**The rectangle under the cruiser's headlights (found here, then fixed):** in `police_shot.gd
+VIEW=chase` a hard-edged box of brighter asphalt under the second cruiser's headlights, Forward+
+only (still 08). It looked like a cluster artefact (sides square to the screen) and is not one.
+Bisected on lavapipe, a minute a run (police_shot.gd's new knobs: `CL_BUDGET`, `CL_PLAYER=0`,
+`PNL_BUDGET`, `WASH=0`, `NOSSR=1`, `NOVFOG=1`, `NOGLOW=1`, `CL_RANGE`, `CL_ATT`, `PATCH_AMOUNT`,
+`LIGHT_LOG=1`): gone with CarLights' budget 0; there with the strobes' omnis off, the washes off,
+SSR off and volumetric fog off; the SAME box, same pixels, with the spots' range 28 -> 40 m (a
+cluster tile would move with the light's bounds); gone with road.gdshader's `patch_amount` 0. It is
+a resurfacing patch (7 m jittered cells, axis-aligned with the street, which runs straight away from
+this camera - hence "screen-aligned"): inside a hard step the patch took 0.7-1.2 x the tarmac's
+roughness, and a spot 0.63 m off the road at a grazing angle lit the smoother cells as a bright box.
+opengl3 has no headlight spots (CarLights is Forward+ only), so no still ever showed it; on the Mac
+it is every patch in reach of a traffic car's or the player's own headlights. Fix: a patch is never
+smoother, 1.0-1.12 x the roughness (fresh asphalt is a touch rougher than polished old tarmac); its
+tone and seam are unchanged, so it still reads as a patch (a faint darker cell, still 10).
+`FWD_REVIEW_I=0` is the old 0.7-1.2 range (the tool sets the global itself: this scene has no
+SkyExtras). On Compatibility the patches are also a little rougher now (no headlights there: no
+visible change). Checked in `tests/fwd_review_i_checks.gd`.
+
+**Not rendered:** the cemetery mist, the suburb at night, the hill home spill, the port gate booths,
+the rush-hour haze and the oil-island mirror (their scenes need city chunks; lavapipe holds 3 blocks
+at most); judged by the static pass only. SDFGI settling (FRAMES=90) does not apply: none of these
+small scenes has SDFGI, and every fix is an additive amount, not GI.
+
+**Tools:** `tools/fwd_review_i/night_bits.gd` (`SCENE=runway|fire`, `FIX=0` the old materials,
+`CAM` / `LOOK`; either renderer in a minute); `police_shot.gd VIEW=bar`.
+
+**Gate:** SHARDS=3 on main 6f5af3d2 + this branch: 6,292 of 6,294 passed, peak RSS 3,856 MB a shard; the two failures were this file's own scan missing `fi_add_hdr(` (fixed; the four touched files' checks then 74 / 74).
+
+**Frame cost:** nothing added (no node, mesh, material or draw; an sRGB decode of a colour per lit
+pixel of three additive materials on Forward+ only). Checks: `tests/fwd_review_i_checks.gd` (the
+include, the beam and glow hand-overs, the pools and the switch, every wave 7-8 additive quad handing
+its amount over on Forward+).

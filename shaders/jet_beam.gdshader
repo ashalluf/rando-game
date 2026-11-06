@@ -10,6 +10,7 @@ render_mode unshaded, blend_add, cull_disabled, depth_draw_never, shadows_disabl
 // Shader files use // comments.
 
 global uniform float lamp_factor;
+#include "res://shaders/fwd_review_i.gdshaderinc"
 uniform vec3 tint = vec3(1.0, 0.93, 0.80);
 uniform float strength : hint_range(0.0, 1.0) = 0.16;
 
@@ -26,6 +27,8 @@ void fragment() {
 	if (a < 0.002) {
 		discard;
 	}
-	ALBEDO = tint * a;
+	// fwd-review-i: on Forward+ the amount is handed over as the display number it was tuned as
+	// (raw, the faint shaft was a solid cream rod on the Mac).
+	ALBEDO = fi_add(tint * a);
 	ALPHA = 1.0;
 }

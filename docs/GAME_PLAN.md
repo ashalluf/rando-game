@@ -4828,3 +4828,9 @@ none of either.
   streaks along their path, never camera-facing balls (they cut flat at the waterline); anything
   that breaks the surface leaves a ring that ages out. The surf's whitewater not reading from a
   pier end was left to the ocean's owners (shared by every beach view). SEA_SPRAY=0 is the A/B.
+
+- 2026-11-06 (Forward+ review i, wave 8): "the same numbers on both renderers" is never true for an
+  additive quad - Compatibility adds them in display space, Forward+ in linear, where a 3 % tail
+  shows ~19 %. A soft additive amount tuned on the opengl3 stills goes through fi_add() (fi_add_hdr()
+  for an HDR emitter: only the part under 1 is decoded) or a light_pool display add. FWD_REVIEW_I=0
+  is the A/B.
