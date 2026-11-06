@@ -1,6 +1,0 @@
-[gd_scene load_steps=2 format=3]
-
-[ext_resource type="Script" path="res://tools/mac_launch/pulse_probe.gd" id="1"]
-
-[node name="PulseProbe" type="Node3D"]
-script = ExtResource("1")

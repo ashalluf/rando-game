@@ -1,6 +1,0 @@
-[gd_scene load_steps=2 format=3]
-
-[ext_resource type="Script" path="res://tools/civic_grounds/probe.gd" id="1"]
-
-[node name="CivicGroundsProbe" type="Node"]
-script = ExtResource("1")
