@@ -58,6 +58,11 @@ uniform float tag_odds_outer = 0.22;
 // HIGH: SDFGI under a 30 m deck leaves the soffit black, and a coarser cell leaks the sunlit top
 // through it). Emitted light feeds SDFGI too, so it also lifts the street under the deck. 0: off.
 uniform float under_fill = 0.0;
+// The light rail's guideway at night (RcRailAerial, its own copy of this material; 0 everywhere
+// else, which skips the block): x the columns and hammerheads washed from the downlights under
+// the girder (strongest at the top), y the soffit and the girder's underside lit by the street
+// lamps below. Both emitted, x lamp_factor.
+uniform vec2 rail_wash = vec2(0.0);
 
 varying vec3 obj_pos;
 varying vec3 obj_nrm;
@@ -295,6 +300,18 @@ void fragment() {
 		vec3 un = normalize(obj_nrm);
 		float down = smoothstep(-0.2, -0.8, un.y) + 0.25 * (1.0 - abs(un.y));
 		emit += alb * under_fill * down * vec3(1.0, 0.95, 0.88) * (1.0 - clamp(lamp_factor, 0.0, 1.0));
+	}
+
+	if (rail_wash.x + rail_wash.y > 0.0) {
+		float lamp = clamp(lamp_factor, 0.0, 1.0);
+		vec3 un = normalize(obj_nrm);
+		if (kind == 3) {
+			float depth = max(UV2.y - h, 0.0);
+			emit += alb * rail_wash.x * lamp * vec3(1.0, 0.86, 0.66) * (0.06 + 0.94 * exp(-depth / 3.0));
+		} else if (kind != 7) {
+			float down = smoothstep(0.05, -0.85, un.y);
+			emit += alb * rail_wash.y * lamp * vec3(1.0, 0.78, 0.52) * (down + 0.08 * (1.0 - abs(un.y)));
+		}
 	}
 
 	// Rain darkens and glosses what faces the sky most.

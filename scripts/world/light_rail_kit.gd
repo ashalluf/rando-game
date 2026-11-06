@@ -67,12 +67,16 @@ var _shapes: Array = []
 ## from the air their shadow edges on the ballast are what makes the track read.)
 var fine := SurfaceTool.new()
 var _fine_any := false
+## The same wires as camera-facing ribbons (RcRailAerial; RC5_RAIL_AERIAL=0 keeps them in `fine`).
+var ribbons := SurfaceTool.new()
+var _ribbons_any := false
 
 
 func _init(c: CityChunk) -> void:
 	super(c)
 	line = LightRail.of(plan)
 	fine.begin(Mesh.PRIMITIVE_TRIANGLES)
+	ribbons.begin(Mesh.PRIMITIVE_TRIANGLES)
 
 
 ## Everything this chunk owns of the line, then commits it. Returns false when there was nothing.
@@ -441,6 +445,10 @@ func _wire_points(s: float, track: float) -> Array:
 
 
 func _wire(a: Vector3, b: Vector3, r: float) -> void:
+	if RcRailAerial.enabled:
+		RcRailAerial.wire(ribbons, a, b, r, RcRailAerial.KIND_DROPPER if r < 0.005 else RcRailAerial.KIND_WIRE)
+		_ribbons_any = true
+		return
 	prism(fine, a, b, r, r, 3, _col(WIRE, S_STEEL), false)
 	_fine_any = true
 
@@ -480,6 +488,8 @@ func _pole(s: float) -> void:
 		var contact := c + r3 * (track * half + stagger) + Vector3.UP * cy
 		prism(body, tip + Vector3.UP * my - r3 * track * 0.25, contact + Vector3.UP * 0.02, 0.018, 0.018, 4, _col(RAIL_STEEL, S_STEEL))
 		prism(body, c + r3 * track * 0.12 + Vector3.UP * my, c + r3 * track * 0.42 + Vector3.UP * my, 0.06, 0.06, 6, _col(Color(0.45, 0.30, 0.18), S_PAINTED))
+	if RcRailAerial.enabled and m == LightRail.Mode.AERIAL:
+		RcRailAerial.pole_lamps(self, smp)
 
 
 # --- Features: poles, columns, stations, crossings, substations ------------------------------
@@ -514,6 +524,15 @@ func _features(area: Rect2) -> bool:
 			continue
 		_column(smp, ground, deck_bottom)
 		any = true
+	# The downlights under the girder between columns (RcRailAerial).
+	if RcRailAerial.enabled:
+		for s: float in RcRailAerial.soffit_spots(line, plan, _owns):
+			var smp := line.sample(s)
+			var street := _street(smp.pos)
+			var deck_bottom: float = float(smp.y) - 0.168 - 0.38 - DECK_DEPTH
+			if deck_bottom - street > 4.0:
+				RcRailAerial.soffit_lights(self, smp, deck_bottom, street)
+				any = true
 	# Stations.
 	for st in line.stations:
 		if _owns(st.pos):
@@ -924,10 +943,15 @@ func _substation(smp: Dictionary) -> void:
 # --- Commit ----------------------------------------------------------------------------------
 
 func _commit() -> void:
-	var mi := _add("RailStructure", body.commit(), structure_material())
+	var smat: ShaderMaterial = RcRailAerial.structure_material(structure_material())
+	var mi := _add("RailStructure", body.commit(), smat)
 	mi.add_to_group("light_rail_static")
+	if _ribbons_any:
+		var wm := _add("RailWires", ribbons.commit(), RcRailAerial.wire_material())
+		wm.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		wm.add_to_group("light_rail_static")
 	if _fine_any:
-		var fm := _add("RailDetail", fine.commit(), structure_material())
+		var fm := _add("RailDetail", fine.commit(), smat)
 		fm.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		fm.add_to_group("light_rail_static")
 	if _paint_any:
