@@ -13,7 +13,7 @@ static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/H
 
 static var enabled: bool = OS.get_environment("MOTEL_SIGN_GLOW") != "0"
 
-const POOL_KEY := "sg_motel_pool"
+const POOL_KEY := "motel_sign_pool"
 ## Halos: [x, y (sign space: x into the lot, y up), radius, which paint (SignKit.MOTEL_PAINT index),
 ## strength].
 const HALOS := [
