@@ -141,7 +141,7 @@ vec3 day_mirror(vec3 p, vec3 cam, float o, float hw, float az) {
 	float wall = step(hh, day_wall_top) * step(abs(ro), 0.999);
 	// Down the alley the ray runs on to the street at the mouth: open, bright.
 	float shade = 1.0 - smoothstep(day_sun_from, day_sun_to, hh);
-	vec3 wall_col = mix(vec3(0.42, 0.37, 0.31), vec3(0.11, 0.105, 0.1), shade);
+	vec3 wall_col = mix(vec3(0.34, 0.31, 0.28), vec3(0.1, 0.098, 0.095), shade);
 	vec3 sky = sky_tint.rgb * 0.85;
 	return mix(sky, wall_col, wall);
 }
@@ -365,7 +365,7 @@ void fragment() {
 		float dry = day_dry * (1.0 - clamp(lamp_factor, 0.0, 1.0));
 		float gw = 1.0 - 0.5 * dry;
 		float gut = (1.0 - smoothstep(0.18 * gw, 0.5 * gw, ao2 + 0.12 * gw * (vnoise(vec2(p.x * 1.3, 2.0)) - 0.5)))
-			* smoothstep(0.42 + 0.2 * dry, 0.58 + 0.16 * dry, vnoise(vec2(p.x * 0.16, 5.0) + seed * 9.0));
+			* smoothstep(0.42 + 0.26 * dry, 0.58 + 0.2 * dry, vnoise(vec2(p.x * 0.16, 5.0) + seed * 9.0));
 		float dip = fbm(vec2(p.x * 0.3, p.y * 1.1) + seed * 21.0 + 3.0) + 0.05 * (vnoise(vec2(p.x * 2.0, p.y * 5.0)) - 0.5);
 		float dip_pool = smoothstep(0.645 + 0.075 * dry, 0.665 + 0.075 * dry, dip) * (1.0 - smoothstep(hw - 0.5, hw - 0.1, ao2));
 		float d_ring = smoothstep(0.58 + 0.06 * dry, 0.65 + 0.06 * dry, dip) * (1.0 - smoothstep(hw - 0.3, hw, ao2));
@@ -395,7 +395,8 @@ void fragment() {
 		SPECULAR = mix(SPECULAR, mix(0.5, 0.12, pool), day_w);
 		vec3 cam_d = (inverse(MODEL_MATRIX) * vec4(CAMERA_POSITION_WORLD, 1.0)).xyz;
 		vec3 v_d = normalize(cam_d - local_p);
-		float fres_d = 0.2 + 0.8 * pow(1.0 - clamp(v_d.y, 0.0, 1.0), 4.0);
+		// Water's own Fresnel (F0 ~0.02): looking down into it by the feet you see the wet slab.
+		float fres_d = 0.03 + 0.97 * pow(1.0 - clamp(v_d.y, 0.0, 1.0), 5.0);
 		float g_d = mirror_gain * (cs_linear_renderer() ? mirror_forward : 1.0);
 		EMISSION += to_lit(day_mirror(local_p, cam_d, p.y, hw, along_z)) * pool * fres_d * g_d * day_w;
 	}
