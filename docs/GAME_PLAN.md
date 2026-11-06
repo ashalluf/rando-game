@@ -4737,3 +4737,8 @@ none of either.
   lit structures standing in water mirror their light in it (the islands' towers as columns in the
   bay); a flood is light thrown up a face from its foot, not a face painted the gel's colour.
   LONG_BEACH_SAND=0 / RC5_OIL_ISLANDS=0 are the A/B.
+- 2026-11-06 (Forward+ review i, wave 8): "the same numbers on both renderers" is never true for an
+  additive quad - Compatibility adds them in display space, Forward+ in linear, where a 3 % tail
+  shows ~19 %. A soft additive amount tuned on the opengl3 stills goes through fi_add() (fi_add_hdr()
+  for an HDR emitter: only the part under 1 is decoded) or a light_pool display add. FWD_REVIEW_I=0
+  is the A/B.

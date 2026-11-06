@@ -7503,6 +7503,13 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   (`shaders/fwd_review_h.gdshaderinc`), or add a broad light_pool in display numbers
   (`display_add_fwd`, `FwdReviewH.display_pool()`). Linear-on-both (cs_out) shaders are safe.
   `FWD_REVIEW_H=0` the A/B; checks `tests/fwd_review_h_checks.gd`.
+- And one more (fwd-review-i, 2026-11-06, HANDOFF "Forward+ review i"): **an unshaded `blend_add`
+  quad with ALPHA 1 is NEVER "the same numbers on both renderers"** - Compatibility adds them in
+  display space, Forward+ in linear (a 0.07 beam a solid rod, a 3 % glow tail an orange box round
+  the brush fire). Hand a soft amount over with `fi_add()` (`fi_add_hdr()` keeps an HDR core above 1
+  raw; `shaders/fwd_review_i.gdshaderinc`) or `FwdReviewI.display_pool()`. Small scenes on both
+  renderers: `tools/fwd_review_i/night_bits.gd SCENE=runway|fire`. `FWD_REVIEW_I=0` the A/B; checks
+  `tests/fwd_review_i_checks.gd`.
 - Native screenshots without a browser: `tools/glshot/building_shot.gd` (one building),
   `tools/glshot/block_shot.tscn` (a few FULL city blocks alone, no far city: a block's ground and
   furniture) and `tools/glshot/city_shot.gd` (the city at a `--spawn`) render with the real
