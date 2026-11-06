@@ -7778,6 +7778,11 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   bonfire flames do not draw in the browser (open; `tools/web_probe/fx_room.tscn bonfire=<variants>
   dump=1` bisects particles in seconds); `render_bisect.gd` / `plane_probe.gd` find which node draws
   a stray band. Never edit `bookmarks.sh` while it runs (bash re-reads it).
+- The bonfire flames in the browser (2026-11-06, docs/HANDOFF.md "The bonfire flames in the
+  browser"): a SwiftShader bug, not the game - the same export draws them through ANGLE on Mesa GL
+  (`ANGLE=gl` on webshot.js / bookmarks.sh, `HEADFUL=1` under xvfb-run), which stands in for a GPU
+  browser; judge web looks there. `tools/web_probe/glprobe.js` (`GLPROBE=1`) logs every instanced
+  draw's WebGL state and buffers; fx_room `fires=1` stages a car and a tree fire beside the bonfires.
 - Forward+ review of small scenes (2026-10-05, docs/HANDOFF.md "Forward+ review A"): lavapipe
   renders `block_shot.tscn` (a few FULL blocks, ~10 min a run, ~12 GB) and the room tools
   (`hero_moves_shot.gd`, `photo_shot.gd ROOM=1`, ~2 min) with `--rendering-driver vulkan` and

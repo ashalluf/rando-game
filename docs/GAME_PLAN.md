@@ -4913,3 +4913,8 @@ none of either.
   SwiftShader browser and are left as they are (not root-caused, unverified on a real GPU, a
   web-only workaround would be blind); the probe tools stay for the next pass. The web bookmarks
   now include four wave 5-8 night / weather views.
+- 2026-11-06 (web-bonfire): the bonfire flames missing in the browser are a SwiftShader rasterizer
+  bug (the same export draws them through ANGLE on desktop GL), so no game code changes: a
+  web-only workaround would have no trigger to aim at, and turning their depth test off would draw
+  them through the logs and the people. Web looks are judged through `ANGLE=gl` from now on;
+  SwiftShader stays for the software-fallback case.

@@ -32830,3 +32830,64 @@ rig's owner (the spring arm keeps world-layer clearance only). The bookmark now 
   waiting shell's own command line never ends (9lh's trap again).
 
 Stills on `shots/web-review-5`.
+
+## 9??. The bonfire flames in the browser, 2026-11-06 (fleet wave 8 session `web-bonfire`, branch `wt/web-bonfire`; VISUAL_ROADMAP "?")
+
+**What was asked.** web-review-5 (the section above) found the beach bonfires' flames missing in
+the browser (glow, pool, logs, smoke and embers drawn). Find the cause, fix it without changing the
+desktop look, check the other CPUParticles fires, before / after browser stills.
+
+**Result: not the game - SwiftShader. No game code changed.** The same export (same wasm, same pck,
+the same WebGL calls) draws the flames when Chromium's ANGLE runs on desktop GL (Mesa llvmpipe:
+`ANGLE=gl` on webshot.js) and drops them when ANGLE runs on SwiftShader (its Vulkan backend, the
+harness's default and what every web still so far used). The car engine fire, a burning tree crown
+and the brush fire draw on both. The owner's browser on a Mac renders WebGL through ANGLE on Metal
+(a real GPU), the path ANGLE-on-GL stands for here; so the flames should already show there
+(unverified: no GPU browser on this box).
+
+**How it was pinned** (tools/web_probe/fx_room.tscn exported as the web main scene, one tab):
+- The browser's particle data are right: `dump=1` (CPU) and `tools/web_probe/glprobe.js`
+  (`GLPROBE=1` on webshot.js: every instanced draw's VAO, attribute pointers and divisors, the
+  mesh's vertex / UV / index data, the instance buffer read back with getBufferSubData, the
+  per-draw uniforms - world transform, compressed AABB, uv_scale, model flags - and the depth,
+  blend, cull and polygon-offset state) show an upright, rising flame with exactly the native
+  numbers, and the "bad" and a "good" flame draw differ in nothing but buffer names.
+- With the flame material's depth test OFF (`nodepth`) SwiftShader draws the whole flame where
+  native does (04): the fragments are being depth-rejected, against nothing but the ground.
+- The little orange cone left at the base is NOT the flames: lifted 1 m or 3 m (`up`, `up3`) the
+  flames move natively and the cone stays put in SwiftShader (05).
+- Which particle systems SwiftShader rejects depends on the mesh OBJECT, not on any property: the
+  room's row fire's QuadMesh draws (alone or shared), a `duplicate()` of it does not, a fresh
+  QuadMesh assigned a frame later draws for a few dozen frames and then not; copying every other
+  property of the row fire changes nothing (`copy.mesh`); the tongue quad and material (`tq`,
+  `tqmat`) do not help. That is not a rule the engine has: Godot's GLES3 code path for all of them
+  is the same (read in drivers/gles3: multimesh_vertex_attrib_setup, the VAO versions,
+  _render_list_template), and Mesa GL draws them all. So no web-side workaround was made: without
+  a trigger to aim at, it would be blind (turning the depth test off draws the flames through the
+  logs, the people and the hero).
+- Two red herrings for the next reader: the first ~10 frames after a fire is built draw a column
+  hanging DOWN from the base on BOTH renderers (the preprocess before the node's transform settles;
+  gone by frame 20), and web-review-5's "only local_coords drew a small flame" was this cone.
+
+**Also seen:** the first SwiftShader `beach_night` run here (headful Chromium under Xvfb) died at
+181 s: `Could not create 3D back buffers, status: 36061` (GL_FRAMEBUFFER_UNSUPPORTED) then `FATAL:
+Index p_index = 15744 is out of bounds (count = 15700)` (local_vector.h) and `unreachable`. The
+stock headless rerun of the same bookmark ran clean for its full seven minutes, and so did both
+ANGLE-on-GL runs (beach_night, santa_ana), so it is put down to the headful SwiftShader setup; if it
+ever shows in the stock harness, the back-buffer failure is the lead (a screen-reading shader asking
+for a back buffer the software GPU cannot make).
+
+**The city, before / after:** `beach_night` on SwiftShader (06, 08 left): the ring, glow, pool and
+the people round it, no flames. The same export on ANGLE-on-GL (07, 08 right): orange flames over
+the rim. `santa_ana` on ANGLE-on-GL (09): the brush fire's column and line as on SwiftShader.
+
+**Tools:** fx_room's new tokens (header of the file), `fires=1` (a car engine fire as
+CarDamage._start_fire() builds it and a TreeFire.Burn crown beside the bonfires), `shots=a.b.c`,
+`rowoff=1`; glprobe.js; webshot.js `ANGLE=gl|swiftshader` (default SwiftShader, as before),
+`HEADFUL=1` (a headful Chromium, under `xvfb-run`), `CHROME_ARGS`. ANGLE-on-GL runs the city at
+about the same speed as SwiftShader and is the better stand-in for a GPU browser: judge web looks
+on it, and keep SwiftShader for the software-fallback case.
+
+**A/B:** `ANGLE=gl` vs the default on webshot.js / bookmarks.sh.
+
+Stills on `shots/web-bonfire`.
