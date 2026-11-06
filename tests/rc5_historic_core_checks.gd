@@ -95,20 +95,20 @@ func _full(city: Node3D, plan: CityPlan, k: Vector2i) -> void:
 	for b in hist:
 		var spec: Dictionary = b.get_meta("historic")
 		var set_ok := b.wall_set_force.size() == 2 and String(b.wall_set_force[0]) == ("brick_red" if spec.brick else "plaster_white")
-		var detail_ok := b.wall_detail_force == HistoricCore.WALL_DETAIL_2 and b.weathering_cap == HistoricCore.WEATHERING_2 \
+		var detail_ok := b.wall_detail_force == (HistoricCore.WALL_DETAIL_BRICK if spec.brick else HistoricCore.WALL_DETAIL_2) and b.weathering_cap == HistoricCore.WEATHERING_2 \
 			and b.kit_ac_chance == HistoricCore.AC_CHANCE_2
 		if spec.brick:
 			bricks += 1
 			set_ok = set_ok and HistoricCore.PRESSED_BRICK_2.has(b.palette_override[0]) and b.palette_override.size() == HistoricCore.PRESSED_BRICK_2.size()
 		else:
 			flats += 1
-			var mat := b._part_mat
-			set_ok = set_ok and mat != null and float(mat.get_shader_parameter("wall_detail")) == HistoricCore.WALL_DETAIL_2
-			# Its far boxes take the wall at the facade colour (set 15 in the code).
-			var boxes := FarBuilding.boxes(b, b.plan_only(), 0.0)
-			if not boxes.is_empty():
-				var xf: Transform3D = boxes[0][0]
-				set_ok = set_ok and int(FarBuilding.decode(xf.basis).wall_set) == 15
+		var mat := b._part_mat
+		set_ok = set_ok and mat != null and absf(float(mat.get_shader_parameter("wall_detail")) - b.wall_detail_force) < 0.001
+		# Its far boxes take the wall at the facade colour (set 15 in the code).
+		var boxes := FarBuilding.boxes(b, b.plan_only(), 0.0)
+		if not boxes.is_empty():
+			var xf: Transform3D = boxes[0][0]
+			set_ok = set_ok and int(FarBuilding.decode(xf.basis).wall_set) == 15
 		if not (set_ok and detail_ok) and why == "":
 			why = "%s set %s detail %.2f cap %.2f ac %.3f" % [spec.name, str(b.wall_set_force), b.wall_detail_force, b.weathering_cap, b.kit_ac_chance]
 		ok = ok and set_ok and detail_ok

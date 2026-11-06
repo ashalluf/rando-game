@@ -65,6 +65,8 @@ const WEATHERING_2 := 0.35
 ## How much of the plaster texture's contrast the walls keep round their colour (the ornament's 0.35
 ## was too flat for a wall's area; Building.wall_detail_force).
 const WALL_DETAIL_2 := 0.5
+## The brick keeps more of its photo (its coursing and mortar are in it).
+const WALL_DETAIL_BRICK := 0.85
 ## How many historic Buildings have been dressed (probes and checks).
 static var dressed_count: int = 0
 ## The longest ornament build step so far (microseconds; probes and checks) and which it was.
@@ -217,7 +219,7 @@ static func dress(ch: CityChunk, lot: Dictionary, building: Building) -> void:
 	if look2:
 		building.wall_set_force = ["brick_red", 2.6] if spec.brick else ["plaster_white", 2.5]
 		building.weathering_cap = WEATHERING_2
-		building.wall_detail_force = WALL_DETAIL_2
+		building.wall_detail_force = WALL_DETAIL_BRICK if spec.brick else WALL_DETAIL_2
 		building.kit_ac_chance = AC_CHANCE_2
 		var cell: Rect2 = lot.get("cell", Rect2())
 		if cell.size.y > (lot.size as Vector2).y and closes_wall(ch.plan, ch.ix, ch.iz, lot):

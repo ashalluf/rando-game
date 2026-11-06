@@ -102,7 +102,7 @@ static func boxes(building: Building, style: Dictionary, plinth: float) -> Array
 	var wall_idx := WALL_SETS.find(wall_set[0]) if wall_set.size() == 2 else -1
 	# 15: no set (the shader's untextured wall) - also a wall whose texture is only detail round
 	# its colour (Building.wall_detail_force: its average IS the facade colour).
-	if wall_idx < 0 or (building.wall_detail_force >= 0.0 and building.finish == Building.Finish.FLAT):
+	if wall_idx < 0 or (building.wall_detail_force >= 0.0 and building.finish <= Building.Finish.BRICK):
 		wall_idx = 15
 	var bseed := float(building.seed % 997) / 997.0
 	var rises: Array[float] = []

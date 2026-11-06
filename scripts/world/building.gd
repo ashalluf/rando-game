@@ -842,7 +842,7 @@ func _part_material(style: Dictionary) -> ShaderMaterial:
 	mat.set_shader_parameter("caps_real_until", kit_mullion_distance if real_caps else 0.0)
 	mat.set_shader_parameter("facade_mid3", FacadeMid3.enabled)
 	_apply_wall_texture(mat, finish, shape == Shape.WAREHOUSE, style.wall_set, style.weathering)
-	if wall_detail_force >= 0.0 and finish == Finish.FLAT and (style.wall_set as Array).size() == 2:
+	if wall_detail_force >= 0.0 and finish <= Finish.BRICK and (style.wall_set as Array).size() == 2:
 		# The photographed wall as detail round the facade colour (landmark_facade's rule).
 		var m: Color = (WALL_TEXTURE_MEAN.get(style.wall_set[0], [Color(0.3, 0.3, 0.3)]) as Array)[0]
 		mat.set_shader_parameter("wall_texture_mean", Vector3(m.r, m.g, m.b))
@@ -1024,7 +1024,7 @@ var shop_frame_force: int = -1
 ## Inert at their defaults.
 var wall_set_force: Array = []
 var weathering_cap: float = 1e9
-## A FLAT wall's photographed texture as detail round the facade colour (divided by its mean, this
+## A FLAT or BRICK wall's photographed texture as detail round the facade colour (divided by its mean, this
 ## much of its contrast kept, like landmark_facade.gdshader) instead of multiplied into it; the far
 ## boxes then take the wall at the facade colour (FarBuilding: set 15). -1 off (inert).
 var wall_detail_force: float = -1.0
