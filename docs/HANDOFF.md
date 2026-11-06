@@ -32397,3 +32397,69 @@ view; see the follow-up below). Luminance p50 88 -> 88, saturation 0.291 -> 0.28
 not looked at on Forward+ (lavapipe cannot hold the city; a small scene would need the car park
 alone). Downtown's towers still read dark at 18:15 on this renderer - that is the city-wide grade
 and glass at that hour, not this view's to change. The lamps are off at 18:15 (lamp_factor 0).
+
+## 9d?. The gate, third pass: a fresh deal, RESET lines, where the rest of the time goes, 2026-11-06 (fleet wave 8, branch `wt/gate-speed-3`; VISUAL_ROADMAP "?")
+
+The task: `SHARDS=3 tests/headless_check.sh` takes ~40 minutes and ~3.9 GB a shard on the lead's
+box; make it faster without losing a check. Measured on the fleet box (4 cores, 15 GB), each run a
+SHARDS=3 gate with `SMOKE_PROFILE=1`, alone on the box:
+
+| run | main | wall | shard 0 / 1 / 2 | peak RSS 0 / 1 / 2 | checks (fail) |
+|---|---|---|---|---|---|
+| before | 12042fe2 (batch 64) | 1,391 s | 1,391 / 1,207 / 1,138 s | 3,376 / 3,932 / 4,001 MB | 6,449 (0) |
+| the new deal | 7f062523 (batch 65) | 1,258 s | 1,257 / 1,255 / 1,226 s | 3,257 / 3,821 / 3,793 MB | 6,514 (0) |
+| final (this branch + main) | see the report | | | | |
+
+The second run carries batch 65's extra files (65 more checks) and is still 133 s (9.6 %) faster:
+the shards now end within 31 s of each other. `tools/gate/compare.py` on the two: the same checks,
+all passing, except batch 65's new ones and three labels that print another branch's text for the
+same check (CarPanic's kerb "mounts" / "swerves", blood_gore's hero-rig branch, Emergency._scan's
+"(no Emergency node)").
+
+**Why the shards were lopsided.** 192 of the 337 parts (every check file added since gate-speed-2's
+refresh) were missing from `PART_COST` and dealt at the 6 s default; several take 70-105 s
+(pedestrian_flow 90, driving_camera 86, valets 73, speedboats 71, traffic_behaviour_2 105). Shard 0
+got the most of them. Refreshed from a whole sharded run (`tools/gate/part_costs.py shard_0.log
+shard_1.log shard_2.log`: it takes several logs now), with each file's reset and staging added to
+its cost, the room part measured (it printed no PART line: now it does, 44 s) and `CITY_LOAD_COST`
+the measured 90 s (it was 120). `python3 tools/gate/deal.py 3` prints the deal and each share's
+predicted seconds without Godot (1,219 s each for the table on this branch; the real run was within
+40 s of it). **New check files need no row**: they are dealt at DEFAULT_COST until the next refresh,
+and rows appended by hand at the end of the table conflict with every refresh (this branch's merge
+of batch 65 did).
+
+**RESET lines.** With `SMOKE_PROFILE=1` the gate now prints `RESET <file> <s>` before every file
+and city part: what the reset (tests/gate_reset.gd) and `stage_home()` cost. In run 2 they were 196
+s over 346 resets, three shards together; 321 of them under 2 s (0.15 s on average), and 25 of 2-15 s,
+149 s together: those are the home ring rebuilt synchronously after a file left the player far away
+(the previous file's trip, charged to the next file). The reset itself is not the cost.
+
+**Where the time goes, for whoever goes after it next** (none of it is the harness's):
+- **The live city's physics tick.** Headless, alone, the city at the spawn costs ~27-30 ms a
+  physics tick (`tools/gate/frame_probe.tscn`: wall per frame and per tick, Performance's process
+  and physics times; `STEPS=8,16` measures again at other `max_physics_steps_per_frame`). A frame is
+  always the eight-step cap (0.24 s), so the game runs at about half real time and every game-time
+  wait in a check costs twice its length; in the gate (three processes) a frame is ~0.17-0.19 s.
+  Raising the step cap to 12 or 16 gave no measurable change (+-10 % noise both ways), so it was
+  left. Of the tick, the 533 pedestrians' scripts are ~11 ms (a probe that skipped parts of
+  `_physics_process`: `_walk` with its move_and_slide ~6, the AnimationPlayer advance ~3.5, CrowdFeet
+  ~2.3, poses under 1) and their skeletons and bodies more (`tools/cpu_probe.gd`: the pedestrian
+  group off took the frame 248 -> 72 ms; the traffic off 248 -> 134). That is also the game's own
+  frame on the Mac, and the crowd's and traffic's owners' area, not the gate's.
+- **Synchronous chunk builds.** Every teleport in a check is `update_streaming(true)`: the FULL and
+  LOD rings round the new spot built at once, and again round home on the way back. In run 2 that was
+  1,236 FULL and 7,229 LOD builds, 729 s of the three shards' 3,739 (shard 1 alone: 583 FULL, 3,522
+  LOD, 355 s), about half of it rebuilding home. The biggest: city_streaming (110 s), city_cars (73),
+  police stations, the car park, the verify pack, port life, hospitals, freeway incidents, the metro,
+  Westlake, the river, the pier (13-30 s each). A pool that kept the home ring's chunks across a trip
+  would halve it, but a rebuilt chunk is also what makes the next file's city clean (destruction,
+  parked cars, props): not done.
+- **Everything else is real game time**: city_crowd (309 s) is a few dozen traffic and crowd
+  scenarios that each wait on a condition, as are the long files above. The fixed waits left
+  (`_ticks(150..400)`, a 300-frame engine audio sample) are short and each settles something.
+- **The fixed cost a shard**: ~20 s of engine start and script compile, then the city load (~90 s:
+  macro map 6, ground bake 21, far rocks 5, far landmarks 8, the first ring 32, far tiles 17). The
+  load cache cannot help the gate: its key covers every script and the three shards start together.
+
+Not done / not verified: CI's runner (SHARDS=auto) not measured; the per-tick and sync-build costs
+above are reported, not cut.

@@ -129,6 +129,12 @@ seeded order (the proof), `SMOKE_LEAKS=1` prints every static a file changed and
 (gate_speed_2_checks fails on one that is in neither list). `SHARDS=auto` (CI) picks the shards
 from the cores and memory (`SHARD_MB`, 3200 a shard). Refresh `PART_COST` with
 `tools/gate/part_costs.py <SMOKE_PROFILE=1 log>` when the deal goes lopsided.
+**The deal** (2026-11-06, docs/HANDOFF.md "The gate, third pass"): `SMOKE_PROFILE=1` prints
+`RESET <file> <s>` (the reset and staging before it) beside each PART line; `tools/gate/part_costs.py
+shard_0.log shard_1.log shard_2.log` refreshes `PART_COST` from a whole sharded run and
+`tools/gate/deal.py 3` prints the deal without Godot. Never add PART_COST rows by hand (a new file
+is dealt at DEFAULT_COST; appended rows conflict with every refresh). `tools/gate/frame_probe.tscn`
+times the live city's physics tick (the floor of every game-time wait).
 **Flake rules** (2026-10-31, docs/HANDOFF.md "The gate's intermittent failures, wave 4"): a check
 that builds a chunk twice frees the first build's parked cars (they live under the city root); one
 that counts the people a build spawns gives it room in the crowd cap; never find a node by a name

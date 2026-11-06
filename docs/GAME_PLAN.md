@@ -4872,3 +4872,9 @@ none of either.
   Vehicle.PAINTS: a lot of cars side by side is where a third saturated reads as toys. The roof
   is precast double tees with sealed joints, so the deck shader draws that structure rather than a
   noise. RC5_CAR_PARK_ROOF=0 is the A/B.
+- 2026-11-06, gate speed 3 (gate-speed-3): the shards' deal was refreshed from a whole sharded run
+  (192 of 337 parts had no measured cost and were dealt at 6 s), so the three shards end together:
+  wall 1,391 -> 1,258 s with more checks. Raising max_physics_steps_per_frame for the gate was
+  measured and rejected (no gain). The rest of the gate's time is the live city's physics tick
+  (~30 ms headless: pedestrians, then traffic) and synchronous chunk builds on teleports (~20 %):
+  reported, not cut, because both are the game's own behaviour that checks are about.
