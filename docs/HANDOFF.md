@@ -31981,3 +31981,56 @@ ways (the spray is one draw, the rings are instances of it); luminance p5/p50/p9
 rings that lie on the sea and age out, the staged pod in turn). Kit stills in seconds:
 `tools/sea_life/kit_shot.tscn` (VIEW=dolphin, AGE=; it now shows a ring by the rolling dolphin).
 Not verified on Forward+ (the spray is unshaded and works in linear through color_space).
+
+
+## 9??. The news crew live at a burning wreck (wave 8 refcam5 `rc5-news-live`, branch `wt/rc5-news-live`) - UNFINISHED, NOT GATED
+
+**State when the account stopped (2026-11-06):** cut off by the lead's wrap-up. The pushed head has
+NOT passed a gate (no `SHARDS=3 tests/headless_check.sh` run), no checks file, no frame-cost
+measurement, no ten-camera compare, origin/main not merged since the branch point (12042fe2). The
+next session: merge origin/main, read below, finish the open list.
+
+**The camera.** `news_live` in `tools/refcams/cameras_w8.json` (`"stage": "news"`, staged by
+`tools/refcams/news_stage.gd`, hooked in refcams_shot.gd beside the crash stage): the row's eye
+(Elm Blvd, midtown, looking north) only aims NewsCrews.stage_for_shot(), which puts a burning wreck
+40 m ahead (scene (6, 385) on seed 1337), the live truck (station 1, SUNCOAST 4, mast) and the crew
+on air; the stager adds a fire engine at the wreck (Emergency.open_call + stage), 18 walkers and an
+Onlookers WRECK scene, settles 120 physics frames, then puts the free eye in the camera OPERATOR's
+frame (`news.eye` / `news.look`: x toward the road, y up from the pavement, -z toward the
+reporter). Env `NEWS_EYE`, `NEWS_LOOK`, `NEWS_STATION` override. unstage() takes the staged units out
+of TrafficManager.cars before Emergency/NewsCrews.clear() (a freed car left there was an error a
+tick). The stager prints who stands in the live shot (debug; drop or keep).
+
+**What reads fake (judged on the opengl3 stills, shots/rc5-news-live):**
+1. A burning car had no smoke plume: TreeFire grows a SmokeColumn only for a cluster of weight 2
+   (a burning car is 1, a wreck 0.8). FIXED: `NewsLive` (`scripts/npc/news_live.gd`) lowers the
+   threshold to 0.75 and SmokeColumn draws a car-sized column under weight 2 (58 m -> 160 m at 2,
+   top radius shown*0.22 in 7..30 m); weight >= 2 unchanged. Seen in 02_after (dark plume).
+2. The camera operator wore overalls / bright tees. FIXED: crew wear (charcoal top, dark khaki
+   trousers, `NewsLive.crew_material()`) on the operator, the overalls rig (crowd_b) off the
+   operators' list. Seen in 02_after.
+3. People in the live shot. Onlookers' `_pick_spot()` now skips the camera->reporter line and a
+   2.4 m circle round the reporter (`NewsLive.in_shot`). On this view the blockers turned out to be
+   a restaurant's VALET STAND (3 Valets) where the reporter stands; `NewsLive.layout_clear()` makes
+   NewsCrews.layout() (new optional `avoid` arg) skip a way within 7 m of a valet podium, but on this
+   block both ways are blocked, so it falls back and the valets are still in the frame. OPEN: move
+   the row's eye so the story lands elsewhere (I was testing eye z 455 / 470 when stopped), or make
+   valets step aside for a live shot.
+4. The truck's mast is not in frame: NewsCrews parks the van `van_back` 9.5 m BEHIND the camera, so
+   an eye behind the operator cannot see it; pulled back 15 m (03_pulled_back) the mast's lower half
+   shows but a street tree hides the crew. OPEN: decide (e.g. a layout option putting the van
+   across the street / ahead), or accept.
+5. Still to judge: the light stand reads as a black box from behind, the fire engine's crew and hose
+   barely show (the engine stands 14 m short of the wreck in the kerb lane), the street tree canopy
+   hides most of the plume.
+
+`NEWS_LIVE=0` turns all of NewsLive off (the A/B). Hooks: tree_fire.gd (column threshold),
+smoke_column.gd (height, radius), onlookers.gd (_pick_spot), news_crew.gd (pick_seed, _add_model),
+news_crews.gd (layout's avoid arg, two layout calls through layout_clear).
+
+**Open list:** finish 3-4; before/after with NEWS_LIVE=0 at the final eye; tests/rc5_news_live_checks.gd
+(car column threshold and height, in_shot geometry, crew_material, layout_clear fallback, the
+switch) loaded by one line in smoke_test.gd; frame cost (geo_count / the refcam GEO numbers: the
+after frame was 6.53 M tris / 3,871 draws vs 6.39 M / 3,825 before at a near framing - not a clean
+A/B); the ten-camera compare against main; CLAUDE.md bullet, VISUAL_ROADMAP row, GAME_PLAN entry;
+merge origin/main; gate. Note the first refcams launch on a fresh box peaked 13.6 GB and was killed.
