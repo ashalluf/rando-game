@@ -21,3 +21,6 @@ export as it is.
   nothing; with local_coords on (18, rightmost) a small flame shows.
 - 19 render_bisect.gd steps for the Santa Ana band (none / Weather / Player / Ground / chunks /
   vignette ...): only hiding the chunks' ground removes it.
+- 20-31 `*_after_web_<bookmark>.jpg`: the twelve bookmarks on the web export of the branch head
+  (main batch 63 merged; no game code changed on the branch). All clean consoles; they match the
+  befores. 31 Santa Ana now looks level (pitch -4): no band, the brush fire and its smoky dusk.
