@@ -932,4 +932,6 @@ static func material() -> ShaderMaterial:
 	_material.set_shader_parameter("paper_atlas", load("res://assets/textures/street_wear/street_wear_paper.png"))
 	_material.set_shader_parameter("use_screen", full_detail)
 	_material.set_shader_parameter("fade_end", DRAW_DISTANCE)
+	# rc5-historic-core (RC5_HISTORIC=0 the A/B): the pavement's stains soak in, feathered.
+	_material.set_shader_parameter("stain_soft", 1.0 if OS.get_environment("RC5_HISTORIC") != "0" else 0.0)
 	return _material
