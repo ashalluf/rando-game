@@ -33331,6 +33331,10 @@ changed, +0.9 % triangles from the bends' finer strip). The other nine see no hi
 switch off is main's code path exactly, so they were not re-shot (a ten-camera run takes ~100 min
 on this box).
 
+**Gate.** Head 78978881 (origin/main a870978b merged): full `SHARDS=3` gate 6,627 of 6,628 passed;
+the one failure was speedboats_checks' "a storm comes up and she rides it" (a timing flake: it
+passed alone, 40 of 40, and in the previous full gate). All of rc5_switchback_night_checks pass.
+
 **Not done / not verified.** No estates in this frame (above). The car's headlights are two small
 points at 77 m on opengl3 (no beam on the road: the Compatibility path has no car spots, and on
 Forward+ CarLights only lights cars within 60 m). Chevrons are not checked on Forward+ under
