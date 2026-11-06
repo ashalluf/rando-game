@@ -301,6 +301,14 @@ already mapped so milestone 2 is script-only.
   reads as abandoned); a landmark that spans several chunks spawns its people from the chunk that
   builds it, not from its own owned rect. The airport loop's kerb lane stops cars by a hash of the
   car and its lap (no state outside the car's traffic dict). TERMINAL_CURB=0 is the A/B.
+- **2026-11-05 The police pursuit at night (rc5-police-pursuit, HANDOFF "The police pursuit at
+  night").** A chase is a reference camera (`police_pursuit`, cameras_w8.json: the chase camera on
+  Wilshire at 22:00, two cruisers on his rear quarters, three stars, the helicopter's light on him,
+  staged by tools/refcams/pursuit_stage.gd). The searchlight's spot does the lighting; its pool and
+  shaft only add the hot middle and a haze that fades at the foot and near the lens. A light bar
+  flashes like a modern LED bar (a bank lit 72 % of the time, not 36 %), so red and blue are on the
+  street in most frames; its washes are the light of a lamp at bar height, not a 13 m dot; the bar
+  is an LED bar, not six coloured boxes. PURSUIT_LOOK=0 is the A/B.
 
 - **2026-11-02 The pier by day (rc3-pier-day, HANDOFF "The pier by day from the deck").** A deck
   the camera stands on is worked out per board in its own shader (transverse boards, gaps,
