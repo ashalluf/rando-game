@@ -32991,7 +32991,7 @@ both). The bus's windscreen is still a dark slab at dusk (the traced cabin is li
 the far deco facade top-left keeps its orange floodlit look (its own palette). The full ten-camera
 compare is in the session's report.
 
-## 9??. The web build after wave 8, 2026-11-06 (fleet wave 8 session `web-review-5`, branch `wt/web-review-5`; VISUAL_ROADMAP "?")
+## 9oo. The web build after wave 8, 2026-11-06 (fleet wave 8 session `web-review-5`, branch `wt/web-review-5`; VISUAL_ROADMAP "?")
 
 **What was asked.** Export the web build after wave 8, load every bookmark one tab at a time in the
 full Chromium, fix shader / WebGL / global-buffer errors and anything that draws badly only on the
@@ -33072,7 +33072,7 @@ rig's owner (the spring arm keeps world-layer clearance only). The bookmark now 
 
 Stills on `shots/web-review-5`.
 
-## 9oo. Perf audit 6: every refcam after wave 7, counted the way the GPU draws (fleet wave 8, agent branch `wt/perf-audit-6`)
+## 9op. Perf audit 6: every refcam after wave 7, counted the way the GPU draws (fleet wave 8, agent branch `wt/perf-audit-6`)
 
 **The ask.** Measure all reference cameras (cameras.json and w5 / w6 / w7: 44 views) with
 `SPLIT=1 OSPLIT=1` on main as of wave 7, find where the frame went since Perf audit 5, cut the
