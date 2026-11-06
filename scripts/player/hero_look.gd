@@ -14,6 +14,8 @@ extends RefCounted
 ## The hero_x_* maps the shaders need are not in the glTF; they sit next to it (hero_x_skin_region
 ## is the face's pore size, redness and cartilage, hero-face-2).
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 const SKIN := preload("res://shaders/hero_skin.gdshader")
 const HAIR := preload("res://shaders/hero_hair.gdshader")
 ## hero-closeup-2: the hair's soft fringe pass, and the hair as it was (HERO_CLOSEUP_2=0).

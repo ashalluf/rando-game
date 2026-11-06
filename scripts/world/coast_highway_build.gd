@@ -11,6 +11,8 @@ extends RefCounted
 ## one mesh per material (HouseKit's materials, so the houses are lit like every other house) and
 ## one static body; LOD chunks the asphalt and the houses as far boxes; the far city the boxes.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 const SEG := 4.0
 const SEG_LOD := 12.0
 ## Seawall parapet over the apron where no house stands, and how deep the wall's footing goes.

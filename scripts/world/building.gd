@@ -3,6 +3,8 @@ extends StaticBody3D
 ## One seeded building. Picks a shape style, dimensions, facade finish, window style,
 ## colors and rooftop props from small option lists. Same seed, same building.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 const SHADER: Shader = preload("res://shaders/building.gdshader")
 
 enum Shape { SLAB, TOWER, STEPPED, PODIUM_TOWER, L_SHAPE, SETBACK, CROWN, WAREHOUSE }

@@ -17,6 +17,8 @@ extends Node3D
 ## It also draws the carts at the kerb round the player (two MultiMeshes, near and far) and hides
 ## the one an arm is holding. TrafficManager asks work_stop() for a working car's next stop.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 ## Disable to keep every service vehicle off the streets (the smoke test does, except in its checks).
 static var enabled: bool = true
 

@@ -4,6 +4,8 @@ extends RefCounted
 ## across before scaling, flattened by the instance) and the culvert headwall round one or two
 ## corrugated steel pipes (shaders/arroyo_culvert.gdshader).
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 static var _cache: Dictionary = {}
 
 

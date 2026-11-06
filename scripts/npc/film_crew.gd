@@ -8,6 +8,8 @@ extends StreetVendor
 ## pedestrian otherwise: shot, knocked, bled and ragdolled like anyone, in the crowd cap; gunfire
 ## sends them running and they walk back to their post after (StreetVendor).
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 const BLACK := Color(0.035, 0.035, 0.04)
 
 ## Their job on the set (FilmShoot.layout()'s crew roles); a PA holds a walkie to the face.

@@ -79,7 +79,7 @@ const GAP_REPORT_MS := 2000
 ## seconds on a cold launch]. The bar creeps toward the end of a stage on that time constant, so
 ## it never sits still and never jumps backwards. Unknown stages keep the bar where it is.
 const STAGES := {
-	"compile the game": [0.0, 0.03, 20.0, "Starting"],
+	"compile the game": [0.0, 0.03, 20.0, "Compiling scripts"],
 	"queue the shaders": [0.03, 0.12, 120.0, "Compiling shaders (first launch only)"],
 	"macro map": [0.03, 0.05, 7.0, "Laying out the basin"],
 	"ground bake": [0.05, 0.16, 25.0, "Painting the far ground"],
@@ -364,6 +364,63 @@ static func step(text: String, fraction: float) -> void:
 		_stage_t0 = Time.get_ticks_msec()
 
 
+## The boot compile (docs/HANDOFF.md "The boot compile"): most of the game is ONE dependency cycle
+## (tools/boot_compile/deps.py), and GDScript compiles a cycle in a single load() call - 15-20 s on
+## a 4-core box with no frame of its own. Every script in the cycle calls this from its static
+## initialiser (`static func _static_init() -> void: LoadPulse.compiled()`, added by
+## `deps.py --hook`), which Godot runs as each script finishes compiling, INSIDE that one call:
+## so the picture is presented (tick()) between scripts and the count moves. Outside the boot's
+## picture it is one increment and a bool test. Changes nothing a script does.
+static var compiled_count: int = 0
+## The boot's count of scripts before the current load() and the total (0: no count shown).
+static var compile_base: int = 0
+static var compile_total: int = 0
+static var _compile_shown: int = 0
+## The longest time between two compiled() calls since compile_mark() (a probe's measure of how
+## long the picture can hold still inside the cycle) and the script that ended it.
+static var compile_max_gap_us: int = 0
+static var compile_max_gap_after: String = ""
+static var _compile_last_us: int = 0
+## tools/boot_compile/compile_probe.gd: every compiled() call's time and caller (debug builds).
+static var compile_trace: Array = []
+static var _tracing: bool = false
+
+
+static func compiled() -> void:
+	compiled_count += 1
+	var now := Time.get_ticks_usec()
+	if _compile_last_us > 0 and now - _compile_last_us > compile_max_gap_us:
+		compile_max_gap_us = now - _compile_last_us
+		compile_max_gap_after = str(compiled_count)
+	_compile_last_us = now
+	if _tracing:
+		var st := get_stack()
+		compile_trace.append([now, str(st[1]["source"]) if st.size() > 1 else "?"])
+	if not active:
+		return
+	if compile_total > 0:
+		compile_progress(compile_base + compiled_count, compile_total)
+	tick()
+
+
+## Starts the gap measure (compile_max_gap_us) from now.
+static func compile_mark() -> void:
+	_compile_last_us = Time.get_ticks_usec()
+	compile_max_gap_us = 0
+	compile_max_gap_after = ""
+
+
+## The "n / N scripts" line, never counting down (a script the cycle compiled early is counted
+## again when the boot reaches it).
+static func compile_progress(done: int, total: int) -> void:
+	_compile_shown = clampi(maxi(_compile_shown, done), 0, total)
+	_note = "%d / %d scripts" % [_compile_shown, total]
+	# The bar follows the count across the compile's share of it (STAGES "compile the game").
+	if total > 0 and active:
+		var share: Array = STAGES["compile the game"]
+		_progress = maxf(_progress, lerpf(float(share[0]), float(share[1]), float(_compile_shown) / total))
+
+
 ## A second line under the step (the pipeline count while the graphics compile).
 static func note(text: String) -> void:
 	_note = text
@@ -394,8 +451,9 @@ static func tick(force: bool = false) -> void:
 	_last_us = Time.get_ticks_usec()
 	pulses += 1
 	pulse_usec += _last_us - t
-	# LOAD_PULSE_SHOT=<png>: the picture saved once, at the 200th pulse (a still for the docs).
-	if pulses == 200 and OS.get_environment("LOAD_PULSE_SHOT") != "" and is_instance_valid(_root):
+	# LOAD_PULSE_SHOT=<png>: the picture saved once, at the 200th pulse (LOAD_PULSE_SHOT_AT=n: the
+	# n-th) - a still for the docs.
+	if OS.get_environment("LOAD_PULSE_SHOT") != "" and pulses == (OS.get_environment("LOAD_PULSE_SHOT_AT").to_int() if OS.get_environment("LOAD_PULSE_SHOT_AT") != "" else 200) and is_instance_valid(_root):
 		_root.get_texture().get_image().save_png(OS.get_environment("LOAD_PULSE_SHOT"))
 
 

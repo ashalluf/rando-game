@@ -14,6 +14,8 @@ extends RefCounted
 ## chunk's zone and whether it holds the shore), the way CityChunk decides what it builds.
 ## `SAND_ROADS=0` in the environment turns it off (the A/B).
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 static var enabled: bool = OS.get_environment("SAND_ROADS") != "0"
 
 ## Per plan (instance id): chunk Vector2i -> [kind, sand_x]: kind 0 a road chunk, 1 a sea chunk (no

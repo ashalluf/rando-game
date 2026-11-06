@@ -27,6 +27,8 @@ extends Node
 ##     stay on the road.
 ## `CRASH_BREAKUP=0` in the environment turns all of it off (the A/B: CrashDeform only).
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 static var enabled: bool = OS.get_environment("CRASH_BREAKUP") != "0"
 
 const OPEN_PAINT := preload("res://shaders/car_paint_open.gdshader")

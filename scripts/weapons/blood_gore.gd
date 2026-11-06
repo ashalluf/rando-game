@@ -18,6 +18,8 @@ extends RefCounted
 ##  - spatter on the hero's clothes when he is close (HeroBlood).
 ## BLOOD_GORE_2=0 is the A/B: every hook returns at once and the shaders keep their old branch.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 ## Hole radii (metres, times the wound's sqrt strength): an entry is a punched hole, an exit torn.
 const ENTRY_HOLE := 0.017
 const EXIT_HOLE := 0.03

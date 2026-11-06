@@ -16,6 +16,8 @@ extends RefCounted
 ## Draws: near ~9 (+ the batches: cars by tile, poles, palms); far 6. Every roll is a hash of the
 ## stall or the spot (Ballpark.ihash01), never a chunk rng.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 const DIRL := Vector2(-0.70710678, 0.70710678)
 const DIRR := Vector2(0.70710678, 0.70710678)
 const NL := Vector2(-0.70710678, -0.70710678)

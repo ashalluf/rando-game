@@ -24,6 +24,8 @@ extends FreewayKit
 ## streaks, grime, formwork), the track freight_track.gdshader, the lettering FreewayKit's paint.
 ## LOD chunks keep the trench's shell, the decks, the ballast beds and the portal.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 const T_BALLAST := 1
 const T_TIE := 2
 const T_HEAD := 3
@@ -145,6 +147,7 @@ static func track_material() -> ShaderMaterial:
 	if _track_mat == null:
 		_track_mat = ShaderMaterial.new()
 		_track_mat.shader = load("res://shaders/freight_track.gdshader")
+		_track_mat.set_shader_parameter("rc4", 1.0 if RcFreightYard.enabled else 0.0)
 	return _track_mat
 
 
@@ -214,7 +217,11 @@ func ties(xa: float, za: float, xb: float, zb: float, ya: float, yb: float, timb
 	var buf := _timbers if timber else _ties
 	for k in range(k0, k1 + 1):
 		var z := float(k) * sp
-		var t := (z - za) / maxf(zb - za, 0.0001) if absf(zb - za) > 0.0001 else 0.0
+		# (zb - za) keeps its sign: a piece laid northward (the yard's ladder) runs za > zb, and the
+		# old maxf(zb - za, 1e-4) threw every one of its ties kilometres off the track.
+		var t := (z - za) / (zb - za) if absf(zb - za) > 0.0001 else 0.0
+		if not RcFreightYard.enabled:
+			t = (z - za) / maxf(zb - za, 0.0001) if absf(zb - za) > 0.0001 else 0.0
 		var x := lerpf(xa, xb, t)
 		var y := lerpf(ya, yb, t) - 0.172
 		# Rows of the 3x4 transform: a yaw about y.
@@ -892,7 +899,7 @@ func _commit_step() -> void:
 		mmi.multimesh = mm
 		mmi.material_override = track_material()
 		mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-		mmi.visibility_range_end = 260.0
+		mmi.visibility_range_end = RcFreightYard.tie_range(buf, 260.0)
 		chunk.add_child(mmi)
 	if _yard != null:
 		_yard.commit()

@@ -29,6 +29,8 @@ extends RefCounted
 ## the shader's own salts (listed on SALT_*), so the painted frames that take over past
 ## `shop_paint_near` metres are the same frames.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 ## Anchor codes, one per axis (see the header).
 const S := 0
 const LO := 1

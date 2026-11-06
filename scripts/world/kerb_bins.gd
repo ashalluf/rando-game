@@ -9,6 +9,8 @@ extends RefCounted
 ## player and sends the garbage trucks down the streets that have them out; the trucks' arms
 ## (ServiceVehicles.GarbageArm) pick each cart up and tip it.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 ## Carts, in the order their colours are listed: trash, recycling, yard waste.
 const COLORS := [Color(0.10, 0.10, 0.11), Color(0.10, 0.27, 0.62), Color(0.17, 0.42, 0.18)]
 const STREAM_NAMES := ["trash", "recycling", "yard waste"]

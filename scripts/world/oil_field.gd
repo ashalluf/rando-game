@@ -18,6 +18,8 @@ extends RefCounted
 ## The single pumpjacks hidden in the city (an industrial lot, a lot between houses) are
 ## lot_well(): a pure claim on a lot, asked by CityChunk._build_lot() after every roll.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 const ID := "oil_field"
 ## The edges asked for (world XZ); CityPlan snaps each to the nearest road. Midtown, south of the
 ## 105 and west of the 110, north-east of the airport: where the Baldwin Hills stand relative to

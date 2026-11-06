@@ -6,6 +6,8 @@ class_name HillSignLetters
 ## a voxel font. One mesh for the letters, one for the frame; box collision per stroke and post.
 ## Same span, the same level line and the same anchor as before (Landmarks.sign_line()).
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 ## The pen, in cap heights (the real sign's letters are broad strokes of sheet metal).
 const PEN := 0.19
 ## Front panel depth and the frame's offset behind it (metres).

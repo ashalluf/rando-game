@@ -21,6 +21,8 @@ extends RefCounted
 ## ONE StaticBody3D in the sanctuary group, and the chunk's part of the site carries a sanctuary
 ## zone at every level (not in capture): see Cemetery's header.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 const LAWN_TINT := Color(0.80, 0.98, 0.74)
 const LAWN_LIFT := 0.03
 ## Ground grid step (m), FULL.
@@ -66,6 +68,8 @@ static func steps(ch: CityChunk, block: Dictionary) -> Array[Callable]:
 	out.append(func() -> void: _lamps(ch, st))
 	out.append(func() -> void: _pavement(ch, st))
 	out.append(func() -> void: _commit(ch, st))
+	# The dawn refcam's grass and ground mist (Rc5CemeteryDawn).
+	out.append_array(Rc5CemeteryDawn.steps(ch, st))
 	# A few visitors on the drive's verges, one a step, in the crowd cap.
 	for i in VISITORS:
 		out.append(func() -> void: _visitor(ch, st, i))
@@ -235,6 +239,7 @@ static func _ground(ch: CityChunk, st: Dictionary) -> void:
 	mi.name = "CemeteryLawn"
 	mi.mesh = st_mesh.commit()
 	mi.material_override = PropFactory.lawn(LAWN_TINT, hash([ch.plan.seed, "cem_lawn"]), 0.1, 3.4)
+	Rc5CemeteryDawn.dress_lawn(mi.material_override)
 	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	ch.add_child(mi)
 	var shape := ConcavePolygonShape3D.new()

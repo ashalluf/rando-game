@@ -22,6 +22,8 @@ extends Node3D
 ## slot onto car_glass_damage.gdshader and the lamp slots onto car_lamp_damage.gdshader, each the
 ## first time it is needed; the shadow twins follow.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 ## What kind of hit Vehicle.take_hit() was given (its `kind` argument).
 enum Hit { PROP, BULLET, PELLET, BLAST, CRASH }
 enum State { DAMAGED, SMOKING, BURNING, WRECK }

@@ -27,6 +27,8 @@ extends Node3D
 ## the landmarks' actual bounds and the terrain. The cost is a handful of nodes and a few
 ## lookups a tick; nothing here walks the city.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 @export_group("Schedule")
 ## Most aircraft in the sky at once (the web build is capped lower).
 @export var max_aircraft: int = 10

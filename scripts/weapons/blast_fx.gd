@@ -22,6 +22,8 @@ extends RefCounted
 ## blast is the old one plus the flash and the wave. `max_columns`, `max_debris` pieces,
 ## `max_glass_panes` a blast. EXPLOSIONS_2=0 in the environment is the A/B (the old blast alone).
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 static var enabled: bool = OS.get_environment("EXPLOSIONS_2") != "0"
 
 ## The flash: light energy at its peak, its reach in blast radii, how long it holds.

@@ -15,6 +15,8 @@ extends Node3D
 ## tree's root so a scene reload keeps it; it positions its lights from the cars' global
 ## transforms every frame, so origin re-centring never moves it.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 ## Spot lights for traffic (the player's car is extra). Quality sets it: 6 / 3 / 0 / 0.
 static var budget: int = 6
 ## The player's car gets its headlight (Quality: off at LOWEST) and its shadow (HIGH only).

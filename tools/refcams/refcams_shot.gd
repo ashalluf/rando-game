@@ -38,8 +38,10 @@ func _initialize() -> void:
 	DirAccess.make_dir_recursive_absolute(_out_dir)
 	_golf_group()
 	_bonfire_lit()
+	_pump_car()
 	_lowrider_meet()
 	_arena_event()
+	_market_day()
 	# OCCLUSION=0: occlusion culling off (still_shot's switch), to tell what is culled in plain sight.
 	if OS.get_environment("OCCLUSION") == "0":
 		get_root().use_occlusion_culling = false
@@ -98,6 +100,8 @@ func _run() -> void:
 			day.set("hour", float(cam.hour))
 			day.call("_apply")
 		_port_clock(cam)
+		_freight_clock(cam, scene)
+		_fireworks_clock(cam)
 		Engine.time_scale = 1.0
 		# A "drive" row (cameras_w5.json, chase_cam): the player drives his own car and the shot is
 		# his chase camera (tools/refcams/chase_stage.gd), not the free eye.
@@ -105,6 +109,13 @@ func _run() -> void:
 		if cam.has("drive"):
 			OS.set_environment("EYE", "")
 			drive = load("res://tools/refcams/chase_stage.gd").new()
+			await drive.call("run", self, cam, player)
+			fov = player.get("camera").fov
+		elif cam.has("wingsuit"):
+			# A "wingsuit" row (cameras_w8.json, wingsuit_golden): the hero gliding in his suit, the
+			# shot from his own chase camera (tools/refcams/wingsuit_stage.gd).
+			OS.set_environment("EYE", "")
+			drive = load("res://tools/refcams/wingsuit_stage.gd").new()
 			await drive.call("run", self, cam, player)
 			fov = player.get("camera").fov
 		elif cam.has("boat"):
@@ -134,6 +145,7 @@ func _run() -> void:
 				_stage_air(scene, cam)
 				_stage_rail(cam, scene)
 				traffic_staged = _stage_street_cars(cam, scene, plan)
+				_stage_storm_flash(cam, weather)
 				# A "park_car" row (cameras_w6.json, car_closeup): a parked car and the eye round it.
 				if cam.has("park_car"):
 					park = load("res://tools/refcams/park_stage.gd").new()
@@ -168,7 +180,11 @@ func _run() -> void:
 			# cameras_w7.json's hospital_er: an ambulance backing into the ER bay (hospital_stage.gd).
 			_stager = load("res://tools/refcams/hospital_stage.gd")
 			await _stager.stage(self, scene, _eye_cam, player, func() -> void: _place(player, fov), cam)
-		elif stage == "crash":
+		# A "dog_walker" row (cameras_w8.json's suburb_night): a person walking a dog toward the lens.
+		if cam.has("dog_walker") and _stager == null:
+			_stager = load("res://tools/refcams/dog_stage.gd")
+			await _stager.stage(self, scene, _eye_cam, func() -> void: _place(player, fov), cam)
+		if stage == "crash" and _stager == null:
 			# cameras_w8.json's crash_closeup: a sedan wrapped round a bent lamp pole (crash_stage.gd).
 			_stager = load("res://tools/refcams/crash_stage.gd")
 			await _stager.stage(self, scene, _eye_cam, player, func() -> void: _place(player, fov), cam)
@@ -183,6 +199,13 @@ func _run() -> void:
 			_clear_lens(cam.name)
 		if park and _eye_cam:
 			park.call("clear_people", self, _eye_cam.global_position)
+		# A row's optional "clear_people" (metres; wave 8's taco_truck_night): walkers that stray
+		# within it of the lens are hidden for the shot (a passer-by's shoulder filled the frame).
+		if cam.has("clear_people") and _eye_cam:
+			for p in get_nodes_in_group("pedestrian"):
+				var n := p as Node3D
+				if n and n.global_position.distance_to(_eye_cam.global_position) < float(cam.clear_people):
+					n.visible = false
 		for car in _fw_staged:
 			if is_instance_valid(car) and _eye_cam:
 				print("REFCAM %s: staged %s at %.1f m, visible %s, in tree %s" % [cam.name, car.name, (car as Node3D).global_position.distance_to(_eye_cam.global_position), (car as Node3D).is_visible_in_tree(), (car as Node).is_inside_tree()])
@@ -195,6 +218,10 @@ func _run() -> void:
 		_unstage_rail(scene)
 		var png := _out_dir.path_join("%s.png" % cam.name)
 		get_root().get_texture().get_image().save_png(png)
+		# NIGHT_AB=1 (rc5-gas-station-night): what lights the night ground - the frame again with
+		# each light source taken away in turn (<name>_nab_<what>.png) and the environment printed.
+		if OS.get_environment("NIGHT_AB") == "1":
+			await _night_ab(scene, png)
 		var c: Array = await _geo_report("GEO_%s" % cam.name)
 		# SPLIT=1 (OSPLIT=1 too): still_shot's cost table for this camera's frame, every category
 		# hidden in turn (tools/perf_audit_4/split_table.py ranks them from the log).
@@ -215,6 +242,7 @@ func _run() -> void:
 			if _eye_cam:
 				_eye_cam.make_current()
 		_write_frames(load_ms, shots)
+		_release_storm_flash(cam, weather)
 		if park:
 			park.call("finish")
 		if _stager != null:
@@ -256,6 +284,7 @@ func _stage_street_cars(cam: Dictionary, scene: Node, plan: Variant) -> bool:
 		var car: Variant = traffic.call("place_car", axis, best, int(c[1]), int(c[2]), float(c[0]), float(c[3]))
 		if car != null:
 			placed += 1
+			_fw_staged.append(car)
 	print("REFCAM %s: placed %d street cars on road %d (axis %d at %.1f)" % [cam.name, placed, best, axis, float(plan.road_pos(axis, best))])
 	return true
 
@@ -417,6 +446,18 @@ func _bonfire_lit_for(cam: Dictionary) -> void:
 	bf.set("force_lit", int(cam.get("bonfire_lit", -1)))
 
 
+## A row's optional "pump_car" (wave 8's gas_station_night): 1 puts a car at a pump, its driver
+## beside it, on every gas station (GasNight.force_pump_car, as PUMP_CAR=1) whatever the station's
+## hash. Set before the city loads: the car is placed as its chunk builds.
+func _pump_car() -> void:
+	if OS.get_environment("PUMP_CAR") != "":
+		return
+	var only := OS.get_environment("ONLY").split(",", false)
+	for cam: Dictionary in _cameras().get("cameras", []):
+		if int(cam.get("pump_car", 0)) == 1 and (only.is_empty() or String(cam.name) in only):
+			OS.set_environment("PUMP_CAR", "1")
+
+
 ## A row's optional "lowrider_meet" (wave 7's lowrider_meet): {"on": 1, "pose": "i:routine:s[:side],..."}
 ## holds every meet on (LOWRIDER_MEET=1) and freezes row cars mid-routine (LOWRIDER_POSE). Set before
 ## the city loads: the meet's row is parked as its chunk builds.
@@ -430,6 +471,21 @@ func _lowrider_meet() -> void:
 				(load("res://scripts/world/lowrider_meet.gd") as GDScript).set("force", true)
 			if OS.get_environment("LOWRIDER_POSE") == "" and lm.has("pose"):
 				OS.set_environment("LOWRIDER_POSE", String(lm.pose))
+
+
+## A row's optional "market_day" (wave 8's farmers_market): 1 makes today every farmers' market's
+## day (FarmersMarket.force_market_day, as MARKET_DAY=1), and its "hour" the hour the market is
+## built for (MARKET_HOUR: a chunk built during the load would otherwise be built at the load's
+## hour). Set before the city loads: the static reads the environment when the class first loads.
+func _market_day() -> void:
+	if OS.get_environment("MARKET_DAY") != "":
+		return
+	var only := OS.get_environment("ONLY").split(",", false)
+	for cam: Dictionary in _cameras().get("cameras", []):
+		if cam.has("market_day") and (only.is_empty() or String(cam.name) in only):
+			OS.set_environment("MARKET_DAY", str(int(cam.market_day)))
+			if cam.has("hour") and OS.get_environment("MARKET_HOUR") == "":
+				OS.set_environment("MARKET_HOUR", str(float(cam.hour)))
 
 
 ## A row's optional "golf_group" ("hole:stage[:tee[:count]]", wave 6's golf_morning) puts a group
@@ -586,6 +642,36 @@ func _skate_clock(cam: Dictionary) -> void:
 			n.call("set_clock", float(cam.skate_t))
 
 
+## A row's optional "fireworks_t" (wave 8's fireworks_ballpark): a show staged at that show clock
+## (seconds) and held there for the shot, as FIREWORKS_T= / FIREWORKS_HOLD=1 do for a still;
+## "fireworks_site" picks the site ("stadium" by default, "beach", or "both"). Rows without the key
+## put the node back as it was (no staged show, the clock running).
+func _fireworks_clock(cam: Dictionary) -> void:
+	var fw := current_scene.get_node_or_null("Fireworks") if current_scene else null
+	if fw == null:
+		return
+	var staged: Dictionary = fw.get("staged")
+	var sites: Array = fw.get("sites")
+	if not cam.has("fireworks_t"):
+		if fw.get_meta("rc_fireworks", false):
+			staged.clear()
+			fw.set("hold", false)
+			fw.set_meta("rc_fireworks", false)
+		return
+	var which := String(cam.get("fireworks_site", "stadium"))
+	staged.clear()
+	for id in ["beach", "stadium"]:
+		if which == "both" or which == id:
+			staged[id] = float(cam.fireworks_t)
+	fw.set("hold", true)
+	fw.set_meta("rc_fireworks", true)
+	# A site already showing keeps its clock: set it, so the row's moment is what is drawn.
+	for s: Dictionary in sites:
+		if staged.has(s.id):
+			s.clock = float(staged[s.id])
+			s.prev = s.clock
+
+
 func _port_clock(cam: Dictionary) -> void:
 	var pl: GDScript = load("res://scripts/world/port_life.gd")
 	if cam.has("port_t"):
@@ -593,6 +679,81 @@ func _port_clock(cam: Dictionary) -> void:
 		pl.set("hold", true)
 	else:
 		pl.set("hold", OS.get_environment("PORT_HOLD") == "1")
+
+
+## NIGHT_AB=1: the frame again with each light source off in turn, and the night numbers printed.
+func _night_ab(scene: Node, png: String) -> void:
+	var day := scene.get_node_or_null("DayNight")
+	var we := scene.find_child("WorldEnvironment", true, false) as WorldEnvironment
+	var env: Environment = we.environment if we else null
+	if env == null:
+		var cam := get_root().get_viewport().get_camera_3d()
+		env = cam.environment if cam and cam.environment else null
+	if day:
+		day.set_process(false)
+		day.set_physics_process(false)
+	var suns: Array = scene.find_children("*", "DirectionalLight3D", true, false)
+	if env:
+		print("NIGHT_AB env: tonemap_exposure %.3f ambient_source %d ambient_energy %.3f sky_contribution %.3f ambient_color %s fog %s fog_density %.5f bg_energy %.3f" % [env.tonemap_exposure, env.ambient_light_source, env.ambient_light_energy, env.ambient_light_sky_contribution, env.ambient_light_color, env.fog_enabled, env.fog_density, env.background_energy_multiplier])
+	for d in suns:
+		var dl := d as DirectionalLight3D
+		print("NIGHT_AB sun %s visible %s energy %.3f color %s dir %s" % [dl.name, dl.visible, dl.light_energy, dl.light_color, -dl.global_transform.basis.z])
+	var cam3 := get_root().get_viewport().get_camera_3d()
+	if cam3 and cam3.attributes:
+		print("NIGHT_AB camera attributes %s" % cam3.attributes)
+	var lamps: Array = get_nodes_in_group("lamp_light")
+	var pools: Array = []
+	for n in scene.find_children("*", "GeometryInstance3D", true, false):
+		var nm := String(n.name).to_lower()
+		if nm.contains("pool") or nm.contains("spill") or nm.contains("glow"):
+			pools.append(n)
+	print("NIGHT_AB %d lamp lights, %d pool/spill/glow nodes" % [lamps.size(), pools.size()])
+	var eye := cam3.global_position if cam3 else Vector3.ZERO
+	for l in lamps:
+		var o := l as OmniLight3D
+		if o and o.is_visible_in_tree() and o.global_position.distance_to(eye) < 60.0:
+			print("NIGHT_AB lamp %s/%s at %s (d %.1f) energy %.2f range %.1f att %.2f" % [o.get_parent().name, o.name, (o.global_position - eye).snapped(Vector3.ONE * 0.1), o.global_position.distance_to(eye), o.light_energy, o.omni_range, o.omni_attenuation])
+	for n in pools:
+		var g := n as GeometryInstance3D
+		if g.is_visible_in_tree() and g is MultiMeshInstance3D and (g as MultiMeshInstance3D).multimesh:
+			var mm := (g as MultiMeshInstance3D).multimesh
+			var near := 0
+			for i in mm.visible_instance_count if mm.visible_instance_count >= 0 else mm.instance_count:
+				if (g.global_transform * mm.get_instance_transform(i)).origin.distance_to(eye) < 40.0:
+					near += 1
+			if near > 0:
+				print("NIGHT_AB pools %s/%s: %d within 40 m" % [g.get_parent().name, g.name, near])
+	var variants := ["nolamps", "nopools", "nomoon", "noamb", "nothing"]
+	for v: String in variants:
+		var saved := {}
+		if v in ["nolamps", "nothing"]:
+			for l in lamps:
+				saved[l] = (l as Node3D).visible
+				(l as Node3D).visible = false
+		if v in ["nopools", "nothing"]:
+			for n in pools:
+				saved[n] = (n as Node3D).visible
+				(n as Node3D).visible = false
+		if v in ["nomoon", "nothing"]:
+			for d in suns:
+				saved[d] = (d as Node3D).visible
+				(d as Node3D).visible = false
+		var amb := [0.0, 0.0]
+		if env and v in ["noamb", "nothing"]:
+			amb = [env.ambient_light_energy, env.ambient_light_sky_contribution]
+			env.ambient_light_energy = 0.0
+			env.ambient_light_sky_contribution = 0.0
+		for i in 4:
+			await process_frame
+		get_root().get_texture().get_image().save_png(png.get_basename() + "_nab_%s.png" % v)
+		for n in saved:
+			(n as Node3D).visible = saved[n]
+		if env and v in ["noamb", "nothing"]:
+			env.ambient_light_energy = amb[0]
+			env.ambient_light_sky_contribution = amb[1]
+	if day:
+		day.set_process(true)
+		day.set_physics_process(true)
 
 
 ## A row's optional "rail_at" ("<station>[:<dir>[:<seconds from mid-dwell>]]", wave 7's
@@ -627,3 +788,50 @@ func _unstage_rail(scene: Node) -> void:
 	if sys:
 		sys.set("hold", OS.get_environment("RAIL_HOLD") == "1")
 	_rail_held = false
+## A camera row's optional `freight_into` (wave 7, freight_yard): the freight line's clock held at
+## that many seconds into the yard stand of the trip nearest the yard (FreightRail.clock_at_yard();
+## the stand is DWELL_YARD 150 s, so past 150 the train is pulling out south), so the departing
+## train stands where the row was framed for. Rows without it let the clock run as before.
+func _freight_clock(cam: Dictionary, scene: Node) -> void:
+	var sys := scene.get_node_or_null("FreightRail") if scene else null
+	if sys == null:
+		return
+	if not cam.has("freight_into"):
+		sys.set("hold", OS.get_environment("FREIGHT_HOLD") == "1")
+		return
+	var line: Variant = sys.get("line")
+	if line == null:
+		sys.call("step")
+		line = sys.get("line")
+	if line == null:
+		return
+	load("res://scripts/world/freight_rail.gd").set("clock", float(line.call("clock_at_yard", float(cam.freight_into))))
+	sys.set("hold", true)
+	sys.call("step")
+
+
+## A camera row's optional `storm_flash` (wave 8, storm_downtown): {"dist": metres, "az": degrees
+## (0 = +x, -90 = game north), "hold": the flash level held for the shot} - a lightning strike forced
+## through Weather.force_strike() as the camera's staging starts, its flash and bolt held by
+## StormDrama (STORM_FLASH_HOLD's path) until the shot is saved. Rows without the key strike nothing.
+func _stage_storm_flash(cam: Dictionary, weather: Node) -> void:
+	var spec: Variant = cam.get("storm_flash")
+	if not spec is Dictionary or weather == null or not weather.has_method("force_strike"):
+		return
+	var drama: Node = weather.get("_drama")
+	var az := deg_to_rad(float(spec.get("az", -90.0)))
+	if drama:
+		drama.set("_hold", float(spec.get("hold", 0.8)))
+	weather.call("force_strike", float(spec.get("dist", 1100.0)), Vector3(cos(az), 0.0, sin(az)))
+	if drama:
+		drama.set("_holding", float(spec.get("hold", 0.8)) > 0.0)
+	print("REFCAM %s: lightning at %.0f m, az %.0f, held %.2f" % [cam.name, float(spec.get("dist", 1100.0)), float(spec.get("az", -90.0)), float(spec.get("hold", 0.8))])
+
+
+func _release_storm_flash(cam: Dictionary, weather: Node) -> void:
+	if not cam.get("storm_flash") is Dictionary or weather == null:
+		return
+	var drama: Node = weather.get("_drama")
+	if drama:
+		drama.set("_holding", false)
+		drama.set("_hold", 0.0)

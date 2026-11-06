@@ -24,6 +24,8 @@ extends RefCounted
 ## Names: MacArthur Park, Wilshire and the four streets are public place names (the project's rule:
 ## geography is fair game, trade dress is not). No business names or logos.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 # --- The data table -----------------------------------------------------------------------------
 
 const SITE := {

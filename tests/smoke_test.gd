@@ -2936,6 +2936,9 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	# The film lot refcam (tests/rc4_film_lot_checks.gd, Rc4FilmLot): the camera row, the
 	# basecamp's dressing, the studio asphalt, the batched trailers.
 	load("res://tests/rc4_film_lot_checks.gd").new().run(self, city)
+	# The gas station at night (tests/rc5_gas_station_night_checks.gd, GasNight): the canopy's light
+	# on the forecourt, a car at a pump and its driver.
+	load("res://tests/rc5_gas_station_night_checks.gd").new().run(self, city)
 	# The LA River at night (tests/rc4_river_night_checks.gd, RiverNight): the bridges' frames in the river's shaders.
 	load("res://tests/rc4_river_night_checks.gd").new().run(self, city)
 	# The heli_night refcam (tests/rc4_heli_night_checks.gd, RcHeliNight): crown lids, pad lamps, the unfinished towers.
@@ -2953,15 +2956,46 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	# The Mac launch (tests/mac_launch_checks.gd, LoadPulse): the boot scene, the loop hooks, Quality
 	# frozen under the loading screen, the pulse inactive headless.
 	load("res://tests/mac_launch_checks.gd").new().run(self, city)
+	# The wingsuit_golden refcam (tests/rc5_wingsuit_golden_checks.gd, WingsuitFx look2 / Rc5Wingsuit):
+	# the camera row, the two-skin wing, the sunlit vapour, THE LATTICE's roof lattice.
+	load("res://tests/rc5_wingsuit_golden_checks.gd").new().run(self)
 	# The terminal's departures kerb (tests/rc4_terminal_curb_checks.gd, TerminalCurb): travellers, drop-offs.
 	load("res://tests/rc4_terminal_curb_checks.gd").new().run(self, city)
 	# The skate park refcam (tests/rc5_skate_park_checks.gd, RcSkatePark): used concrete, the pool air, lit boardwalk paint.
 	load("res://tests/rc5_skate_park_checks.gd").new().run(self)
+	# The storm_downtown refcam (tests/rc5_storm_downtown_checks.gd, RcStorm): the night flash, the
+	# storm curtain at night, the lamp streaks in a storm, the litter, the camera row.
+	load("res://tests/rc5_storm_downtown_checks.gd").new().run(self, city)
 	# Forward+ review h (tests/fwd_review_h_checks.gd, FwdReviewH): waves 6-7's look work on the Mac's renderer.
 	load("res://tests/fwd_review_h_checks.gd").new().run(self, city)
 	# STARLIGHT PLAZA on an event night (tests/rc5_arena_night_checks.gd, ArenaNight): the screens'
 	# spill, the facades' LED, the hotel's crown, the searchlights, the camera row.
 	load("res://tests/rc5_arena_night_checks.gd").new().run(self, city)
+	# The farmers' market refcam (tests/rc5_farmers_market_checks.gd): the camera row in the aisle,
+	# packed produce, printed cartons, the material's relief and drape, the busier market.
+	load("res://tests/rc5_farmers_market_checks.gd").new().run(self, city)
+	# The police pursuit at night (tests/rc5_police_pursuit_checks.gd, PursuitLook): the LED flash
+	# pattern and bar, the searchlight's pool and shaft, the camera row.
+	load("res://tests/rc5_police_pursuit_checks.gd").new().run(self)
+	# The brush_fire refcam (tests/rc5_brush_fire_checks.gd, BrushFireLook): the camera row, the
+	# smoky dusk sky and fog, the pall, the ash, the fire line under the site.
+	load("res://tests/rc5_brush_fire_checks.gd").new().run(self, city)
+	# The freight_yard refcam (tests/rc4_freight_yard_checks.gd, RcFreightYard): ties, the ladder, weeds, rock, tags.
+	load("res://tests/rc4_freight_yard_checks.gd").new().run(self, city)
+	# The boot compile (tests/boot_compile_checks.gd, LoadPulse.compiled()): frames inside the cycle's compile.
+	load("res://tests/boot_compile_checks.gd").new().run(self)
+	# The construction site at dusk (tests/rc5_construction_dusk_checks.gd, ConstructionDusk): the
+	# camera row, the late shift, the work lights, the dusk glass and the printed posters.
+	load("res://tests/rc5_construction_dusk_checks.gd").new().run(self, city)
+	# The cemetery_dawn refcam (tests/rc5_cemetery_dawn_checks.gd, Rc5CemeteryDawn): the deck's sun, the lamps going out, mist, grass.
+	load("res://tests/rc5_cemetery_dawn_checks.gd").new().run(self, city)
+	# The suburb_night refcam (tests/rc5_suburb_night_checks.gd, SuburbMoon, SuburbNight): the moon,
+	# the window spills, the lanterns.
+	load("res://tests/rc5_suburb_night_checks.gd").new().run(self, city)
+	# Fireworks over the ballpark (tests/rc5_fireworks_ballpark_checks.gd): the second look, the camera row.
+	await load("res://tests/rc5_fireworks_ballpark_checks.gd").new().run(self, city)
+	# The taco truck at 23:00 (tests/rc5_taco_truck_checks.gd, TacoTruckNight): regulars, no bike lanes, lamps, steam.
+	load("res://tests/rc5_taco_truck_checks.gd").new().run(self, city)
 	# The crash_closeup refcam (tests/rc5_crash_closeup_checks.gd, CrashAftermath): the pole's V, the popped bonnet, fluids, steam.
 	await load("res://tests/rc5_crash_closeup_checks.gd").new().run(self, city)
 

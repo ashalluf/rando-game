@@ -7,6 +7,8 @@ extends Pedestrian
 ## four quarters round the hall and the pond, and the walk), a walk goes out to the walk, along
 ## it and in again, so nobody walks through the hall, the pond or a shop row.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 var regions: Array = []
 var walk_z: float = 0.0
 

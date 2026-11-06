@@ -10,6 +10,8 @@ extends Pedestrian
 ## hear gunfire and witness crimes). Gunfire calls a job off and sends them running; once it is
 ## over they walk back to the podium.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 ## The operators' uniforms: [jacket / vest, trousers] in the crowd's garment regions (sRGB).
 ## Never navy: that is the police's.
 const UNIFORMS := [

@@ -14,6 +14,8 @@ extends RefCounted
 ##     booth, and sign boards with their LETTERING (TextMesh outlines merged into the mesh).
 ## Everything here is pure geometry: no rolls (callers pass what they rolled), no nodes.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 # --- Kinds (COLOR.a in 32nds; mirrored in vacant_walls.gdshader) --------------------------------
 const K_GALV := 0
 const K_CHAIN := 1

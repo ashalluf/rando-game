@@ -10,6 +10,8 @@ extends StreetVendor
 ## round the rig's own head from CrowdHatTable's measurements (CrowdHat.head_for(), the head frame
 ## FireHelmet uses) or hung off the upper spine like the crowd's backpack.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 enum Piece { NONE, CAPE, COWBOY_HAT, ROBOT_HELMET, TIARA, ANTENNAE }
 
 ## name, top and bottom (HSV) or "metal" (a painted-metal colour over the whole body), skin tint,

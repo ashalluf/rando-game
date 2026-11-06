@@ -23,6 +23,8 @@ extends RefCounted
 ## tall pole signs' heads: LOD chunks and the far city keep a motel sign's or a pylon's head as a
 ## lit far box (the roof plant's PANEL, like a billboard's) and its pole as a MAST.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 ## Off: nothing is added (the A/B; BOULEVARD_SIGNS=0 in the environment).
 static var enabled: bool = OS.get_environment("BOULEVARD_SIGNS") != "0"
 

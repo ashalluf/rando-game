@@ -12,6 +12,8 @@ extends RefCounted
 ## the products (~2,000 instances, ~110k triangles, no shadows) and the people are three deferred
 ## build steps (CityChunk._run_or_defer), hidden until CornerStoreSite shows them.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 # Kinds in corner_store.gdshader (the vertex alpha x 32).
 const K_STUCCO := 0
 const K_PAINT := 1

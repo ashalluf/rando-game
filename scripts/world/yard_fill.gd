@@ -28,6 +28,8 @@ extends RefCounted
 ## flower a chunk), under per-chunk budgets. LOD chunks and the far city's capture get the lawns
 ## and the ivy as slabs (the merged far ground), nothing else.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 ## Off, every block builds as it did before this (the A/B: still_shot.gd YARD_FILL=0; FILL=0 on
 ## tools/lot_coverage.gd; the smoke test's "rolls nothing" check).
 static var enabled: bool = true

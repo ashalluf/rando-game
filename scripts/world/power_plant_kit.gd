@@ -18,6 +18,8 @@ extends RefCounted
 ##   UV2        x the piece's height (a stack's bands), y a per-face parameter (a seed)
 ## `full` false is the LOD chunks' version: the same masses with the small things left out.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 const K_CLAD := 0
 const K_CONCRETE := 1
 const K_STEEL := 2

@@ -20,6 +20,8 @@ extends RefCounted
 ##   straw() desaturates the grass texture toward a warm straw (lawn.gdshader `straw`).
 ## Every placement is a hash of the stand, never an rng.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 static var enabled: bool = OS.get_environment("AIRPORT_APRON") != "0"
 
 ## The stripe box's centre over the surface (it is 2 cm tall; road_paint presses its top to

@@ -257,6 +257,10 @@ uniform float flash = 0.0;
 /// sky; 1 is the old even flash.
 uniform vec3 flash_dir = vec3(0.0, 1.0, 0.0);
 uniform float flash_spread = 1.0;
+/// The flash's share in the cubemap pass (radiance, sky ambient, aerial fog; RcStorm: 1 = the old).
+uniform float flash_cube = 1.0;
+/// The flash's colour (RcStorm cools it at night).
+uniform vec3 flash_color = vec3(0.8, 0.85, 1.0);
 
 const float EARTH_R = 6371.0;
 
@@ -1496,7 +1500,7 @@ void sky() {
 		col = mix(col, ground, street);
 	}
 	float flash_lobe = flash_spread + (1.0 - flash_spread) * 2.2 * pow(max(dot(dir, flash_dir) * 0.5 + 0.5, 0.0), 6.0);
-	col += flash * flash_lobe * vec3(0.8, 0.85, 1.0);
+	col += flash * flash_lobe * flash_color * (AT_CUBEMAP_PASS ? flash_cube : 1.0);
 	COLOR = col;
 #if CURRENT_RENDERER != RENDERER_COMPATIBILITY
 	}

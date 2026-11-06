@@ -16,6 +16,8 @@ extends RefCounted
 ## Rolled from hashes of the seed and the stretch (BeachActivity._h), never an rng: the count from
 ## BeachLife.plan_activity()'s "waders". `WADERS=0` in the environment turns them off (the A/B).
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 static var enabled: bool = OS.get_environment("WADERS") != "0"
 
 ## How far out (m from the waterline, + seaward) a group may stand, and how deep at most (m of water

@@ -29,6 +29,8 @@ extends RefCounted
 ## LOD and the far city: `lod_box`es (walls in their colour, roofs in their tile, the gate and the
 ## hall as boxes).
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 const K_PAINT := 0
 const K_TILE := 1
 const K_EAVE := 2

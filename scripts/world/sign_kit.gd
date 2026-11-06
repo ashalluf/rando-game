@@ -15,6 +15,8 @@ extends RefCounted
 ## Pole sign frame: origin at the foot of the pole on the pavement, +y up, the sign's plane the XY
 ## plane (both faces printed, facing +-z: along the street), +x into the lot away from the street.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 const A_FIXED := 0.0
 const A_STEEL := 0.1
 const A_FACE := 0.2
