@@ -212,6 +212,14 @@ func _run() -> void:
 		for car in _fw_staged:
 			if is_instance_valid(car) and _eye_cam:
 				print("REFCAM %s: staged %s at %.1f m, visible %s, in tree %s" % [cam.name, car.name, (car as Node3D).global_position.distance_to(_eye_cam.global_position), (car as Node3D).is_visible_in_tree(), (car as Node).is_inside_tree()])
+				var tr: Variant = car.get("traffic")
+				if tr is Dictionary and (tr as Dictionary).has("dp_at"):
+					print("REFCAM %s: pickup %s v %.2f sig %d along %.1f" % [cam.name, car.name, float(tr.get("v", 0.0)), int(tr.get("sig", 0)), float(tr.get("along", 0.0))])
+					# The still catches the hazards on their lit half (shader TIME is held at 0 here,
+					# where a car's blink phase bucket below 0.5 is dark).
+					var nl: Variant = car.get("_night_lights")
+					if int(tr.get("sig", 0)) == 2 and nl is GeometryInstance3D:
+						(nl as GeometryInstance3D).material_override = (load("res://scripts/world/prop_factory.gd") as GDScript).call("vehicle_light_material", false, 2, 2, false)
 		_fw_staged.clear()
 		await process_frame
 		if not _hero.is_empty():

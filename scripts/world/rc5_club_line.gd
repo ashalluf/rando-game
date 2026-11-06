@@ -61,6 +61,8 @@ const BOARD_D := 0.22
 const BOARD_SHARE := 0.94
 const BOARD_MAX := 7.5
 const NAME_H := 0.52
+## The board's name glow after dark (nightlife_sign.gdshader's night_energy; the canopy's is 7).
+const NAME_GLOW := 2.6
 ## The light along the line: where (share of the run from the door), reach, and the pool's size.
 const LINE_LIGHT_AT := 0.55
 const LINE_LIGHT_REACH := 9.0
@@ -111,6 +113,11 @@ static func front(chunk: CityChunk, holder: Node3D, v: Dictionary, xf: Transform
 	chunk._batch.set_draw_distance(k, NightLife.SIGN_DRAW)
 	chunk._batch.set_shadow_distance(k, NightLife.SHADOW_DISTANCE)
 	NightLife._sign(holder, String(v.name), xf * Vector3(0.0, (BOARD_Y.x + BOARD_Y.y) * 0.5, BOARD_D + 0.012), xf.basis, NAME_H, w - 0.5, tint, gy)
+	# The name burns at NAME_GLOW, not the canopy lettering's 7: at that the club's colour went
+	# white through AgX and the board read as one more shop sign.
+	var sign_mi := holder.get_child(holder.get_child_count() - 1) as MeshInstance3D
+	if sign_mi and sign_mi.material_override is ShaderMaterial:
+		(sign_mi.material_override as ShaderMaterial).set_shader_parameter("night_energy", NAME_GLOW)
 	if not bool(v.get("open", false)):
 		return
 	# The club's colour on the line: a light over the middle of it, a pool along the rope.

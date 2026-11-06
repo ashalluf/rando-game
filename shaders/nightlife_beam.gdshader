@@ -56,9 +56,10 @@ uniform float street_knee = 1.4;
 // and carries a dense core over its first `core_len` metres, seen from the street.
 uniform float club_look = 0.0;
 uniform float beam_len = 1700.0;
-uniform float core_gain = 0.2;
+uniform float core_gain = 0.09;
 uniform float core_len = 45.0;
 uniform float club_fade = 140.0;
+uniform float club_street = 0.7;
 
 varying flat vec3 lens_world;
 
@@ -101,7 +102,7 @@ void fragment() {
 		float street_c = 1.0 - smoothstep(40.0, 110.0, CAMERA_POSITION_WORLD.y - lens_world.y);
 		float m = along * beam_len;
 		// Thinning up the sky: the shaft fades into the dark rather than standing as a white pillar.
-		a *= mix(1.0, 0.18 + 0.82 * exp(-m / club_fade), street_c);
+		a *= mix(1.0, club_street * (0.18 + 0.82 * exp(-m / club_fade)), street_c);
 		float soft_face = pow(abs(dot(normalize(NORMAL), normalize(VIEW))), 1.6);
 		float core = core_gain * exp(-m / core_len) * soft_face * smoothstep(0.0, 0.6, m)
 			* step(near_start, 0.0) * clamp(lamp_factor * 1.4 - 0.2, 0.0, 1.0);
