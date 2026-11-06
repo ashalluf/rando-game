@@ -4737,3 +4737,10 @@ none of either.
   lit structures standing in water mirror their light in it (the islands' towers as columns in the
   bay); a flood is light thrown up a face from its foot, not a face painted the gel's colour.
   LONG_BEACH_SAND=0 / RC5_OIL_ISLANDS=0 are the A/B.
+- **2026-11-06 Memory after wave 8: a teleport lets go of where it left (memory-audit-w8, HANDOFF
+  "Memory after wave 8").** The gate's shards peaked ~3.8 GB; the caches were not the cause (each
+  keeps under 25 MB alive on its own), the teleports were: every update_streaming(true) built the
+  new window while the old one stood for its 0.45 s dissolve. Across a jump nothing can see the old
+  area, so its meshes go first; the nodes keep their old lifetime (freed mid-frame, wheel contacts
+  and deferred lambdas still named them). glibc tuning (a fixed mmap threshold) lowered end RSS
+  but not the peak, so it was left out. TELEPORT_FREE=0 is the A/B.

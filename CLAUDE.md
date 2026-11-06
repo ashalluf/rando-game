@@ -6888,6 +6888,11 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   `MESH_COMPACT=0` the A/B). Measure with `tools/memory_probe.gd` (load, 2 km drive, `HOPS=`
   teleports; RSS, every static cache sized, the scene by owner, duplicate meshes) and
   `tools/peak_rss.py --trace 5 -- <cmd>` (the box has no `/usr/bin/time`).
+- Teleports and memory (wave 8, docs/HANDOFF.md "Memory after wave 8"): `update_streaming(true)`
+  hides the chunks leaving the window and drops their meshes BEFORE building the new one
+  (`_free_retiring_now()`; the nodes still go after `lod_fade_time`, never mid-frame: wheels and
+  lambdas still name them). Kept drawn for the dissolve, every jump peaked at two areas.
+  `TELEPORT_FREE=0` is the A/B; `memory_probe.gd MESH_TOP=n` splits a TREE row by mesh family.
 - CPU per physics tick (perf-audit-2, docs/HANDOFF.md "Perf audit 2"): headless, a frame is up to
   eight physics steps and TrafficManager was ~85 % of them, so **anything the traffic asks per car
   per tick must be O(1)**: `CityPlan._index_at()` starts from a per-64 m hint, `road_open()`'s

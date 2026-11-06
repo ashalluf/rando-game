@@ -31203,3 +31203,75 @@ Long Beach sand has no BeachLife (people, path, courts: its planner walks the we
 swash noise runs along z, not along the shore (beach_sand.gdshader's along-shore axis is world z).
 The mirror is an emitted billboard per source: it does not know the islands' own silhouettes (a
 tower behind another mirrors through it). Forward+ seen only for the towers, not the mirror.
+
+## 9d?. Memory after wave 8: every teleport held two areas (fleet wave 8, `memory-audit-w8`, branch `wt/memory-audit-w8`)
+
+**The ask.** The gate's shards peaked ~3.8 GB each against the 3,600 MB shard target, and a full
+city load on a 15 GB box was near the edge. Measure, find what waves 5-8 added, cut the biggest
+without changing a picture, bring the shards back under target. Frame cost is perf-audit-6's.
+
+**Measured on main (6f5af3d2), 4-core / 15 GB box.**
+- Gate (`SHARDS=3 SMOKE_PROFILE=1`): shard peaks **2,943 / 3,839 / 3,436 MB**. By part
+  (`tools/perf_audit_4/gate_rss.py`): shard 1's first part, `city_streaming`, ends at 3,082 MB RSS
+  with Godot's own allocator at 1,729 MB; `police_station_checks` +657, `masjid_checks` +290,
+  `garage_drive_in_checks` +290, `freeway_incidents_checks` +257, `city_crowd` +254.
+- `tools/memory_probe.gd` (load + 2 km drive, `EXCLUSIVE=1`): city loaded 1,934 MB RSS (allocator
+  1,755; perf-audit-2 measured 1,541 / 1,374 - waves 5-8 added ~380 MB at load), after the drive
+  2,615. The static caches are NOT where it went: what each cache alone keeps alive (EXCL) is
+  under 25 MB every one (prop_factory's shadow proxies 24.7, freight_stock 24.8, valet_kit 17.2,
+  landmark_reservoir 14.6, tree_fire 11.5, ...); DUP (separate mesh objects with the same
+  content) 8-11 MB in all. The scene is: FULL chunks ~350 MB of meshes, traffic ~160-190, LOD
+  chunks 23-41, a handful of far landmarks 11-28 each.
+- New in memory_probe.gd: `MESH_TOP=n` prints the n biggest mesh families under each of the six
+  biggest owners (resource path, else the node name's stem): the traffic's 160 MB is the bodies,
+  the wheel shadow twins (one per wheel size, 50 sizes, 8.8 MB) and CarCloseup's BumperBands
+  (8.7 MB); car wheels in PropFactory's cache are 189 sizes / 84 MB (known since 9dq: sharing
+  them needs a scaled wheel, a visible change - left).
+- glibc: a fixed `MALLOC_MMAP_THRESHOLD_` (64 kB) brings a part's END RSS down by ~500 MB but not
+  its PEAK (the allocator's own peak plus a few %): shard 1 3,489 vs 3,452 MB with it. Not used.
+
+**What it was: the teleports.** `update_streaming(true)` (the load, every check's jump,
+`stage_home()`, the stills' SHOTS hops, the verify pack, refcam hops) retired the chunks leaving the
+window the way driving does: kept drawn for the far city's dissolve (`lod_fade_time`, 0.45 s)
+while it built the whole new window in the same call. So each jump peaked at two areas' meshes,
+and glibc keeps the pages it reached (RSS never comes back after a part). The parts that add most
+are exactly the ones that jump into a heavy area (stations, downtown, the masjid).
+
+**Fix.** `CityStreamer._free_retiring_now()`, called by an immediate update after its retire
+loop: every retiring chunk is hidden and its meshes dropped (each MeshInstance3D's mesh, each
+MultiMesh's mesh) BEFORE the new window is built. The nodes keep their old timing (freed by
+`_advance_retiring` when the dissolve's time is up): a first version `free()`d them mid-frame and
+a wheel's cached ground contact named one of their bodies (DrivingFX `_surface`: "previously
+freed", a SCRIPT ERROR) and deferred lambdas met freed captures. Driving, walking and flying
+(`update_streaming(false)`) dissolve exactly as before. `TELEPORT_FREE=0` is the A/B;
+`CityStreamer.teleport_freed` counts. Checks `tests/memory_audit_w8_checks.gd` (a 3 km jump: every
+chunk left behind hidden with no mesh in the same frame, the nodes freed after the dissolve, the
+new window built in the call); it is in PART_COST at 0.0 so the shard deal of every other part
+stays as it was (at the default cost it moved metro_underground's +313 MB into shard 2).
+
+**Numbers.**
+| | main | this branch |
+|---|---|---|
+| police_station_checks alone, peak RSS | 2,837 MB | 2,599 MB (nodes freed at once; mesh drop: see gate) |
+| shard 1/3 alone (two shards side by side) | 3,839 (gate) | 3,489 |
+| rendered city (opengl3, load + 3 SHOTS hops, warm caches) | 7,727 MB | 7,288 MB |
+| gate shard peaks (SHARDS=3) | 2,943 / 3,839 / 3,436 | GATE_NUMBERS |
+
+**Pictures.** `DIFF=1` still pairs, one load at Flower at Olympic then three hops (MacArthur,
+the 110, the beach), TELEPORT_FREE 0 vs 1: the load 0 pixels differ; the hops 78 / 692 / 576
+pixels (0.01-0.08 %), against an A/A of the same side 86 / 1,235 / 641 - a far car on the deck and
+something at sea, the live systems DIFF does not freeze. Side-by-sides on `shots/memory-audit-w8`.
+
+**Also seen (not mine, not fixed).** On main's gate, shard 0 failed nine `mac_verify_pack_checks`
+lines: its one-camera verify run did not finish in the time the check waits with three shards
+loading the box (then `ERROR: Parameter "t" is null` from `verify_pack.gd:310` when the shot came
+late); shard 2 failed `explosions_3: the volumes free themselves` and a CrowdFlow step-round once
+(known shard-order flakes). Neither touches streaming. An engine `ERROR: Lambda capture at index 0
+was freed` already shows once on main after a part's `stage_home()` (no backtrace; not a SCRIPT
+ERROR, so the gate does not count it).
+
+**Not done / next.** The city LOAD itself (2.2-2.6 GB at a shard's first part) is the rest of a
+shard: FULL chunks' own meshes, then the allocator's slack. Next candidates: the wheel sizes
+(84 MB, a look change), per-car BumperBands / wheel-shadow copies (one per body type, ~17 MB),
+LOD chunks' FarGround (37 MB). Nothing measured on the Mac (Metal keeps meshes on the GPU; the
+saving there is the CPU-side copies and the peak during a teleport, same logic).
