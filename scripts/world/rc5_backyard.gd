@@ -1,5 +1,6 @@
 class_name Rc5Backyard
 extends RefCounted
+
 ## The suburban back yard from its patio on a Saturday afternoon (refcam5 `backyard_pool`,
 ## tools/refcams/cameras_w8.json; docs/HANDOFF.md "The back yard pool on a Saturday").
 ## RC5_BACKYARD=0 in the environment is the A/B: the yards exactly as before.
@@ -11,6 +12,8 @@ extends RefCounted
 ##   `weekend` uniform on BackyardKit's grill and smoke materials, set from the day each time a
 ##   chunk's yards are built (`day_hook()`); backyard.gdshader and backyard_smoke.gdshader's
 ##   cooking() read it (the two copies agree; checked).
+
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
 
 static var enabled: bool = OS.get_environment("RC5_BACKYARD") != "0"
 

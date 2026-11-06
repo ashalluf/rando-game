@@ -263,3 +263,10 @@ while it runs. `POLICE_PURSUIT=0` stages none of it; `PURSUIT_AB=1` saves the fr
 piece switched off (pab_NN_base.png / pab_NN_<piece>.png pairs): the helicopter's spot, pool and
 shaft, the cruisers' wash pool / wall / glare, by their inputs (their owners re-show hidden nodes
 every frame).
+## Wave 8's cameras (`cameras_w8.json`)
+
+Run with `REFCAMS_JSON=tools/refcams/cameras_w8.json`. `suburb_night` (rc5-suburb-night): the
+suburb_morning street (block 21,32 on seed 1337) from the same pavement eye at 21:30 clear, so the
+day and the night of one street compare 1:1. Its optional `dog_walker` key (`tools/refcams/dog_stage.gd`:
+`dist`, `side`, `at`, `yaw`, `seed`, `away`) stands one person walking a dog in the frame, held on its
+spot and walking; the log prints a `REFCAM dog walker` line.

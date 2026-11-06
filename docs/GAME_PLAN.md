@@ -3805,6 +3805,11 @@ already mapped so milestone 2 is script-only.
   make it faster, and Quality no longer judges the machine by the loading screen. Shader baking
   stays off while Godot 4.7.2's baked Metal exports crash (godot#123266, #124539). No loader
   threads: the codebase's cyclic preloads broke under one.
+- **2026-11-06, the memorial park at dawn (rc5-cemetery-dawn).** Under a full marine deck the sun
+  has no disc: it keeps its diffuse share but loses its highlight, and the photocells keep the
+  lamps on (fading) until the sun is about a dozen degrees up. A mist's damp beads on leaves and
+  dulls a lawn; only rain glazes them. Morning ground mist is a volume cut by the scene's depth over
+  the park, not more global fog (which would grey every other view). RC5_CEMETERY_DAWN=0 the A/B.
 
 ## Correction: what build 135 (0ce833f) actually contained
 
@@ -4623,6 +4628,14 @@ none of either.
   as particle quads on the water; a wake's foam is braided lines on an aerated sheet that emits the
   evening's light, not a lit white band; spray is a low sheet off the chines; a boat's transom carries
   its invented name. BOAT_SEA=0 is the A/B.
+- **2026-11-06 The taco truck refcam: a truck at night brings its people (rc5-taco-truck-night,
+  HANDOFF "The taco truck at 23:00").** A new reference camera (`taco_truck_night`, wave 8's table)
+  stands in a midtown taco truck's queue at 23:00. Decisions: a working truck is never empty - it
+  brings its regulars (1-3 by the hour) rather than waiting for walkers to happen by, and the cook
+  works at the counter; a truck never parks in a bike lane or a bus stop's kerb zone (both asked
+  after the truck's roll, so nothing else on the block moves); a truck runs its clearance and tail
+  lamps and steams off its stack; a lightbox burns near 1, not 2.4 (AgX made it a white card).
+  RC5_TACO=0 is the A/B.
 - 2026-11-05 (fleet wave 8, gate-flakes-2): the gate's last open flakes. A jointed doll's settle and
   freeze clocks run on the physics step (a long frame froze dolls mid-fall, in play too on a slow
   frame); shop doors and far-walker borrowing take only the plain crowd by script (a valet was sent
@@ -4675,6 +4688,23 @@ none of either.
   starts at a trimmed glide's speed and takes the sky's and the sun's light; the museum roof under
   the glide gets its skylight lattice, the concert hall's steel reads by face-to-face contrast under
   a low sun, and the lit crowns wait for dusk (night_factor is 0.7 at the sunset). A refcam row's fov is vertical. WINGSUIT_LOOK=0 / RC5_WINGSUIT=0 are the A/Bs.
+- **2026-11-05 The suburban street at night: the moon is a residential street's dimmer, a lit window
+  lights its yard (rc5-suburb-night, HANDOFF "The suburban street at 21:30").** A new reference
+  camera (`suburb_night`, wave 8's table) stands on the suburb_morning pavement at 21:30. Decisions:
+  the city's one moon, set for a lit downtown, is cut to 0.3 of itself over SUBURBS and BEACHTOWN
+  (off the coast, deep in the night only) because a suburb's own light - lamps, porches, windows -
+  must win over it; anything that says whether a window is lit says it from HouseNights' key and the
+  pane's own 8-bit roll, on the GPU, so the light on the yard always matches the glass; a lantern's
+  wall light is a point source's falloff with the cap's cut, never a soft disc. SUBURB_NIGHT=0 is the A/B.
+- **2026-11-06 The fireworks_ballpark refcam: a firework is its streaks and the air it lights
+  (rc5-fireworks-ballpark, HANDOFF "Fireworks over the ballpark from Stadium Way").** A new reference
+  camera (`fireworks_ballpark`, wave 8's table) looks from Stadium Way over the south lots at a show
+  over SUNRIDGE BALLPARK at 21:30, its clock held by the new `fireworks_t` row key. Decisions: a break
+  never draws its white-hot instant as 96 stars stacked on one point (a solid disc); the flash and the
+  lit air are one soft glow quad per break in its colour (bloom's job on the Mac, the only glow on
+  Compatibility); stars at half a kilometre read as radial trails, not dots; the show's light reaches
+  the stands (falloff 0.75, not 1.2) and the smoke takes it strongly, plus the floodlit ground under
+  it. RC5_FIREWORKS=0 is the A/B.
 - **2026-11-06 The back yard pool refcam: pools have depth, Saturdays have barbecues (rc5-backyard-pool,
   HANDOFF "The back yard pool on a Saturday").** A new reference camera (`backyard_pool`, wave 8's
   table) stands on a valley patio at 15:00 on a Saturday. Decisions: a yard pool is traced in its
