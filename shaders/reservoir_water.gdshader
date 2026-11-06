@@ -50,6 +50,19 @@ uniform float ruffle = 0.5;
 uniform float ruffle_scale = 3.6;
 uniform float mirror_gain = 1.0;
 uniform float mirror_forward = 0.55;
+// Rc5Reservoir (0 = the water exactly as before): no engine specular on Compatibility and none
+// where the traced ray meets the ridge on Forward+ (it doubled the sky over the mirrored hills: a
+// pale cyan pool), the bathtub ring's pale band at the foot of the mirrored hills, chaparral in
+// them, the dam's parapet line; the body a deep green-brown.
+uniform float rc5 = 0.0;
+uniform float ring_height = 3.6;
+uniform vec3 ring_color = vec3(0.30, 0.28, 0.24);
+// The intake towers, mirrored: x, z (true world), radius, the top of the house over the level; the
+// dome rises a further .w * 0.38 or so over it. The crest over the level and the parapet's height.
+uniform vec4 tower_a = vec4(0.0, 0.0, 0.0, 0.0);
+uniform vec4 tower_b = vec4(0.0, 0.0, 0.0, 0.0);
+uniform float crest_over = 4.0;
+uniform float parapet = 1.75;
 
 varying vec3 v_local;
 varying vec3 v_cam;
@@ -162,10 +175,16 @@ void fragment() {
 	// the basin, which hangs low in the south.
 	// (sky_tint already carries the hour: it is the drawn sky's horizon colour.)
 	vec3 sky = mix(sky_h, sky_h * vec3(0.55, 0.7, 1.05), smoothstep(0.0, 0.8, el));
+	if (rc5 > 0.5) {
+		// The real sky deepens fast above its pale horizon band.
+		sky = mix(sky_h * vec3(0.92, 0.96, 1.0), sky_h * vec3(0.38, 0.55, 1.0), smoothstep(0.02, 0.4, el));
+	}
 	float toward_city = smoothstep(-0.2, 0.8, dot(rn, city_dir));
 	sky += city_glow * lamp_factor * toward_city * (1.0 - smoothstep(0.0, 0.35, el));
 	vec3 mir = sky;
+	float hill_cover = 0.0;
 	if (el < ridge_el) {
+		hill_cover = 1.0;
 		// The hills: the face toward the lake, lit by the sun from where it stands, hazier with
 		// distance and toward the crest line.
 		vec2 out_dir = normalize(hp + rn * 1e-3);
@@ -175,8 +194,106 @@ void fragment() {
 		// Brush in dark bands down the slope, from the same azimuth.
 		hill *= mix(0.7, 1.15, wn(vec2(atan(hp.x, -hp.y) * 30.0, el * 40.0)));
 		hill = mix(hill, dam_color * mix(0.08, 1.0, day) * (0.55 + 0.45 * lit), step(0.5, rg.z) * smoothstep(ridge_el - 0.02, ridge_el - 0.002, el + 0.02));
+		if (rc5 > 0.5) {
+			// Height on the far shore this reflected ray meets (over the water).
+			float hy = (v_local.y - level) + el * hit;
+			float az2 = atan(hp.x, -hp.y);
+			// Chaparral in clumps down the face: dark blotches on the sunlit grass.
+			float clump = smoothstep(0.42, 0.62, wn(vec2(az2 * 55.0, hy * 0.12)) * 0.65 + wn(vec2(az2 * 140.0, hy * 0.35)) * 0.35);
+			hill *= mix(1.0, 0.45, clump * (1.0 - step(0.5, rg.z)));
+			// The bathtub ring: pale rock and silt from the waterline up ring_height, ragged.
+			float rtop = ring_height + (wn(vec2(az2 * 90.0, 3.0)) - 0.5) * 1.4;
+			float ring = smoothstep(rtop + 0.4, rtop - 0.4, hy) * (1.0 - step(0.5, rg.z));
+			hill = mix(hill, ring_color * mix(0.12, 1.0, day) * (0.6 + 0.4 * lit + 0.25), ring);
+			// The dam: its parapet a dark band at the crest, the towers' shafts as darker columns.
+			float dam_k = step(0.5, rg.z);
+			float crest_band = smoothstep(rg.y - 2.2, rg.y - 1.6, hy) * dam_k;
+			hill = mix(hill, hill * 0.45, crest_band);
+		}
 		float haze = clamp(hit / 3000.0, 0.0, 0.8) + 0.25 * smoothstep(ridge_el * 0.6, ridge_el, el);
 		mir = mix(hill, sky, clamp(haze, 0.0, 0.85));
+	}
+	if (rc5 > 0.5) {
+		float lit_s = smoothstep(-0.05, 0.15, sun_direction.y) * mix(0.05, 1.0, day);
+		vec2 wp = p;
+		// The dam's upstream face and its parapet, where the reflected ray meets the arc.
+		vec2 q0 = wp - dam_centre;
+		float qb0 = dot(q0, rn);
+		float disc0 = qb0 * qb0 - (dot(q0, q0) - dam_radius * dam_radius);
+		float best = 1e9;
+		vec3 obj = vec3(0.0);
+		if (disc0 > 0.0) {
+			float th0 = -qb0 - sqrt(disc0);
+			vec2 at0 = q0 + rn * th0;
+			float a0 = atan(at0.x, -at0.y);
+			float y0 = (v_local.y - level) + el * th0;
+			if (th0 > 0.0 && a0 > dam_span.x && a0 < dam_span.y && y0 < crest_over + parapet) {
+				best = th0;
+				// The face looks upstream (away from the sun at this hour): shade, sky fill, a dark
+				// algae line at the water and the pale calcified band over it; the parapet's
+				// balustrade lighter and broken by its piers.
+				vec2 fn = normalize(at0);
+				float l = clamp(dot(vec3(fn.x, 0.0, fn.y), sun_direction), 0.0, 1.0) * lit_s;
+				vec3 conc = dam_color * (0.32 + 0.68 * l) + sky_h * 0.08;
+				conc = mix(conc, conc * 1.45, smoothstep(0.0, 0.3, y0) * (1.0 - smoothstep(2.6, 3.2, y0)));
+				conc = mix(conc, vec3(0.03, 0.04, 0.03), 1.0 - smoothstep(0.0, 0.3, y0));
+				float rail = smoothstep(crest_over + 0.4, crest_over + 0.5, y0);
+				float pier = step(0.82, fract(a0 * dam_radius / (lamp_spacing * 0.5)));
+				conc = mix(conc, dam_color * (0.55 + 0.6 * l) * mix(0.7, 1.15, pier), rail);
+				obj = conc;
+			}
+		}
+		// The intake towers: their shafts, the gallery houses and the copper domes.
+		for (int i = 0; i < 2; i++) {
+			vec4 tw = i == 0 ? tower_a : tower_b;
+			if (tw.z <= 0.0) {
+				continue;
+			}
+			vec2 d0 = wp - tw.xy;
+			float tb = dot(d0, rn);
+			float tc = dot(d0, d0) - tw.z * tw.z;
+			float td = tb * tb - tc;
+			if (td <= 0.0) {
+				continue;
+			}
+			float th = -tb - sqrt(td);
+			if (th <= 0.0 || th >= best) {
+				continue;
+			}
+			float y = (v_local.y - level) + el * th;
+			float dome_top = tw.w + tw.z * 0.75;
+			vec2 hitp = d0 + rn * th;
+			float rr = length(hitp);
+			// Above the house the dome narrows: a sphere cap over tw.w.
+			if (y > tw.w) {
+				float k = (y - tw.w) / max(dome_top - tw.w, 0.01);
+				if (k > 1.0) {
+					continue;
+				}
+				float rad = tw.z * sqrt(max(1.0 - k * k, 0.0));
+				float off = abs(dot(d0 + rn * (-tb), vec2(-rn.y, rn.x)));
+				if (off > rad) {
+					continue;
+				}
+			}
+			vec2 tn = hitp / max(rr, 1e-3);
+			float l = clamp(dot(vec3(tn.x, 0.0, tn.y), sun_direction), 0.0, 1.0) * lit_s;
+			vec3 col = dam_color * 1.15 * (0.3 + 0.7 * l) + sky_h * 0.08;
+			col = mix(col, vec3(0.03, 0.04, 0.03), 1.0 - smoothstep(0.0, 0.3, y));
+			if (y > tw.w) {
+				col = vec3(0.08, 0.2, 0.15) * (0.4 + 0.8 * l) + sky_h * 0.1;
+			} else if (y > crest_over + 1.0) {
+				// The gallery's windows, dark in a band.
+				float win = step(0.5, fract(atan(tn.x, tn.y) * 1.59 + 0.25)) * step(crest_over + 2.6, y) * step(y, crest_over + 5.4);
+				col = mix(col * 1.15, vec3(0.02, 0.025, 0.03), win * 0.85);
+			}
+			best = th;
+			obj = col;
+		}
+		if (best < 1e8) {
+			mir = obj;
+			hill_cover = 1.0;
+		}
 	}
 	// The crest's lanterns, mirrored: the reflected ray against the dam's arc, near lamp height.
 	if (lamp_factor > 0.02) {
@@ -204,7 +321,9 @@ void fragment() {
 	float nv = clamp(dot(NORMAL, VIEW), 0.0, 1.0);
 	float fres = 0.02 + 0.98 * pow(1.0 - nv, 5.0);
 	float shoal = smoothstep(2.5, 0.0, v_depth);
-	vec3 body = mix(deep_color, shallow_color, shoal) * mix(0.25, 1.0, day);
+	vec3 deep = rc5 > 0.5 ? vec3(0.006, 0.011, 0.008) : deep_color;
+	vec3 shallow = rc5 > 0.5 ? vec3(0.045, 0.040, 0.026) : shallow_color;
+	vec3 body = mix(deep, shallow, shoal) * mix(0.25, 1.0, day);
 	// A thin lap of foam and wet sheen at the waterline.
 	float lap = smoothstep(0.25, 0.0, v_depth) * (0.5 + 0.5 * sin(t * 1.3 + wn(p * 0.5) * 6.0));
 	body = mix(body, vec3(0.3, 0.3, 0.27) * mix(0.15, 1.0, day), lap * 0.35);
@@ -215,6 +334,15 @@ void fragment() {
 	float gain = mirror_gain;
 #if CURRENT_RENDERER != RENDERER_COMPATIBILITY
 	gain *= mirror_forward;
+	if (rc5 > 0.5) {
+		// The engine's sky (and SSR) only where the mirror shows sky; the traced ridge in full.
+		SPECULAR = 0.5 * (1.0 - hill_cover);
+		gain = mirror_gain * mix(mirror_forward, 1.0, hill_cover);
+	}
+#else
+	if (rc5 > 0.5) {
+		SPECULAR = 0.0;
+	}
 #endif
 	EMISSION = cs_out(mir * mix(0.2, 0.95, fres) * gain * (1.0 - lap * 0.5));
 }

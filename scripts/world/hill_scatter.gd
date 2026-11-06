@@ -173,6 +173,8 @@ static func material(kind: String) -> ShaderMaterial:
 	m.shader = load("res://shaders/hill_scatter.gdshader")
 	if kind == "full":
 		m.set_shader_parameter("near_fade", FULL_FADE)
+	# Torn outlines (Rc5Reservoir).
+	m.set_shader_parameter("rc5_edge", 1.0 if Rc5Reservoir.enabled else 0.0)
 	_mats[kind] = m
 	return m
 

@@ -513,6 +513,8 @@ func height_at(pos: Vector2) -> float:
 		h = hill_roads.carve(pos, h)
 	# The lighthouse's pad on the headland's south-east cliff (Lighthouses).
 	h = Lighthouses.carve(self, pos, h)
+	# The coast highway's bluff fluted by gullies (CoastFlutes).
+	h = CoastFlutes.flute(self, pos, h)
 	return h
 
 

@@ -205,8 +205,15 @@ static func _structure(g: Geo, ch: CityChunk, s: Dictionary, xf: Transform3D) ->
 	g.box("precast", Vector3(r0 - W, yr - SL - 0.01, s0 + 0.01), Vector3(r0 + 0.01, yr + PAR, s1 - 0.01))
 	# --- The core: stairs and lift at the low-u end, the full depth, a storey over the roof.
 	_core(g, lay, s)
+	# The roof as seen from it (RcCarParkRoof): the core's face, the parapets' joints and coping.
+	if RcCarParkRoof.enabled:
+		RcCarParkRoof.core(g, lay, "band_%d" % mini(decks, LEVEL_COLORS.size() - 1))
+		RcCarParkRoof.parapets(g, lay)
 	# --- The roof: light poles down the aisles.
-	_roof(g, lay)
+	if RcCarParkRoof.enabled:
+		RcCarParkRoof.poles(g, lay)
+	else:
+		_roof(g, lay)
 	# --- The ground: the entry and exit lanes, their island, the clearance bar, kerbs, the apron
 	# over the pavement to the street, and hedges in the setback.
 	_ground(g, ch, s, xf)
@@ -585,6 +592,11 @@ static func _cars(node: Node3D, g: Geo, s: Dictionary) -> void:
 				if real:
 					var t: int = REAL_TYPES[_pick_type(_h01([seed_v, k, bi, i, "cp_body"]))]
 					var rp: Color = Vehicle.PAINTS[absi(hash([seed_v, k, bi, i, "cp_rpaint"])) % Vehicle.PAINTS.size()]
+					if RcCarParkRoof.enabled:
+						# A real car park's mix; alpha 2 = a metallic finish (car_park_car.gdshader).
+						var pm: Array = RcCarParkRoof.paint([seed_v, k, bi, i])
+						rp = pm[0]
+						rp.a = 2.0 if pm[1] else 1.0
 					if not (cell.near as Dictionary).has(t):
 						cell.near[t] = []
 					cell.near[t].append([xf, rp])
@@ -638,7 +650,7 @@ static func _car_mmi(mesh: Mesh, cars: Array, offset: Vector3, custom: bool) -> 
 		mm.set_instance_transform(i, (c[0] as Transform3D) * Transform3D(Basis(), offset))
 		if custom:
 			var p: Color = c[1]
-			mm.set_instance_custom_data(i, Color(p.r, p.g, p.b, 1.0))
+			mm.set_instance_custom_data(i, Color(p.r, p.g, p.b, p.a))
 		else:
 			mm.set_instance_color(i, c[1])
 	var mmi := MultiMeshInstance3D.new()
@@ -860,7 +872,9 @@ static func material(key: String) -> Material:
 	if _mats.has(key):
 		return _mats[key]
 	var m: Material
-	if key.begins_with("band_"):
+	if key.begins_with("rc5_"):
+		m = RcCarParkRoof.material(key)
+	elif key.begins_with("band_"):
 		var c: Color = LEVEL_COLORS[int(key.trim_prefix("band_")) % LEVEL_COLORS.size()]
 		m = PropFactory.material(c, 0.55)
 	else:
@@ -873,6 +887,8 @@ static func material(key: String) -> Material:
 				sm.set_shader_parameter("rough_tex", PropFactory.texture("concrete", "Roughness"))
 				sm.set_shader_parameter("stall_w", CarPark.STALL_W)
 				sm.set_shader_parameter("stall_d", CarPark.STALL_D)
+				sm.set_shader_parameter("rc5", 1.0 if RcCarParkRoof.enabled else 0.0)
+				sm.set_shader_parameter("rc5_tee", RcCarParkRoof.TEE)
 				m = sm
 			"concrete":
 				m = PropFactory.pbr("concrete", 3.0, CONCRETE_DARK.lerp(CONCRETE, 0.6))

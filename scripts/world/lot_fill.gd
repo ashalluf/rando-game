@@ -897,6 +897,8 @@ static func chain_link_panel() -> ArrayMesh:
 		st.add_vertex(pts[k])
 	var mat := ShaderMaterial.new()
 	mat.shader = load("res://shaders/chain_link.gdshader")
+	# The weave in true metres whatever an instance stretches the panel to (Rc5Reservoir).
+	Rc5Reservoir.fence(mat)
 	st.set_material(mat)
 	_chain_link = st.commit()
 	return _chain_link

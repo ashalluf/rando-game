@@ -152,6 +152,7 @@ float fbm(vec2 p) {
 #include "res://shaders/rain_day_mirror.gdshaderinc"
 #include "res://shaders/road_lane_wear.gdshaderinc"
 #include "res://shaders/refinery_road.gdshaderinc"
+#include "res://shaders/fwd_review_i.gdshaderinc"
 
 
 // Raindrop rings on standing water, as a tangent-space slope (xy). Three offset layers of cells,
@@ -309,7 +310,12 @@ void fragment() {
 		float shade = 0.84 + 0.26 * hash12(cell + 13.3);
 		base = mix(base, base * shade, inside * 0.5);
 		base *= 1.0 - 0.28 * seam;
-		rough = mix(rough, rough * (0.7 + 0.5 * hash12(cell + 3.3)), inside);
+		// fwd-review-i: a patch's newer asphalt is a little ROUGHER than the polished tarmac round
+		// it, never smoother. It used to take 0.7-1.2 x the roughness inside a hard step, and a low
+		// grazing spot (the Forward+ headlights; opengl3 has none) turned a smoother cell into a
+		// bright, hard-edged box on the road. fwd_review_i 0 is the old range.
+		float p_gain = fwd_review_i > 0.5 ? 1.0 + 0.12 * hash12(cell + 3.3) : 0.7 + 0.5 * hash12(cell + 3.3);
+		rough = mix(rough, rough * p_gain, inside);
 	}
 
 	// Cracks: fold the noise so it ridges, then keep only the sharpest lines. The frequency is
