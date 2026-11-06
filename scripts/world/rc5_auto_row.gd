@@ -86,6 +86,30 @@ static func keeps_tree_off(ch: CityChunk, at: Vector3) -> bool:
 	return true
 
 
+# --- 4. The stall lines ---------------------------------------------------------------------------
+
+## The lot's stalls painted (LotFill's car park stripe, the road paint batch): a dealer lot was
+## one flat black sheet under its rows of cars. A line either side of every car standing in a
+## row (the ramp car's stall too), each once. Called by CarDealers._build_detail() on a FULL chunk.
+static func stripes(ch: CityChunk, s: Dictionary, L: Dictionary, xf0: Transform3D) -> void:
+	if not enabled:
+		return
+	var pitch := 2.55 if bool(s.used) else CarDealers.STALL_W
+	var top := LotFill.ASPHALT_LIFT + 0.005
+	var mesh := PropFactory.box("pstripe", Vector3(4.4, 0.01, 0.12), Color(0.95, 0.95, 0.92))
+	var basis := xf0.basis * Basis(Vector3.UP, PI * 0.5)
+	var done := {}
+	for c: Array in L.cars:
+		for side: float in [-0.5, 0.5]:
+			var x := float(c[0]) + side * pitch
+			var z := float(c[1])
+			var k := Vector2i(roundi(x * 10.0), roundi(z * 10.0))
+			if done.has(k):
+				continue
+			done[k] = true
+			ch._batch.add("pstripe", mesh, Transform3D(basis, xf0 * Vector3(x, top, z)))
+
+
 # --- 1, 2. The lot cars -------------------------------------------------------------------------
 
 ## CarDealers._static_car() hands over each box car it laid in a FULL chunk with its prop record
@@ -156,7 +180,15 @@ static func commit(ch: CityChunk, nodes: Dictionary) -> void:
 			var body := CarParkBuild.real_body(t)
 			var mmi := CarParkBuild._car_mmi(body.mesh, cell.near[t], body.offset, true)
 			mmi.name = "DealerRealCars%d_%d_%d" % [t, ck.x, ck.y]
+			# The real body casts nothing: the box car of the same stall throws its shadow (a few
+			# hundred triangles, the same footprint), so the lot's shadow passes cost what they did.
+			mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 			_seat(ch, mmi, bounds, 0.0, REAL_NEAR)
+		for v: int in cell.far:
+			var twin := CarParkBuild._car_mmi(ArenaGrounds.car_mesh(v), cell.far[v], Vector3.ZERO, false)
+			twin.name = "DealerCarShadows%d_%d_%d" % [v, ck.x, ck.y]
+			twin.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_SHADOWS_ONLY
+			_seat(ch, twin, bounds, 0.0, REAL_NEAR)
 		for k in 2:
 			var list: Array = cell.far_cards if k == 0 else cell.near_cards
 			if list.is_empty():
