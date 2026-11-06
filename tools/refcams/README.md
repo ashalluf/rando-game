@@ -298,3 +298,10 @@ builds every yard sale for a Saturday at the row's hour (YARD_SALE_DAY / YARD_SA
 
 `marina_night` (rc5-marina-night): the marina at 21:00 clear from the north end of the east
 headwalk, west down the lane along the north quay (no staging keys). `MARINA_NIGHT=0` is its A/B.
+
+## Wave 8's `church_sunday` (`cameras_w8.json`)
+
+A Mission church (OUR LADY OF THE ARROYO, seed 1337) at 10:30 on a Sunday from across the street.
+Its optional `sunday` key (refcams_shot `_sunday()`) sets WORSHIP_DAY=0 and WORSHIP_HOUR=<hour>
+before the city loads, so the chunks built during the load hold the congregation of a Sunday
+morning (the game starts on a Saturday). docs/HANDOFF.md "The Mission church on a Sunday morning".

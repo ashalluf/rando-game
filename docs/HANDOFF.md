@@ -32749,3 +32749,57 @@ boats' own white hulls are not in the water's light list (the boats are mirrored
 MarinaGolden's trace at night); the restaurants' terraces have no string lights or diners; the
 lights' columns are not occluded by the docks' floats (only by boats); the moonlit hulls still read
 a little flat grey.
+
+## 9d?. The Mission church on a Sunday morning: the church_sunday refcam (wave 8, refcam5 `rc5-church-sunday`, branch `wt/rc5-church-sunday`)
+
+**The view.** `church_sunday` in `tools/refcams/cameras_w8.json`: OUR LADY OF THE ARROYO (seed
+1337's Mission church in the south basin, site (604, 4322), facing south onto its street) at 10:30
+on a clear Sunday, from the far parking lane across the street at eye height, a three-quarter view
+from the right (`[612, 1.7, 4364, 22, 13]`, fov 62): the bell tower against the sky, the espadana
+and its rose window, the arcade under its clay shed roof, the forecourt, the street. Its `sunday`
+key sets WORSHIP_DAY=0 / WORSHIP_HOUR=<hour> before the city loads (refcams_shot `_sunday()`): a
+chunk built during the load takes the load's day, and the game starts on a Saturday. The kind is
+the cell's own roll (no WORSHIP_KIND needed): `tools/worship/probe.gd -- --kind=mission` lists the
+five Mission churches of seed 1337 with EYEs.
+
+**What gave it away, in the order the eye lands on it** (the before: the same camera with
+`WORSHIP_SUNDAY=0 RC5_CHURCH=0`, i.e. main):
+
+1. **You could not see the church.** Kerb trees on its own pavement and the grounds' lawn trees
+   stood square in front of the facade and the tower; from across the street it was a white wall
+   through leaves. `RcChurchSunday.keeps_tree_off()` (one hook in `CityChunk._add_tree()`, after
+   every roll, BroadwayNight's way) keeps the kerb trees off a place of worship's front span (the
+   facade group, `front_span()`, plus `TREE_CLEAR` 3 m), and the grounds' trees keep out of the
+   lawn before the facade (`front_clear()`, in WorshipBuild's tree loop): they stand to the sides
+   and behind, framing it. Every kind, not only the Mission.
+2. **Nobody came to church on a Sunday morning.** `WorshipSunday` (`scripts/world/worship_sunday.gd`)
+   and `Worshipper` (`scripts/npc/worshipper.gd`): on its day (Sunday; the synagogue Saturday) a
+   site's outside is busy from 45 minutes before each service its own name board lists
+   (`services()` reads the same hour table as `_service_line()`; checked) until it starts, and for
+   half an hour after it ends (`busy()`, pure). `count()` is `PEAK` by kind (26 for the Mission) x
+   busy; `people()` (one call after WorshipBuild's `_finish()`, FULL chunks) spawns them in the crowd
+   cap, a share still arriving spread along the route (pavement -> gate -> path -> forecourt), the
+   rest gathered on the forecourt talking (the crowd-life layer's `_plan_talk()`), the arrivals going
+   in at the door (hidden, collision off) and walking up the pavement again a few minutes later;
+   after a service they come out and leave by the gate. Sunday clothes: `Pedestrian.model_pick` (a
+   two-line hook in `_add_model()`, after the roll) puts them in the suits, blazers, dresses, button
+   shirts and skirts of `WorshipSunday.BEST`, never the gym tank, the hi-vis vest or shorts.
+3. **The bell tower and the facade were one flat white mass.** The tower's shaft was a plain box in
+   the facade's plane; it now has a painted base, a moulded string course splitting it into two
+   stages, corner pilasters 12 cm proud on the upper stage and a round cast-stone-ringed light
+   (`RcChurchSunday.tower_dress()`), so the sun draws edges on it.
+4. **A strip of sky ran across the facade under the espadana.** The parapet's slab stands 0.3 m
+   proud of the wall and `_slab_profile()` hides its bottom edges, so from below the sky showed
+   through the open underside (a blue line in every street-level view of every Mission church).
+   `espadana_soffit()` closes it.
+5. **The stucco and the stained glass.** The stucco was one flat white sheet: the worship stucco
+   materials take `shaders/lime_wash.gdshaderinc` (`lime_wash` in landmark_facade.gdshader, 0 for
+   every other landmark): patchy coats, repair patches, streaks under the copings, damp at the foot
+   to a ragged tide line, the trowel's relief in the normal, as a factor worked out in linear light
+   (raised to 1/2.2 on Compatibility). And the windows read as bright confetti by day: from outside
+   a stained window is dark with a hint of colour under the sky's sheen, so worship_glass.gdshader's
+   `day_dark` takes its daylight albedo to 0.38 and its through-glow to 0.35 (stained and dalle de
+   verre only; night untouched).
+
+**A/B.** `WORSHIP_SUNDAY=0` (nobody), `RC5_CHURCH=0` (the trees, the tower, the soffit, the lime
+wash and the glass as before). Both off is main.

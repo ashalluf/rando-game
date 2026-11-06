@@ -4908,3 +4908,10 @@ none of either.
   term is never a uniform glow in its ripples (that reads as paving). The jetty nav lights stay
   out of this frame (occluded by boats from every headwalk spot that holds the restaurants).
   MARINA_NIGHT=0 is the A/B.
+- **2026-11-06 The Mission church on a Sunday morning (rc5-church-sunday, HANDOFF "The Mission
+  church on a Sunday morning").** A new reference camera (`church_sunday`, wave 8's table) from
+  across the street at 10:30. A place of worship is seen from the street: nothing is planted in
+  front of its facade (kerb or lawn), and on its day its forecourt fills before each service its
+  own board lists and empties after, in Sunday clothes, never at any other hour. Its walls are
+  lime wash with weather, not a flat white; its stained glass is dark from outside by day.
+  WORSHIP_SUNDAY=0 / RC5_CHURCH=0 are the A/Bs.
