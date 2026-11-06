@@ -3482,6 +3482,13 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   MultiMeshes on `armour_stone.gdshader` (`blocks` 1 = the far mound draws its own blocks).
   `LIGHTHOUSES=0` is the A/B; probe `tools/lighthouses/probe.tscn`; checks
   `tests/lighthouses_checks.gd`.
+- The lighthouse at night (wave 8, refcam `lighthouse_night` in `tools/refcams/cameras_w8.json`,
+  its `lighthouse_t` key holds the lenses; docs/HANDOFF.md "The lighthouse from the breakwater at
+  night"): `RcLighthouse` (`scripts/world/rc5_lighthouse.gd`) sets `look` on the kit's materials: the
+  beam is scattering from a Gaussian pencil integrated along the eye ray (one back face per ray,
+  each cone's axis in UV2, HG phase `RcLighthouse.phase()` = the shader's), the lamp billboard pulled
+  in front of the lens with a halo, lace foam, bumped armour. `RC5_LIGHTHOUSE=0` is the A/B; checks
+  `tests/rc5_lighthouse_night_checks.gd`.
 - Port life (2026-10-05, "the container terminal comes alive"; docs/HANDOFF.md, the port-life
   section): `PortLife` (`scripts/world/port_life.gd`, a plain Node the first FULL port chunk adds
   under the city root, `PortLife.ensure()`) draws everything that moves, **worked out from the

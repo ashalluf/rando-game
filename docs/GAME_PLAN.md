@@ -4668,3 +4668,12 @@ none of either.
   read by at dusk; glass on a half-finished tower shows the fit-out lit behind it, not a black
   mirror; anything pasted on a hoarding is printed (StreetWear's bills), never a flat colour block.
   CONSTRUCTION_DUSK=0 is the A/B.
+
+- 2026-11-06 (wave 8, rc5-lighthouse-night): a new reference camera, `lighthouse_night`
+  (cameras_w8.json), looks at Gull Point light from the breakwater at 22:00. Decisions: a light beam
+  is drawn as light scattered by the air (a volume integrated along the eye ray), never as a lit
+  solid - it is brightest at its source and looking back up it, and fades and breaks up with
+  distance; a light's point glare is drawn in front of whatever housing holds it (the lantern's lamp
+  was hidden behind its own lens); at night surge foam is a grey lace, not white sheets. The harbour
+  gate light stays out of this frame (behind the eye: no eye on the stones holds both lights).
+  RC5_LIGHTHOUSE=0 is the A/B.
