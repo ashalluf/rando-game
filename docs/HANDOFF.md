@@ -32749,3 +32749,44 @@ boats' own white hulls are not in the water's light list (the boats are mirrored
 MarinaGolden's trace at night); the restaurants' terraces have no string lights or diners; the
 lights' columns are not occluded by the docks' floats (only by boats); the moonlit hulls still read
 a little flat grey.
+
+## 9d?. Under the water of a hill home's pool (wave 8, refcam5 `rc5-pool-underwater`) - NOT GATED, WIP
+
+**State: work in progress, cut off by the account move. The pushed head is NOT gated and has
+never been compiled or rendered.** A resuming session must first run
+`godot --headless --path . --import` (registers the new class `PoolUnder`), then
+`tools/shader_check.gd` on the three shaders below, then shoot.
+
+**The problem (from reading the code, not yet from a still):** a hill home's pool is a water sheet
+(`hh_water`, hill_pool.gdshader) with a make-believe tank painted on it. Under the surface there is
+no tank at all: the pad is one merged solid box (seen from inside: nothing), so a swimmer saw the
+hillside through the floor. The underside plane (water_underside.gdshader) was infinite and flat
+`deep_color`. Also `Swim.deep_enough` wanted 2.2 m and pools are `SwimWater.POOL_DEPTH` 1.7 m: you
+could never dive in a pool.
+
+**Done (pushed, untested):**
+- Camera row `pool_underwater` in tools/refcams/cameras_w8.json: estate 392 (cantilever, infinity
+  pool, frame o (576.92, -1908.77), fu (0.9967, -0.0809), fv (0.0809, 0.9967), pool r u 19.29-24.60,
+  v 22.89-27.15, Dp 27.4, pad top 158.71, surface 158.81), eye (602.9, 158.31, -1887.5) yaw 135.7
+  pitch 6, fov 62, 14:00 clear, `"swim": {"under": true}`. refcams_shot.gd: a `swim` row parks the
+  player at the eye (Swim enters that water so the overlay and underside draw) and hides him; it
+  prints `REFCAM <name> swim: swimming ..., water ...` - check that line first.
+- `PoolUnder` (scripts/world/pool_under.gd): `build()` (one hook in HillHomeBuild._pool(), FULL
+  only) lays the tank's floor and inward walls (infinity: far wall stops `WEIR_DROP` 6 cm under,
+  weir top out to Dp) on a per-pool material of shaders/pool_tank.gdshader (unshaded, lit by hand
+  from `tree_sun` / `sun_direction`: mosaic, waterline band, caustics, wall shadows -
+  shaders/pool_tank.gdshaderinc, shared with the underside); registers the pool (true-world frame,
+  rect, surface, floor, the two nearest wings as boxes); `apply()` from Swim._update_view() sets
+  `pt_on` and the pool's numbers on the underside and underwater materials (sea values back outside).
+- water_underside.gdshader: `pt_on` branch - cut to the pool, TIR mirror traced into the tank,
+  Snell's window with the sky by elevation, sun glare and the house boxes; old path unchanged.
+- underwater.gdshader: `pt_on` clips the veil distance to the tank's box exit.
+- swim.gd: `deep_enough` 1.5 m in POOL / TANK water.
+- tests/rc5_pool_underwater_checks.gd (one line in smoke_test.gd).
+- `POOL_UNDER=0` is the A/B.
+
+**Open:** the before still was never saved (shoot it on main with the row added); compile and
+fix the shaders (likely typos: box_hit's `-sign(d)` normals, the window/Fresnel mix, the include's
+globals now declared in the include - water_underside no longer declares sky_tint / night_factor
+itself); the after; Forward+ small-scene proof of colours; the ten originals compare; the gate;
+shots branch; CLAUDE.md bullet, VISUAL_ROADMAP row, GAME_PLAN entry.
