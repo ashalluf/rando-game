@@ -10,3 +10,10 @@ three SHOTS hops (each a teleport through update_streaming(true)).
 - 04_beach_after_hop_ab.jpg - after hop 3: 576 pixels (A/A: 641) - a swimmer / bird at sea.
 
 Peak RSS of that run (warm shader caches): 7,727 MB off -> 7,288 MB on.
+
+## Final variant (commit e0212c76: the old chunks emptied, nodes freed on their old timer)
+
+Re-shot the same four views with the final code (v4) against main's (TELEPORT_FREE=0):
+load 1 pixel (by 1/255), the hops 578 / 150 / 335 pixels (0.06 / 0.02 / 0.04 %) - a car on the
+street under a palm by MacArthur Park, the far deck, the sea; live systems DIFF does not freeze.
+Peak RSS of that run 7,452 MB (main's 7,727).
