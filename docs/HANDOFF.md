@@ -29520,7 +29520,7 @@ its `SHOTGUN_CRATE` line stand (the fire is a physics tick, the cooldown runs on
 only gets shorter on a slow frame; nothing found).
 
 **Runs** (`SHARDS=3`, shuffled, ~32 min each, shards 3.2-3.7 GB RSS): 21101 (cut short by a tool
-limit at ~4,800 checks: the valet), 21202 PASSED 5,797, 21303 PASSED 5,797 (both on 7f68e37f). Final unshuffled gate on the branch merged with main (batch 54): FINAL_HERE.
+limit at ~4,800 checks: the valet), 21202 PASSED 5,797, 21303 PASSED 5,797 (both on 7f68e37f). Final unshuffled gate on the branch merged with main (batch 54), 445099a3: PASSED 5,977 checks in 3 shards, 29 min, shards 3.5-3.8 GB peak RSS.
 
 ## 9mn. The terminal's departures kerb (rc4-terminal-curb, wave 7, 2026-11-02)
 
