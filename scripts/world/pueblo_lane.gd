@@ -201,7 +201,7 @@ static func people_steps(lm: Dictionary, chunk: CityChunk) -> Array[Callable]:
 		for k in 2:
 			var q3 := xf * Vector3(-0.55 + 1.1 * float(k), 0.0, 0.95)
 			queue.append({"p": CivicSites.to_world(info, Vector2(q3.x, q3.z)), "yaw": atan2(-to.x, -to.y), "taken": null, "record": record})
-		if int(st.id) % VENDOR_EVERY != 1:
+		if int(st.id) % PuebloLaneLook.vendor_every() != 1:
 			continue
 		var home3 := xf * Vector3(0.0, 0.0, -1.2)
 		var home := CivicSites.to_world(info, Vector2(home3.x, home3.z))
@@ -210,6 +210,15 @@ static func people_steps(lm: Dictionary, chunk: CityChunk) -> Array[Callable]:
 		var y := float(info.y0) + 0.06
 		steps.append(func() -> void: _spawn_vendor(chunk, block_rect, sd, home, yaw, y))
 	chunk.set_meta("vendor_queue", queue)
+	# The lane's crowd by the hour (PuebloLaneLook): more walkers on the lane's ring, their own stream.
+	var extra := PuebloLaneLook.lane_extra(StreetVendors.hour_now(chunk))
+	if extra > 0:
+		var lane_w := CivicSites.rect_to_world(info, (L.lane as Rect2).grow_individual(0.0, -1.0, 0.0, -1.0))
+		var rng := RandomNumberGenerator.new()
+		rng.seed = hash([chunk.plan.seed, ID, "lane_look"])
+		steps.append(chunk._count_crowd_room)
+		for i in extra:
+			steps.append(chunk._spawn_walker.bind(lane_w, 2.0, rng))
 	return steps
 
 
@@ -266,6 +275,7 @@ static func _build_into(info: Dictionary, parent: Node3D, statics: StaticBody3D,
 	var s: Rect2 = info.local
 	var y0: float = info.y0
 	var L := layout(s, kiosk_local(info))
+	PuebloMarket.solid_material().set_shader_parameter("foot_y", y0)
 	_tick("")
 	var g := LandmarkGeo.new()
 	var batch := MultiMeshBatch.new()
@@ -394,7 +404,7 @@ static func _materials(g: LandmarkGeo, y0: float) -> void:
 static func _ground(g: LandmarkGeo, batch: MultiMeshBatch, L: Dictionary, y0: float, detailed: bool) -> void:
 	var s: Rect2 = L.site
 	g.use("pave", LandmarkMats.paving("pavers", 2.4, Color(0.9, 0.82, 0.72), SEED_BASE, 0.0, 0.3))
-	g.use("lane_brick", LandmarkMats.paving("brick_red", 1.4, Color(0.92, 0.8, 0.72), SEED_BASE + 1, 0.0, 0.25))
+	g.use("lane_brick", LandmarkMats.paving("brick_red", 1.4, PuebloLaneLook.brick_tint(), SEED_BASE + 1, 0.0, PuebloLaneLook.brick_wear()))
 	g.use("plaza_tile", LandmarkMats.paving("pavers", 1.0, Color(0.95, 0.66, 0.5), SEED_BASE + 2, 0.0, 0.3))
 	g.cap("pave", LandmarkGeo.ccw(_poly(s)), y0 + 0.03)
 	var lane: Rect2 = L.lane

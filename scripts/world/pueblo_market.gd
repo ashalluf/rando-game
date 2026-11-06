@@ -61,6 +61,7 @@ static func solid_material() -> ShaderMaterial:
 	if _solid_mat == null:
 		_solid_mat = ShaderMaterial.new()
 		_solid_mat.shader = load("res://shaders/pueblo_market.gdshader")
+		_solid_mat.set_shader_parameter("weather", PuebloLaneLook.paint_weather())
 	return _solid_mat
 
 
@@ -68,6 +69,7 @@ static func thin_material() -> ShaderMaterial:
 	if _thin_mat == null:
 		_thin_mat = ShaderMaterial.new()
 		_thin_mat.shader = load("res://shaders/pueblo_market_thin.gdshader")
+		_thin_mat.set_shader_parameter("weather", PuebloLaneLook.paint_weather())
 	return _thin_mat
 
 
