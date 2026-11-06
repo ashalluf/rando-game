@@ -4828,3 +4828,10 @@ none of either.
   streaks along their path, never camera-facing balls (they cut flat at the waterline); anything
   that breaks the surface leaves a ring that ages out. The surf's whitewater not reading from a
   pier end was left to the ocean's owners (shared by every beach view). SEA_SPRAY=0 is the A/B.
+- **2026-11-06 The car wash from the kerb (rc5-car-wash, HANDOFF "The car wash at 14:00").** A car
+  wash is a working place, not a building: its exit end is a shaded hand-dry area where a crew in
+  the wash's polos towels down freshly washed cars, the ground there is wet, and every car on the
+  pad is a real car (the static code car is for parking lots seen from afar, never for the stalls
+  of a view you stand at). The tunnel seen through its windows is dark, wet and misty with lit
+  brushes, not flat panels of colour. The canopy slopes down to the street so the sign stays
+  clear over it. RC5_CAR_WASH=0 is the A/B.

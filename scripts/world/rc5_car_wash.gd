@@ -27,8 +27,8 @@ const DRY_LEN := 13.0
 const DRY_EDGE := 1.0
 ## Height of the shade canopy's sails at their low (street) and high (tunnel) edges: low at the
 ## street, so the tunnel's sign stands clear over it from the kerb.
-const SAIL_LOW := 3.05
-const SAIL_HIGH := 3.55
+const SAIL_LOW := 2.7
+const SAIL_HIGH := 2.95
 ## How wet the pad and the tunnel floor are (the shader's UV2.y = -wet).
 const WET_PAD := 0.85
 const WET_TUNNEL := 0.75
@@ -116,14 +116,14 @@ static func dress(s: Variant, tunnel: Rect2, th: float, accent: Color) -> void:
 	var pen: RoadsideKit.Pen = s.pen
 	var key := _key(s)
 	# The wet pad: concrete laid over the forecourt, and a run of water from the tunnel's exit.
-	Roadside._ground(s, r, K.c(Color(0.52, 0.52, 0.5), K.K_CONCRETE), Roadside.GROUND_LIFT + 0.004, Vector2.ZERO, Vector2(0.7, -WET_PAD))
+	Roadside._ground(s, r, K.c(Color(0.46, 0.46, 0.45), K.K_CONCRETE), Roadside.GROUND_LIFT + 0.004, Vector2.ZERO, Vector2(0.7, -WET_PAD))
 	var ex: float = tunnel.end.x
 	var wet_run := Rect2(minf(ex - 6.0, r.end.x - 7.0), r.end.y, 6.0, tunnel.position.y - r.end.y + 0.6)
-	Roadside._ground(s, wet_run, K.c(Color(0.52, 0.52, 0.5), K.K_CONCRETE), Roadside.GROUND_LIFT + 0.004, Vector2.ZERO, Vector2(0.7, -WET_PAD))
+	Roadside._ground(s, wet_run, K.c(Color(0.46, 0.46, 0.45), K.K_CONCRETE), Roadside.GROUND_LIFT + 0.004, Vector2.ZERO, Vector2(0.7, -WET_PAD))
 	# The shade canopy: two bays of tensioned sails on steel posts with a beam front and back.
 	var sail: Color = accent.lerp(Color(0.92, 0.92, 0.9), 0.35)
 	var steel := K.c(Color(0.72, 0.73, 0.75), K.K_STEEL)
-	var zb := r.end.y - 0.4
+	var zb := r.end.y - 1.0
 	var zf := r.position.y + 0.6
 	var xs := [r.position.x + 0.4, r.get_center().x, r.end.x - 0.4]
 	for x: float in xs:

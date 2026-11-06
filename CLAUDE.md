@@ -3502,6 +3502,14 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   city: `lod_box`es and the canopy slab. Kit warmed on the loading
   screen. Names and prices invented. `ROADSIDE=0` is the A/B; `tools/roadside_probe.tscn` finds
   pads; checks `tests/roadside_checks.gd` (alone: `tools/roadside/checks.tscn`).
+- The car wash from the kerb (wave 8, refcam `car_wash` in `tools/refcams/cameras_w8.json`,
+  docs/HANDOFF.md "The car wash at 14:00"): `RcCarWash` (`scripts/world/rc5_car_wash.gd`, hooks in
+  Roadside._car_wash()): the tunnel's exit end is a hand-dry area (`dry_rect()`: a shade canopy, a
+  wet pad, washed real empty cars, `CarWashAttendant`s - crowd rigs in the crew polo leaning over
+  the roof on the rail clip, a towel held plumb in the hand -, a towel rack and cart); the vacuum
+  stalls' cars are real Vehicles (`stall_car()`, every old roll still made); roadside.gdshader's
+  concrete reads UV2.y < 0 as wet, its traced tunnel shows brushes as cylinders (`wash_look`).
+  `RC5_CAR_WASH=0` is the A/B; checks `tests/rc5_car_wash_checks.gd`.
 - Street furniture (2026-10-05, docs/HANDOFF.md "Street furniture"): `StreetFurniture`
   (`scripts/world/street_furniture.gd`) builds in code at real size the LA wet-barrel hydrant,
   the smart meter and the pay station, a concrete bench with a painted ad back beside a third of
