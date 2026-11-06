@@ -292,3 +292,8 @@ so the walk would otherwise build at the 13:30 fallback).
 Its optional `sea` key is SeaLife.stage_for_shot()'s spec ("dolphin@x,z[,lead];pelican@x,z", TRUE
 world), staged three frames before the shot with the sea clock held and cleared after it;
 `SEA_DEBUG=1` prints the surfers and swimmers BeachActivity has round the lens.
+`freight_trench` (rc5-freight-trench): the Alameda trench at 12:00 clear from the south edge of the
+Spring Blvd bridge looking south, a northbound stack train coming on under the bridges. Its optional
+`freight_s` key ("<s>[:<dir>[:<seconds before>]]", FREIGHT_S) holds the freight line's clock with a
+train's leading end at s (dir 0 north), `freight_kind` (0 stack, 1 manifest, 2 autorack) picks the
+consist (FREIGHT_KIND). `tools/freight/probe.gd` prints the junctions' s.

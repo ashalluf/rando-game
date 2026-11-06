@@ -3042,6 +3042,8 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	# The sea_life refcam (tests/rc5_sea_life_checks.gd, SeaLife.spray_look): the camera row, the
 	# flat white water and streaked throws, the surfacing rings, the staged pod in turn.
 	load("res://tests/rc5_sea_life_checks.gd").new().run(self, city)
+	# The freight_trench refcam (tests/rc5_freight_trench_checks.gd, RcFreightTrench): the walls' look, the ballast, the conduit, the row.
+	load("res://tests/rc5_freight_trench_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()

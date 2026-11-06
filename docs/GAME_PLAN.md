@@ -3816,6 +3816,12 @@ already mapped so milestone 2 is script-only.
   be drawn on it too. Beads seen from the seat are drawn larger than outside (bead_scale): true size
   is under the pixel there. Car lamp halos are the air between lamp and eye, so they fade out within
   12 m rather than 5. DRIVER_RAIN=0 is the A/B.
+- **2026-11-06 The Alameda trench at noon (rc5-freight-trench, HANDOFF "The Alameda trench at
+  noon").** A trench is judged from a bridged cross street, where its walls, floor and the trains'
+  roofs fill the frame: the walls carry their construction (panels, tie holes, weep holes) and its
+  use (diesel soot, dust, graffiti), the ballast reads as stone at any distance, and a locomotive's
+  top is as finished as its side. A one-sided wall that is buried must still cast (double-sided).
+  RC5_FREIGHT_TRENCH=0 is the A/B.
 
 
 ## Correction: what build 135 (0ce833f) actually contained

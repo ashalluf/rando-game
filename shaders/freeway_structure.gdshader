@@ -71,7 +71,7 @@ uniform vec2 rail_wash = vec2(0.0);
 uniform float trench_look = 0.0;
 uniform float trench_panel = 7.32;
 uniform float trench_tone = 0.74;
-uniform float trench_soot = 0.6;
+uniform float trench_soot = 0.8;
 uniform float trench_tag_odds = 0.4;
 
 varying vec3 obj_pos;
@@ -303,8 +303,11 @@ void fragment() {
 			// thin dusting everywhere.
 			float from_top = UV2.y - h;
 			float plume = fbm(vec2(along * 0.045, h * 0.08)) * 0.7 + vnoise(vec2(along * 0.4, h * 0.3)) * 0.3;
-			float soot = (1.0 - smoothstep(0.3, 4.5, from_top)) * smoothstep(0.3, 0.75, plume);
-			alb = mix(alb, soot_color * 0.8, clamp(soot * trench_soot + 0.12, 0.0, 0.85));
+			// Soot washed down the panels in streaks by the rain, heaviest under the coping.
+			float streaks = smoothstep(0.35, 0.8, vnoise(vec2(along * 1.7, h * 0.07)) * 0.7 + vnoise(vec2(along * 6.0, h * 0.2)) * 0.3);
+			float soot = (1.0 - smoothstep(0.2, 5.5, from_top)) * (0.25 + 0.75 * streaks) * smoothstep(0.2, 0.62, plume);
+			soot = max(soot, (1.0 - smoothstep(0.0, 0.7, from_top)) * 0.7);
+			alb = mix(alb, soot_color * 0.7, clamp(soot * trench_soot + 0.06, 0.0, 0.88));
 			// A weep hole low in each panel, its lime run down to the floor.
 			float wx = along - (pk + 0.5) * jp;
 			float hole = (1.0 - smoothstep(0.035, 0.035 + fw, length(vec2(wx, h - 0.85))));

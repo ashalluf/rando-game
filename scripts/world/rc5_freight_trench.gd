@@ -12,6 +12,10 @@ extends RefCounted
 ##             no crevices): freight_track's `rc5` keeps the crevices' shadow in the mean, mottles
 ##             the bed at 0.3-2 m, fouls it brown along the mainline; the crib sits up near the
 ##             tie tops (`BALLAST_DROP`) instead of the ties lying on a flat bed.
+##   shade     a bright cross of sun on a wall in shadow: the walls are one-sided and buried, so from
+##             the sun's side they cast nothing and the trench was shaded only by whatever street
+##             slabs cast (GroundRim casts from their edge cells; a pole's prop left a hole). The
+##             structure casts double-sided (`cast_both()`).
 ##   lights    the wall lights were black boxes floating on the wall: a conduit runs along each wall
 ##             at their height, into a pull box behind each.
 ##
@@ -57,7 +61,7 @@ static func conduit(kit: FreightKit, xi: float, side: float, za: float, zb: floa
 	var out := Vector3(-side, 0.0, 0.0)
 	var ya := fa + 5.6 + CONDUIT_OVER
 	var yb := fb + 5.6 + CONDUIT_OVER
-	var col := FreewayKit.kind_color(Color(0.55, 0.56, 0.57), FreewayKit.S_STEEL)
+	var col := FreewayKit.kind_color(Color(0.17, 0.17, 0.17), FreewayKit.S_PAINTED)
 	var a := Vector3(xi, ya, za) + out * (CONDUIT_R + 0.02)
 	var b := Vector3(xi, yb, zb) + out * (CONDUIT_R + 0.02)
 	var m := (a + b) * 0.5
@@ -75,5 +79,11 @@ static func conduit(kit: FreightKit, xi: float, side: float, za: float, zb: floa
 		var y := lerpf(fa, fb, t) + 5.6
 		# The pull box over the fitting, and the drop to it.
 		kit.box(kit.body, Vector3(xi, y + CONDUIT_OVER, light_z) + out * 0.07, Vector3(0, 0, 0.13), Vector3.UP * 0.14, out * 0.07,
-			FreewayKit.kind_color(Color(0.42, 0.43, 0.44), FreewayKit.S_STEEL), 0.0, false)
+			FreewayKit.kind_color(Color(0.15, 0.15, 0.15), FreewayKit.S_PAINTED), 0.0, false)
 		kit.box(kit.body, Vector3(xi, y + 0.15, light_z) + out * 0.06, Vector3(0, 0, 0.025), Vector3.UP * 0.1, out * 0.025, col, 0.0, false)
+
+
+## The trench's structure mesh casts from both faces of its one-sided walls and floor.
+static func cast_both(mi: GeometryInstance3D) -> void:
+	if enabled and mi != null:
+		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_DOUBLE_SIDED

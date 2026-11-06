@@ -1514,6 +1514,14 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   `rc4` uniforms of freight_track / freight_stock), the valleys between storage beds filled level
   (`throat_fill()`: open, each stood up as a wedge), switch stands at the turnouts. `RC4_FREIGHT_YARD=0` is the A/B; checks
   `tests/rc4_freight_yard_checks.gd`.
+- The Alameda trench at noon (wave 8, refcam `freight_trench` in `tools/refcams/cameras_w8.json`, its
+  `freight_s` / `freight_kind` stage a train as FREIGHT_S / FREIGHT_KIND; docs/HANDOFF.md "The
+  Alameda trench at noon"): `RcFreightTrench` (`scripts/world/rc5_freight_trench.gd`): the trench's
+  own structure material copy (`trench_look`: cast panels, tie holes, diesel soot, weep holes,
+  graffiti on wall-height faces), cast DOUBLE-SIDED (its one-sided buried walls cast nothing from the
+  sun's side), the mainline ballast's `rc5` (crevice shadow in the mean, fouled), the crib up near
+  the tie tops, a conduit to the wall lights; freight_stock `rc5` (loco roofs grimed and sooted, fan
+  guards). `RC5_FREIGHT_TRENCH=0` is the A/B; checks `tests/rc5_freight_trench_checks.gd`.
 - Cars fly (owner, 2026-09-20: "easily fly cars around the way I fly the main character"). A
   car that leaves the ground goes into stabilised flight (`Vehicle._fly()`): it holds itself
   level instead of tumbling, the stick aims it (W/S nose down/up, A/D turn with a bank), and

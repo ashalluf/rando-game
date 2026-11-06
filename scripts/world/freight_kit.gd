@@ -868,6 +868,7 @@ func _portal() -> void:
 func _commit_step() -> void:
 	var tag := "freight_static"
 	var mi := _add("FreightStructure", body.commit(), RcFreightTrench.structure_material())
+	RcFreightTrench.cast_both(mi)
 	mi.add_to_group(tag)
 	if _track_any:
 		var tm := _add("FreightTrack", track.commit(), track_material())

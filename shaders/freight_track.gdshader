@@ -183,7 +183,7 @@ void fragment() {
 				// The crevices' share of shadow in the mean, clumps of stone and fines, and the
 				// mainline's fouling: brown from brake dust and spilled grain, darker toward the rails.
 				float clump = vnoise(tw.xz * 3.1) * 0.55 + vnoise(tw.xz * 0.7 + 4.2) * 0.45;
-				mean_col = base * (0.5 + 0.34 * clump);
+				mean_col = base * (0.42 + 0.3 * clump);
 				stone *= 0.78 + 0.3 * clump;
 				float foul = smoothstep(0.3, 0.8, vnoise(tw.xz * vec2(0.5, 0.18) + 1.3));
 				vec3 fouled = mix(base, dust_color * 1.9, 0.45 + 0.35 * foul);
