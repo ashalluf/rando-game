@@ -11,7 +11,7 @@ extends SceneTree
 ##
 ## Env: OUT png path; RAIN=0..1 wet road and rain (road_wetness, rain_intensity); VIEW=chase
 ## (default: behind the player, the cruisers coming) | low (at the road, the mirrored strobes) |
-## block (the roadblock and its flares); LOOK=0 the A/B (the old bar and its own BarLight);
+## block (the roadblock and its flares) | bar (the first cruiser's bar close up); LOOK=0 the A/B (the old bar and its own BarLight);
 ## T=seconds the flash clock is held at; STRIP=n saves n frames 0.05 s apart from T (OUT_00.png ...);
 ## FRAMES before the shot (default 30). Nothing here names a class as a TYPE (compiled before the
 ## autoloads exist).
@@ -30,10 +30,20 @@ func _initialize() -> void:
 		look_script.set("force", true)
 	var lights_script: GDScript = load("res://scripts/vehicles/car_lights.gd")
 	lights_script.set("lamp_override", 1.0)
+	# Bisect knobs: CL_BUDGET (CarLights' traffic spots), CL_PLAYER=0, PNL_BUDGET (the strobes'
+	# omnis), WASH=0 (hide every PoliceGlow), LIGHT_LOG=1 (print every light in the scene).
+	if _env("CL_BUDGET", "") != "":
+		lights_script.set("budget", int(_env("CL_BUDGET", "6")))
+	if _env("CL_PLAYER", "1") == "0":
+		lights_script.set("player_light", false)
+	if _env("PNL_BUDGET", "") != "":
+		look_script.set("budget", int(_env("PNL_BUDGET", "6")))
 	var rain := float(_env("RAIN", "0"))
 	RenderingServer.global_shader_parameter_set("lamp_factor", 1.0)
 	RenderingServer.global_shader_parameter_set("night_factor", 1.0)
 	RenderingServer.global_shader_parameter_set("road_wetness", rain)
+	# The fwd-review-i A/B (SkyExtras sets it in the city; this scene has no sky).
+	RenderingServer.global_shader_parameter_set("fwd_review_i", 0.0 if _env("FWD_REVIEW_I", "1") == "0" else 1.0)
 	RenderingServer.global_shader_parameter_set("rain_intensity", rain)
 	var dn: GDScript = load("res://scripts/world/day_night.gd")
 	dn.set("lamp_now", 1.0)
@@ -58,6 +68,12 @@ func _initialize() -> void:
 	env.volumetric_fog_enabled = true
 	env.volumetric_fog_density = 0.006 + 0.02 * rain
 	env.volumetric_fog_albedo = Color(0.8, 0.8, 0.85)
+	if _env("NOSSR", "0") == "1":
+		env.ssr_enabled = false
+	if _env("NOVFOG", "0") == "1":
+		env.volumetric_fog_enabled = false
+	if _env("NOGLOW", "0") == "1":
+		env.glow_enabled = false
 	var we := WorldEnvironment.new()
 	we.environment = env
 	world.add_child(we)
@@ -69,6 +85,8 @@ func _initialize() -> void:
 	var pf: GDScript = load("res://scripts/world/prop_factory.gd")
 	pf.call("set_wetness", rain)
 	var road: Material = pf.call("road", "asphalt", 5.0, Color(1, 1, 1), 7, 0.0, 1.0)
+	if _env("PATCH_AMOUNT", "") != "" and road is ShaderMaterial:
+		(road as ShaderMaterial).set_shader_parameter("patch_amount", float(_env("PATCH_AMOUNT", "0.3")))
 	_slab(world, Vector3(20.0, 0.2, 140.0), Vector3(0.0, -0.1, -40.0), road)
 	_slab(world, Vector3(5.0, 0.15, 140.0), Vector3(12.5, 0.075, -40.0), pf.call("road", "sidewalk", 3.0, Color(1, 1, 1), 8, 1.5, 0.4))
 	_slab(world, Vector3(5.0, 0.15, 140.0), Vector3(-12.5, 0.075, -40.0), pf.call("road", "sidewalk", 3.0, Color(1, 1, 1), 9, 1.5, 0.4))
@@ -131,10 +149,33 @@ func _initialize() -> void:
 			cam.look_at_from_position(Vector3(1.0, 0.55, 10.0), Vector3(-0.5, 1.0, -20.0))
 		"block":
 			cam.look_at_from_position(Vector3(-1.0, 2.4, -44.0), Vector3(0.0, 0.8, -66.0))
+		"bar":
+			# fwd-review-i: the first cruiser's light bar from a few metres (the LED bar's housing).
+			cam.look_at_from_position(Vector3(0.6, 2.5, -9.5), Vector3(-2.2, 1.4, -14.0))
 		_:
 			cam.look_at_from_position(Vector3(1.8, 3.2, 12.0), Vector3(0.0, 1.2, -24.0))
 	cam.current = true
 	for i in int(_env("FRAMES", "30")):
+		await process_frame
+	if _env("CL_RANGE", "") != "" or _env("CL_ATT", "") != "":
+		for l in root.find_children("*", "SpotLight3D", true, false):
+			if _env("CL_RANGE", "") != "":
+				(l as SpotLight3D).spot_range = float(_env("CL_RANGE", "28"))
+			if _env("CL_ATT", "") != "":
+				(l as SpotLight3D).spot_attenuation = float(_env("CL_ATT", "0.85"))
+		for i in 4:
+			await process_frame
+	if _env("WASH", "1") == "0":
+		for c in cars:
+			var gw: Node3D = c.get_node_or_null("PoliceGlow")
+			if gw:
+				for ch in gw.find_children("*", "VisualInstance3D", true, false):
+					if ch is VisualInstance3D:
+						(ch as VisualInstance3D).layers = 0
+	if _env("LIGHT_LOG", "0") == "1":
+		for l in root.find_children("*", "Light3D", true, false):
+			var lt: Light3D = l
+			print("LIGHT %s %s vis=%s e=%.2f at=%s range=%s" % [lt.get_path(), lt.get_class(), lt.is_visible_in_tree(), lt.light_energy, lt.global_position, lt.get("spot_range") if lt is SpotLight3D else lt.get("omni_range")])
 		await process_frame
 	for c in cars:
 		var g: Node3D = c.get_node_or_null("PoliceGlow")

@@ -28,6 +28,8 @@ var at_bins: bool = false
 var calm: bool = false
 ## Wildlife's id for it.
 var wid: int = 0
+## Stills (tools/refcams/wild_stage.gd): a point (global) the head stays turned to; INF for none.
+var look_hold := Vector3.INF
 
 var mode: int = Mode.IDLE
 var _sp: Dictionary
@@ -71,6 +73,7 @@ func _ready() -> void:
 	_idle_pose = _rng.randi() % 3
 	if not route.is_empty():
 		mode = Mode.TRAVEL
+	Rc5CoyoteNight.attach_eyes(self)
 
 
 func _add_antlers(points: int) -> void:
@@ -139,6 +142,7 @@ func _physics_process(delta: float) -> void:
 	if fleeing:
 		_tick_flee(dt)
 		_tick_pronk(dt)
+		_hold_look()
 		_advance_rig(dt)
 		return
 	_think -= dt
@@ -154,7 +158,13 @@ func _physics_process(delta: float) -> void:
 			_tick_move(dt, false)
 		_:
 			_tick_idle(dt)
+	_hold_look()
 	_advance_rig(dt)
+
+
+func _hold_look() -> void:
+	if look_hold != Vector3.INF:
+		rig.look_at = rig.to_local(look_hold)
 
 
 ## The player: how far and how fast; alert or flush.

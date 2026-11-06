@@ -189,10 +189,15 @@ static func _use(g: LandmarkGeo, spec: Dictionary) -> void:
 	var tint: Color = (HistoricCore.TERRACOTTA[p] as Color).lightened(0.05)
 	var common := {"tint": tint, "roughness": 0.5, "texture_contrast": 0.35, "grime": 0.35, "seed": float(p) * 3.0,
 		"flood_strength": 0.8, "flood_base_y": 0.3, "flood_reach": 11.0, "flood_floor": 0.04, "flood_spacing": 3.0}
-	g.use("stone", LandmarkMats.facade("hc_stone_%d" % p, "plaster_white", 2.5, common))
+	if HistoricCore.look2 and RenderingServer.get_current_rendering_method() == "gl_compatibility":
+		# The plaster's mean as Compatibility hands the texture over (raw sRGB): LandmarkMats takes the
+		# linear one, so on the web and the opengl3 stills the ornament drew ~2x its stone's colour.
+		var raw: Color = (Building.WALL_TEXTURE_MEAN["plaster_white"] as Array)[1]
+		common["wall_texture_mean"] = Vector3(raw.r, raw.g, raw.b)
+	g.use("stone", LandmarkMats.facade("hc_stone_%d%s" % [p, "_2" if HistoricCore.look2 else ""], "plaster_white", 2.5, common))
 	var flute := common.duplicate()
 	flute.merge({"joint_spacing": Vector2(0.16, 0.0), "joint_width": 0.05, "joint_dark": 0.32}, true)
-	g.use("flute", LandmarkMats.facade("hc_flute_%d" % p, "plaster_white", 2.5, flute))
+	g.use("flute", LandmarkMats.facade("hc_flute_%d%s" % [p, "_2" if HistoricCore.look2 else ""], "plaster_white", 2.5, flute))
 	g.use("bronze", LandmarkMats.plain("hc_bronze", Color(0.40, 0.28, 0.16), 0.38, 0.85))
 	g.use("fan", LandmarkMats.plain("hc_fan", Color(0.05, 0.06, 0.07), 0.12, 0.4))
 	g.use("lamp", lamp_material())
