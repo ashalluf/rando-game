@@ -56,11 +56,14 @@ float cr_stress(vec3 p, out float ridge) {
 		float L = max(crumple_shape[i].x, D * 1.3);
 		float R = max(crumples[i].w, 0.05);
 		vec3 lat = rel - dir * s;
+		// A pole's zone (CrashAftermath, shape.w 1): a tall slot, the height counting a third.
+		lat -= crumple_up * dot(lat, crumple_up) * 0.7 * step(0.5, crumple_shape[i].w);
 		float lr2 = dot(lat, lat) / (R * R);
 		if (s > L || lr2 >= 1.0) {
 			continue;
 		}
-		float wl = 1.0 - smoothstep(0.35, 1.0, sqrt(lr2));
+		// A pole's zone bends the front into a V (deepest at the pole), a wall's is flat-topped.
+		float wl = crumple_shape[i].w > 0.5 ? pow(1.0 - sqrt(lr2), 1.5) : 1.0 - smoothstep(0.35, 1.0, sqrt(lr2));
 		float k = clamp(1.0 - s / L, 0.0, 1.0);
 		float pitch = max(crumple_shape[i].y, 0.04);
 		float seed = crumple_push[i].w;
@@ -94,11 +97,14 @@ vec3 cr_move(vec3 p, vec3 n) {
 		}
 		float R = max(crumples[i].w, 0.05);
 		vec3 lat = rel - dir * s;
+		// A pole's zone (CrashAftermath, shape.w 1): a tall slot, the height counting a third.
+		lat -= crumple_up * dot(lat, crumple_up) * 0.7 * step(0.5, crumple_shape[i].w);
 		float lr2 = dot(lat, lat) / (R * R);
 		if (lr2 >= 1.0) {
 			continue;
 		}
-		float wl = 1.0 - smoothstep(0.35, 1.0, sqrt(lr2));
+		// A pole's zone bends the front into a V (deepest at the pole), a wall's is flat-topped.
+		float wl = crumple_shape[i].w > 0.5 ? pow(1.0 - sqrt(lr2), 1.5) : 1.0 - smoothstep(0.35, 1.0, sqrt(lr2));
 		float k = clamp(1.0 - s / L, 0.0, 1.0);
 		// The front of the zone goes back by D; the metal behind it folds up to take it, so the
 		// crushed length shortens like an accordion (smooth where the crush runs out).

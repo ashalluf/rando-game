@@ -17,6 +17,8 @@ uniform sampler2D concrete_tex : source_color, filter_linear_mipmap_anisotropic,
 uniform sampler2D grass_tex : source_color, filter_linear_mipmap_anisotropic, repeat_enable;
 uniform sampler2D brick_tex : source_color, filter_linear_mipmap_anisotropic, repeat_enable;
 uniform vec3 fig_tint : source_color = vec3(0.20, 0.32, 0.13);
+// Rc5Backyard (RC5_BACKYARD=0 sets it 0: the walls exactly as before): the timber fence built.
+uniform float rc5 = 0.0;
 
 global uniform float road_wetness;
 
@@ -97,6 +99,35 @@ void fragment() {
 		albedo = paint * (0.6 + 0.8 * w) * (0.9 + 0.2 * hash12(vec2(board, 7.0))) * (1.0 - 0.6 * gap);
 		albedo = mix(albedo, vec3(dot(albedo, vec3(0.33))) * 1.05, 0.35 * v);
 		rough = 0.86;
+		if (rc5 > 0.5 && !top) {
+			// Rc5Backyard: a built fence, not a printed one. Each board its own age and tone, a
+			// rounded edge catching the light and a dark gap between boards; a 2x6 cap along the
+			// top with its shadow under it and a kickboard at the foot; grey weathering running
+			// down from the cap, sprinkler stain and dirt splash at the foot, the nails' rust dots.
+			float bx = fract(uv.x / 0.14);
+			float bh = hash12(vec2(board, 11.0));
+			float fw = max(fwidth(uv.x) / 0.14, 0.001);
+			float near_k = 1.0 - smoothstep(0.08, 0.3, fw);
+			float edge = (smoothstep(0.0, 0.12, bx) * (1.0 - smoothstep(0.88, 1.0, bx)));
+			albedo *= mix(1.0, 0.82 + 0.18 * edge, near_k);
+			albedo *= mix(vec3(1.0), mix(vec3(1.08, 1.0, 0.9), vec3(0.82, 0.8, 0.78), bh), 0.55);
+			float gap2 = course(uv.x, 0.14, 0.018);
+			albedo *= 1.0 - 0.55 * gap2;
+			float cap = smoothstep(h - 0.1, h - 0.095, uv.y);
+			float under = smoothstep(h - 0.16, h - 0.1, uv.y) * (1.0 - cap);
+			float kick = 1.0 - smoothstep(0.17, 0.175, uv.y);
+			float streak = vnoise(vec2(uv.x * 3.1, uv.y * 0.35)) * smoothstep(h * 0.3, h, uv.y);
+			albedo = mix(albedo, vec3(dot(albedo, vec3(0.3, 0.4, 0.3))) * 0.92, 0.45 * streak);
+			vec3 capw = paint * (0.72 + 0.5 * disp(texture(planks_tex, vec2(uv.x / 1.8, uv.y / 0.3)).rgb)) * 0.95;
+			albedo = mix(albedo, capw, cap);
+			albedo *= 1.0 - 0.38 * under;
+			albedo = mix(albedo, paint * (0.55 + 0.6 * w) * 0.82, kick);
+			albedo *= 1.0 - 0.35 * foot * (0.6 + 0.4 * vnoise(uv * 4.0));
+			float nail = step(0.94, hash12(floor(vec2(uv.x / 0.07, floor((uv.y - 0.45) / 0.6) + 0.5)))) * near_k;
+			vec2 np = vec2(fract(uv.x / 0.07), fract((uv.y - 0.45) / 0.6));
+			albedo *= 1.0 - 0.45 * nail * (1.0 - smoothstep(0.0, 0.18, length((np - 0.5) * vec2(1.0, 6.0))));
+			rough = mix(0.86, 0.92, streak);
+		}
 	} else if (kind < 2.5) {
 		// White pickets cut out of one panel: 9 cm boards on 15 cm centres with pointed tops, two
 		// rails across.
