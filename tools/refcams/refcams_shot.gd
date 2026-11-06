@@ -99,6 +99,7 @@ func _run() -> void:
 			day.set("hour", float(cam.hour))
 			day.call("_apply")
 		_port_clock(cam)
+		_freight_clock(cam, scene)
 		Engine.time_scale = 1.0
 		# A "drive" row (cameras_w5.json, chase_cam): the player drives his own car and the shot is
 		# his chase camera (tools/refcams/chase_stage.gd), not the free eye.
@@ -639,3 +640,23 @@ func _unstage_rail(scene: Node) -> void:
 	if sys:
 		sys.set("hold", OS.get_environment("RAIL_HOLD") == "1")
 	_rail_held = false
+## A camera row's optional `freight_into` (wave 7, freight_yard): the freight line's clock held at
+## that many seconds into the yard stand of the trip nearest the yard (FreightRail.clock_at_yard();
+## the stand is DWELL_YARD 150 s, so past 150 the train is pulling out south), so the departing
+## train stands where the row was framed for. Rows without it let the clock run as before.
+func _freight_clock(cam: Dictionary, scene: Node) -> void:
+	var sys := scene.get_node_or_null("FreightRail") if scene else null
+	if sys == null:
+		return
+	if not cam.has("freight_into"):
+		sys.set("hold", OS.get_environment("FREIGHT_HOLD") == "1")
+		return
+	var line: Variant = sys.get("line")
+	if line == null:
+		sys.call("step")
+		line = sys.get("line")
+	if line == null:
+		return
+	load("res://scripts/world/freight_rail.gd").set("clock", float(line.call("clock_at_yard", float(cam.freight_into))))
+	sys.set("hold", true)
+	sys.call("step")

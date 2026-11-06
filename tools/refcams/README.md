@@ -96,6 +96,15 @@ screen wall, the theatre's lobby and HOTEL ALTAIR's crown. Its optional `arena_e
 makes the night an event night or a quiet one (ArenaNight, as ARENA_EVENT; set before the city
 loads). `tools/rc5_arena_night/site_probe.gd` prints the district's site rects in world XZ.
 
+## Wave 7's cameras (`cameras_w7.json`)
+
+Run with `REFCAMS_JSON=tools/refcams/cameras_w7.json`. `freight_yard`: the Arroyo Pacific yard at
+16:30 clear, eye level where the ladder meets the storage tracks looking north, a train pulling out
+on the east main. Its optional `freight_into` key holds the freight line's clock that many seconds
+into the yard stand of the trip nearest the yard (`FreightRail.clock_at_yard()`; past 150 s the train
+is pulling out south). `tools/rc4_freight_yard/probe.gd` prints the yard's tracks, cuts and masts and
+the train's ends over the pull-out, `chunk_probe.gd` what each yard chunk lays.
+
 ## Running
 
 ```

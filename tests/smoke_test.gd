@@ -2971,6 +2971,8 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	# The brush_fire refcam (tests/rc5_brush_fire_checks.gd, BrushFireLook): the camera row, the
 	# smoky dusk sky and fog, the pall, the ash, the fire line under the site.
 	load("res://tests/rc5_brush_fire_checks.gd").new().run(self, city)
+	# The freight_yard refcam (tests/rc4_freight_yard_checks.gd, RcFreightYard): ties, the ladder, weeds, rock, tags.
+	load("res://tests/rc4_freight_yard_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()

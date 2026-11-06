@@ -4619,3 +4619,12 @@ none of either.
   than the real one, so a line at the true height floated in the sky); the column is dense and laid
   over with a pall drifting downwind; from dusk the sky and fog go smoky amber. BRUSH_FIRE_LOOK=0
   is the A/B.
+- **2026-11-02 The freight_yard refcam: what the eye stands on must be there (rc4-freight-yard,
+  HANDOFF "The freight yard at 16:30").** A new reference camera (`freight_yard`, wave 7's table) at
+  eye level where the yard's ladder meets the storage tracks, a train pulling out (its clock held by
+  the row's `freight_into`). The yard's storage tracks had no ties and its ladder neither ties nor
+  bed, from two bugs that every other view hid. Decisions: a chunk-wide batch's draw range is set
+  from its own extent (a range is measured to the batch's centre, and the yard's chunks are 520 m
+  wide); railway ground is never clean (weeds by hash along the beds, crushed angular ballast) and
+  freight cars carry graffiti and weather like the real ones; a yard is one ballast field, level
+  between neighbouring tracks (never open valleys between beds). RC4_FREIGHT_YARD=0 is the A/B.

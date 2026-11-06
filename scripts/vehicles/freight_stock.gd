@@ -86,6 +86,8 @@ static func material() -> ShaderMaterial:
 	if _material == null:
 		_material = ShaderMaterial.new()
 		_material.shader = load("res://shaders/freight_stock.gdshader")
+		_material.set_shader_parameter("rc4", 1.0 if RcFreightYard.enabled else 0.0)
+		_material.set_shader_parameter("tag_atlas", load("res://assets/textures/street_wear/street_wear_tags.png"))
 	return _material
 
 
