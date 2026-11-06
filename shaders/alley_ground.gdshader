@@ -31,6 +31,11 @@ uniform int lamp_count = 0;
 // The mirror's strength: Forward+ adds its own SSR and the real lights' specular on top.
 uniform float mirror_gain = 1.0;
 uniform float mirror_forward = 0.6;
+// AlleyNoon (ALLEY_NOON, the shared material): by day, as lamp_factor falls, the slab's dips dry,
+// the gutter's water breaks into short shallow runs, and what is left mirrors the alley (the far
+// wall's shaded foot, its sunlit top, a slit of sky) by its own emitted mirror instead of the
+// engine's open-sky reflection. 0 (and lamp_factor 1, the night) is the old water exactly.
+uniform float day_dry = 0.0;
 
 varying float kind;
 varying float variant;
@@ -122,6 +127,24 @@ void vertex() {
 // a tight core where its mirror image meets the ground and a streak toward the eye (the ripples).
 uniform float wall_back = 0.25;
 uniform float wall_top = 11.0;
+// The day mirror's walls: how tall (m over the water) and where their sunlit tops begin.
+uniform float day_wall_top = 22.0;
+uniform float day_sun_from = 5.0;
+uniform float day_sun_to = 11.0;
+vec3 day_mirror(vec3 p, vec3 cam, float o, float hw, float az) {
+	vec3 d = normalize(p - cam);
+	vec3 r = vec3(d.x, -d.y, d.z);
+	vec2 across_v = az > 0.5 ? vec2(1.0, 0.0) : vec2(0.0, 1.0);
+	float ro = dot(r.xz, across_v);
+	float t = ro > 0.0 ? (hw + wall_back - o) / max(ro, 1e-3) : (-(hw + wall_back) - o) / min(ro, -1e-3);
+	float hh = r.y * t;
+	float wall = step(hh, day_wall_top) * step(abs(ro), 0.999);
+	// Down the alley the ray runs on to the street at the mouth: open, bright.
+	float shade = 1.0 - smoothstep(day_sun_from, day_sun_to, hh);
+	vec3 wall_col = mix(vec3(0.42, 0.37, 0.31), vec3(0.11, 0.105, 0.1), shade);
+	vec3 sky = sky_tint.rgb * 0.85;
+	return mix(sky, wall_col, wall);
+}
 vec3 canyon_mirror(vec3 p, vec3 cam, float o, float hw, float az) {
 	vec3 d = normalize(p - cam);
 	vec3 r = vec3(d.x, -d.y, d.z);
@@ -338,16 +361,20 @@ void fragment() {
 		// Water that never dries in a restaurant alley: down the V in lengths, in the slab's low
 		// spots (by the wheel paths), each with a darker damp ring round it.
 		float ao2 = abs(p.y);
-		float gut = (1.0 - smoothstep(0.18, 0.5, ao2 + 0.12 * (vnoise(vec2(p.x * 1.3, 2.0)) - 0.5)))
-			* smoothstep(0.42, 0.58, vnoise(vec2(p.x * 0.16, 5.0) + seed * 9.0));
+		// By day the run narrows and breaks up, the dips dry (0 at night: the old numbers).
+		float dry = day_dry * (1.0 - clamp(lamp_factor, 0.0, 1.0));
+		float gw = 1.0 - 0.5 * dry;
+		float gut = (1.0 - smoothstep(0.18 * gw, 0.5 * gw, ao2 + 0.12 * gw * (vnoise(vec2(p.x * 1.3, 2.0)) - 0.5)))
+			* smoothstep(0.42 + 0.2 * dry, 0.58 + 0.16 * dry, vnoise(vec2(p.x * 0.16, 5.0) + seed * 9.0));
 		float dip = fbm(vec2(p.x * 0.3, p.y * 1.1) + seed * 21.0 + 3.0) + 0.05 * (vnoise(vec2(p.x * 2.0, p.y * 5.0)) - 0.5);
-		float dip_pool = smoothstep(0.645, 0.665, dip) * (1.0 - smoothstep(hw - 0.5, hw - 0.1, ao2));
-		float d_ring = smoothstep(0.58, 0.65, dip) * (1.0 - smoothstep(hw - 0.3, hw, ao2));
+		float dip_pool = smoothstep(0.645 + 0.075 * dry, 0.665 + 0.075 * dry, dip) * (1.0 - smoothstep(hw - 0.5, hw - 0.1, ao2));
+		float d_ring = smoothstep(0.58 + 0.06 * dry, 0.65 + 0.06 * dry, dip) * (1.0 - smoothstep(hw - 0.3, hw, ao2));
 		float g_ring = (1.0 - smoothstep(0.3, 0.9, ao2)) * smoothstep(0.32, 0.5, vnoise(vec2(p.x * 0.16, 5.0) + seed * 9.0));
 		pool = max(gut, dip_pool);
 		halo = max(max(d_ring, g_ring), pool);
-		albedo *= 1.0 - 0.3 * halo;
-		albedo = mix(albedo, albedo * vec3(0.6, 0.6, 0.62), pool);
+		// By day a thin film over the slab, not a dark pond: the darkening eased with `dry`.
+		albedo *= 1.0 - (0.3 - 0.15 * dry) * halo;
+		albedo = mix(albedo, albedo * mix(vec3(0.6, 0.6, 0.62), vec3(0.84, 0.84, 0.85), dry), pool);
 	}
 	ALBEDO = to_lit(clamp(albedo, vec3(0.0), vec3(1.0)));
 	ROUGHNESS = mix(mix(rough, 0.12, wet * 0.8), 0.35, halo * 0.7);
@@ -361,5 +388,15 @@ void fragment() {
 		// The night sky over the canyon (sky_tint: raw display numbers on both renderers) and the lamps.
 		vec3 m = min(canyon_mirror(local_p, cam, p.y, hw, along_z), vec3(3.0));
 		EMISSION = to_lit(m) * pool * fres * g;
+	}
+	float day_w = day_dry * (1.0 - clamp(lamp_factor, 0.0, 1.0));
+	if (day_w > 0.001 && pool > 0.01) {
+		// The day's water: the engine's open-sky reflection turned down, the alley mirrored instead.
+		SPECULAR = mix(SPECULAR, mix(0.5, 0.12, pool), day_w);
+		vec3 cam_d = (inverse(MODEL_MATRIX) * vec4(CAMERA_POSITION_WORLD, 1.0)).xyz;
+		vec3 v_d = normalize(cam_d - local_p);
+		float fres_d = 0.2 + 0.8 * pow(1.0 - clamp(v_d.y, 0.0, 1.0), 4.0);
+		float g_d = mirror_gain * (cs_linear_renderer() ? mirror_forward : 1.0);
+		EMISSION += to_lit(day_mirror(local_p, cam_d, p.y, hw, along_z)) * pool * fres_d * g_d * day_w;
 	}
 }

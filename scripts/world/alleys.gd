@@ -519,6 +519,7 @@ static func ground_material() -> ShaderMaterial:
 	mat.set_shader_parameter("asphalt_tex", PropFactory.texture("asphalt", "Color"))
 	mat.set_shader_parameter("concrete_tex", PropFactory.texture("concrete", "Color"))
 	mat.set_shader_parameter("cracked_tex", PropFactory.texture("concrete_cracked", "Color"))
+	AlleyNoon.ground(mat)
 	_ground_material = mat
 	return mat
 

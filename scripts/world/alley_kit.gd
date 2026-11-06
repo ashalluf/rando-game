@@ -140,6 +140,8 @@ static func grease_bin(st: SurfaceTool, paint: Color) -> void:
 
 ## A 96-gallon wheeled cart: body, lid, the handle at the back, two wheels.
 static func cart(st: SurfaceTool, paint: Color, lid: Color) -> void:
+	if AlleyNoon.cart(st, paint, lid):
+		return
 	_box(st, Vector3(0.0, 0.53, 0.0), Vector3(0.6, 0.9, 0.68), IndustrialKit.K_PLASTIC, paint)
 	_box(st, Vector3(0.0, 1.0, 0.02), Vector3(0.64, 0.05, 0.76), IndustrialKit.K_PLASTIC, lid)
 	_box(st, Vector3(0.0, 0.94, -0.37), Vector3(0.56, 0.04, 0.05), IndustrialKit.K_PLASTIC, paint * 0.8)
@@ -150,7 +152,7 @@ static func cart(st: SurfaceTool, paint: Color, lid: Color) -> void:
 ## A steel back door in its frame, a kick plate, a lever; the rear address on some.
 static func back_door(st: SurfaceTool, paint: Color, address: String, stoop: bool) -> void:
 	var base := 0.17 if stoop else 0.0
-	if stoop:
+	if stoop and not AlleyNoon.stoop(st):
 		_box(st, Vector3(0.0, 0.085, 0.42), Vector3(1.5, 0.17, 0.84), IndustrialKit.K_CONCRETE, Color(0.72, 0.71, 0.68))
 	_box(st, Vector3(0.0, base + 1.07, 0.02), Vector3(0.96, 2.13, 0.05), IndustrialKit.K_STEEL, paint, 0.0, 32 | 16)
 	for sx: float in [-1.0, 1.0]:
@@ -309,6 +311,8 @@ static func crates(st: SurfaceTool, rng: RandomNumberGenerator) -> void:
 
 ## An old mattress leaning on the wall.
 static func mattress(st: SurfaceTool, paint: Color) -> void:
+	if AlleyNoon.mattress(st, paint):
+		return
 	_boxr(st, Basis(Vector3.RIGHT, -0.22), Vector3(0.0, 0.93, 0.33), Vector3(1.4, 1.9, 0.2), IndustrialKit.K_RUBBER, paint)
 
 
