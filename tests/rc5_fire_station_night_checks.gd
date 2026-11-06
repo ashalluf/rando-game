@@ -88,11 +88,13 @@ func _path(plan: CityPlan, st: Dictionary) -> void:
 	var yaws: PackedFloat32Array = p.yaws
 	var want := EmergencyCar.heading(axis, dir)
 	_t._check(absf(angle_difference(yaws[yaws.size() - 2], want)) < 0.12, "and heads down it (%.2f rad off)" % absf(angle_difference(yaws[yaws.size() - 2], want)))
-	var smooth := true
+	var dy := 0.0
+	var dl := 0.0
 	for i in range(1, pts.size()):
-		if absf(pts[i].y - pts[i - 1].y) > 0.08 or Vector2(pts[i].x - pts[i - 1].x, pts[i].z - pts[i - 1].z).length() > 0.55:
-			smooth = false
-	_t._check(smooth and pts[0].y > pts[pts.size() - 1].y - 0.5, "the path steps evenly from the bay floor down the ramp")
+		dy = maxf(dy, absf(pts[i].y - pts[i - 1].y))
+		dl = maxf(dl, Vector2(pts[i].x - pts[i - 1].x, pts[i].z - pts[i - 1].z).length())
+	_t._check(dy < 0.08 and dl < 0.55 and pts[0].y > pts[pts.size() - 1].y - 0.5,
+		"the path steps evenly from the bay floor down the ramp (steps %.2f m, rise %.3f m, %.2f -> %.2f)" % [dl, dy, pts[0].y, pts[pts.size() - 1].y])
 
 
 func _stop_gap() -> void:

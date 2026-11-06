@@ -130,19 +130,22 @@ static func path_for(plan: CityPlan, station: Dictionary, start: Array, length: 
 	var acc := 0.0
 	var next := 0.0
 	var bay_y := float(b.y)
-	var face_d := 0.0
 	for i in raw.size():
+		var seg := 0.0
 		if i > 0:
-			acc += (raw[i] as Vector2).distance_to(raw[i - 1])
+			seg = (raw[i] as Vector2).distance_to(raw[i - 1])
+			acc += seg
 		while acc >= next:
+			# The point `next` metres along, between the last raw point and this one.
 			var q: Vector2 = raw[i]
+			if i > 0 and seg > 1e-5:
+				q = (raw[i - 1] as Vector2).lerp(raw[i], clampf(1.0 - (acc - next) / seg, 0.0, 1.0))
 			var from_face := (q - face).dot(out)
 			var ramp := clampf((from_face - (float(b.to_kerb) - 3.4)) / 3.4, 0.0, 1.0)
 			var road_y := float(relief.call(q)) + CityChunk.ROAD_TOP
 			var y := lerpf(maxf(bay_y, road_y), road_y, smoothstep(0.0, 1.0, ramp))
 			pts.append(Vector3(q.x, y, q.y))
 			next += 0.5
-			face_d = from_face
 	for i in pts.size():
 		var a := pts[maxi(i - 1, 0)]
 		var c := pts[mini(i + 1, pts.size() - 1)]
