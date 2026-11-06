@@ -32842,6 +32842,10 @@ crawl forward (1 of 21)" (city_landmarks, a stop-and-go loop measured over 3 s) 
 passes alone with TELEPORT_FREE on and off. An engine `ERROR: Lambda capture at index 0 was freed`
 shows once on main and once here after a part's `stage_home()` (no backtrace; not a SCRIPT ERROR).
 
+**State for whoever resumes.** Done: fixes 1 and 2, the StreetSounds fix, the checks, the docs, the
+stills. The pushed head passed a full gate (`SHARDS=3`, 6,575 checks, 0 failed) at 52cb651b; the
+commits after it are this HANDOFF text and a `.uid` file only. Open: shard 1 is 24 MB over 3,600.
+
 **Not done / next.** Main's last 51 commits put shard 1 back 24 MB over the target (3,624):
 the margin is gone again as soon as a wave adds parts, so `MEM_COST` wants refreshing per batch
 (`SMOKE_PROFILE=1` + gate_rss.py). The city LOAD itself (2.2-2.9 GB at a shard's first part) is most of a shard:
