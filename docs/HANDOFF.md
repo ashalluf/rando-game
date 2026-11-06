@@ -33328,3 +33328,9 @@ cladding with pale moonlit window frames (the top half of the frame) still reads
 it is the building's finish and the moon's key, city-wide, and was left alone. The trash bags at the
 kerb draw near-black. The laundromat's drums do not turn (TIME is held in refcams anyway). The
 interior people are the traced capsule bodies and read stiff up close.
+
+**Status (wrap-up).** Done: the camera row, the four fixes, checks, docs, stills on
+`shots/rc5-laundromat-night`. Gated: head 18a87e3c (main merged at e5540374) passed
+`SHARDS=3 tests/headless_check.sh`, 6,630 checks, 0 failed (peak 3,895 MB a shard); this note is
+the only change after it. Open: a Forward+ (lavapipe) look at the gate wash, and the items under
+"Not done" above.
