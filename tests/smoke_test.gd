@@ -2727,6 +2727,8 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	load("res://tests/cinematic_review_checks.gd").new().run(self, city)
 	# The reset between check files (tests/gate_speed_2_checks.gd): what it puts back, the file list.
 	load("res://tests/gate_speed_2_checks.gd").new().run(self, city)
+	# The gate, third pass (tests/gate_speed_3_checks.gd): singleton pointers put back, the deal.
+	load("res://tests/gate_speed_3_checks.gd").new().run(self, city)
 	# The night street's air (tests/night_atmos_checks.gd, NightAtmos): halos, shafts, the haze.
 	load("res://tests/night_atmos_checks.gd").new().run(self, city)
 	# Close-up car detail (tests/car_detail_checks.gd): plates, badges, tyre lettering, grime, the A/B.

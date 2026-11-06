@@ -32,6 +32,12 @@ const RESTORE_WORDS := ["force", "forced", "staged", "hold"]
 const SKIP_PREFIX := ["_"]
 
 var _statics := {} # Script -> {name: value}
+## Static pointers to a node of the city (a singleton's `_inst`), as the snapshot found them: a
+## second city or a test node of the same class sets the pointer in its _ready() and nulls it on
+## exit, and the city's own node is then nobody's (city_menu's pending-seed city left
+## StreetSounds._inst null: every later street-sound event was dropped, gate-speed-3). Put back
+## when the pointer is null, freed or points outside the city, and the city's node is still there.
+var _instances := {} # Script -> {name: WeakRef}
 var _all := {} # Script -> {name: value}, every primitive static (SMOKE_LEAKS)
 var _nodes := {} # NodePath (from the city) -> {property: value}
 var _city: Node
@@ -87,6 +93,10 @@ func snapshot(city: Node) -> void:
 			if not (int(p.usage) & PROPERTY_USAGE_SCRIPT_VARIABLE):
 				continue
 			var v: Variant = s.get(p.name)
+			if typeof(v) == TYPE_OBJECT and is_instance_valid(v) and v is Node and city.is_ancestor_of(v):
+				if not _instances.has(s):
+					_instances[s] = {}
+				_instances[s][p.name] = weakref(v)
 			if PRIMITIVE.has(typeof(v)):
 				every[p.name] = v
 				if _restorable(p.name, v):
@@ -132,6 +142,18 @@ func snapshot(city: Node) -> void:
 ## Statics only: synchronous, no node freed.
 func light() -> int:
 	var changed := 0
+	for s in _instances:
+		var ptrs: Dictionary = _instances[s]
+		for prop in ptrs:
+			var was: Object = (ptrs[prop] as WeakRef).get_ref()
+			var now: Variant = s.get(prop)
+			# Null, freed, or a node outside the city (a second city queued for deletion: it nulls the
+			# pointer when it goes, after this reset).
+			var stale: bool = not is_instance_valid(now) or not (now is Node) or not _city.is_ancestor_of(now)
+			if stale and was != null and (was as Node).is_inside_tree():
+				s.set(prop, was)
+				changed += 1
+				last[str(s.resource_path.get_file()) + ":" + prop] = true
 	for s in _statics:
 		var keep: Dictionary = _statics[s]
 		for prop in keep:

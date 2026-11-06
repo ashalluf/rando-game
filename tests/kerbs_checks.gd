@@ -127,12 +127,18 @@ func _block(city: Node3D, plan: CityPlan, k: Vector2i) -> void:
 
 ## The same block with the kerbs off: the same props in the same places, the same batches.
 func _ab(city: Node3D, plan: CityPlan, k: Vector2i) -> void:
+	# Room in PhysicsBudget for both builds (the gate's flake rule): late in a busy shard the body
+	# count sits at the cap, the first build takes the last room and the second is refused its
+	# parked cars and the like, which is not the kerbs' doing (gate-speed-3: failed after the deal moved it).
+	var saved_budget := PhysicsBudget.max_active_bodies
+	PhysicsBudget.max_active_bodies = PhysicsBudget.active_body_count() + 400
 	var on: CityChunk = city._new_chunk(k, CityChunk.Level.FULL)
 	on.build()
 	Kerbs.enabled = false
 	var off: CityChunk = city._new_chunk(k, CityChunk.Level.FULL)
 	off.build()
 	Kerbs.enabled = true
+	PhysicsBudget.max_active_bodies = saved_budget
 	var same := on.prop_records.size() == off.prop_records.size()
 	if same:
 		for i in on.prop_records.size():
@@ -143,10 +149,16 @@ func _ab(city: Node3D, plan: CityPlan, k: Vector2i) -> void:
 	var counts := true
 	var don := on._batch.data()
 	var doff := off._batch.data()
+	var differ: Array = []
 	for key: String in doff:
 		if key == "kerb_paint":
 			continue
-		counts = counts and don.has(key) and (don[key].xforms as Array).size() == (doff[key].xforms as Array).size()
+		var ok: bool = don.has(key) and (don[key].xforms as Array).size() == (doff[key].xforms as Array).size()
+		if not ok:
+			differ.append("%s %d/%d" % [key, (don[key].xforms as Array).size() if don.has(key) else -1, (doff[key].xforms as Array).size()])
+		counts = counts and ok
+	if not (same and counts):
+		printerr("KERBS A/B differ: props %d/%d, batches %s" % [on.prop_records.size(), off.prop_records.size(), differ])
 	_t._check(same and counts, "kerbs: the block built with the kerbs off has the same props and batches (hash-seeded)")
 	_t._check(not off.has_meta("kerbs") and off.get_node_or_null("KerbRing") == null, "kerbs: KERBS=0 builds the plain slab")
 	_drop(on)

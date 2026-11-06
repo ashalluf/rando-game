@@ -32461,5 +32461,21 @@ s over 346 resets, three shards together; 321 of them under 2 s (0.15 s on avera
   macro map 6, ground bake 21, far rocks 5, far landmarks 8, the first ring 32, far tiles 17). The
   load cache cannot help the gate: its key covers every script and the three shards start together.
 
+**Two order bugs the new deal turned up** (the first full gate with it failed two checks that pass
+alone; each failed because the deal put a file after one it had never followed before):
+- `street sound: a shop door rings its bell near the listener` (ambient_sound_2_checks) failed in
+  any process that ran city_menu first, one process too: city_menu's pending-seed check adds a second
+  city, whose StreetSounds takes the static `StreetSounds._inst` in its `_ready()`; the second city
+  is only queued for deletion when the reset runs, and nulls the pointer as it goes, so every later
+  street sound event is dropped. Reproduced with `SMOKE_PARTS=city_menu,ambient_sound_2_checks`.
+  The reset now also snapshots every static that points at a node of the city (a singleton's
+  `_inst`: eight of them) and puts it back when it is null, freed, or points outside the city
+  (`gate_reset.gd` `_instances`); `tests/gate_speed_3_checks.gd` checks both cases.
+- `kerbs: the block built with the kerbs off has the same props and batches` failed late in a busy
+  shard and not alone or after its three predecessors: the A/B builds one block twice in one frame,
+  and with PhysicsBudget at its cap the second build is refused what the first took. The check now
+  lifts the budget for the two builds (the flake rule) and prints what differs if it ever fails
+  again (`KERBS A/B differ:`). Not reproduced, so the cause is the likeliest one, not a proven one.
+
 Not done / not verified: CI's runner (SHARDS=auto) not measured; the per-tick and sync-build costs
 above are reported, not cut.
