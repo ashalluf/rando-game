@@ -30782,3 +30782,9 @@ sedan, pickup, sports, crossover from the real Vehicles, none failed on the stat
 cards under AgX were seen only on opengl3. A body type whose profile has no clear bonnet-to-roof
 climb at x 0.42 gets no card (none failed in the refcam load; RC5_AUTO_ROW_DEBUG=1 says so). The dealer's
 LOD / far city is unchanged (boxes).
+
+**The ten original cameras** (`refcams.py run` with RC5_AUTO_ROW=0 against on, compare): 8 of 10
+ok; street_noon and street_night flagged on pixels and the night's p95. Both are downtown Flower
+St, where no dealer can stand (DowntownReal.in_extent): the difference is live traffic (a bus
+in a different place in each run, non-strict runs), not this change. Triangle changes stay within
++-2.2 %.
