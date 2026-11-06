@@ -32789,7 +32789,12 @@ candidate must be confirmed by the probe.
 27, p95 132 -> 137; 3,989,341 -> 3,989,565 triangles, 1,850 -> 1,851 draws (noise: every change is
 in the fragment stage). Pixel MAD 0.67, not flagged.
 
-**The ten original cameras**: see the compare at the end of this section.
+**The ten original cameras** (cameras.json, one load each, `RC5_LAUNDROMAT=0` -> on, same
+commit; the off run is main's path bit for bit, so it stands in for main): eight within tolerance
+(hills, beach, sunset, pier_night, golden_aerial, macarthur at <= 0.4 MAD; downtown_aerial 1.7;
+street_night 4.1, its shops and traffic); `freeway` and `street_noon` flagged, both by live traffic
+in the lens (a different truck ahead on the deck, the bus moved on the avenue) - neither view has a
+closed shop at night, a laundromat or a donut shop in it.
 
 **Not done / not verified.** No Forward+ still: the gate wash is decoded on Forward+ by the same
 rule as the other light levels, but nobody has looked at it on lavapipe. The building's black
