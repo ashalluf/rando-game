@@ -12,3 +12,8 @@ refcams stills, 1280x720.
 - `03/04_*_lantern_crop.jpg` - the lighthouse x4: the lantern's lamp now shows (it was hidden behind
   the lens barrel).
 - `05/06_*_armour_foam_crop.jpg` - the foreground stones and foam x2.
+- `07/08_fwdplus_*_foam.jpg` - Forward+ (lavapipe, fwd_block_shot.tscn: the chunks round the eye
+  only, so no headland or lighthouse), the camera's eye, RC5_LIGHTHOUSE=0 / 1: the surge foam as
+  white sheets, then lace.
+- `09/10_fwdplus_*_cap_stones.jpg` - Forward+, on the breakwater's cap: the lime patches on the
+  stones, then speckle.
