@@ -30,6 +30,16 @@ uniform vec3 flash_at = vec3(0.0, 200.0, 0.0);
 /// The smoke's own colour and its opacity when fresh.
 uniform vec3 smoke_color = vec3(0.020, 0.021, 0.024);
 uniform float density = 0.30;
+/// The look's second pass (fireworks.gdshader's `look5`; 0 the old smoke bit for bit): the smoke
+/// takes the show's light as a cloud does - a much stronger share of the breaks' colour, falling
+/// off over `flash_reach` m, brightest where the puff is thin (light through its edge) - and the
+/// floodlit ground below lights its underside (`under_light`, linear colour x level, under
+/// `under_top` m over the site).
+uniform float look5 = 0.0;
+uniform float flash_gain = 0.45;
+uniform float flash_reach = 170.0;
+uniform vec3 under_light = vec3(0.0);
+uniform float under_top = 260.0;
 
 varying vec3 v_light;
 varying float v_alpha;
@@ -72,6 +82,13 @@ void vertex() {
 		float burn = exp(-a * 1.3) * 1.6;
 		float lit = 1.0 / (1.0 + pow(distance(centre, flash_at) / 140.0, 2.0));
 		v_light = smoke_color + cs_srgb_to_linear(sky_tint) * 0.05 + own * burn * 0.35 + flash * lit * 0.05;
+		if (look5 > 0.5) {
+			float lit2 = 1.0 / (1.0 + pow(distance(centre, flash_at) / flash_reach, 2.0));
+			float under = 1.0 - smoothstep(0.35 * under_top, under_top, centre.y);
+			v_light = smoke_color + cs_srgb_to_linear(sky_tint) * 0.05 + own * burn * 0.55
+				+ flash * lit2 * flash_gain + under_light * under;
+			v_alpha *= 1.6;
+		}
 		v_rot = fw_roll(k, 330u + uint(p)) * 6.2832 + a * 0.05;
 	}
 }
@@ -85,6 +102,11 @@ void fragment() {
 	vec4 tex = texture(puff_tex, uv);
 	float edge = 1.0 - smoothstep(0.55, 1.0, length(c));
 	float shade = cs_in(tex.rgb).r * 1.6;
+	if (look5 > 0.5) {
+		// Thin edges take more of the light through them than the dense core (a cloud lit from
+		// inside), so a puff reads round instead of a flat brown card.
+		shade *= mix(1.25, 0.9, clamp(tex.a * edge * 1.4, 0.0, 1.0));
+	}
 	ALBEDO = cs_out(v_light * shade);
 	ALPHA = clamp(v_alpha * tex.a * edge, 0.0, 1.0);
 }

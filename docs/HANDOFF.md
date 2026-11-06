@@ -30591,6 +30591,262 @@ wingsuit is edge-on.
 (the flat roof, the old steel, the crowns' early glow). `tools/glshot/far_landmark_shot.gd` takes `GOLDEN=1` now (a sun
 6 degrees up in the west under a sunset horizon). Checks: `tests/rc5_wingsuit_golden_checks.gd`.
 
+## 9nc. The memorial park at dawn under the marine layer (refcam5 `cemetery_dawn`, wave 8; branch `wt/rc5-cemetery-dawn`)
+
+Task: a new reference view, "cemetery_dawn" in `tools/refcams/cameras_w8.json`: HOLLYCREST MEMORIAL
+PARK (blocks 17..18, 30..31 on the default seed) at 06:30, weather marine, eye level (1.7 m over the
+rise) among the flat markers west of the crown at (1640, 4140), looking east up the lawn to the
+mausoleum with a drive lantern on the left. Stills on `shots/rc5-cemetery-dawn`.
+
+**What read fake in the first frame, worst first, and the fix** (`Rc5CemeteryDawn`,
+`scripts/world/rc5_cemetery_dawn.gd`; `RC5_CEMETERY_DAWN=0` the A/B, which is main's look exactly):
+
+1. **A hard glare path across the lawn toward the east** - under a full stratus deck, where there is
+   no sun disc. Two causes: the cut sun kept its full specular (DayNight now sets
+   `_sun.light_specular = Rc5CemeteryDawn.sun_specular(marine)`, 0.12 under a full deck), and the
+   morning's watering (LawnsCloseup's sprinklers, 04:36-10:24) left the whole cemetery lawn at
+   roughness 0.32, a mirror of the bright east sky. lawn.gdshader has a `spray_rough` uniform
+   (default 0.32, every other lawn unchanged); the park's lawn takes `DEW_ROUGH` 0.66
+   (`dress_lawn()` from `CemeteryBuild._ground()`): dew, darker and duller, not a film.
+2. **Silver-white trees.** Weather's marine damp (MarineMorning, road_wetness 0.3) went through the
+   foliage shaders as a rain soak: roughness down, specular 0.85, every crown mirroring the grey
+   sky. foliage, foliage_tex and la_tree now scale their wetness by `1 - rc5_mist_leaf * road_mist`
+   (`rc5_mist_leaf`, a new shader global, 0 by default; Rc5CemeteryDawn sets 0.85 once). A shower
+   (road_mist 0) still soaks them as before. This also changes the marine_morning refcam's trees.
+3. **No mist; the far trees and the mausoleum as crisp as noon.** `mist_box()` lays a box over
+   each FULL chunk's part of the site (`CemeteryMist`) on `shaders/cemetery_mist.gdshader`: back
+   faces, the view ray's chord through the box cut by the scene depth (ballpark_glow's recipe), ten
+   dithered samples of a height mist (`density` 0.022 /m at the turf, `scale_height` 2.6 m) over the
+   rise (Cemetery.height()'s dome mirrored: crown, H, four extents, in the box's own space, so no
+   origin shift) wisped by two drifting noises; colour = the environment's fog light (linear);
+   fog_disabled, depth test off, alpha capped 0.92. `mist()` = the morning (04:18 up, 05:30 full,
+   08:24 down, gone 10:12) x humidity (marine 1, overcast / rain 0.6, a clear morning 0.3, none in
+   a Santa Ana), pushed with the colour by `tick()` from DayNight to every live box. Works on both
+   renderers (Compatibility's depth texture as ballpark_glow uses it).
+4. **The lanterns simply off.** Photocells switch on the light level, and under a June-gloom deck it
+   is dusk-dark after sunrise. `lamp_hold(marine, elevation)`: up to `HOLD_LEVEL` 0.8 of the lamp
+   level under a full deck, fading from sun elevation 0.04 to 0.24 (sin): 0.46 at 06:30, nothing by
+   07:00 (elevation 0.26), nothing at 08:00 (the marine_morning refcam is untouched), never in a
+   clear dawn. DayNight folds it into `lamp_factor` and the lights' energy (one hook). It applies
+   city-wide under the deck, evenings too (lamps come on a little earlier under the evening bank).
+5. **A printed carpet of a lawn** (no blades: the block's grass step does not run in a cemetery).
+   `grass()` plants LawnsCloseup's mown tufts with the lawn's own look data over the rise
+   (`GRASS_DENSITY` 0.5 of a park's, cells drawn to `GRASS_DRAW` 60 m), off the drive, buildings and
+   trunks (Cemetery's keep-out mask) and 0.75 m (uprights 1.65 m) round every stone.
+
+**Numbers** (refcams, opengl3, 1280 x 720, the final eye): RC5_CEMETERY_DAWN=0 p5/p50/p95 50/112/160,
+sat 0.102, 5.07 M tris / 2,435 draws; on (final, merged head) 64/100/150, sat 0.088, 5.43 M / 2,453
+(+7 % triangles, +0.7 % draws, all of it the blades; at the first grass density, 0.75 to 86 m, it was
+5.94 M, hence 0.5 to 60 m).
+The lift of p1/p5 is the mist. The ten original cameras were shot with the switch off and on: eight
+identical (pixel mean |d| <= 3.9, numbers within 1 level), street_noon / street_night flagged by
+pixels only - a bus queue present in one run and not the other (live traffic; nothing of this
+change runs in clear or rain weather). Gate: SHARDS=3, 6,160 checks passed, 0 failed.
+
+**Not done / not verified**
+- Forward+ (the Mac) not seen: every still is opengl3. The mist's colour is the fog's light in
+  linear and its alpha is coverage, so it should hold, but nobody has looked; the cut sun specular
+  and the lamp hold are engine-side and renderer-neutral.
+- The mausoleum still reads as a clean white box (uniform ashlar, no weathering or soot under the
+  cornice); the chapel was not in this view.
+- The mist boxes are per chunk with no fade at the site's wall: from outside the park at dawn a
+  viewer sees the mist stop at the fence line.
+- Visitors: nobody at 06:30 in the view (CemeteryVisitor's strolls are not by the hour).
+- Probe: `tools/cemetery/rc5_lamp_probe.gd` prints Hollycrest's lamps and crown.
+- Checks: `tests/rc5_cemetery_dawn_checks.gd` (the pure functions, the shader, the DayNight hooks,
+  the camera row, a FULL chunk's mist box and grass cells, the A/B).
+
+## 9nd. The suburban street at 21:30 (refcam5 `suburb_night`, wave 8, branch `wt/rc5-suburb-night`)
+
+A new reference camera, `suburb_night` (`tools/refcams/cameras_w8.json`, created by this branch): the
+rc2-suburb street (block 21,32 on seed 1337: Craftsman and Spanish houses, a pole line, kerb carts)
+from `suburb_morning`'s own pavement eye - (1979, 1.7 AGL, 4256.8), yaw -96, pitch 1, FOV 55 - at
+21:30 clear, so the street's day and night compare 1:1. `REFCAMS_JSON=tools/refcams/cameras_w8.json
+python3 tools/refcams/refcams.py run build/refcams/<label> --only suburb_night` (one load, ~15-20 min
+on a 4-core box, peak ~9.6 GB the first time). Its `dog_walker` key stages a person walking a dog
+7.5 m up the pavement toward the lens (`tools/refcams/dog_stage.gd`; the crowd had one dog walker
+within 80 m at 21:30, never in frame). Stills on `shots/rc5-suburb-night`.
+
+**What gave it away, in the order the eye found it, and what was done** (`SUBURB_NIGHT=0` turns
+every one off, which is main's look):
+1. **Day for night.** Every pavement, yard and road stood at 100-120 of 255 under crisp moon shadows
+   (the moon is NightStreetReview.MOON, chosen for a lit downtown), so the street lamps lit nothing
+   and the windows did not read. `SuburbMoon` (`scripts/world/suburb_moon.gd`, one factor in
+   DayNight's moon energy): with the camera in SUBURBS or BEACHTOWN and off the open coast
+   (CoastExposure's weight), the moon is `MOON_GAIN` 0.3 of itself, only deep in the night (moonlight
+   0.6 -> 0.95, so the sunset and the blue hour are untouched), eased over 2.5 s of the real clock
+   when the camera crosses a district line. Pure `gain_for()`; it names no city class (DayNight is
+   compiled by the sky tools). The lit pavement at the eye: 109 -> 82.
+2. **The porch lantern was a white box in a white disc.** house_lamp's lens was one even emissive
+   box and house_glow's scallop a soft round disc 2.6 x 3 m on the wall, reaching up to the eaves.
+   Now (both behind a `suburb_night` uniform SuburbNight sets on the shared materials): the lens is
+   glass panes in a dark bronze frame (a centre muntin on the lanterns) round a hot bulb fading to
+   amber; the wall's light is a point source's falloff (d0 / (d0^2 + r^2)^1.5 in the quad's own
+   metres, d0 0.42), cut by the cap above the lamp with a faint glow over it and a tail fanning down
+   the wall. Carriage lamps and path lights take the same.
+3. **Lit windows lit nothing.** `SuburbNight.window_spill()` (one hook at the end of
+   `HouseBuild._glass()`, so apartments too, never the hill homes): a soft trapezoid on the yard in
+   front of every ground-floor room pane, 5 m out and 2.2 x the pane's width at its far end, lifted
+   7 cm over the yard (the mulch beds along the houses hid it at 3 cm), one shadowless `sn_spill`
+   batch a FULL chunk to 140 m. `shaders/suburb_spill.gdshader` decides per pane, on the GPU, from the
+   house key (instance COLOR.r) and the pane's 8-bit roll (COLOR.g, exactly what the glass's vertex
+   alpha reads back) through house_nights.gdshaderinc: a dark room throws nothing, the TV room throws
+   its blue flicker, a sheer / blind / drape passes its share; lamp_factor x night_factor; added in
+   display numbers on both renderers (house_glow's rule), fog off. The garage and door glass (their
+   fixed rolls 0.1 / 0.3) throw none.
+4. **Nobody walks a dog.** The staged dog walker (above); the crowd's own rolls are untouched.
+
+**Cost** (opengl3, the camera, GEO, one load each, the dog walker staged in both): SUBURB_NIGHT=0
+5,682,446 triangles / 2,749 draws -> on 5,707,966 / 2,762 (+0.4 %, +0.5 %): the spill is one batch of
+quads a FULL suburb chunk (372 on the refcam's block, most of them dark: their alpha is 0). Shadow
+pass unchanged (2,067,692). The ten original refcams, SUBURB_NIGHT=0 vs on (`compare`): nine ok, the
+freeway flagged by its own traffic (other cars in the lane ahead in the two runs; no night, no house
+in that view). suburb_night itself: p50 31 -> 30, p95 112 -> 89 (the moonlit pavement and yards),
+the lit pavement at the eye 109 -> 82.
+
+**The moon cut re-judged with NightGround in** (batch 56, `main` 9edd6b1e; the lead asked: keep the
+camera-gated cut only if the street still reads too moonlit with rc5-gas-station-night's NightGround).
+Two shots of suburb_night from one merge, opengl3 (`build/refcams/ng_moon_on`, `ng_moon_off`):
+everything on p5/p50/p95 3/27/68; `SUBURB_MOON=0` 4/28/92. Region means (pavement at the eye /
+driveway / road / house wall): on 53/60/15/13, `SUBURB_MOON=0` 79/84/26/13 - without the cut the
+pavement and the yards stand where they did before NightGround (76/70/16 in the first all-on shot), a
+pale moonlit grey under the lamps. NightGround does not reach this street's pavement; the cut stays.
+
+**Not done / seen:** the near houses' street windows are dark in this frame by their own rolls, not
+a bug (`tools/rc5_suburb_night/house_probe.gd -- --spawn=1979,4256.8` lists every house round the eye
+with its key and 21:30 rolls): the nearest (1986, 4269, key 610) is lived-in with 0.34 of its rooms
+lit and its one street pane rolled above that; the next (key 980, 0.72 lit) shows only its garage to
+the lens. HouseNights lights 0.32-0.74 of a lived-in house's panes, so a single visible front window
+is dark about half the time - a front-room bias in house_nights.gdshaderinc (and its GDScript mirror,
+the far box and the spill alike) is the next step. So the window spill is proved on the houses down
+the street and in block stills, not at the lens. The pink shape beside the dog walker is a yard
+planter of pink flowers; the dog (white terrier) reads at 7.5 m (near level) and 11 m (mid); the
+spill is a flat quad on the ground, so it does not light the shrubs or a step it crosses; the pale
+DG yards (rc2-suburb's `dg_real`) still read light under the moon; nothing proved on Forward+ under
+lavapipe (the spill and the wash are display-number adds like house_glow's, which fwd-review-e
+proved; the lens is house_lamp's own cs_out()). Checks: `tests/rc5_suburb_night_checks.gd` (16).
+
+**Gate** (SHARDS=3 on `wt/rc5-suburb-night` = main 2026-11-05 + this): 5,927 of 5,929 checks passed
+(shards 1,941 / 1,730 pass, 2 of 2,258 failed; peak RSS 3.8 GB a shard). Both failures were
+downtown_street_closeup_checks' StreetCloseup off / on block A/B (`Batch_sg_plate` differs, the props
+134 / 134), which passed rerun alone (`SMOKE_PARTS=downtown_street_closeup_checks`: 32 of 32) - a
+shard-order flake in a file this branch does not touch.
+
+## 9ne. Fireworks over the ballpark from Stadium Way, 2026-11-06 (fleet wave 8, `wt/rc5-fireworks-ballpark`; VISUAL_ROADMAP "?")
+
+**The camera.** `fireworks_ballpark` in `tools/refcams/cameras_w8.json`: on Stadium Way just past the
+upper terrace (2330, 2 m AGL, -2601), yaw 45, pitch 9, fov 55, 21:30 clear, looking north-west over
+the south lots at SUNRIDGE BALLPARK with the show beyond centre field. The new optional row key
+`fireworks_t` (refcams_shot.gd `_fireworks_clock()`) stages the show at that clock and holds it, for
+that camera only (`fireworks_site`: "stadium" by default, "beach", "both"; rows without it put the
+node back). 31.2 s on seed 1337, night 0: a big cyan peony 0.86 s after its break, a red one fading,
+two willows hanging, three shells climbing (probe the plan with Fireworks.shell(); the night seed is
+`Fireworks.night_seed(1337, 0, "stadium")`). The first eye tried (2420, -2600) looked into the road's
+cut bank; Stadium Way runs along the south face, so only its first stretch sees the bowl.
+
+**What read fake, worst first, and the fixes** (all in `look5` of fireworks.gdshader /
+fireworks_smoke.gdshader, set by Fireworks; `RC5_FIREWORKS=0` the old look bit for bit):
+1. Every break was a solid white disc: the 96 stars of a shell share one point and one white-hot
+   colour at the instant of the break and summed additively. Stars now come in at 30 % over the first
+   0.3 s and the flash is ONE soft glow quad per break - the shell's trail quad 0, idle once it has
+   broken, so no mesh change - white at the instant, then the air lit in the stars' colour
+   (`glow_gain`, `glow_size`; a (1 - d2)^2 falloff so it is zero at its edge: an additive tail would
+   draw the quad on Forward+). It is the glow bloom gives on the Mac and the only one Compatibility has.
+2. A peony at 470 m was a ball of round dots; stars now trail (peony 0.42 s, ring 0.34, crossette
+   0.30, willow 1.05 of travel), are thinner (min_px widening governs), each has its own brightness,
+   and they sparkle as they die. The white core of a streak is 0.3 not 0.55 (the bursts read white).
+3. The smoke was a faint flat brown haze: it now takes the show's light strongly (`flash_gain` 0.45
+   over `flash_reach` 170 m, was 0.05 over 140), its own shell's colour more, the floodlit ground
+   under it at the ballpark (`under_light`, Fireworks.STADIUM_UNDER, below `under_top`), more light
+   through thin edges, x1.6 density.
+4. The show lit nothing: the flash OmniLight's falloff 1.2 left a 300 m stand 1/13th of what 0.75
+   does (`Fireworks.LOOK5_ATTENUATION`). At 0.55 it washed the near road teal; 0.75 tints the stands.
+5. The climbing comets did not read: x2.2 and a 0.14 s spark streak.
+
+**Numbers** (refcams, opengl3, 1280x720; `build/refcams/before2` with RC5_FIREWORKS=0 against
+`after3`): luminance p50 29 -> 32, p95 78 -> 96, p99 183 -> 211, saturation 0.425 -> 0.439; triangles
+1,597,555 and 473 draws in both (the glow reuses quads: no cost). The ten cameras of cameras.json have
+no show (refcams' day 0 is not a show night for either site) and no `fireworks_t`: unchanged by
+construction (see the session's report for the run).
+
+**Forward+.** `tools/rc5_fireworks/fw_shot.gd` (the show's real meshes and materials, the flash light,
+a ground and a ring of boxes, city.tscn's Environment on a night background; a minute on lavapipe,
+`LOOK5=0|1`, `T=`, `DIST=`): on Forward+ the new look holds - streaks, a soft cyan glow, smoke lit in
+the break's colour; the puffs read rounder there, so the thin-edge lift is only 1.25x.
+
+**Not verified**: the whole city on Forward+ (lavapipe cannot hold it); the Mac's bloom on top of the
+glow quad (it may want `glow_gain` lower there); the web build (no new feature: the same quads).
+
+## 9nf. The taco truck at 23:00 (fleet wave 8, refcam5 `taco_truck_night`, branch `wt/rc5-taco-truck-night`)
+
+A new reference camera, `taco_truck_night` in `tools/refcams/cameras_w8.json`: BIRRIA LA CHAPARRITA
+(StreetVendors' truck variant 3) at the kerb of block (7, -1), midtown on seed 1337 (the truck at
+x 703.4, z -113.5, nose +z), 23:00 clear, the eye 1.65 m over the pavement behind its queue
+(697.9, -120.8, yaw -145, pitch -2, fov 55): the generator and the menu box in front, the serving
+window with the cook, the regulars, the bike share dock, the street on beyond. Its optional
+`clear_people` key (2.5 m, handled in refcams_shot.gd) hides walkers that stray onto the lens.
+Find trucks with `tools/vendor_probe.gd KIND=truck --hour=23`; `tools/rc5_taco_truck/probe.gd`
+lists a truck's cook, regulars and queue spots round a point after a real load.
+
+### What gave it away (before, main dec7e128)
+
+1. **Nobody there.** At 23:00 the queue spots were empty (walkers are few that late and only
+   `QUEUE_SHARE` of the passers-by stop), and the cook stood at local x 0.3, 0.9 m behind the
+   window, hidden by the jamb from anywhere but square on: a lit, empty box.
+2. **The first site was a truck in a protected bike lane** among the delineator posts
+   (Micromobility takes the parking lane for its lane) and **the second in a BUS ZONE** on the red
+   kerb under the stop's plate (shots 07 and 06).
+3. **The menu box was a white card.** 2.4 x a near-white face; through AgX (and on Forward+ with
+   the glow) it bloomed and the lettering washed out. The kitchen behind the window (3.2 x) the same:
+   a white sheet behind the cook.
+4. **A dead box at night.** No running lamps, dark tail lamps, nothing off the stack.
+
+### What changed (`TacoTruckNight`, `scripts/world/taco_truck_night.gd`)
+
+- Regulars: `regular_count()` by the hour (21:00-01:30 three, dusk two, late night one; a hash of
+  the truck takes one off half the time) puts `TacoCustomer`s (`scripts/npc/taco_customer.gd`, a
+  StreetVendor that is nobody's vendor) at the truck's queue spots, front pair first, the spots
+  marked taken; they look up at the window, fold their arms, talk, some text. They are people in
+  the crowd cap (`_take_crowd_room`). StreetVendors' last spawn step now spawns whoever is left on
+  the list (CityChunk still queues `MAX_PER_BLOCK` steps).
+- The cook stands at the counter (`COOK_X` 0.62).
+- `truck_blocked()` (a bike lane on that stretch: `Micromobility.lane_on`) and `truck_in_stop()`
+  (`BigVehicles.in_stop_zone` at the truck's middle and ends): asked in `plan_block()` AFTER the
+  truck's roll, so nothing else on the block moves; that face just has no truck.
+- Running lamps in the truck mesh (`marker_lamps()`: amber clearance and ID lamps over the cab, red
+  at the rear roof, side markers, lit tail lamps) on a new vendor-shader code 19 (`marker_night` /
+  `marker_day`).
+- The vendor material's `glow_night` 2.4 -> `MENU_GLOW` 1.05, `interior_night` 3.2 ->
+  `INTERIOR_GLOW` 1.7 with `interior_detail` (stainless sheet seams, box-filtered, lit brightest
+  under the tubes).
+- Steam off the extractor stack: `shaders/taco_steam.gdshader`, twelve camera-facing puffs placed
+  from TIME (backyard_smoke's method), lit warm from below by `lamp_factor`; one MeshInstance3D a
+  truck in FULL chunks, drawn to 140 m, no shadow.
+
+`RC5_TACO=0` is the A/B (every piece gated; the material keeps its old numbers).
+
+### Proof
+
+- opengl3 refcam before (RC5_TACO=0) / after: shots/rc5-taco-truck-night `01`-`04`. p5/p50/p95
+  3/69/196 -> 3/68/195, p99 236 -> 228 (the menu box), saturation 0.377 -> 0.381.
+- Forward+ (lavapipe, `tools/glshot/vendor_shot.gd NIGHT=1`, now with the steam): shot `05` - the
+  menu box no longer blooms, the steam and the clearance lamps read.
+- Frame cost at the camera (GEO, opengl3, two separate loads so the crowd differs): 7.08 M ->
+  7.16 M triangles (+1.2 %), 3,395 -> 3,406 draws, shadow 2.09 M -> 2.15 M - the regulars (crowd
+  rigs) and the steam quads.
+- Checks: `tests/rc5_taco_truck_checks.gd` (no truck in a bike lane, regulars by the hour, the
+  chunk's regulars on their spots, the cook at the counter, steam per truck, the lamps in the mesh
+  and the shader, the material's levels, the camera row on a 23:00 truck, the A/B).
+
+### Not done
+
+- The cook is a crowd rig in street clothes (no apron, cap or cooking motion); nothing on the
+  plancha moves; the steam is not lit by the window's own colour.
+- The regulars do not leave with food or turn over; at the hour a chunk is built they are there.
+- The lamp post in the camera's frame stands between the eye and the queue (the street's own).
+- The ten original cameras were not re-shot with this branch (time); the change is limited to
+  vendor trucks, the vendor shader and the trucks' placement rules.
+
 ## 9d?. The lighthouse from the breakwater at night, 2026-11-06 (fleet wave 8, agent branch `wt/rc5-lighthouse-night`; VISUAL_ROADMAP "?")
 
 Task `rc5-lighthouse-night` (refcam5): a new reference view, `lighthouse_night` in
@@ -30635,6 +30891,11 @@ is `RcLighthouse` (`scripts/world/rc5_lighthouse.gd`): one `look` uniform on the
 **Numbers** (refcams, opengl3, 1280x720, the row): before p50 25 / p95 89 / p99 202, crushed 18.3 %;
 after p50 25 / p95 57 / p99 129, crushed 18.6 % (the beam no longer clips). Cost: 3.86 M tris /
 1,205 draws before, 3.84 M / 1,191 after (same meshes; the beam is ALU on its own pixels).
+
+**The ten original cameras** (cameras.json, RC5_LIGHTHOUSE=0 then on, one plain run each, peak
+12.9 GB): seven unchanged (pixels 0.00-1.3 mean |d|); street_noon, street_night and freeway flagged
+by the moving traffic and rain between two runs (the freeway diff map is the cars alone), as every
+wave-8 pair has been. pier_night and sunset, which look out to sea, are identical (0.01 / 0.02).
 
 **Forward+** (lavapipe, `tools/glshot/fwd_block_shot.tscn` at the camera's eye, BLOCKS=1,
 RC5_LIGHTHOUSE=0 / 1, ~12 min and killed at exit each): the foam's lace and the stones' speckle hold
