@@ -30556,9 +30556,13 @@ mausoleum with a drive lantern on the left. Stills on `shots/rc5-cemetery-dawn`.
    trunks (Cemetery's keep-out mask) and 0.75 m (uprights 1.65 m) round every stone.
 
 **Numbers** (refcams, opengl3, 1280 x 720, the final eye): RC5_CEMETERY_DAWN=0 p5/p50/p95 50/112/160,
-sat 0.102, 5.07 M tris / 2,435 draws; on 64/100/149, sat 0.088, 5.94 M / 2,458 at the first grass
-density (0.75, 86 m); the grass was then cut to 0.5 and 60 m (see the final report for that run).
-The lift of p1/p5 is the mist. The ten original cameras were shot with the switch off and on.
+sat 0.102, 5.07 M tris / 2,435 draws; on (final, merged head) 64/100/150, sat 0.088, 5.43 M / 2,453
+(+7 % triangles, +0.7 % draws, all of it the blades; at the first grass density, 0.75 to 86 m, it was
+5.94 M, hence 0.5 to 60 m).
+The lift of p1/p5 is the mist. The ten original cameras were shot with the switch off and on: eight
+identical (pixel mean |d| <= 3.9, numbers within 1 level), street_noon / street_night flagged by
+pixels only - a bus queue present in one run and not the other (live traffic; nothing of this
+change runs in clear or rain weather). Gate: SHARDS=3, 6,160 checks passed, 0 failed.
 
 **Not done / not verified**
 - Forward+ (the Mac) not seen: every still is opengl3. The mist's colour is the fog's light in
