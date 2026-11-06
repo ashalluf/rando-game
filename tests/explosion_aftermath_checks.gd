@@ -127,6 +127,13 @@ func _trees(player: Player) -> void:
 	if near.is_empty():
 		return
 	var caps := [TreeFire.max_burning, TreeFire.spread_odds, TreeFire.spread_interval]
+	# From no fire at all: an earlier file's blasts can leave crowns burning (and spreading) up to
+	# max_burning, and then no tree can be lit (shuffled gate 801 on wt/gate-flakes-3).
+	for k: String in TreeFire._burns.keys():
+		var b: Variant = TreeFire._burns[k]
+		if is_instance_valid(b):
+			(b as Node).free()
+	TreeFire._burns.clear()
 	# Pick a tree with a neighbour close enough to spread to, if there is one.
 	var pick: Array = near[0]
 	var neighbour: Array = []
@@ -140,6 +147,11 @@ func _trees(player: Player) -> void:
 				break
 		if not neighbour.is_empty():
 			break
+	if TreeFire.is_charred(pick[0], pick[1]):
+		for h: Array in near:
+			if not TreeFire.is_charred(h[0], h[1]):
+				pick = h
+				break
 	var rec: Dictionary = pick[0]
 	var tree: Dictionary = pick[1]
 	var before := TreeFire.charred_count()
@@ -148,6 +160,9 @@ func _trees(player: Player) -> void:
 	var burn: Node = TreeFire._burns.get("%s|%s" % [rec.key, tree.id])
 	_check(burn != null and burn.get_node_or_null("Flames") != null and burn.get_node_or_null("Smoke") != null
 			and burn.get_node_or_null("Embers") != null, "a burning crown has flames, smoke and embers")
+	if burn == null:
+		TreeFire.max_burning = caps[0]
+		return
 	# Spread: certain odds, now.
 	TreeFire.spread_odds = 1.0
 	TreeFire.spread_interval = 0.01
