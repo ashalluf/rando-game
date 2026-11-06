@@ -31,6 +31,10 @@ uniform float lamp_night = 5.0;
 // Road grime from the asphalt (metres) and how dark it gets.
 uniform float grime_height = 0.35;
 uniform float grime = 0.25;
+// The barricade boards' sheeting glow after dark (FilmShootNight sets 0.12: at 0.35 every board
+// glowed evenly in the shade like a lightbox; retroreflective sheeting is bright only toward a
+// light near the eye).
+uniform float stripe_glow = 0.35;
 
 varying vec3 v_local;
 varying float v_code;
@@ -153,7 +157,7 @@ void fragment() {
 		float s = step(0.5, fract((UV.x - UV.y) * 2.6));
 		s = mix(s, 0.5, smoothstep(0.03, 0.12, px));
 		base = mix(cs_srgb_to_linear(vec3(1.0, 0.38, 0.04)), vec3(0.85), s);
-		emit = base * 0.35 * lamp;
+		emit = base * stripe_glow * lamp * mix(0.35, 1.0, pow(clamp(dot(normalize(NORMAL), normalize(VIEW)), 0.0, 1.0), 3.0));
 		rough = 0.5;
 		metal = 0.0;
 	} else if (code == 18) {

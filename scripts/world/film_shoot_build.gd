@@ -123,6 +123,7 @@ static func build(ch: CityChunk, m: Dictionary) -> void:
 		for si in dm.mesh.get_surface_count():
 			dm.mesh.surface_set_material(si, FilmShootKit.material())
 	_lights(ch, m, lay)
+	FilmShootNight.dress(ch, m, lay)  # the set's lamps lighting the night (FILM_SHOOT_NIGHT=0 the A/B)
 	for k: String in ch._batch.keys():
 		if not k.begins_with("fs_"):
 			continue
