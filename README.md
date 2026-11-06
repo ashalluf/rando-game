@@ -17,3 +17,4 @@ Final set (the camera row as committed: eye [2686.6, 71.2, 1380.0, 38, -11], fov
   lanyards whole, the wire ropes drawn, the lathered pane.
 - 11_before_cradle_9m.jpg / 12_after_cradle_9m.jpg - gondola_shot.gd at 9 m (the tower alone):
   the wet glass, the lather cut back by the stroke, the ropes, the crew's arms.
+- 13_after_crew_closeup_name_board.jpg - the crew close-up after the lead's note: the contractor's name centred on its board.
