@@ -4688,6 +4688,13 @@ none of either.
   starts at a trimmed glide's speed and takes the sky's and the sun's light; the museum roof under
   the glide gets its skylight lattice, the concert hall's steel reads by face-to-face contrast under
   a low sun, and the lit crowns wait for dusk (night_factor is 0.7 at the sunset). A refcam row's fov is vertical. WINGSUIT_LOOK=0 / RC5_WINGSUIT=0 are the A/Bs.
+- 2026-11-06 (wave 8, rc5-rail-crossing): a new reference camera, `rail_crossing`
+  (cameras_w8.json), waits at a Coral Line crossing at 17:30 as a train passes. Decisions: thin
+  wires (catenary as well as utility lines) are drawn as camera-facing ribbons, never as tubes that
+  fall between pixels; a red warning lamp is held to green at 0.1 of red so AgX keeps it red; a
+  train's windows are tinted glass with people behind them, lit neutral, not the sky's colour.
+  RC5_RAIL_CROSSING=0 is the A/B.
+
 - **2026-11-05 The suburban street at night: the moon is a residential street's dimmer, a lit window
   lights its yard (rc5-suburb-night, HANDOFF "The suburban street at 21:30").** A new reference
   camera (`suburb_night`, wave 8's table) stands on the suburb_morning pavement at 21:30. Decisions:
