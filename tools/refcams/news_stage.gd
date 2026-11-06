@@ -153,7 +153,6 @@ static func unstage() -> void:
 		_em.call("clear")
 		_em.set("enabled", false)
 	if _nc != null and is_instance_valid(_nc):
-		var traffic: Node = _nc.get("traffic")
 		_nc.call("clear")
 		_nc.set("enabled", false)
 		if traffic != null and is_instance_valid(traffic):
