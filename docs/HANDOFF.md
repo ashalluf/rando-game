@@ -31786,3 +31786,67 @@ gap, a TV flicker in some); no pool in the court, no ice machine, no guests at t
 itself still faces up and down the street (seen edge-on from the opposite pavement); the far city
 keeps both heads of a double-motel corner. A motel on a sloping lot stands at its centre's height
 (the body runs 0.6 m below the floor to hide it).
+
+## 9d?. The film shoot at 22:00 from behind the barricades, 2026-11-06 (fleet wave 8, refcam5, agent branch `wt/rc5-film-shoot-night`; VISUAL_ROADMAP "?")
+
+**The camera.** `film_shoot_night` in `tools/refcams/cameras_w8.json`: seed 1337's nearest shoot
+(cell (0, -1), CREST AVE at x 1491.7, "BLUE HOUR KIDS"), from 6 m outside the north barricades
+(eye 1492.0, 2.0 over the street, -1098.5; yaw 3, pitch 1.5, a 26 degree lens) looking south
+down the closed street at 22:00 clear: the barricades and the PA in the foreground, the catering
+tent on the right, the set 50 m off (HMIs, the balloon, track and dolly, video village, the crew in
+black and the extras in holding), the basecamp's trailers beyond. No staging key: a shoot is always
+set up. Wider lenses from the barricades were tried (50 and 42 degrees: the set was a handful of
+pixels behind 2.4 m barricades) and a lens on the closed street itself (`set_view` in the probes)
+is not "behind the barricades".
+
+**What read fake, worst first** (the before, `FILM_SHOOT_NIGHT=0` at the same eye):
+1. **The set's lamps lit nothing.** Two 18K HMIs and a balloon light are what a night shoot IS - a
+   pool of daylight in a dark street - and here the HMIs were two bright lenses with the street
+   black round them, the balloon a white ball whose one OmniLight (a street lamp's) barely reached
+   the road. Fixed: a SpotLight3D in each HMI aimed at the action (34 m, 24 degrees,
+   5 x a street lamp's level), the balloon's omni made a balloon's (26 m, 1.8 x, softer
+   attenuation), the fill 1.4 x; on every renderer one additive mesh a shoot
+   (`FilmShootNightGlow`, `shaders/film_night.gdshader`): a bloom over each lens and the balloon
+   (never smaller than 0.02 rad, so an HMI 60 m off still reads), each HMI's beam as a faint shaft
+   of lit haze to the actors, the pools they throw (two crossing ellipses on the actors' pavement,
+   the balloon's soft 12 m wash on the road) added in display numbers (fh_display, so Forward+ does
+   not turn a pool into a white disc).
+2. **The basecamp was dark** apart from its window glow: a warm work light and its pool at each
+   trailer's door side and the generator.
+3. **The barricades glowed like lightboxes**: the sheeting's emission was 0.35 x the albedo on every
+   board in shade or not; now `stripe_glow` 0.12, strongest face-on (retroreflection toward a
+   light near the eye), the street lamp's light doing the rest.
+4. **The catering tent was one flat white card** under the street lamp (BACKLIGHT 0.4 on the whole
+   canopy): `canvas_look` - panels sagging between the bars, seams, grime up from the eave, water
+   stains, BACKLIGHT 0.15.
+5. **Share scooters stood on the actors' marks** (Micromobility's kerb clusters on the set's
+   pavement): `FilmShootNight.keep_clear_points()` joins Micromobility's `_occupied_more()` - the
+   set's pavement from 10 m before the track to 10 m after it is cleared, as a location crew does.
+
+**Code.** `FilmShootNight` (`scripts/world/film_shoot_night.gd`, one hook at the end of
+`FilmShootBuild.build()`), `FilmNightLights` (`scripts/world/film_night_lights.gd`: the HMI spots'
+energy off `DayNight.lamp_now` every 0.3 s, hidden by day - `lamp_light` is OmniLight3D-only in
+DayNight, a SpotLight3D there would be cast to null), `shaders/film_night.gdshader`, two uniforms in
+`film_shoot.gdshader` (`stripe_glow`, `canvas_look`, set by FilmShootNight on the shared material),
+one line in `Micromobility._occupied_more()`. Spot transforms are set in chunk space (never
+`look_at_from_position()`: chunk-local positions are not global after an origin shift). Desktop
+only for the lights (the web keeps the glow mesh). `FILM_SHOOT_NIGHT=0` is the A/B (all of it).
+
+**Tools.** `tools/rc5_film_shoot/set_shot.tscn`: the set alone (the shoot's real kit meshes laid
+out by `FilmShoot.layout()` on a flat street with two walls, FilmShootBuild's lights and
+FilmShootNight's dress, no city) - a minute on opengl3 and the only Forward+ (lavapipe) scene that
+fits: `station_night_shot.tscn` with even ONE chunk was OOM-killed on the 15 GB box.
+`tools/rc5_film_shoot/layout_probe.gd` prints a shoot's layout in world x, z (`CX`, `CZ`).
+Checks: `tests/rc5_film_shoot_night_checks.gd`.
+
+**Numbers** (refcams, opengl3, one build, `FILM_SHOOT_NIGHT=0` -> on, the eleven cameras in one
+load each): film_shoot_night p50 46 -> 47, p95 207 -> 183 (the barricades' boards no longer the
+brightest thing in the frame), 5.79M -> 5.77M triangles, 2708 -> 2700 draws (the glow mesh is one
+draw; the spot lights cost shading, not geometry). The ten originals: no change past noise (the
+freeway flagged 7.9 mean |d| from a different traffic roll, not this change - no shoot is in
+view there). Forward+ (set_shot.tscn on lavapipe, 800 x 450): the actors' wall and pavement lit
+by the HMIs, the pools reading as light rather than white discs.
+
+**Not verified**: the Mac (Forward+ at full city scale; only the set alone on lavapipe), the web
+build, the crew in the crowd cap on a busy load (a small scene's chunk budget spends the cap on
+walkers before the shoot's crew steps run; the city's streamer budget spawned them in every run).
