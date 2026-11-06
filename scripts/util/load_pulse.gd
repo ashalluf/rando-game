@@ -415,6 +415,10 @@ static func compile_mark() -> void:
 static func compile_progress(done: int, total: int) -> void:
 	_compile_shown = clampi(maxi(_compile_shown, done), 0, total)
 	_note = "%d / %d scripts" % [_compile_shown, total]
+	# The bar follows the count across the compile's share of it (STAGES "compile the game").
+	if total > 0 and active:
+		var share: Array = STAGES["compile the game"]
+		_progress = maxf(_progress, lerpf(float(share[0]), float(share[1]), float(_compile_shown) / total))
 
 
 ## A second line under the step (the pipeline count while the graphics compile).
@@ -447,8 +451,9 @@ static func tick(force: bool = false) -> void:
 	_last_us = Time.get_ticks_usec()
 	pulses += 1
 	pulse_usec += _last_us - t
-	# LOAD_PULSE_SHOT=<png>: the picture saved once, at the 200th pulse (a still for the docs).
-	if pulses == 200 and OS.get_environment("LOAD_PULSE_SHOT") != "" and is_instance_valid(_root):
+	# LOAD_PULSE_SHOT=<png>: the picture saved once, at the 200th pulse (LOAD_PULSE_SHOT_AT=n: the
+	# n-th) - a still for the docs.
+	if OS.get_environment("LOAD_PULSE_SHOT") != "" and pulses == (OS.get_environment("LOAD_PULSE_SHOT_AT").to_int() if OS.get_environment("LOAD_PULSE_SHOT_AT") != "" else 200) and is_instance_valid(_root):
 		_root.get_texture().get_image().save_png(OS.get_environment("LOAD_PULSE_SHOT"))
 
 
