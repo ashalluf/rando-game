@@ -33338,6 +33338,13 @@ GAIN=), `tools/rc5_surf_dawn/water_ab.gd` (extends still_shot.gd, TREES_AB=1: th
 with the sea's passes off one by one; REPEAT=n more frames; GAIN=). Checks
 `tests/rc5_surf_dawn_checks.gd`.
 
+**State.** Done: everything above, merged with origin/main a870978b; head d728549f passed the full
+gate (`SHARDS=3 tests/headless_check.sh`: 6,628 checks, 0 failed, peak 3.93 GB a shard). Open: the
+ten original refcams were NOT re-shot against main (the run was stopped when this account wrapped
+up): run `python3 tools/refcams/refcams.py run` on cameras.json on this branch and on main and
+`compare` them - beach, sunset and pier_night see the ocean changes (ripple_rot, capillary_rot,
+crest_carry, glint_keep).
+
 **Not verified / left.** Forward+ (lavapipe) - the ocean changes are normal-only and a uniform gate,
 no colour arithmetic, but the crest glow on the Mac is not seen. The rider's pose is the old baked
 `surf_ride` (arms out, a stiff stance); a carving pose and the board's wake on the face are the
