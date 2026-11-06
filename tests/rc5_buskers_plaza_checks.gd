@@ -26,6 +26,7 @@ func run(t: Object, city: Node) -> void:
 	if k.x != 99999:
 		_chunk(city, plan, k)
 	Rc5Buskers.enabled = false
+	Rc5Buskers.stage_plaza = []
 	_t._check(Rc5Buskers.plaza_slots() == 2 and Rc5Buskers.gear_lift(-1) == 0.0 and not Rc5Buskers.reserve_room(),
 		"RC5_BUSKERS=0: two pitches a plaza, the gear and the crowd cap as before")
 	Rc5Buskers.enabled = was
@@ -125,7 +126,7 @@ func _chunk(city: Node, plan: CityPlan, k: Vector2i) -> void:
 	for sp: Dictionary in chunk.get_meta("busk_people", []):
 		if bool(sp.busker) and int(sp.kind) == Buskers.Kind.MARIACHI:
 			trio.append(Rc5Buskers.rig_of(int(sp.seed)))
-	var distinct := trio.size() == 3 and trio[0] != trio[1] and trio[1] != trio[2] and trio[0] != trio[2]
+	var distinct: bool = trio.size() == 3 and trio[0] != trio[1] and trio[1] != trio[2] and trio[0] != trio[2]
 	_t._check(distinct and trio.all(func(r: String) -> bool: return r in Buskers.RIGS[Buskers.Kind.MARIACHI]),
 		"the mariachi trio are three different people of the trio's rigs (%s)" % str(trio))
 	var rects: Array = chunk.get_meta("plaza_rects", [])
