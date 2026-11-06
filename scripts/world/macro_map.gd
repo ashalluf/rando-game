@@ -5,6 +5,8 @@ extends RefCounted
 ## a big sign on its south face, a hilly peninsula to the south-west, downtown to the east.
 ## Everything here is original geography; nothing is traced from a real map.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 enum Zone { CITY, BEACH, OCEAN, HILLS, AIRPORT, PORT }
 
 const ZONE_NAMES := ["City", "Beach", "Ocean", "Hills", "Airport", "Port"]

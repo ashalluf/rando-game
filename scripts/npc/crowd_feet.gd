@@ -24,6 +24,8 @@ extends RefCounted
 ## visual is offset from its body (a vendor ducking in a truck, a swimmer sunk to the chest).
 ## The hero's planted-foot IK is his own (HeroMotion); this is the crowd's. FOOT_IK=0 turns it off.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 static var enabled: bool = OS.get_environment("FOOT_IK") != "0"
 ## Full weight inside this distance from the camera (m).
 static var near_range: float = 20.0

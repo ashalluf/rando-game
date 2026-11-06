@@ -29,6 +29,8 @@ extends RefCounted
 ##
 ## `BEACH_LIFE=0` in the environment turns all of it off (the A/B). force_hour pins the hour.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 static var enabled: bool = OS.get_environment("BEACH_LIFE") != "0"
 ## The hour to build for (tests and stills); < 0 reads the city's clock (DayNight).
 static var force_hour: float = -1.0

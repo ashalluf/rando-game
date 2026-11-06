@@ -20,6 +20,8 @@ class_name EstateFar
 ##
 ## ESTATE_NIGHT=0 in the environment turns all of it off: the A/B.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 ## Part kinds (far_estate.gdshader): pad, house, roof, pool, lamp, plain (court, coping, hedge).
 const K_PAD := 0
 const K_HOUSE := 1

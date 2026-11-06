@@ -30,6 +30,8 @@ extends RefCounted
 ## Checks: tests/lawns_closeup_checks.gd; stills tools/lawns_closeup/shots.sh; probe
 ## tools/lawns_closeup/probe.gd.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 static var enabled: bool = OS.get_environment("LAWNS_CLOSEUP") != "0"
 
 ## How many more tufts a lawn gets with the pass on: the close-up tuft is mown and spread, so it

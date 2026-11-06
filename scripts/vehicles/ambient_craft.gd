@@ -17,6 +17,8 @@ extends AnimatableBody3D
 ## World-space positions are why these survive origin re-centering: the streamer shifts the
 ## parent, apply_pose() converts world_pos back through WorldState every tick.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 signal finished(craft: AmbientCraft)
 
 enum Life { FLYING, DOWN, WRECK }

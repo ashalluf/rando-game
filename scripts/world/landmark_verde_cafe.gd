@@ -29,6 +29,8 @@ extends RefCounted
 ## Landmarks._cyl() is fixed at 12 segments with the default ring count and a fresh mesh per
 ## call, which on its own was 11k triangles of railing posts and table legs.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 # --- Site ---------------------------------------------------------------------------------
 # Local coordinates: +X east, +Z south, the origin on the anchor. The shell sits at the back
 # (north-west) of the plot and the two glazed elevations face +Z and +X, so the patio wraps the

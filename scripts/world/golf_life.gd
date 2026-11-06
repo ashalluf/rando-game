@@ -14,6 +14,8 @@ extends Node3D
 ## One GolfLife node lives under the streamer (made by the first FULL course chunk) and keeps the
 ## carts and the sprinklers; the golfers are their chunks' children like any pedestrian.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 const GROUP_ODDS := 0.72
 const MAX_GOLFERS := 18
 const RANGE_ODDS := 0.62

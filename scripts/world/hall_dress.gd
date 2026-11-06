@@ -7,6 +7,8 @@ class_name HallDress
 ## pilasters down the long walls and a grey plinth at the foot. Geometry only, cosmetic (no
 ## collision), no rng (the pieces are on fixed pitches); GOLDEN_AERIAL=0 builds none of it.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 ## A roof strip's width (the membrane's sheets) and the units' pitch along a row.
 const STRIP := 6.0
 const UNIT_PITCH := 17.0

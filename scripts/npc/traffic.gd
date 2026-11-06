@@ -7,6 +7,8 @@ extends Node3D
 ## streets around the airport, whose drop-off loop (MacroMap.terminal_loops) carries its own
 ## bumper-to-bumper crawl while the player is near the terminal.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 ## Cars around the player at density 1.0 (downtown core); density scales it down elsewhere.
 @export var max_cars: int = 14
 ## Cars crawling the airport drop-off loop.

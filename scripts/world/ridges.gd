@@ -19,6 +19,8 @@ extends RefCounted
 ## right of way and the substation AFTER every roll.
 ## `RIDGES=0` in the environment (or `-- --no-ridges`) leaves all of it out (the A/B).
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 enum Kind { SUSPENSION, ANGLE, TERMINAL }
 enum Site { TANK, DOME, LOOKOUT, HUT, DISH, FARM_PAD }
 enum Mast { GUYED, LATTICE, MONOPOLE }

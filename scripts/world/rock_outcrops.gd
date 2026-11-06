@@ -13,6 +13,8 @@ class_name RockOutcrops
 ##  * BANK BOULDERS - boulders bedded in a hill road's cut banks and fallen to their toe.
 ## `ROCKS=0` in the environment turns all of it off (the A/B).
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 static var enabled: bool = OS.get_environment("ROCKS") != "0"
 
 ## Metres between tor candidates (one jittered candidate a cell).

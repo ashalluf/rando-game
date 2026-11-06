@@ -16,6 +16,8 @@ extends Node3D
 ## after dark; the doors on the platform side (the train's left: right-hand running past island
 ## platforms) slide open while it dwells.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 const MODEL := "res://assets/models/light_rail_car.glb"
 const SECTION_HALF := 6.75
 const CAB_BOGIE := 4.3

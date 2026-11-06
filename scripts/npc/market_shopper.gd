@@ -7,6 +7,8 @@ extends Pedestrian
 ## table, which the life layer's _plan_queue() sends people to), stand and look, talk to the
 ## stallholder, and walk on, half of them with a tote bag and some with a coffee.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 ## The market's aisle in its street frame: along `t0..t1`, across `o0..o1` (FarmersMarketBuild).
 var _site: Dictionary = {}
 var _aisle: Dictionary = {}

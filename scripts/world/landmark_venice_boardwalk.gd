@@ -56,6 +56,8 @@ extends RefCounted
 ## area's arch reads RANDO, which is this project's own in-world name. No real trade dress, no
 ## copy of any real building.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 # --- Site ----------------------------------------------------------------------------------
 
 ## Seed salt, so the same anchor always produces the same boardwalk.

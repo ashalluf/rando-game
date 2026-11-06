@@ -21,6 +21,8 @@ extends RefCounted
 ## coast does not move with the seed). `detailed` false is the far copy: the same builders less
 ## what is under a pixel from across the bay (balusters, brackets, casings, pickets, stones).
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 const WHITE := Color(0.93, 0.92, 0.88)
 const OXBLOOD := Color(0.42, 0.13, 0.10)
 const SHINGLE := Color(0.36, 0.16, 0.12)

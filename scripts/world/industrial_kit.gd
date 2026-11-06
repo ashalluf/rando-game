@@ -15,6 +15,8 @@ extends RefCounted
 ##   UV2        x the box's height, y a per-box parameter (a tilt-up wall's panel width, a mural's
 ##              width, a door's slat pitch)
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 # --- Kinds (COLOR.a in 32nds; mirrored in industrial_walls.gdshader) ----------------------------
 const K_TILTUP := 0
 const K_ROOF := 1

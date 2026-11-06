@@ -6,6 +6,8 @@ extends RefCounted
 ## chunk adds round it (trees, bench seats, people rings, parked cars). layout() and masses() are
 ## PURE (the far tiers and the checks ask them); build() is FULL detail only.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 const WALL_H_SPANISH := 6.4
 const PO_FLOOR := 0.48
 ## The mail truck (CivicKit.mail_truck()): its footprint for layouts (width, height, length; m),

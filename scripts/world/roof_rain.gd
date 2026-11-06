@@ -7,6 +7,8 @@ extends MultiMeshInstance3D
 ## `Vehicle._model_top_y`, over its cabin) at a rate that follows the rain, and each one grows and
 ## fades over `life` seconds. Weather owns it and sets `rain`; at zero it is hidden.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 @export var pool: int = 220
 @export var reach: float = 26.0
 @export var max_cars: int = 10

@@ -26,6 +26,8 @@ extends RefCounted
 ## body and stays gone). Meshes: YardSaleKit. People: StreetVendor (the seller), YardSaleBrowser.
 ## `YARD_SALES=0` is the A/B.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 ## Off: no yard sales (YARD_SALES=0 in the environment).
 static var enabled: bool = OS.get_environment("YARD_SALES") != "0"
 ## Every candidate lot holds one, today (YARD_SALE=all in the environment, or a test).

@@ -20,6 +20,8 @@ extends Node3D
 ## Shot, the track and the cars spark and ping like any steel (PierRideBody / the cars' bodies in
 ## "rail_vehicle") and the ride keeps running. You can stand on the track.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 ## Centre, half size and corner radius of the track's plan, in the park's frame (metres).
 const CENTRE := Vector2(-130.0, 37.0)
 const HALF := Vector2(55.0, 19.0)

@@ -9,6 +9,8 @@ extends Node3D
 ## real bridge waits between flights. The mesh is rebuilt only while the bridge moves (a few
 ## dozen boxes); the walkway's collision box moves with it.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 ## Off: the near concourse keeps static bridges, docked or parked as at load (the A/B;
 ## AIRPORT_GROUND=0 in the environment turns it off with the rest of AirportGround).
 static var posable: bool = OS.get_environment("AIRPORT_GROUND") != "0"

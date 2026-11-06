@@ -26,6 +26,8 @@ extends RefCounted
 ## ride, car_door, enter_car, hide, inside, show, truck, bag, ring. Every roll is this walker's own
 ## stream (hash of its seed and "errand"), never the life stream or a chunk's rng.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 ## The whole layer on or off (STREET_ERRANDS=0 in the environment: the A/B for stills).
 static var enabled: bool = OS.get_environment("STREET_ERRANDS") != "0"
 ## A shopper inside a door whose chunk was rebuilt comes out of the same door on the new chunk.

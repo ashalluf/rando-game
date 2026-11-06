@@ -36,6 +36,8 @@ extends RefCounted
 ## Static: CityChunk runs build() as a build step of a FULL chunk; it moves itself to just before
 ## the finish (the yards' walls are laid by deferred steps), then runs inside a time budget.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 # --- Tunables ----------------------------------------------------------------------------------
 
 ## Off: nothing is built (the A/B). CLIMBERS=0 in the environment.

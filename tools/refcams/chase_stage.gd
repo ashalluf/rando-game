@@ -26,6 +26,8 @@ var _placed: Array = []
 var _fwd := Vector3.FORWARD
 var _under: Array = []
 var _box: Array = []
+## The "pursuit" key's staging (pursuit_stage.gd: cruisers, stars, the helicopter), or null.
+var pursuit: RefCounted = null
 
 
 func run(st: SceneTree, cam: Dictionary, p: Node3D) -> void:
@@ -47,6 +49,7 @@ func run(st: SceneTree, cam: Dictionary, p: Node3D) -> void:
 	if police:
 		_police_was = bool(police.get("enabled"))
 		police.set("enabled", false)
+	var pursuit_script: GDScript = load("res://tools/refcams/pursuit_stage.gd")
 	traffic = city.get_node_or_null("Traffic")
 	# The street's own cars stay; staged keeps the upkeep from shedding the placed ones.
 	if traffic:
@@ -74,6 +77,9 @@ func run(st: SceneTree, cam: Dictionary, p: Node3D) -> void:
 	player.visible = true
 	player.enter_vehicle(car)
 	player.camera.make_current()
+	if pursuit_script.call("wanted", cam):
+		pursuit = pursuit_script.new()
+		await pursuit.call("run", tree, cam, car, _fwd, player)
 	# The traffic round him, placed relative to where the car will be at the shot.
 	if traffic:
 		for row: Array in d.get("traffic", []):
@@ -110,6 +116,9 @@ func finish() -> void:
 		if player.get("vehicle") == car:
 			player.exit_vehicle()
 		car.queue_free()
+	if pursuit:
+		pursuit.call("finish")
+		pursuit = null
 	if traffic:
 		traffic.set("staged", _staged_was)
 	var police: Node = city.get_node_or_null("Police")
@@ -148,6 +157,8 @@ func _steer(v: float) -> void:
 	car.linear_velocity = Vector3(f.x * v, car.linear_velocity.y, f.z * v)
 	car.angular_velocity = Vector3(car.angular_velocity.x * 0.5, 0.0, car.angular_velocity.z * 0.5)
 	car.hold_crash_watch(2)
+	if pursuit:
+		pursuit.call("steer", car, v, player)
 
 
 func _place(plan: CityPlan, world: Vector3, yaw: float) -> void:
@@ -181,6 +192,8 @@ func _place(plan: CityPlan, world: Vector3, yaw: float) -> void:
 ## every particle system within 30 m, with where it lands on screen), and CHASE_AB=a,b,... renders
 ## the frame again with each named node under the root or the scene hidden (<name>.png in out).
 func debug(out_dir: String) -> void:
+	if pursuit:
+		await pursuit.call("ab", out_dir)
 	if OS.get_environment("CHASE_DEBUG") == "1":
 		var st := PhysicsServer3D.body_get_direct_state(car.get_rid())
 		print("CHASE_CONTACTS %d monitor %s mask %d layer %d" % [st.get_contact_count(), str(car.contact_monitor), car.collision_mask, car.collision_layer])

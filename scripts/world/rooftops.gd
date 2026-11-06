@@ -30,6 +30,8 @@ extends RefCounted
 ## building's own body. The far tiers get boxes (far_boxes(); FarBuilding.Plant.HELIPAD and POOL
 ## are painted by building_lod.gdshader). ROOFTOPS=0 in the environment turns it all off (the A/B).
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 static var enabled: bool = OS.get_environment("ROOFTOPS") != "0"
 
 const SALT := "rooftops"

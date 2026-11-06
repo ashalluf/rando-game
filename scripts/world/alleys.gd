@@ -23,6 +23,8 @@ extends RefCounted
 ## poles and wires ride StreetDetail's batches, the lamps' light pools one additive batch. LOD
 ## chunks and the far city's capture get the band's ground as slabs, nothing else.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 ## Off (the A/B): ALLEYS=0 in the environment.
 static var enabled: bool = OS.get_environment("ALLEYS") != "0"
 

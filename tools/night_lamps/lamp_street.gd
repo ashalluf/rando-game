@@ -21,12 +21,16 @@ extends Node3D
 const ROAD_HALF := 7.0
 const WALK := 4.2
 const LAMP_EVERY := 30.0
+## LAMP_EVERY= in the environment spaces the lamps otherwise (the city stands one every 12 m:
+## 24 m on each kerb, staggered; rc5-gas-station-night measured NightGround at that density).
+var _lamp_every := LAMP_EVERY
 
 var _frames := 24
 
 
 func _ready() -> void:
 	_frames = int(_env("FRAMES", "24"))
+	_lamp_every = String(_env("LAMP_EVERY", str(LAMP_EVERY))).to_float()
 	var stage := self
 	var city: Node = (load("res://scenes/levels/city.tscn") as PackedScene).instantiate()
 	for keep in ["WorldEnvironment", "Sun", "DayNight"]:
@@ -173,7 +177,7 @@ func _lamps(stage: Node3D) -> void:
 		light.add_to_group("lamp_light")
 		light.add_to_group("street_lamp_light")
 		stage.add_child(light)
-		z += LAMP_EVERY
+		z += _lamp_every
 		i += 1
 	batch.set_no_shadow("lamp_pool")
 	NightAtmos.finish_batch(batch)

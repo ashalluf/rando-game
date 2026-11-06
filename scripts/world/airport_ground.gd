@@ -40,6 +40,8 @@ extends Node3D
 ## Every roll is a hash of the seed and the stand or vehicle (or the schedule's own rng): nothing
 ## the seed builds elsewhere moves.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 enum G { EMPTY, INBOUND, PARKED, PUSHING }
 
 @export_group("Turnaround")

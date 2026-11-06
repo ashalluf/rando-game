@@ -23,6 +23,8 @@ extends RefCounted
 ##
 ## Every part is a hash of seed + place, after every existing roll. `RC4_STACK=0` is the A/B.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 static var enabled: bool = OS.get_environment("RC4_STACK") != "0"
 
 ## Only the stack's own right of way (metres from FreewayStack.centre to a block's centre).

@@ -16,6 +16,12 @@ func run(t: SceneTree) -> void:
 	var sun_dir := Vector3(-0.45, 0.70, 0.55).normalized()
 	RenderingServer.global_shader_parameter_set("sun_direction", sun_dir)
 	var sky := Color(0.03, 0.035, 0.06) if night else Color(0.52, 0.66, 0.86)
+	# GOLDEN=1: a low sun in the west (6 degrees up) under a sunset horizon, 18:00's light.
+	var golden := OS.get_environment("GOLDEN") == "1"
+	if golden:
+		sun_dir = Vector3(-0.99, 0.11, 0.08).normalized()
+		RenderingServer.global_shader_parameter_set("sun_direction", sun_dir)
+		sky = Color(0.86, 0.62, 0.50)
 	RenderingServer.global_shader_parameter_set("sky_tint", sky)
 	var root3d := Node3D.new()
 	tree.get_root().add_child(root3d)
@@ -32,6 +38,9 @@ func run(t: SceneTree) -> void:
 	var sun := DirectionalLight3D.new()
 	sun.look_at_from_position(Vector3.ZERO, -sun_dir, Vector3.UP)
 	sun.light_energy = 0.08 if night else 1.3
+	if golden:
+		sun.light_color = Color(1.0, 0.62, 0.36)
+		e.ambient_light_color = Color(0.62, 0.52, 0.55)
 	sun.shadow_enabled = true
 	root3d.add_child(sun)
 

@@ -26,6 +26,8 @@ extends RefCounted
 ## Hooks: AssaultRifle.fire_ray(), Shotgun.fire_pellet() and PoliceOfficer's rounds call
 ## `bullet()`; Explosion.blast() calls `blast()`.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 const K_CRACK := 1
 const K_SHATTER := 2
 const K_BLAST := 3

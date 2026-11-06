@@ -25,6 +25,8 @@ extends RefCounted
 ## built once and shared by the far copy and the detailed one; collision boxes on the detailed
 ## one. LANDMARK_ROOFS=0 is the A/B (nothing built).
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 # RC_ROOFTOP read directly: RcRooftop.enabled may not be initialised yet when this class loads first
 # (a cross-class static initialiser read false, and the roofs were off in game and in the gate).
 static var enabled := OS.get_environment("LANDMARK_ROOFS") != "0" and OS.get_environment("RC_ROOFTOP") != "0"

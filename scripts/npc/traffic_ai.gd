@@ -27,6 +27,8 @@ extends RefCounted
 ## Everything here is maths on the positions the manager already has: no physics queries.
 ## `TRAFFIC_AI=0` in the environment turns it all off (the A/B), which is the old traffic.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 static var enabled: bool = OS.get_environment("TRAFFIC_AI") != "0"
 
 enum Mood { NORMAL, PUSHY, CAREFUL, DOZY }

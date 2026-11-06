@@ -9,6 +9,8 @@ extends RefCounted
 ## past the crowd's accessory range. The hair goes under it (hidden, as FireHelmet does).
 ## Original: no maker's name or logo; a plain reflective strip on the back.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 ## The shell stands this far off the skull (m): the suspension's crown straps.
 const STANDOFF := 0.034
 ## The band edge over the eye line at the front and round the back (m).

@@ -11,6 +11,8 @@ extends RefCounted
 ## Time: the shader's TIME, which runs from the engine's start scaled by Engine.time_scale.
 ## `clock` starts at the engine's ticks and Swim advances it by the scaled process delta.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 const MESH_Y := 0.15
 ## The ocean shader's uniform defaults (base_height ... surf_width): checked against its source.
 const BASE_HEIGHT := 1.2
