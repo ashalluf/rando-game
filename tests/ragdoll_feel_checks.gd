@@ -238,7 +238,12 @@ func _check_stairs(city: Node3D, chunk: Node3D) -> void:
 	var p: Pedestrian = await _walker(city, chunk, ground + Vector3(0.0, 1.7, -1.2), 8104)
 	if OS.get_environment("RF_DEBUG") == "1":
 		print("RF walker at ", p.global_position - ground)
+	# The fling's tumble is drawn from the GLOBAL rng (RagdollJoints.fling / RagdollFeel), whose
+	# state is whatever every earlier file left: one spin rolls the doll to the foot, another
+	# stops it on step 5 (batch 61 shard 0). The claim is about the steps, not the dice: seeded.
+	seed(8104)
 	p.knock(Vector3(0.0, 1.5, 2.2))
+	randomize()
 	var doll := _doll_of(p)
 	if doll == null or doll._joints == null:
 		_check(false, "a doll on the steps is jointed")

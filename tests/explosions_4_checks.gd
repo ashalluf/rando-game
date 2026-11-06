@@ -411,6 +411,13 @@ func _round11(parent: Node) -> void:
 		var vp := Node3D.new()
 		parent.add_child(vp)
 		var mx := Blast3.max_volumes
+		# From an empty set: an earlier blast's fireballs (this file's or another's, they live 9-12 s)
+		# can still hold every slot, and a full set of main fireballs rightly leaves a pop none
+		# (shuffled gate 801: "4 volumes, 0 pops").
+		Blast3._prune()
+		for v: Node in Blast3._volumes:
+			v.queue_free()
+		Blast3._volumes.clear()
 		var made := 0
 		for i in mx + 2:
 			if Blast3.takes_fireball(true):
