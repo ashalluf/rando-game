@@ -573,6 +573,7 @@ func _apply() -> void:
 		_sky.set_shader_parameter("dawn", dawn_w)
 		# Under the horizon is the far haze the ground plane fades into, not a grey floor.
 		_sky.set_shader_parameter("ground_color", horizon.lerp(Color(0.32, 0.34, 0.37), 0.30))
+		RainDusk.dress_sky(_sky, rain_dusk)
 		# The ground follower's horizon has to wash out into the same colour the sky meets it
 		# with, or the land ends in a hard line however good the haze is.
 		var streamer := get_parent()

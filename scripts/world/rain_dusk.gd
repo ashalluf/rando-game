@@ -16,6 +16,8 @@ extends RefCounted
 
 static var enabled: bool = OS.get_environment("RC5_BUS_STOP") != "0"
 
+## weather_darken to the overcast: rain (0.5) is a full deck, an overcast sky (0.25) half of one.
+const OVERCAST_RAMP := 2.0
 ## The deck's own colour at dusk: a cool slate cloud (the cloud_color multiplier's target).
 const CLOUD := Color(0.80, 0.84, 0.92)
 ## The sky's horizon and zenith are pulled to a slate blue-grey at their own brightness (the hue
@@ -31,7 +33,7 @@ const GOLDEN_KEEP := 0.15
 static func weight(weather_darken: float, dusk: float, golden: float, moonlight: float) -> float:
 	if not enabled:
 		return 0.0
-	return clampf(weather_darken * 1.6, 0.0, 1.0) * clampf(maxf(dusk, golden), 0.0, 1.0) * clampf(1.0 - moonlight, 0.0, 1.0)
+	return clampf(weather_darken * OVERCAST_RAMP, 0.0, 1.0) * clampf(maxf(dusk, golden), 0.0, 1.0) * clampf(1.0 - moonlight, 0.0, 1.0)
 
 
 ## `c` taken toward slate at its own luma, by `t`.
@@ -68,3 +70,16 @@ const MIRROR_GAIN := 0.9
 
 static func mirror_lamps(w: float) -> float:
 	return clampf(w * MIRROR_GAIN, 0.0, 1.0)
+
+
+## The rest of the clear sunset the sky draws (after DayNight has set it): the warm twilight band,
+## the crepuscular rays, the sun disc's dusk colour and the floor colour under the horizon. Under a
+## rain deck there is no band and no rays: they read as a pink stripe across a grey sky.
+static func dress_sky(sky: ShaderMaterial, w: float) -> void:
+	if w <= 0.0 or sky == null:
+		return
+	sky.set_shader_parameter("twilight_amount", float(sky.get_shader_parameter("twilight_amount")) * (1.0 - w))
+	sky.set_shader_parameter("god_rays", float(sky.get_shader_parameter("god_rays")) * (1.0 - w))
+	var g: Variant = sky.get_shader_parameter("ground_color")
+	if g is Color:
+		sky.set_shader_parameter("ground_color", slate(g, w))
