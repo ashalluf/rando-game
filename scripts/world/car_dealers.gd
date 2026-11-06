@@ -620,6 +620,7 @@ static func _build_detail(ch: CityChunk, s: Dictionary, L: Dictionary) -> void:
 		_static_car(ch, s, xf0, c)
 	for key: String in ["dl_car_0", "dl_car_1", "dl_car_2", "dl_car_3"]:
 		ch._batch.set_shadow_distance(key, CAR_SHADOW_DISTANCE)
+	RcAutoRow.stripes(ch, s, L, xf0)
 	ch._batch.set_no_shadow("dl_sticker")
 	ch._batch.set_draw_distance("dl_sticker", 90.0)
 
@@ -654,6 +655,7 @@ static func _static_car(ch: CityChunk, s: Dictionary, xf0: Transform3D, c: Array
 	], [[box, w + Vector3(0.0, box.y * 0.5 + 0.05, 0.0), yaw]])
 	if ch.prop_records.size() > before:
 		ch.prop_records.back().health = 1e12
+		RcAutoRow.note_car(ch, ch.prop_records.back(), v, paint, custom, bool(s.used))
 
 
 ## A real car for sale: a Vehicle, parked and asleep, with the chunk's parked cars (so it leaves
@@ -689,6 +691,7 @@ static func _real_car(ch: CityChunk, s: Dictionary, local: Vector3, yaw_j: float
 	holder.add_child(car)
 	car.visible = ch.visible
 	ch._cars.append(car)
+	RcAutoRow.real_vehicle(car, used, Color(_h01([seed_value, "price"]), 1.0 if used else 0.0, _h01([s.id, "band"]), 0.0))
 
 
 ## The showroom: floor, glass curtain walls on mullions, a solid back wall with the brand wall
