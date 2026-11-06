@@ -274,6 +274,10 @@ func _passing(city: Node3D, chunk: Node3D) -> void:
 	var cam0 := _tree.root.get_camera_3d()
 	var cx := WorldState.to_world(cam0.global_position).x if cam0 else at.x
 	at.x = clampf(cx, rect.position.x + 12.5, rect.end.x - 12.5) - 6.5
+	# A camera of the check's own over the meeting point, current for the walk: CrowdFlow's grid is
+	# keyed on the game window's camera, and the player's moved 70 m off during one pass (CI 429:
+	# camera 18.6 m off at the start, CrowdFlow's 89.9 m at the meeting, no neighbour seen).
+	var held := _hold_camera(chunk, at + Vector2(6.5, 0.0))
 	var a := _walker(chunk, rect, at, 90201)
 	var b := _walker(chunk, rect, at + Vector2(13.0, 0.0), 90202)
 	await _ticks(30) # the LOD pass: near enough to step through move_and_slide
@@ -324,6 +328,28 @@ func _passing(city: Node3D, chunk: Node3D) -> void:
 			print("FLOW_PASSING ", line)
 	a.queue_free()
 	b.queue_free()
+	_release_camera(held)
+
+
+## A Camera3D 12 m off `at` (chunk space), made current; returns [it, the camera that was current].
+func _hold_camera(chunk: Node3D, at: Vector2) -> Array:
+	var old := _tree.root.get_camera_3d()
+	var c := Camera3D.new()
+	chunk.add_child(c)
+	var foot := chunk.to_global(Vector3(at.x, chunk.ground_y(at.x, at.y), at.y))
+	c.global_position = foot + Vector3(0.0, 6.0, 10.0)
+	c.look_at(foot)
+	c.make_current()
+	return [c, old]
+
+
+func _release_camera(held: Array) -> void:
+	var c := held[0] as Camera3D
+	var old := held[1] as Camera3D
+	if is_instance_valid(old):
+		old.make_current()
+	if is_instance_valid(c):
+		c.queue_free()
 
 
 func _kerb(city: Node3D, chunk: Node3D) -> void:
