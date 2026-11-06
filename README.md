@@ -92,3 +92,12 @@ at 0.6 s full size. 72 the 150 m aerial on Forward+ (lavapipe): 0.15, 0.6, 2 s.
 - `83_r19_fuel_16m_...` - a car's fuel from 16 m at 3 and 7 s: before (top) the trail's even fence of
   tongues (stretched pools); after (bottom) a deep puddle burning high by the car, smaller ones
   further out with dry road between.
+
+## Round 20 (the lead: round 19 on Forward+, lavapipe)
+- `85_r20_fwd_hot_core_...` - Forward+, a chain car at golden hour from 30 m, 0.1 / 0.25 s: left the
+  round-19 hot core (a flat white sun disc at 0.1 s, 37.7k clipped pixels), right the fix (a lumpy
+  white-hot ball, 18.3k; 6.1k with the core off).
+- `86_r20_fwd_hot_core_...` - Forward+, the same frames with the core off (left) and on (right).
+- `87_r20_fwd_puddle_flames_...` - a car's fuel puddles from 16 m at 3 / 7 s, crops: opengl3,
+  Forward+ before (pale yellow tongues), Forward+ decode 0.6, Forward+ decode 1 (kept: orange-red
+  with red tips, as opengl3). Fire positions are random per run.
