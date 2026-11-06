@@ -25,6 +25,8 @@ static func report(shot: Object, cam_name: String) -> void:
 			extra = node.get_parent().get_node_or_null(NodePath(nm + "Shadow"))
 		elif nm.begins_with("Batch_kit_"):
 			g = "facade_kit"
+			if OS.get_environment("TRUE_KIT") == "1":
+				g = "kit:" + nm.substr(10)
 		elif nm.begins_with("Batch_"):
 			if mesh.has_meta("foliage_ladder") or mesh.has_meta("palm_ladder") or mesh.has_meta("knee_shadow_lod"):
 				g = "plants"
