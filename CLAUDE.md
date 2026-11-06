@@ -4624,6 +4624,12 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   poles, a StreetVendor seller and `YardSaleBrowser`s. FULL only. `YARD_SALES=0` is the A/B,
   `YARD_SALE=all` every candidate today; probe `tools/yard_sales/probe.tscn`; checks
   `tests/yard_sales_checks.gd`.
+- The yard sale from across the street (wave 8, refcam `yard_sale` in `tools/refcams/cameras_w8.json`,
+  its `yard_sale` key = YARD_SALE_DAY=6 / YARD_SALE_HOUR, `clear_cars` hides vehicles by the lens;
+  docs/HANDOFF.md "The yard sale from across the street"): `Rc5YardSale` (`scripts/world/rc5_yard_sale.gd`):
+  tables crammed in two rows with a stash underneath, new row kinds `canopy` (a pop-up shade over a
+  table) and `blanket` (things on the lawn), offered after the old kinds. `RC5_YARD_SALE=0` is the
+  A/B; checks `tests/rc5_yard_sale_checks.gd`.
 - Lawns: `PropFactory.lawn()` + `shaders/lawn.gdshader`, not a plain tiled texture - a 5 m tile
   mips down to one flat green rectangle from thirty metres up, and the grass-blade multimesh only
   reaches a few dozen metres. Dry/watered patches, mower stripes angled per lawn, worn dirt, and

@@ -4737,3 +4737,7 @@ none of either.
   lit structures standing in water mirror their light in it (the islands' towers as columns in the
   bay); a flood is light thrown up a face from its foot, not a face painted the gel's colour.
   LONG_BEACH_SAND=0 / RC5_OIL_ISLANDS=0 are the A/B.
+- 2026-11-06 (rc5-yard-sale): a yard sale must read as one from across the street - the tables
+  crammed in two rows with a stash underneath, a pop-up canopy over a table on a share of sales
+  (the silhouette), a blanket of things on the lawn. The new kinds join the row after the old ones,
+  so nothing else of a sale's plan or of the street moves. RC5_YARD_SALE=0 is the A/B.

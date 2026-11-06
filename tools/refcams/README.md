@@ -273,3 +273,7 @@ suburb_morning street (block 21,32 on seed 1337) from the same pavement eye at 2
 day and the night of one street compare 1:1. Its optional `dog_walker` key (`tools/refcams/dog_stage.gd`:
 `dist`, `side`, `at`, `yaw`, `seed`, `away`) stands one person walking a dog in the frame, held on its
 spot and walking; the log prints a `REFCAM dog walker` line.
+
+`yard_sale` (rc5-yard-sale): a suburb Saturday 09:30 from the far pavement. Its `yard_sale` key (1)
+builds every yard sale for a Saturday at the row's hour (YARD_SALE_DAY / YARD_SALE_HOUR), its
+`clear_cars` (metres) hides the vehicles that near the lens.
