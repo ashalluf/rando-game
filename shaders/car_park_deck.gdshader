@@ -198,6 +198,12 @@ void fragment() {
 			col *= 1.0 - 0.14 * stain2 * (1.0 - grate);
 			col = mix(col, vec3(0.04, 0.04, 0.045) * (0.6 + 0.8 * slot), grate);
 			rough = mix(rough, 0.35, grate);
+			// Rubber laid by a car swung round the empty roof: a pair of streaks 1.6 m apart,
+			// swaying, now and then along the drive.
+			float sway = 1.1 * sin(fp.x * 0.11 + 1.7) + 0.4 * sin(fp.x * 0.37);
+			float on = smoothstep(0.55, 0.7, vnoise(vec2(fp.x * 0.04, floor(fp.y / 12.0) + 3.0)));
+			float sk = line(m.y - sway - 0.8, 0.16, fpx) + line(m.y - sway + 0.8, 0.16, fpx);
+			col *= 1.0 - 0.28 * on * sk * (0.5 + 0.5 * vnoise(vec2(fp.x * 1.3, m.y)));
 		}
 		// The traffic coating: a faint satin sheen and the dust of the day.
 		rough = mix(rough, rough * 0.82, 0.5 * (1.0 - paint));

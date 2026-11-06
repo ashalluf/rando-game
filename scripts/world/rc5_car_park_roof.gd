@@ -72,8 +72,8 @@ static func core(g: CarParkBuild.Geo, lay: Dictionary, band_key: String) -> void
 	var n := int(ds / PANEL)
 	for i in range(1, n + 1):
 		var v := ds * float(i) / float(n + 1)
-		g.box("rc5_joint", Vector3(C, yr, v - 0.012), Vector3(C + 0.012, top, v + 0.012), false)
-	g.box("rc5_joint", Vector3(C, yr + 2.9, 0.3), Vector3(C + 0.012, yr + 2.93, ds - 0.3), false)
+		g.box("rc5_joint", Vector3(C, yr, v - 0.022), Vector3(C + 0.02, top, v + 0.022), false)
+	g.box("rc5_joint", Vector3(C, yr + 2.88, 0.3), Vector3(C + 0.02, yr + 2.93, ds - 0.3), false)
 	# The roof level's band (painted, the columns' colour) and the level's letter panels.
 	g.box(band_key, Vector3(C, yr + 1.05, 0.3), Vector3(C + 0.008, yr + 1.6, ds - 0.3), false)
 	# A second stair door at the far end, its EXIT sign; wall packs over both doors.
@@ -117,18 +117,25 @@ static func parapets(g: CarParkBuild.Geo, lay: Dictionary) -> void:
 	# Joints on the inner faces, every PANEL: front (v 0, face +v), back (v ds, face -v), far end.
 	var u := e0 + PANEL
 	while u < ls - 0.5:
-		g.box("rc5_joint", Vector3(u - 0.012, yr, 0.0), Vector3(u + 0.012, hi, 0.012), false)
-		g.box("rc5_joint", Vector3(u - 0.012, yr, ds - 0.012), Vector3(u + 0.012, hi, ds), false)
+		g.box("rc5_joint", Vector3(u - 0.02, yr, 0.0), Vector3(u + 0.02, hi, 0.015), false)
+		g.box("rc5_joint", Vector3(u - 0.02, yr, ds - 0.015), Vector3(u + 0.02, hi, ds), false)
 		u += PANEL
 	var v := PANEL
 	while v < ds - 0.5:
-		g.box("rc5_joint", Vector3(ls - 0.012, yr, v - 0.012), Vector3(ls, hi, v + 0.012), false)
+		g.box("rc5_joint", Vector3(ls - 0.015, yr, v - 0.02), Vector3(ls, hi, v + 0.02), false)
 		v += PANEL
+	# The ramp opening's walls: joints on both faces of both sides (the inner ones run down the
+	# opening's full depth, to the deck below), and on its end wall.
+	var below := yr - CarPark.FLOOR
 	u = r0 + PANEL
 	while u < r1 - 0.5:
-		g.box("rc5_joint", Vector3(u - 0.012, yr, s0 - W - 0.012), Vector3(u + 0.012, hi, s0 - W), false)
-		g.box("rc5_joint", Vector3(u - 0.012, yr, s1 + W), Vector3(u + 0.012, hi, s1 + W + 0.012), false)
+		for f: Array in [[s0 - W - 0.015, s0 - W, yr], [s0, s0 + 0.015, below], [s1 - 0.015, s1, below], [s1 + W, s1 + W + 0.015, yr]]:
+			g.box("rc5_joint", Vector3(u - 0.02, float(f[2]), float(f[0])), Vector3(u + 0.02, hi, float(f[1])), false)
 		u += PANEL
+	v = s0 + PANEL * 0.5
+	while v < s1 - 0.3:
+		g.box("rc5_joint", Vector3(r0 - W - 0.015, yr, v - 0.02), Vector3(r0 - W, hi, v + 0.02), false)
+		v += PANEL
 
 
 ## The roof's light poles (in place of CarParkBuild._roof's): on the aisles' centre lines, a
