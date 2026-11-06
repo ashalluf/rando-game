@@ -209,6 +209,11 @@ func _run() -> void:
 		if cam.has("wildlife") and _stager == null:
 			_stager = load("res://tools/refcams/wild_stage.gd")
 			await _stager.stage(self, scene, _eye_cam, func() -> void: _place(player, fov), cam)
+		# A "hill_car" row (cameras_w8.json's switchback_night): a lit car standing on a hill road.
+		var hill_car: GDScript = null
+		if cam.has("hill_car"):
+			hill_car = load("res://tools/refcams/hill_car_stage.gd")
+			await hill_car.stage(self, scene, cam)
 		Engine.time_scale = 0.0005
 		for i in _env_int("SETTLE", 6):
 			await process_frame
@@ -284,6 +289,8 @@ func _run() -> void:
 			park.call("finish")
 		if _stager != null:
 			_unstage(scene, player)
+		if hill_car:
+			hill_car.unstage()
 		print("REFCAM %s saved %s eye %s hour %.2f %s" % [cam.name, png, eye_text, float(cam.hour), cam.get("weather", "clear")])
 		if is_instance_valid(_air_staged) and _air_staged is Node3D:
 			# Where the staged aircraft is at the shot (TRUE world): a row's air_dist / air_side are
