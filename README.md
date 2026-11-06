@@ -14,3 +14,5 @@ it swings off Flower over the 110, from River Blvd below, 20:00 clear, a train s
   lens and wires on the real materials, Compatibility (left) vs Forward+ under lavapipe (right).
 - `06_after_structure_from_above_framing.jpg` - a framing still from 27 m over River Blvd (an early
   pass with stronger washes): the ballast pools, poles, lamps and the downlight pools along Flower.
+- `07_final_after_merge_rail_aerial.jpg` - the final head (main merged, RcRailCrossing's wires
+  elsewhere, RcRailAerial's lit ribbons on the structure): the catenary over the curve now reads.
