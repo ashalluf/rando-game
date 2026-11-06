@@ -162,6 +162,7 @@ static func glow_mesh(shape: int) -> Mesh:
 		mesh.custom_aabb = AABB(Vector3(-40, -40, -40), Vector3(80, 80, 80))
 	if shape == 2:
 		SuburbNight.dress_materials(mat, null)
+	Rc5CoyoteNight.dress_house(mat)
 	_glow_meshes[shape] = mesh
 	return mesh
 
@@ -177,6 +178,7 @@ static func lamp_material() -> ShaderMaterial:
 		_lamp_mat = ShaderMaterial.new()
 		_lamp_mat.shader = load("res://shaders/house_lamp.gdshader")
 		SuburbNight.dress_materials(null, _lamp_mat)
+		Rc5CoyoteNight.dress_house(_lamp_mat)
 	return _lamp_mat
 
 
@@ -259,8 +261,8 @@ static func dress(b: HouseBuild, cyp0: int = -1) -> void:
 				var p: Vector3 = at[i]
 				var gy := ch._gy(p.x, p.z) + p.y
 				for ax: Vector3 in [Vector3(1.6, 0, 0), Vector3(0, 0, 1.6)]:
-					_glow(ch, 1, Vector3(p.x, gy + 3.2, p.z), ax, Vector3(0, 6.4, 0), UPLIGHT_GLOW, 0.5)
-				_halo(ch, Vector3(p.x, gy + 0.15, p.z), 0.12, UPLIGHT_GLOW, 0.6)
+					_glow(ch, 1, Vector3(p.x, gy + 3.2, p.z), ax, Vector3(0, 6.4, 0), UPLIGHT_GLOW, Rc5CoyoteNight.timer_alpha(0.5))
+				_halo(ch, Vector3(p.x, gy + 0.15, p.z), 0.12, UPLIGHT_GLOW, Rc5CoyoteNight.timer_alpha(0.6))
 
 
 ## A small wall lantern: a box of frosted lens under a dark cap, on the wall at frame point `p`
@@ -320,8 +322,8 @@ static func _landscape(b: HouseBuild, k: int, ground: float) -> void:
 			b._box("h_lamp", Vector2(u, v), floor_y + 0.5, floor_y + 0.54, Vector2(1, 0), Vector2(0, 1), Vector2(0.09, 0.09), HOUSING)
 			_lens_box(b, Vector2(u, v), floor_y + 0.38, floor_y + 0.5, Vector2(0.05, 0.05), Color(tint.r, tint.g, tint.b, 0.5 + 0.125))
 			var wp := b.W(u, floor_y, v)
-			_pool_at(ch, Vector3(wp.x, gy, wp.z), 1.2, UPLIGHT_GLOW, 0.5)
-			_halo(ch, wp + Vector3(0, 0.45, 0), 0.16, UPLIGHT_GLOW, 0.7)
+			_pool_at(ch, Vector3(wp.x, gy, wp.z), 1.2, UPLIGHT_GLOW, Rc5CoyoteNight.timer_alpha(0.5))
+			_halo(ch, wp + Vector3(0, 0.45, 0), 0.16, UPLIGHT_GLOW, Rc5CoyoteNight.timer_alpha(0.7))
 	# Uplights along the main wing's front, between its windows' bays.
 	var mw: Dictionary = {}
 	for w: Dictionary in h.wings:
@@ -340,8 +342,8 @@ static func _landscape(b: HouseBuild, k: int, ground: float) -> void:
 		var foot := b.W(u, 0.0, r.position.y - 0.05)
 		var gy := ch._gy(foot.x, foot.z) + ground
 		var hgt := minf(top + 0.6, 5.5)
-		_glow(ch, 1, Vector3(foot.x, gy + hgt * 0.5, foot.z), b.N(Vector2(1, 0)) * 2.2, Vector3(0, hgt, 0), UPLIGHT_GLOW, 0.6)
-		_halo(ch, Vector3(foot.x, gy + 0.12, foot.z) + b.N(Vector2(0, -1)) * 0.35, 0.12, UPLIGHT_GLOW, 0.6)
+		_glow(ch, 1, Vector3(foot.x, gy + hgt * 0.5, foot.z), b.N(Vector2(1, 0)) * 2.2, Vector3(0, hgt, 0), UPLIGHT_GLOW, Rc5CoyoteNight.timer_alpha(0.6))
+		_halo(ch, Vector3(foot.x, gy + 0.12, foot.z) + b.N(Vector2(0, -1)) * 0.35, 0.12, UPLIGHT_GLOW, Rc5CoyoteNight.timer_alpha(0.6))
 
 
 ## The glow batches' draw distances and shadows (the chunk's finish).

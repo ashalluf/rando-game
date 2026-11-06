@@ -347,6 +347,8 @@ static func _material(chunk: CityChunk, key: String) -> Material:
 		"paint":
 			return PropFactory.road_paint_material()
 		"apron":
+			if Rc5CoastHighway.enabled:
+				return Rc5CoastHighway.apron_material()
 			return PropFactory.road("sidewalk", 3.0, Color(1.45, 1.44, 1.40), 7335, 1.5, 0.35)
 		"wall", "kerb":
 			return PropFactory.pbr("concrete", 3.0, Color(0.86, 0.84, 0.80) if key == "wall" else Color(0.95, 0.94, 0.92))
@@ -473,6 +475,7 @@ static func _sea_side(chunk: CityChunk, c: CoastHighway, g: Geo, z0: float, z1: 
 		g.quad("wall", _p(c, w, z0, top0), _p(c, w, z1, top1), _p(c, w + t, z1, top1), _p(c, w + t, z0, top0), Vector3.UP, Color.WHITE)
 		g.quad("wall", _p(c, w + t, z0, y0), _p(c, w + t, z1, y1), _p(c, w + t, z1, top1), _p(c, w + t, z0, top0), -sea3, Color.WHITE)
 		g.boxes.append([Transform3D(Basis(Vector3.UP, c.sea_yaw(zm)), _p(c, w + t * 0.5, zm, (y0 + y1) * 0.5 + PARAPET * 0.5)), Vector3((z1 - z0) * 0.5, PARAPET * 0.5, t * 0.5).abs()])
+		Rc5CoastHighway.parapet_cap(c, g, w, t, z0, z1, top0, top1, sea3)
 	# The apron's and the wall's collision: a slab from the wall to the road.
 	var mid := _p(c, (w + ri) * 0.5, zm, (y0 + y1) * 0.5 - 0.3)
 	g.boxes.append([Transform3D(Basis(Vector3.UP, c.sea_yaw(zm)), mid), Vector3((z1 - z0) * 0.5 + 0.05, 0.3, (ri - w) * 0.5 + 0.1)])
@@ -666,6 +669,7 @@ static func _house(chunk: CityChunk, c: CoastHighway, g: Geo, hs: Dictionary) ->
 			var sh: Array = []
 			if f == floors - 1 or floors == 1:
 				sh.append([depth * 0.55, y0 + 1.0, depth * 0.55 + 1.2, y0 + 2.3, "window"])
+			Rc5CoastHighway.side_windows(c, hs, sx, fz, y0, y1, sh)
 			_side_wall(g, P, b, wall_key, wall_col, sx * hw, 0.0, fz, y0, y1, side * sx, sh, frame_col, blind, int(hs.seed) + f * 13 + int(sx))
 		if inset > 0.0:
 			# The balcony the upper floor is set back over: its floor is the lower roof.
@@ -718,6 +722,8 @@ static func _house(chunk: CityChunk, c: CoastHighway, g: Geo, hs: Dictionary) ->
 		_rail(g, P, b, -hw + 0.35, hw - 0.35, by, bz1 - 0.05, sea)
 	# Street side: a house number plate, an outdoor light, the bins.
 	g.box("h_dark", Transform3D(b, P.call(-hw + 0.6, fy + 2.0, -0.04)), Vector3(0.22, 0.12, 0.02), Color(0.1, 0.1, 0.1))
+	# Planters, palms and lanterns on the street side (Rc5CoastHighway).
+	Rc5CoastHighway.dress_house(chunk, c, g, hs, wall_col)
 
 
 ## A UV rect in metres (the siding and stucco want metres along and up the wall).
@@ -789,8 +795,10 @@ static func _wall_holes(g: Geo, P: Callable, b: Basis, key: String, col: Color, 
 		# A door or a garage door: the leaf recessed, its panels as dark lines, a frame round it.
 		var rz := z - 0.14 * nsign
 		var leaf := door_col if kind == "garage" else Color(0.30, 0.22, 0.16)
-		g.quad("h_door", P.call(hx0, hy0, rz), P.call(hx1, hy0, rz), P.call(hx1, hy1, rz), P.call(hx0, hy1, rz), n, leaf)
-		if kind == "garage":
+		var real_door := kind == "garage" and Rc5CoastHighway.garage_door(g, P, b, hx0, hx1, hy0, hy1, rz, n, nsign, leaf, sd)
+		if not real_door:
+			g.quad("h_door", P.call(hx0, hy0, rz), P.call(hx1, hy0, rz), P.call(hx1, hy1, rz), P.call(hx0, hy1, rz), n, leaf)
+		if kind == "garage" and not real_door:
 			for k in range(1, 4):
 				var gy := lerpf(hy0, hy1, float(k) / 4.0)
 				g.quad("h_dark", P.call(hx0 + 0.05, gy - 0.015, rz + 0.005 * nsign), P.call(hx1 - 0.05, gy - 0.015, rz + 0.005 * nsign), P.call(hx1 - 0.05, gy + 0.015, rz + 0.005 * nsign), P.call(hx0 + 0.05, gy + 0.015, rz + 0.005 * nsign), n, Color(0.15, 0.15, 0.15))

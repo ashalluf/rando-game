@@ -42,6 +42,12 @@ uniform float look = 0.0;
 // Its own distance fog: the scene's fog colour (linear) and a density per metre.
 uniform vec3 fog_col = vec3(0.4, 0.42, 0.45);
 uniform float fog_k = 0.00022;
+// The evening bank's look (MarineEvening.bank_look(): 0 the old ribbon, 1 a wall of fog): its foot
+// sunk under the water (no gap of sky under it), billowed cauliflower crests lit from above by the
+// twilight sky, the thin crest edge glowing in the afterglow behind it (`rim_col`, linear), a cool
+// slate body and a paler, hazier foot where it sits on the sea.
+uniform float bank_look = 0.0;
+uniform vec3 rim_col = vec3(0.6, 0.45, 0.4);
 
 varying vec3 wpos;
 varying float bank_h;
@@ -143,6 +149,11 @@ void vertex() {
 		// The top edge of the bank: rounded domes along its length.
 		float dome = fbm(vec2(t.z * 0.0017, 3.7)) * 0.55 + 0.6;
 		w.y = h01 * deck_top * dome;
+		if (bank_look > 0.5) {
+			// The foot sits IN the water (the old fade let the sky's horizon show under it as a
+			// glowing line), and the crest's domes are taller and rounder: a standing wall.
+			w.y = h01 * deck_top * mix(dome, 0.55 + 0.75 * dome, 0.6) - 8.0 * (1.0 - h01);
+		}
 		bank_h = h01;
 		VERTEX = (inverse(MODEL_MATRIX) * vec4(w, 1.0)).xyz;
 	}
@@ -160,7 +171,46 @@ void fragment() {
 	float rim = 1.0 - smoothstep(rim_start, rim_end, length(wpos.xz - CAMERA_POSITION_WORLD.xz));
 	vec3 col;
 	float a;
-	if (mode == 2) {
+	if (mode == 2 && bank_look > 0.5) {
+		// The wall of fog. Billows in (along the coast, height) metres, growing with height: the
+		// face is a cauliflower of rolls, the crest broken into domes.
+		vec2 bp = vec2(tw.y, t.y);
+		float hz = bank_h;
+		float rise = drift * 4.0;
+		float b1 = fbm(bp * vec2(1.0 / 150.0, 1.0 / 62.0) + vec2(0.0, -rise));
+		float b2 = fbm(bp * vec2(1.0 / 48.0, 1.0 / 26.0) + vec2(5.3, -rise * 2.0));
+		float b1u = fbm((bp + vec2(0.0, 14.0)) * vec2(1.0 / 150.0, 1.0 / 62.0) + vec2(0.0, -rise));
+		float b2u = fbm((bp + vec2(0.0, 6.0)) * vec2(1.0 / 48.0, 1.0 / 26.0) + vec2(5.3, -rise * 2.0));
+		float bil = b1 * 0.66 + b2 * 0.34;
+		// How the billow's surface turns: up where the puff thins going up (its top lit by the sky).
+		float up = clamp(0.5 + ((b1 - b1u) * 0.66 + (b2 - b2u) * 0.34) * 7.0, 0.0, 1.0);
+		// The crest: a cauliflower edge (the billows decide where the wall ends), with a soft fringe.
+		float crest = hz + (bil - 0.5) * 0.42;
+		float body = 1.0 - smoothstep(0.8, 0.97, crest);
+		a = clamp(density * body, 0.0, 1.0) * bank;
+		// Thin near the crest: what light gets through and around it (a lining, not a band).
+		float thin = smoothstep(0.7, 0.95, crest);
+		vec3 view = normalize(wpos - CAMERA_POSITION_WORLD);
+		vec3 sflat = normalize(vec3(sun_dir.x, 0.0, sun_dir.z) + vec3(0.0001));
+		float fwd = pow(clamp(dot(normalize(vec3(view.x, 0.0, view.z)), sflat), 0.0, 1.0), 2.0);
+		// Twilight: the afterglow fades as the sun sinks (gone ~8 degrees under the horizon).
+		float glow = clamp(1.0 + sun_dir.y * 7.0, 0.0, 1.0);
+		// The body: a cool slate (the dusk shade's brightness, its warmth taken out), lit from above
+		// by the sky on each billow's top, only a little darker in the folds between the rolls.
+		float lum = dot(shade_col, vec3(0.3, 0.59, 0.11));
+		vec3 slate = mix(shade_col, lum * vec3(0.8, 0.88, 1.22), 0.85) * 1.12;
+		col = slate * (0.84 + 0.36 * up) * (0.9 + 0.2 * b2);
+		// Long rolls low on the face, where it lies on the water; the foot paler in its own haze.
+		float roll = fbm(vec2(bp.x / 320.0, bp.y / 9.0 - rise * 0.5));
+		col *= mix(1.0, 0.9 + 0.2 * roll, 1.0 - smoothstep(0.1, 0.5, hz));
+		col = mix(col, slate * 1.28, (1.0 - hz) * (1.0 - hz) * 0.4);
+		// The crest catches the afterglow behind it, brightest toward the sun and where it is thin.
+		vec3 rim = max(mix(vec3(dot(rim_col, vec3(0.3, 0.59, 0.11))), rim_col, 1.7), vec3(0.0));
+		col += rim * thin * (0.3 + 1.2 * fwd) * glow * (0.55 + 0.6 * up);
+		// A faint lit veil over the upper face toward the sun (light coming through the fog).
+		col += rim * fwd * glow * 0.12 * smoothstep(0.3, 0.9, hz);
+		col += glow_col * (1.0 - hz) * 0.6;
+	} else if (mode == 2) {
 		// The bank: dense on the water, thinning and broken toward its domed top, which rolls
 		// into the deck behind it.
 		float n = fbm(vec2(tw.y * 0.006, t.y * 0.008 - drift * 0.5));
@@ -225,7 +275,14 @@ void fragment() {
 	// Under the new look the deck takes half the haze: the scene's fog is the low air's (the
 	// morning mist with it), and seen from the street a cloud base 255 m up keeps its texture.
 	float fogk = fog_k * ((mode == 2 || (mode == 0 && look > 0.5)) ? 0.45 : 1.0);
-	col = mix(col, fog_col, 1.0 - exp(-dist * fogk));
+	vec3 fogc = fog_col;
+	if (mode == 2 && bank_look > 0.5) {
+		// The wall stands in the clear air over the sea: a quarter of the haze, and the haze over
+		// it cooled (the scene's dusk fog colour is a warm brown that turned the wall khaki).
+		fogk = fog_k * 0.22;
+		fogc = mix(fog_col, vec3(dot(fog_col, vec3(0.3, 0.59, 0.11))) * vec3(0.9, 0.95, 1.08), 0.6);
+	}
+	col = mix(col, fogc, 1.0 - exp(-dist * fogk));
 	ALBEDO = cs_out(col);
 	ALPHA = clamp(a * amount * rim, 0.0, 1.0);
 }
