@@ -32442,6 +32442,11 @@ identical within the noise (pixels 0.00-2.6 %, luminance unchanged, triangles -1
 freeway flagged (p95 -22, 24 % pixels) only by the live traffic in it - a box truck at another
 distance in the lane ahead (no cradle anywhere in that view). Peak 9.4 GB.
 
+**Gate** (SHARDS=3, merged with main at 7f062523): 6,520 of 6,521 checks passed, peak RSS 3,980 MB a
+shard; the one failure, `pedestrian_flow_checks`' "two walkers on one line step round each other"
+(CrowdFlow's camera 48 m off the staged pair in that shard), passes alone (`SMOKE_PARTS=
+pedestrian_flow_checks`: 32 of 32) - a shard-order flake in an area this branch does not touch.
+
 **Tools.** `tools/rc5_tower_gondola/roof_probe.gd -- --at=x,z --radius=m` (headless: every far-box
 building part round a point, roof height first), `pose_probe.gd` (`TOWER=`, `SITE=`, `T0/T1/DT`,
 `Y0/Y1`: the cradle over the clock), `tools/gondolas/gondola_shot.gd TOWER=dt_park_c T=3480
