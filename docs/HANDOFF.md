@@ -32760,7 +32760,7 @@ SHARDS=3 gate with `SMOKE_PROFILE=1`, alone on the box:
 |---|---|---|---|---|---|
 | before | 12042fe2 (batch 64) | 1,391 s | 1,391 / 1,207 / 1,138 s | 3,376 / 3,932 / 4,001 MB | 6,449 (0) |
 | the new deal | 7f062523 (batch 65) | 1,258 s | 1,257 / 1,255 / 1,226 s | 3,257 / 3,821 / 3,793 MB | 6,514 (0) |
-| final (this branch + main) | see the report | | | | |
+| final, this branch 87ba156d | 8c0de652 (batch 66) | 1,291 s | 1,252 / 1,290 / 1,169 s | 3,807 / 3,943 / 3,403 MB | 6,576 (0) |
 
 The second run carries batch 65's extra files (65 more checks) and is still 133 s (9.6 %) faster:
 the shards now end within 31 s of each other. `tools/gate/compare.py` on the two: the same checks,
