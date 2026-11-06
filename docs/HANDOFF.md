@@ -32836,4 +32836,11 @@ befores, the level Santa Ana bookmark draws without the band. The wasm heap ends
 (two growth steps at `arena_night`, `macarthur`, `santa_ana`), the JS heap at 0.74-0.88 GB. Gate on
 the head: `SHARDS=3`, 6,422 checks, 0 failed, shard peaks 3.3 / 3.9 / 3.6 GB.
 
+**From `web-hero-blue`** (its HANDOFF on wt/web-hero-blue): the lime far-range wedges at the rain
+bookmark are gone on main from about batch 53 (consistent with these stills), and it reads Godot
+4.7.2's GLES3 scene shader as reserving texture units down to 11, leaving a material only 0-4 of
+WebGL2's 16 - lower than `WEB_SAMPLERS` 9. Not changed here: terrain.gdshader binds 8 and the hills
+bookmark draws its ground correctly in SwiftShader; a real-GPU browser (and a GPU with exactly 16
+units) is what would settle it.
+
 Stills on `shots/web-review-5`.
