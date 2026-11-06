@@ -2968,6 +2968,8 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	# The storm_downtown refcam (tests/rc5_storm_downtown_checks.gd, RcStorm): the night flash, the
 	# storm curtain at night, the lamp streaks in a storm, the litter, the camera row.
 	load("res://tests/rc5_storm_downtown_checks.gd").new().run(self, city)
+	# The club_line refcam (tests/rc5_club_line_checks.gd, RcClubLine): the beams from the lens, the club's board.
+	load("res://tests/rc5_club_line_checks.gd").new().run(self, city)
 	# Forward+ review h (tests/fwd_review_h_checks.gd, FwdReviewH): waves 6-7's look work on the Mac's renderer.
 	load("res://tests/fwd_review_h_checks.gd").new().run(self, city)
 	# Forward+ review i (tests/fwd_review_i_checks.gd, FwdReviewI): waves 7-8's look work on the Mac's renderer.
@@ -3061,6 +3063,17 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	load("res://tests/rc5_coyote_night_checks.gd").new().run(self, city)
 	# The car_park_roof refcam (tests/rc5_car_park_roof_checks.gd, RcCarParkRoof): the paint mix, the core, parapets, poles, deck, the camera row.
 	load("res://tests/rc5_car_park_roof_checks.gd").new().run(self, city)
+	# The yard_sale refcam (tests/rc5_yard_sale_checks.gd, Rc5YardSale): crammed tables, the canopy, the blanket, the row.
+	load("res://tests/rc5_yard_sale_checks.gd").new().run(self, city)
+	# The reservoir_dam refcam (tests/rc5_reservoir_dam_checks.gd, Rc5Reservoir): the water's mirror,
+	# the chain-link weave, the overlook, the trail, the camera row.
+	load("res://tests/rc5_reservoir_dam_checks.gd").new().run(self, city)
+	# The film_shoot_night refcam (tests/rc5_film_shoot_night_checks.gd, FilmShootNight): the HMIs'
+	# lights, glow and pools, the balloon, the barricades, the set's pavement, the camera row.
+	load("res://tests/rc5_film_shoot_night_checks.gd").new().run(self, city)
+	# The marina_night refcam (tests/rc5_marina_night_checks.gd, MarinaNight): the lights the water
+	# mirrors, the restaurants' fronts and names, the jib covers, the camera row.
+	load("res://tests/rc5_marina_night_checks.gd").new().run(self, city)
 	# The buskers_plaza refcam (tests/rc5_buskers_plaza_checks.gd, Rc5Buskers): three pitches a plaza,
 	# the gear on the paving, the fountain, the ring's outer row, the open ground, the crowd cap.
 	load("res://tests/rc5_buskers_plaza_checks.gd").new().run(self, city)

@@ -51,6 +51,16 @@ uniform float look3 = 0.0;
 uniform float street_gain = 0.3;
 uniform float street_knee = 1.4;
 
+// The club line pass (RcClubLine; 0 = the old look): the shaft starts at the lens (the 2 % ramp
+// below was meant for the volumetric hand-over and hid the first 34 m with no fog to hand it to)
+// and carries a dense core over its first `core_len` metres, seen from the street.
+uniform float club_look = 0.0;
+uniform float beam_len = 1700.0;
+uniform float core_gain = 0.09;
+uniform float core_len = 45.0;
+uniform float club_fade = 140.0;
+uniform float club_street = 0.7;
+
 varying flat vec3 lens_world;
 
 void vertex() {
@@ -61,7 +71,11 @@ void vertex() {
 void fragment() {
 	float along = UV.y;
 	float fade = pow(1.0 - smoothstep(0.0, length_fade, along), 2.2) * (0.35 + 0.65 * exp(-along * 6.0));
-	fade *= smoothstep(near_start * 0.6, near_start + 0.02, along) * smoothstep(0.0, 0.004, along);
+	if (club_look > 0.5 && near_start <= 0.0) {
+		fade *= smoothstep(0.0, 0.6 / beam_len, along);
+	} else {
+		fade *= smoothstep(near_start * 0.6, near_start + 0.02, along) * smoothstep(0.0, 0.004, along);
+	}
 	float face = pow(abs(dot(normalize(NORMAL), normalize(VIEW))), 2.2);
 	if (night_flight > 0.5) {
 		// Only for a camera in the air over the lamp: from the street, looking up the shaft from
@@ -82,6 +96,17 @@ void fragment() {
 		float above_s = smoothstep(40.0, 110.0, CAMERA_POSITION_WORLD.y - lens_world.y);
 		float soft = (1.0 - exp(-a * street_knee)) * street_gain * (0.35 + 0.65 * exp(-along * 7.0));
 		a = mix(soft, a, above_s);
+	}
+	if (club_look > 0.5) {
+		// The core: dense lit air in the first tens of metres, soft at the silhouette.
+		float street_c = 1.0 - smoothstep(40.0, 110.0, CAMERA_POSITION_WORLD.y - lens_world.y);
+		float m = along * beam_len;
+		// Thinning up the sky: the shaft fades into the dark rather than standing as a white pillar.
+		a *= mix(1.0, club_street * (0.18 + 0.82 * exp(-m / club_fade)), street_c);
+		float soft_face = pow(abs(dot(normalize(NORMAL), normalize(VIEW))), 1.6);
+		float core = core_gain * exp(-m / core_len) * soft_face * smoothstep(0.0, 0.6, m)
+			* step(near_start, 0.0) * clamp(lamp_factor * 1.4 - 0.2, 0.0, 1.0);
+		a += core * street_c;
 	}
 	ALPHA = clamp(a, 0.0, 1.0);
 #if CURRENT_RENDERER != RENDERER_COMPATIBILITY
