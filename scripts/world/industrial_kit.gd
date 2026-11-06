@@ -77,6 +77,7 @@ static func walls_material() -> ShaderMaterial:
 	mat.set_shader_parameter("corrugated_tex", PropFactory.texture("metal_corrugated", "Color"))
 	mat.set_shader_parameter("planks_tex", PropFactory.texture("planks", "Color"))
 	RcVernon.apply(mat)
+	RcArtsDistrict.apply(mat)
 	_material = mat
 	return mat
 

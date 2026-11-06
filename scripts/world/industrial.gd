@@ -756,6 +756,8 @@ static func _warehouse(ch: CityChunk, lp: Dictionary) -> void:
 				_fb(cx, u, front_v - 0.04, GRADE_DOOR.y + 0.12, Vector3(GRADE_DOOR.x + 0.4, 0.24, 0.12), IndustrialKit.K_STEEL, door_paint.darkened(0.4))
 				for sx: float in [-1.0, 1.0]:
 					IndustrialKit.cyl(_walls(ch), Transform3D(Basis(), _at(cx, u + sx * (GRADE_DOOR.x * 0.5 + 0.35), v0 - 0.45, 0.0)), 0.11, 1.1, IndustrialKit.K_STEEL, Color(0.9, 0.75, 0.1), 8, true)
+				if brick:
+					RcArtsDistrict.door_frame(cx, u, front_v, GRADE_DOOR)
 	# Wall packs high on the front every other panel, and over the back (rail) wall.
 	var pw: float = _panel_w(brick, w)
 	var np := maxi(1, roundi(w / pw))
@@ -796,7 +798,7 @@ static func _warehouse(ch: CityChunk, lp: Dictionary) -> void:
 	# Murals on the street-facing walls (0 the u0 end, 1 the u1 end, 2 the front).
 	for m: int in lp.murals:
 		var mh := minf(h - 0.9, 11.0)
-		var col := Color(float(absi(hash([s, "mural", m])) % 251) / 255.0, float(absi(hash([s, "mural_b", m])) % 251) / 255.0, 0.5)
+		var col := Color(float(absi(hash([s, "mural", m])) % 251) / 255.0, float(absi(hash([s, "mural_b", m])) % 251) / 255.0, RcArtsDistrict.mural_flag(brick))
 		if m == 2:
 			var ml := minf(w - 4.0, 30.0)
 			# Clear of the office and the doors: a run of the front wall's upper half.

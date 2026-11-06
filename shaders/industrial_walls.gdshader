@@ -29,6 +29,10 @@ global uniform vec4 sky_tint;
 // RcVernon (scripts/world/rc3_vernon.gd): 1 the vernon_industrial refcam's pass (worn steel, a real
 // storefront glass, weathered tilt-up), 0 the look before it (RC3_VERNON=0, the A/B).
 uniform float rc3 = 1.0;
+// RcArtsDistrict (scripts/world/rc5_arts_district.gd): 1 the arts_district refcam's pass (brick in
+// relief, steel factory sash in a real reveal, murals painted over the brick), 0 the look before it
+// (RC5_ARTS=0, the A/B).
+uniform float rc5_arts = 0.0;
 
 varying float kind;
 varying vec3 world_n;
@@ -184,6 +188,9 @@ void fragment() {
 	vec3 nrm_world = world_n;
 	float foot = top ? 0.0 : 1.0 - smoothstep(0.0, 0.5, uv.y);
 	float seedv = hash12(floor(world_p.xz / 37.0));
+	// Screen footprint of the face's metres, taken outside every branch (a derivative inside a
+	// branch reads 0 on some drivers).
+	vec2 duv = fwidth(UV);
 	if (kind < 0.5) {
 		// Tilt-up concrete: cast panels, their 2 cm joints, a reveal band at 1.25 m (the wainscot,
 		// in an accent below it) and one under the parapet, form marks, dirt run down from the top.
@@ -256,6 +263,103 @@ void fragment() {
 		albedo = base * (0.88 + 0.16 * grime) * (1.0 - 0.18 * pond) * (1.0 - 0.08 * seam);
 		rough = mix(0.8, 0.55, pond);
 		wet_k = 1.0;
+	} else if (kind < 2.5 && rc5_arts > 0.5 && !top) {
+		// Brick (rc5_arts): the courses in relief from their own normal map, soot and efflorescence,
+		// and the steel factory sash set in a real reveal - the glass ~22 cm behind the face, seen
+		// along the view ray, so a jamb and the head shade it and the sill shows as a ledge.
+		vec3 b = disp(texture(brick_tex, uv / 2.6).rgb);
+		vec3 t_w = normalize(cross(vec3(0.0, 1.0, 0.0), world_n));
+		vec3 bn = texture(brick_nrm, uv / 2.6).xyz * 2.0 - 1.0;
+		albedo = paint * b * 1.18;
+		float soot = fbm(uv * vec2(0.4, 0.15) + seedv * 9.0) * (0.4 + 0.6 * v);
+		albedo *= 1.0 - 0.3 * soot;
+		albedo *= 1.0 - 0.25 * foot;
+		// Lime bloom washed out of the mortar under the sills and low on the wall.
+		float bloom = smoothstep(0.62, 0.9, fbm(uv * vec2(0.9, 0.35) + seedv * 21.0)) * (0.35 + 0.65 * (1.0 - v));
+		albedo = mix(albedo, vec3(0.62, 0.6, 0.56), bloom * 0.22);
+		float bay = max(param, 2.0);
+		float bx = fract(uv.x / bay) * bay - bay * 0.5;
+		float fl = floor((uv.y - 1.3) / 4.6);
+		float fy = uv.y - 1.3 - fl * 4.6;
+		float ww = bay * 0.56;
+		float wh = 3.0;
+		bool in_win = abs(bx) < ww * 0.5 && fy > 0.0 && fy < wh && uv.y > 1.3 && uv.y < h - 1.7;
+		vec3 n_relief = normalize(world_n + (t_w * bn.x + vec3(0.0, 1.0, 0.0) * bn.y) * 0.9);
+		nrm_world = n_relief;
+		if (in_win) {
+			// The ray into the opening: where it meets the glass plane `depth` behind the face.
+			vec3 vdir = normalize(world_p - CAMERA_POSITION_WORLD);
+			float into = max(dot(vdir, -world_n), 0.08);
+			float depth = 0.22;
+			vec2 shift = vec2(dot(vdir, t_w), vdir.y) * depth / into;
+			float gx = bx + shift.x;
+			float gy = fy + shift.y;
+			bool glass_hit = abs(gx) < ww * 0.5 && gy > 0.0 && gy < wh;
+			if (!glass_hit) {
+				// A reveal: the brick return, shaded; the sill (the ray left by the bottom) pale
+				// concrete in the light.
+				bool sill = gy <= 0.0;
+				albedo = sill ? vec3(0.56, 0.54, 0.5) * (0.85 + 0.2 * vnoise(uv * 9.0)) : paint * b * 0.62;
+				nrm_world = sill ? vec3(0.0, 1.0, 0.0) : (gy >= wh ? vec3(0.0, -1.0, 0.0) : normalize(-t_w * sign(gx)));
+				rough = 0.9;
+			} else {
+				vec2 wq = vec2((gx + ww * 0.5) / ww, gy / wh);
+				vec2 pane = vec2(wq.x * 4.0, wq.y * 5.0);
+				vec2 pf = fract(pane);
+				vec2 pfw = max(duv * vec2(4.0 / ww, 5.0 / wh), vec2(0.001));
+				float bar_x = 1.0 - smoothstep(0.05, 0.05 + pfw.x, min(pf.x, 1.0 - pf.x));
+				float bar_y = 1.0 - smoothstep(0.05, 0.05 + pfw.y, min(pf.y, 1.0 - pf.y));
+				// The heavier perimeter frame of the steel unit.
+				float edge = min(min(wq.x, 1.0 - wq.x) * ww, min(wq.y, 1.0 - wq.y) * wh);
+				float frame = 1.0 - smoothstep(0.045, 0.045 + max(duv.x, duv.y), edge);
+				float bar = max(max(bar_x, bar_y), frame);
+				vec2 pc = floor(pane) + vec2(floor(uv.x / bay), fl) * 7.0 + seedv * 50.0;
+				float pid = hash12(pc);
+				// Old drawn glass: every pane at its own small tilt, mirroring the street and sky.
+				vec3 r = reflect(vdir, normalize(world_n + vec3((pid - 0.5) * 0.05, (hash12(pc + 3.1) - 0.5) * 0.06, 0.0)));
+				float az = atan(r.x, r.z);
+				vec3 sky_lin = cs_srgb_to_linear(sky_tint.rgb);
+				vec3 refl = mix(sky_lin, sky_lin * vec3(0.55, 0.7, 1.15), smoothstep(0.0, 0.6, r.y));
+				float roofs = 0.03 + 0.08 * vnoise(vec2(az * 9.0, 2.0)) + 0.06 * step(0.7, vnoise(vec2(az * 23.0, 7.0)));
+				refl = mix(refl, vec3(0.13, 0.11, 0.1) * (0.8 + 0.4 * vnoise(vec2(az * 40.0, r.y * 30.0))), step(r.y, roofs));
+				refl = mix(refl, vec3(0.2, 0.19, 0.17), step(r.y, -0.02));
+				float fres = pow(1.0 - clamp(into, 0.0, 1.0), 3.0);
+				// The loft behind: dark, warmer near the floor of each storey.
+				vec3 glass = vec3(0.045, 0.045, 0.042) * (0.8 + 0.5 * wq.y) + vec3(0.03, 0.022, 0.015) * (1.0 - wq.y);
+				float mk = (0.2 + 0.65 * fres) * (0.75 + 0.5 * hash12(pc + 9.0));
+				if (pid < 0.07) {
+					// A pane painted out long ago: the sash's grey-green, flat and chalky.
+					glass = vec3(0.34, 0.37, 0.33) * (0.85 + 0.3 * vnoise(uv * 11.0));
+					mk = 0.0;
+				} else if (pid < 0.1) {
+					// Broken or hinged open: the dark of the room.
+					glass = vec3(0.012);
+					mk = 0.0;
+				} else if (pid < 0.16) {
+					// Wired glass gone milky.
+					glass = vec3(0.28, 0.29, 0.28);
+					mk *= 0.4;
+				}
+				// The head and one jamb throw their shadow on the glass.
+				float shade = 1.0 - 0.55 * smoothstep(wh - 0.35, wh - 0.05, gy);
+				glass *= shade;
+				vec3 sash = vec3(0.11, 0.115, 0.11) * (0.85 + 0.3 * vnoise(uv * 13.0));
+				albedo = mix(glass, sash, bar);
+				emit += fh_display(refl * mk * shade * (1.0 - night_factor * 0.85)) * (1.0 - bar);
+				float lit = step(0.66, hash12(vec2(floor(uv.x / bay), fl) + seedv * 13.0)) * lamp_factor;
+				emit += vec3(1.0, 0.72, 0.42) * 0.55 * lit * (1.0 - bar) * step(0.16, pid);
+				rough = mix(0.12, 0.6, bar);
+				metal = 0.3 * bar;
+				spec = 0.6;
+				nrm_world = world_n;
+			}
+		}
+		// A steel lintel over each opening, then a soldier course; a concrete sill under it.
+		float lintel = step(abs(bx), ww * 0.5 + 0.12) * step(wh, fy) * step(fy, wh + 0.3) * step(1.3, uv.y) * step(uv.y, h - 1.4);
+		float sill_band = step(abs(bx), ww * 0.5 + 0.1) * step(-0.12, fy) * step(fy, 0.0) * step(1.2, uv.y) * step(uv.y, h - 1.7);
+		albedo *= 1.0 - 0.25 * lintel;
+		albedo = mix(albedo, vec3(0.52, 0.5, 0.46), sill_band);
+		wet_k = 0.6;
 	} else if (kind < 2.5) {
 		// Brick: the photographed courses, sooted up the wall, and steel multi-pane windows in
 		// every bay at each 4.6 m floor (factory sash: 4 x 5 panes, a few painted out or broken).
@@ -441,6 +545,21 @@ void fragment() {
 		albedo = mix(m * brush, vec3(0.7, 0.69, 0.66) * (0.7 + 0.5 * dot(c, vec3(0.333))), clamp(chip, 0.0, 1.0));
 		albedo *= 1.0 - 0.15 * streaks(uv, h, 3.0);
 		rough = 0.82;
+		if (rc5_arts > 0.5 && COLOR.b > 0.75) {
+			// Painted over brick (rc5_arts): the courses show through the paint, mortar a shade
+			// darker, the brick under every chip; the ink a deep blue-black, not a vector line.
+			vec3 b = disp(texture(brick_tex, uv / 2.6).rgb);
+			float bl = dot(b, vec3(0.333)) / 0.3;
+			vec3 under = vec3(0.62, 0.34, 0.25) * b / max(dot(b, vec3(0.333)), 0.05) * 0.33;
+			vec3 paintm = mix(m, vec3(0.08, 0.08, 0.11), ink * 0.85) * brush * mix(1.0, clamp(bl, 0.55, 1.2), 0.45);
+			float chip2 = smoothstep(0.72, 0.8, fbm(uv * 1.3 + 4.0)) * 0.85 + smoothstep(0.9, 0.0, uv.y) * 0.3 * vnoise(uv * 6.0);
+			albedo = mix(paintm, under * (0.9 + 0.2 * vnoise(uv * 4.0)), clamp(chip2, 0.0, 1.0));
+			albedo *= 1.0 - 0.12 * streaks(uv, h, 3.0);
+			vec3 t_w = normalize(cross(vec3(0.0, 1.0, 0.0), world_n));
+			vec3 bn = texture(brick_nrm, uv / 2.6).xyz * 2.0 - 1.0;
+			nrm_world = normalize(world_n + (t_w * bn.x + vec3(0.0, 1.0, 0.0) * bn.y) * 0.7);
+			rough = 0.86;
+		}
 	} else if (kind < 11.5) {
 		// A lamp: a dark housing by day, its lens lit after dark (the pool on the ground is the
 		// light_pool batch).

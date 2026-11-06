@@ -161,6 +161,7 @@ func _run() -> void:
 				if _stage_club_pickups(cam, scene, plan):
 					traffic_staged = true
 				_stage_storm_flash(cam, weather)
+				_stage_riders(cam, scene)
 				# A "park_car" row (cameras_w6.json, car_closeup): a parked car and the eye round it.
 				if cam.has("park_car"):
 					park = load("res://tools/refcams/park_stage.gd").new()
@@ -1039,3 +1040,23 @@ func _stage_club_pickups(cam: Dictionary, scene: Node, plan: Variant) -> bool:
 		_fw_staged.append(car)
 	print("REFCAM %s: %d club pickups on road %d" % [cam.name, placed, best])
 	return true
+
+
+## A camera row's optional "riders" (cameras_w8.json, arts_district): cyclists put on a bike lane
+## through Cyclists.place_rider() as the camera starts - [[axis, index, dir, s, kind, speed, seed],
+## ...] as MICRO_RIDERS' fields (axis 1 a road of constant z, s the TRUE world coordinate along it,
+## kind a MicroMesh.Kind) - and held where they were put (pedalling on the spot) for the shot.
+func _stage_riders(cam: Dictionary, scene: Node) -> void:
+	var spec: Variant = cam.get("riders")
+	var cyc := scene.get_node_or_null("Cyclists")
+	if not spec is Array or cyc == null:
+		return
+	var placed := 0
+	for r: Array in spec:
+		if r.size() < 6:
+			continue
+		var rider: Variant = cyc.call("place_rider", int(r[0]), int(r[1]), int(r[2]), float(r[3]), int(r[4]), float(r[5]), int(r[6]) if r.size() > 6 else 0)
+		if rider != null:
+			placed += 1
+	cyc.set("_hold", true)
+	print("REFCAM %s: placed %d riders" % [cam.name, placed])
