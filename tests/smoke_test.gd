@@ -3074,6 +3074,8 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	# The marina_night refcam (tests/rc5_marina_night_checks.gd, MarinaNight): the lights the water
 	# mirrors, the restaurants' fronts and names, the jib covers, the camera row.
 	load("res://tests/rc5_marina_night_checks.gd").new().run(self, city)
+	# The freight_trench refcam (tests/rc5_freight_trench_checks.gd, RcFreightTrench): the walls' look, the ballast, the conduit, the row.
+	load("res://tests/rc5_freight_trench_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()

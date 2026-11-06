@@ -298,3 +298,8 @@ builds every yard sale for a Saturday at the row's hour (YARD_SALE_DAY / YARD_SA
 
 `marina_night` (rc5-marina-night): the marina at 21:00 clear from the north end of the east
 headwalk, west down the lane along the north quay (no staging keys). `MARINA_NIGHT=0` is its A/B.
+`freight_trench` (rc5-freight-trench): the Alameda trench at 12:00 clear from the south edge of the
+Spring Blvd bridge looking south, a northbound stack train coming on under the bridges. Its optional
+`freight_s` key ("<s>[:<dir>[:<seconds before>]]", FREIGHT_S) holds the freight line's clock with a
+train's leading end at s (dir 0 north), `freight_kind` (0 stack, 1 manifest, 2 autorack) picks the
+consist (FREIGHT_KIND). `tools/freight/probe.gd` prints the junctions' s.

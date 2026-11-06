@@ -947,7 +947,7 @@ func _freight_clock(cam: Dictionary, scene: Node) -> void:
 	var sys := scene.get_node_or_null("FreightRail") if scene else null
 	if sys == null:
 		return
-	if not cam.has("freight_into"):
+	if not cam.has("freight_into") and not cam.has("freight_s"):
 		sys.set("hold", OS.get_environment("FREIGHT_HOLD") == "1")
 		return
 	var line: Variant = sys.get("line")
@@ -956,7 +956,18 @@ func _freight_clock(cam: Dictionary, scene: Node) -> void:
 		line = sys.get("line")
 	if line == null:
 		return
-	load("res://scripts/world/freight_rail.gd").set("clock", float(line.call("clock_at_yard", float(cam.freight_into))))
+	var clock := 0.0
+	if cam.has("freight_s"):
+		# Wave 8's freight_trench: "<s>[:<dir 0 north|1 south>[:<seconds before>]]" as FREIGHT_S, and
+		# an optional "freight_kind" (0 stack, 1 manifest, 2 autorack) as FREIGHT_KIND.
+		if cam.has("freight_kind"):
+			OS.set_environment("FREIGHT_KIND", str(int(cam.freight_kind)))
+		var fs := String(cam.freight_s).split(":", false)
+		clock = float(line.call("clock_at_s", fs[0].to_float(), fs[1].to_int() if fs.size() > 1 else 0, fs[2].to_float() if fs.size() > 2 else 0.0))
+	else:
+		clock = float(line.call("clock_at_yard", float(cam.freight_into)))
+	load("res://scripts/world/freight_rail.gd").set("clock", clock)
+	print("REFCAM %s: freight clock %.1f" % [cam.name, clock])
 	sys.set("hold", true)
 	sys.call("step")
 
