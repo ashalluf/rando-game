@@ -31981,3 +31981,55 @@ ways (the spray is one draw, the rings are instances of it); luminance p5/p50/p9
 rings that lie on the sea and age out, the staged pod in turn). Kit stills in seconds:
 `tools/sea_life/kit_shot.tscn` (VIEW=dolphin, AGE=; it now shows a ring by the rolling dolphin).
 Not verified on Forward+ (the spray is unshaded and works in linear through color_space).
+
+## 9d?. The Alameda trench at noon, 2026-11-06 (fleet session `rc5-freight-trench`, branch `wt/rc5-freight-trench`)
+
+**The view.** A new reference camera, `freight_trench` (`tools/refcams/cameras_w8.json`): the
+Alameda trench at 12:00 clear from the south edge of the Spring Blvd bridge (3.4 m over the deck,
+above the fence), looking south down the trench past the Glen St bridge, a northbound stack train's
+four units 30 m off under the lens. The row's `freight_s` ("1405:0:0", FreightRail.clock_at_s:
+the leading end at s 1405 northbound) and `freight_kind` (0, a stack train) are handled in
+refcams_shot.gd's `_freight_clock()` beside wave 7's `freight_into`. Eye, fov 46, pitch -19.
+
+**What gave it away, worst first, and what was done** (`RcFreightTrench`,
+`scripts/world/rc5_freight_trench.gd`; `RC5_FREIGHT_TRENCH=0` is the whole A/B):
+1. *The walls were two clean pale planes* with a few vertical streaks, half the frame. The trench
+   now wears its own copy of FreewayKit's structure material with `trench_look` on
+   (freeway_structure.gdshader; only kind 3 faces with UV2.y > 3 m, i.e. the walls, not the decks'
+   girders): 24 ft cast panels with recessed joints and lift lines (each joint's average kept past a
+   pixel), form-tie holes on a 0.61 m grid, ballast and brake dust at the foot, a weep hole a panel
+   with its lime run, diesel soot under the coping washed down the panels in streaks, graffiti
+   pieces low on the walls (the street-wear tag atlas), the concrete weathered to 0.74 of its tone.
+   The freeway's own material is untouched (checked).
+2. *The ballast was a pale flat beige field* past ~10 m: the crushed-rock pass faded the stones to a
+   mean with no crevices in it. freight_track.gdshader's `rc5` (the mainline's beds only: UV2.y 1,
+   the trench and the median; the yard's stay as wave 7 left them) keeps the crevices' shadow in the
+   mean, mottles the bed at 0.3-2 m and fouls it brown; the crib is raised to 0.205 m under the rail
+   top (`RcFreightTrench.BALLAST_DROP`; 0.25 had the ties lying ON a flat bed, 8 cm proud).
+3. *The locomotive roofs* (what a bridge sees of a train) were flat planes, the red nose top
+   sun-faded to salmon pink under AgX. freight_stock.gdshader's `rc5` (locomotives only: lamps >=
+   0): the sun fade held to a third on the red, the tops grimed dark (grime_color itself is LIGHTER
+   than the 0.21 roof grey - it lightened the roofs), diesel soot round the stacks blown back along
+   the hood, and the radiator fans drawn as guards of rings and spokes over blades.
+4. *The wall lights floated* as black boxes on bare concrete: a conduit (dark painted, strapped every
+   2 m) runs along each wall 0.32 m over them, into a pull box over each fitting, wherever the
+   trench is over 6.4 m deep (`RcFreightTrench.conduit()`, one hook in `FreightKit._trench()`).
+5. *Shading* (tried, not the cause): the walls are one-sided and buried, so from the sun's side
+   they cast nothing; FreightStructure now casts DOUBLE-SIDED (`cast_both()`). A bright soft cross
+   of sun on the left wall near the lens (the shape of a utility pole and its crossarm) survived it:
+   whatever leaves that hole in the shading is not the trench's mesh. Not found; it is on main too.
+
+**Looked at and left alone.** The locomotive itself is a 5.3k-triangle box model (blocky from 30 m)
+- a model rebuild is a bigger job than a refcam pass. A thin tan horizontal scratch half-way up the
+right wall is on main too. The sunlit tops (ballast, roofs) read light because auto exposure opens up
+for the shaded trench, as a camera would.
+
+**Numbers** (opengl3, refcams, the same camera, before = `RC5_FREIGHT_TRENCH=0`): 2,906,047 ->
+2,930,539 triangles (+0.8 %: the conduit, on the existing mesh), 1,614 -> 1,606 draws; luminance
+p5/p50/p95 40/109/181 -> 35/83/178, saturation 0.227 -> 0.298. The locomotive roofs changed least:
+their albedo was already dark grey (0.21), and they read pale because auto exposure opens up for the
+shaded trench; the grime and soot show as darker patches, the fan guards are a few pixels. Stills on
+`shots/rc5-freight-trench`. Checks: `tests/rc5_freight_trench_checks.gd` (the materials and
+their defaults, the shader gates, a deep stretch lays the conduit and a shallow one none, the crib
+between the ties' top and bottom, the row's train where it says, the switch). Not verified on
+Forward+ (the wall and ballast blocks work in the shaders' existing linear paths).
