@@ -10,6 +10,8 @@ extends Node3D
 ## All of it is this node's children, under the chunk the hydrant stood in, so it rides every
 ## origin shift and goes when the chunk does. `max_live` at once: a new one ends the oldest.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 ## Seconds at full pressure, then the fall to nothing.
 @export var full_seconds: float = 45.0
 @export var fade_seconds: float = 8.0

@@ -24,6 +24,8 @@ extends Node
 ## Pedestrian hooks (one line each): `watch` (this person's part in a scene), walk() from
 ## _walk, pose() from _physics_process, release() from _end_act.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 static var enabled: bool = OS.get_environment("ONLOOKERS") != "0"
 static var debug: bool = OS.get_environment("ONLOOKERS_DEBUG") == "1"
 

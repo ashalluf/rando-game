@@ -21,6 +21,9 @@ extends RefCounted
 ## Everything is built in the HEAD FRAME: metres, the skeleton's axes (y up, z the way the rig
 ## faces), origin at the Head bone's rest position. dress() hangs it on a BoneAttachment3D with
 ## the transform that takes that frame into the bone's.
+
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 enum Kind {CAP, BEANIE, BUCKET, PEAKED}
 
 ## The shader's part ids (COLOR.r = (id + 0.5) / 16).

@@ -24,6 +24,8 @@ extends Node3D
 ## Stills: SWIM_STAGE=tread|crawl|boost|dive|leap|under on tools/glshot/still_shot.gd fakes the
 ## input (see _stage_input()).
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 @export_group("Speeds")
 ## Front crawl at the surface (m/s).
 @export var swim_speed: float = 4.2

@@ -8,6 +8,8 @@ extends BikeRider
 ## drawn bike. Knocked, it leaves the bike first (the ragdoll goes into the world, not the bike).
 ## Always in a full-face helmet (MotoHelmet), hair under it.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 var bike: Motorcycle
 ## What the bike tells the pose this frame (Motorcycle.ride_state()).
 var ride_state: Dictionary = {}

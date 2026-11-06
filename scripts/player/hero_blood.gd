@@ -7,6 +7,8 @@ extends RefCounted
 ## DRY_SECONDS, and is gone after CLEAN_SECONDS or washed off by rain, and when he respawns.
 ## One per hero, made by HeroLook.dress(). BLOOD_GORE_2=0: never made.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 ## Metres from his chest a wound spatters him (a rifle round; a heavier wound reaches further).
 const REACH := 2.8
 ## Most spatters he carries; a new one past this replaces the oldest.

@@ -6,6 +6,8 @@ extends StreetVendor
 ## on the deck rather than walked: the deck is no block's pavement ring. Gunfire makes them crouch
 ## where they stand (StreetVendor's truck cook), never run off the viaduct.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 ## The deck's top under them (true world y; their parent is in true world space).
 var deck_y: float = 0.0
 

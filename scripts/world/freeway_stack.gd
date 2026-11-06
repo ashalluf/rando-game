@@ -22,6 +22,8 @@ extends RefCounted
 ## about RADIUS (a cubic Bezier through the tangent points) and comes back to its target the same
 ## way. Points every LINK_STEP; `pt` is the parent / target run distance in the leads.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 const LINK_BASE := 100
 const RADIUS := 165.0
 const LINK_WIDTH := 11.8

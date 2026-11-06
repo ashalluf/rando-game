@@ -14,6 +14,8 @@ class_name ShopCrowd
 ## Hash-seeded walkers (never the block rng); the crowd cap and the camps' reserve are spent as
 ## any walker spends them. Needs BusyStreets (its entries). SHOP_CROWD=0 is the A/B.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 static var enabled: bool = OS.get_environment("SHOP_CROWD") != "0"
 ## The smoke test's crowd checks stage walkers near home and time them; extra walkers round them
 ## made those checks flaky, so under the smoke test nothing is spawned unless a check sets this.

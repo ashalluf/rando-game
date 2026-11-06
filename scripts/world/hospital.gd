@@ -24,6 +24,8 @@ extends RefCounted
 ##
 ## Names are this game's own (BASIN GENERAL, MERIDIAN COMMUNITY, ...), never a real hospital's.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 const CELL := 1500.0
 const ODDS := 0.85
 const CANDIDATES := 24

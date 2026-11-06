@@ -23,6 +23,8 @@ class_name MidCity
 ##
 ## MID_CITY=0 in the environment is the A/B: none of it (the shaders' `mid_city` false).
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 static var enabled: bool = OS.get_environment("MID_CITY") != "0"
 
 ## INSTANCE_CUSTOM.a flags building_lod.gdshader reads. A house wing's box (0.25 behaves as the

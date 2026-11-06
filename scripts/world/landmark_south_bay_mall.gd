@@ -20,6 +20,8 @@ extends RefCounted
 ## the bay count linearly, PALM_FRONDS moves the palm cost. Nothing here uses a SphereMesh, which
 ## is how a builder like this quietly costs ten times what its author thinks it does.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 # --- Site ------------------------------------------------------------------------------------
 
 ## Half the site width, i.e. the ring road's east and west legs, in metres.

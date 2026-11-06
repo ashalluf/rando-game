@@ -15,6 +15,8 @@ class_name RcVernon
 ## RC3_VERNON=0 in the environment is the A/B (the `rc3` uniform 0 on both industrial materials, the
 ## old trailer odds, no track axis).
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 static var enabled: bool = OS.get_environment("RC3_VERNON") != "0"
 
 ## Of the docks the old roll left empty, this share more get a trailer (a second hash, so every

@@ -12,6 +12,8 @@ extends RefCounted
 ## Everything of a chunk is one mesh on FootbridgeKit's material ("HillHomes") and one body, committed
 ## by commit() from LaHillsBuild.kerb_walls()' step. Hashes only (seed + lot), never a roll.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 const STILT_DROP := 2.8
 const SKIRT := 0.7
 const POST := 0.26

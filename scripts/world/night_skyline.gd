@@ -10,6 +10,8 @@ extends RefCounted
 ## `NIGHT_SKYLINE=0` in the environment turns it off (the A/B): the `night_skyline` global goes to
 ## 0 and the meshes are built as before.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 static var enabled: bool = OS.get_environment("NIGHT_SKYLINE") != "0"
 
 ## window_lights.gdshaderinc's CLEANERS_FLOOR: a floor whose roll (salt 60) is at or over this is

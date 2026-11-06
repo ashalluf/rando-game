@@ -19,6 +19,8 @@ extends Node3D
 ## shaders/wingsuit_vapour.gdshader, thicker with speed and with the boost, dimmed at night.
 ## A skid sprays grit and drags a dust trail (world-space puffs on WeaponFX's smoke material).
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 ## Grid of each membrane (along the edge it hangs from, and across it).
 const GRID_U := 9
 const GRID_V := 6

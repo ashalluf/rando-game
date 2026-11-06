@@ -2,6 +2,8 @@ class_name RocketLauncher
 extends Weapon
 ## Shoulder-fired rocket launcher. Big radial shove, and it launches you too if you are close.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 @export_group("Rocket Launcher")
 @export var rocket_speed: float = 70.0
 ## Blast radius (meters).

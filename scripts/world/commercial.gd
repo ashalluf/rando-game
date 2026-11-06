@@ -18,6 +18,8 @@ extends RefCounted
 ## instance, so on a rolling block a sign, a pilaster or a pane placed at its own XZ drifts off
 ## the flat wall it belongs to - centimetres on a shopfront, over a metre across a big box.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 const ANCHORS := ["SUPER MART", "FRESH FOODS", "VALUE GROCER", "MEGA MART", "GREEN GROCER"]
 const SHOPS := ["PHARMACY", "NAILS & SPA", "DRY CLEAN", "PHONE FIX", "LIQUOR", "PIZZA", "SUSHI", "TACOS", "COFFEE STOP", "BANK", "DONUT HOLE", "SUB STOP", "PET SHOP", "BARBER", "LAUNDRY", "BOBA", "DENTAL", "TAX PRO", "SMOKE SHOP", "FLOWERS"]
 const BIG := ["HOME & TOOL", "MEGA MART", "ELECTRO WORLD", "FURNITURE DEPOT", "SPORTS BARN", "OFFICE STACK"]

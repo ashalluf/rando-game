@@ -27,6 +27,8 @@ extends RefCounted
 ## `BONFIRES=0` in the environment turns all of it off (the A/B); force_hour / force_lit pin it
 ## for tests and stills.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 static var enabled: bool = OS.get_environment("BONFIRES") != "0"
 ## The hour to plan for (< 0 reads DayNight, like BeachLife.hour_now()).
 static var force_hour: float = -1.0

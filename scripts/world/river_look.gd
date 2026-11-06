@@ -5,6 +5,8 @@ class_name RiverLook
 ## joints and stains at a grazing angle, the shaded bank takes the sunlit one's bounce; 0 is the old
 ## look exactly (`RIVER_LOOK=0` in the environment, the A/B). Also gates RiverDebris (litter, weeds).
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 static var _applied := false
 
 

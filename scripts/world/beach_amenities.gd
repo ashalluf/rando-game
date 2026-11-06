@@ -35,6 +35,8 @@ extends RefCounted
 ## LOD chunks and the far city: the two buildings as plain lod_boxes. `BEACH_AMENITIES=0` in the
 ## environment turns all of it off (the A/B; BeachLife's people are then exactly as before).
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 static var enabled: bool = OS.get_environment("BEACH_AMENITIES") != "0"
 
 ## Metres of shore a station cell covers (13 of BeachLife's cells), a shower cell, a drum cell.

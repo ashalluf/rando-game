@@ -21,6 +21,8 @@ extends RefCounted
 ##
 ## POWER_PLANT=0 in the environment: no entry, no site, no line - the blocks are beach town (the A/B).
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 const SITE_ID := "power_plant"
 
 static var enabled: bool = OS.get_environment("POWER_PLANT") != "0"

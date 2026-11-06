@@ -21,6 +21,8 @@ extends RefCounted
 ## halo and a pit whose embers glow for its first seconds (`ember_seconds`).
 ## EXPLOSIONS_3=0 in the environment is the A/B (the second pass as it was).
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 static var enabled: bool = OS.get_environment("EXPLOSIONS_3") != "0"
 
 ## The volume fireball: seconds it burns before it has faded (a fuel fireball longer), how many

@@ -11,6 +11,8 @@ extends Node
 ## gone. The slow motion and the card run on the real clock, so they are the same length however
 ## far time has been slowed.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 signal health_changed(health: float, max_health: float)
 signal downed_changed(downed: bool)
 ## Every hit: how much and where it came from (Vector3.INF when nobody knows; DamageHud draws

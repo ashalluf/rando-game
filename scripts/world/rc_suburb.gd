@@ -20,6 +20,8 @@ class_name RcSuburb
 ## RC2_SUBURB=0 is the A/B (all of it off). Checks: tests/rc2_suburb_checks.gd. Probe:
 ## tools/rc2_suburb/yard_probe.tscn (the front-garden kinds round a point).
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 static var enabled: bool = OS.get_environment("RC2_SUBURB") != "0"
 
 ## A lawn tuft's scale on top of its own (CityChunk._add_grass()): the blades stood 25 cm on

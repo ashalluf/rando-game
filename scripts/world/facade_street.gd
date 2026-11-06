@@ -25,6 +25,8 @@ extends RefCounted
 ## `FACADES_STREET=0` in the environment turns all of it off (the A/B): the walls draw exactly as
 ## before and no StreetDress is built.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 static var enabled: bool = OS.get_environment("FACADES_STREET") != "0"
 
 const SHADER := preload("res://shaders/facade_street_props.gdshader")

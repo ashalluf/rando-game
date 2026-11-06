@@ -9,6 +9,8 @@ extends Node3D
 ## lights the blast's smoke from below (Blast3's fire list), and its crackle. It shrinks as the
 ## fuel burns away and leaves the soot. `max_pools` alive at once (the oldest burns out early).
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 static var life_range: Vector2 = Vector2(15.0, 24.0)
 static var max_pools: int = 4
 ## Pool radius in metres for a blast radius of 7 (a car's); scaled with the blast.

@@ -11,6 +11,8 @@ extends Node
 ## Every roll is a hash of the venue and the minute, never a shared rng. `NIGHTLIFE=0` turns it
 ## off with the rest.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 ## Seconds between looks, how close to the player a venue must be, the gap between one venue's
 ## pickups (s) and the chance one is called on a look once that gap has passed.
 @export var look_seconds: float = 0.5

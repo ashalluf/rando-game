@@ -21,6 +21,8 @@ extends RefCounted
 ## ONE StaticBody3D in the sanctuary group, and the chunk's part of the site carries a sanctuary
 ## zone at every level (not in capture): see Cemetery's header.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 const LAWN_TINT := Color(0.80, 0.98, 0.74)
 const LAWN_LIFT := 0.03
 ## Ground grid step (m), FULL.

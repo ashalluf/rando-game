@@ -18,6 +18,8 @@ extends RefCounted
 ## ring is the shared terrain material's (apply_ground()). Everything is a pure function of the
 ## Reservoir: no random numbers, only hashes of the seed and the place.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 ## Arcade bay along the crest (m of arc at the upstream face), the vertical zone it occupies under
 ## the crest, and the parapets.
 const BAY := 5.6

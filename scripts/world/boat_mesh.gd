@@ -16,6 +16,8 @@ extends RefCounted
 ## levels: NEAR (everything, ~2-4k triangles), MID (no lifelines or thin lines but the stays,
 ## coarser hull, ~0.6-1k), FAR (a few boxes and the mast, ~60-150).
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 enum Region { HULL, BOTTOM, DECK, GELCOAT, GLASS, METAL, CANVAS, TEAK, LIGHT, RUBBER, SAIL, ENGINE, WIRE }
 ## Tubes this thin or thinner are rigging (WIRE: widened to a pixel in the shader, MarinaGolden).
 const WIRE_RADIUS := 0.02

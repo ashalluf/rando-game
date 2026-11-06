@@ -20,6 +20,8 @@ extends RefCounted
 ##
 ## Names are invented (none is shown anywhere). BUSKERS=0 in the environment turns it all off.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 enum Kind { GUITAR, DRUMS, BREAK, STATUE, MARIACHI }
 ## The plaza is a place of its own (StreetVendors.Place has no plaza: its blocks read as their
 ## district there).

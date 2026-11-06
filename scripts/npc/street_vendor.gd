@@ -9,6 +9,8 @@ extends Pedestrian
 ## Gunfire sends a cart vendor running like everyone else, and when it is over they walk back to
 ## their stand. The cook in a truck ducks below the counter instead and comes back up after.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 ## Seconds a truck's cook stays down after a scare, and how far down (m).
 @export var duck_seconds: Vector2 = Vector2(4.0, 8.0)
 @export var duck_depth: float = 0.85

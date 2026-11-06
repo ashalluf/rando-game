@@ -14,6 +14,8 @@ extends Dog
 ## past its second LOD step; the lead (a sagging ribbon from the owner's left hand to the collar)
 ## only drawn within the owner's look range.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 ## Where the dog walks relative to its owner (metres; x to the owner's left, z ahead).
 @export var heel := Vector2(0.75, 0.35)
 @export var follow: float = 3.5

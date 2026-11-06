@@ -17,6 +17,8 @@ extends RefCounted
 ## or racked bike is an EncampmentItem: a round, a car or a blast knocks it over as a real body,
 ## and it stays gone (WorldState). Static: call with the chunk.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 enum Item { SCOOTER, STATION, RACK }
 enum Pose { STAND, FALLEN, GUTTER, TREE }
 

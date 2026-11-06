@@ -15,6 +15,8 @@ class_name CrowdGait
 ## Everything rolls on hash([seed, "gait2"]): no stream anyone else reads moves.
 ## CROWD_ANIM_2=0 in the environment is the A/B (the crowd exactly as before).
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 const LIB_DIR := "res://assets/models/crowd_gait/"
 const LIB := "gait"
 ## Name -> [pace multiplier, arm swing multiplier, turn rate multiplier, lean into turns].

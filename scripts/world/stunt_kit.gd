@@ -17,6 +17,8 @@ extends RefCounted
 ##               columns under the climb and the descent, entry and exit aprons.
 ##   dirt()      a line of tabletops as a height field on the lot's ground.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 const K_PAINT := 0
 const K_PLATE := 1
 const K_HAZARD := 2

@@ -20,6 +20,8 @@ extends RefCounted
 ## FULL: the ground through Industrial's ground mesh, uprights through its walls mesh, cars and
 ## containers as batches. LOD and the far city: the ground as slabs and everything as far boxes.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 const LADDER_SLOPE := 0.21
 const STORAGE := 6
 const TRACK_STEP := 5.0
@@ -358,6 +360,9 @@ func _tracks_step() -> void:
 		if full:
 			kit.rails(p0.x, p0.y, p1.x, p1.y, ya, yb)
 			kit.ties(p0.x, p0.y, p1.x, p1.y, ya, yb, true)
+			RcFreightYard.ladder_ballast(kit, p0, p1, ya, yb, ya - FreightRail.TRACK_DEPTH, yb - FreightRail.TRACK_DEPTH, lay.tracks)
+
+	RcFreightYard.dress(self)
 
 
 ## The cars standing on the yard's tracks (their centres in this chunk), the stack cars' boxes.

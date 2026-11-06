@@ -6,6 +6,8 @@ extends Pedestrian
 ## trousers. The colours go through the character shader's garment split, the way the police
 ## uniform does (PoliceOfficer.uniform_material()). Never crosses a road: the apron has none.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 const HIVIS := [Color(0.98, 0.42, 0.04), Color(0.80, 0.92, 0.10)]
 const TROUSERS := Color(0.07, 0.08, 0.12)
 

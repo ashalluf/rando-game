@@ -11,6 +11,8 @@ extends RefCounted
 ## to be, to face the normal it is given (FreewayKit's and LandmarkGeo's rule). Geometry is never
 ## added any other way.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 const KIND_SCALE := 32.0
 
 var v := PackedVector3Array()

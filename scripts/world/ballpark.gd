@@ -28,6 +28,8 @@ extends RefCounted
 ## beds, and keep planting off them): the north drive to the valley floor, and Stadium Way
 ## switchbacking down the south face to Hill St at downtown's north edge.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 ## Home plate (world XZ) and the unit direction toward centre field: DowntownReal.game_xz of the
 ## real home plate and centre field points, rounded.
 const HOME := Vector2(2008.0, -2778.0)

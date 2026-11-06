@@ -27,6 +27,8 @@ extends RefCounted
 ##
 ## Off (STAR_BOULEVARD=0 in the environment): none of it, the A/B.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 static var enabled: bool = OS.get_environment("STAR_BOULEVARD") != "0"
 
 ## The boulevard: at least this wide (a midtown avenue), its blocks plain midtown both sides.

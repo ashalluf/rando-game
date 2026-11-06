@@ -20,6 +20,8 @@ extends RefCounted
 ## (sRGB), roughness and metal in UV2. Every piece faces +z (a trailer runs along +x, its doors on
 ## +z) with its origin on the ground.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 const C_FIXED := 0.0
 const C_METAL := 2.0
 const C_PAINT := 3.0

@@ -21,6 +21,8 @@ extends RefCounted
 ## The shader takes these four numbers from the material (PropFactory.signal_lens_material()
 ## pushes them), never from a copy of its own, and the smoke test checks the two agree.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 enum Light { GREEN, AMBER, RED }
 enum Walk { WALK, FLASH, DONT }
 

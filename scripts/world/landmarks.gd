@@ -5,6 +5,8 @@ extends RefCounted
 ## that contains the anchor builds the detailed version, and CityStreamer keeps a far version
 ## of every landmark alive so the skyline never loses them. All names and designs are original.
 
+static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
+
 const SIGN_TEXT := "SHALLUFERWOOD"
 ## The second hill sign, on the affluent slope below the first.
 const HILLS_SIGN_TEXT := "SHALLUFER HILLS"
