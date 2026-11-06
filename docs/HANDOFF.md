@@ -32820,6 +32820,7 @@ part stays as it was.
 | police_station_checks alone | 2,837 MB | 2,701 MB |
 | gate after merging main (batch 51+), fix 1 only | | 3,326 / 3,655 / 3,816 MB (6,514 passed) |
 | gate after merging main, fixes 1 + 2 (two runs) | | **3,418 / 3,572 / 3,555** and 3,358 / 3,575 / 3,554 MB |
+| final gate, merged with main 52cb651b (51 more commits) | | 3,433 / 3,624 / 3,594 MB, 6,575 passed, 0 failed |
 | rendered city (opengl3, load + 3 SHOTS hops, warm caches) | 7,727 MB | 7,452 MB |
 
 **Pictures.** `DIFF=1` still pairs, one load at Flower at Olympic then three hops (MacArthur,
@@ -32841,7 +32842,9 @@ crawl forward (1 of 21)" (city_landmarks, a stop-and-go loop measured over 3 s) 
 passes alone with TELEPORT_FREE on and off. An engine `ERROR: Lambda capture at index 0 was freed`
 shows once on main and once here after a part's `stage_home()` (no backtrace; not a SCRIPT ERROR).
 
-**Not done / next.** The city LOAD itself (2.2-2.9 GB at a shard's first part) is most of a shard:
+**Not done / next.** Main's last 51 commits put shard 1 back 24 MB over the target (3,624):
+the margin is gone again as soon as a wave adds parts, so `MEM_COST` wants refreshing per batch
+(`SMOKE_PROFILE=1` + gate_rss.py). The city LOAD itself (2.2-2.9 GB at a shard's first part) is most of a shard:
 FULL chunks' own meshes and GDScript data, then the allocator's slack. Next candidates: the wheel
 sizes (84 MB, a look change), per-body BumperBands / wheel-shadow copies (~17 MB), LOD chunks'
 FarGround (37 MB). The full `free()` of a teleport's old chunks would save ~100 MB more per jump if
