@@ -32397,3 +32397,71 @@ view; see the follow-up below). Luminance p50 88 -> 88, saturation 0.291 -> 0.28
 not looked at on Forward+ (lavapipe cannot hold the city; a small scene would need the car park
 alone). Downtown's towers still read dark at 18:15 on this renderer - that is the city-wide grade
 and glass at that hour, not this view's to change. The lamps are off at 18:15 (lamp_factor 0).
+
+## 9d?. The car wash at 14:00: a working hand-dry area, real cars, wet ground (fleet wave 8, `rc5-car-wash`)
+
+**The view.** New refcam5 `car_wash` (tools/refcams/cameras_w8.json): SUDS CITY, the car wash pad
+at (527.2, -586.8) on seed 1337 (block (5, -3), 46 x 22 m, facing -z), at 14:00 clear, from the
+kerb past its exit end (eye 557, 1.7 agl, -604, yaw 122, pitch 1, vertical FOV 50, `clear_people`
+5): the tunnel and its sign, the exit end, the vacuum row, the pay canopy and its queue of real cars
+with drivers at the far end, the boulevard on the right. The first framing (eye 548, -603.5, yaw
+115, FOV 60) put the exit end out of frame; the before on main is shots/rc5-car-wash 01, the
+matched pair 02 / 03 is the final camera with `RC5_CAR_WASH=0` / on.
+
+**What read as a game, worst first.**
+1. The cars at the vacuum stalls were ArenaGrounds' static code car (a ~400-triangle box) - a
+   black brick at the kerb, the first thing the eye found.
+2. Nobody worked there and there was no hand-dry area: a car wash with nobody in it, no towels.
+3. The tunnel seen through its window band was flat pastel panels (the traced room's back wall
+   painted with 1.6 m bands of cloth colour), full brightness, dry.
+4. Dry ground everywhere at a place that is wet all day.
+
+**What changed** (`RcCarWash`, `scripts/world/rc5_car_wash.gd`; hooks in `Roadside._car_wash()`
+and one line in `RoadsideKit.material()`; FULL chunks only, after every roll of the pad):
+- **The hand-dry area** (`dry_rect()`: the last 13 m of the frontage at the tunnel's exit end,
+  from the planter to 0.6 m off the tunnel wall): the vacuum stations it covers are left out (their
+  rolls - the station's car roll and its yaw and paint rolls - still made, `Roadside._car(...,
+  place = false)`), a two-bay shade canopy (steel posts, front and back beams, two sagging sails in
+  the wash's accent lightened; the sails slope DOWN to the street, 2.7 / 2.95 m, so the tunnel's
+  sign stands clear over them from the kerb - higher and sloping up, they covered it), a wet
+  concrete pad and a wet run from the exit, 1-2 washed cars nose to the exit drive (real, empty
+  Vehicles, meta `car_wash` = "dry"), `CarWashAttendant`s (`scripts/npc/car_wash_attendant.gd`,
+  a StreetVendor: a crowd rig in the crew's polo - `POLOS`, by the pad's hash - and dark trousers
+  through ApronCrew's garment split, a microfibre towel held in the right hand on a node kept plumb
+  (`Plumb`), the crowd's `life/rail` clip leaning over the car's roof on its sides, idle at its
+  tail and at the cart), a towel rack along the tunnel wall hung with towels, a towel cart with
+  folded stacks, buckets.
+- **The vacuum stalls' cars are real empty Vehicles** (`stall_car()`, a step each, the same
+  `_queue_car` pattern without a driver; the static car where the physics budget is spent).
+- **Wet ground**: roadside.gdshader's concrete reads UV2.y < 0 as wetness (it was metallic, never
+  negative): a darker damp film (roughness 0.42), puddles in the low spots and joints (0.1, the sky
+  mirrored by Fresnel, emitted, `wet_mirror`). Glazed (0.03-0.22) the pad read as white paint at
+  the kerb's grazing angle. The tunnel floor is wet too (`wet_u2()`).
+- **The tunnel** (`wash_look`, 0 by default in the shader, set to 1 by `RcCarWash.apply()`): the
+  traced room (kind 4) now meets two rows of wraparound brushes as real cylinders (r 0.62 m every
+  2.6 m, a near and a far row), each lit from the glass side, strands and foam round it; the back
+  wall dark wet steel with runs of water, a dark soffit with LED strips, spray haze with depth,
+  and the glass wet from inside (runs, a fogged band at the foot).
+
+**Numbers** (refcams opengl3 1280x720, the final camera; `RC5_CAR_WASH=0` -> on): triangles
+4,427,046 -> 4,956,587 (+12 %), draws 2,452 -> 2,664, shadow triangles 1.75 M -> 2.04 M; luminance
+p5/p50/p95 22/133/212 -> 22/129/212. The cost is five real cars (3 stalls + 2 washed) and seven
+attendants where there were three box cars; car washes are rare (5 within 16 blocks of the spawn),
+so it is paid only beside one. A FULL car wash pad's build: 61 ms of roadside GDScript before
+(roadside_probe FULL=1), the cars and people in their own deferred steps.
+
+**The ten original cameras** (cameras.json, `RC5_CAR_WASH=0` -> on, one run each, same commit):
+nine within noise; `freeway` flagged at 6.2 px mean |d|, all of it the freeway's traffic placed
+differently run to run (its pixel diff is cars only; no car wash in that view).
+
+**Checks**: `tests/rc5_car_wash_checks.gd` (10): the row; `dry_rect()` inside the lot in front of
+the tunnel and empty when off; the wet code and the shader branches; a FULL car wash with two
+washed cars, real and empty, seven attendants each with a towel and at a car, the queue still with
+drivers; with RC5_CAR_WASH=0 none of it.
+
+**Not done / not verified.** Forward+ not seen: lavapipe was OOM-killed on this 15 GB box loading
+even `fwd_block_shot.tscn BLOCKS=home` (at the scene load, twice); the wet pad's emitted mirror
+and the tunnel's traced brushes work in linear through color_space like the rest of the shader,
+but their balance on the Mac needs eyes. The attendants hold a pose (rail / idle), they do not
+wipe; towels are not draped over the cars (the cars' shapes vary by body). The brushes do not
+spin. Only the car wash pad kind is touched: the other roadside pads' static cars are unchanged.
