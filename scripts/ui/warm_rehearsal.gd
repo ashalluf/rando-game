@@ -48,8 +48,8 @@ static var wave3: bool = OS.get_environment("WARM_WAVE3") != "0"
 ## `WARM_WAVE4=0` leaves them out (the A/B).
 static var wave4: bool = OS.get_environment("WARM_WAVE4") != "0"
 ## Waves 5-8's first uses (first-use-w8, 2026-11-06; docs/HANDOFF.md "First uses after waves 5-8"):
-## a car's fuel fireball and a pump's gas blast (explosions-4: the burning pool and fuel trail, the
-## flames up the wreck, the tongues, the pops), a boat under way (BoatWake, BoatSea's chine sheets),
+## a car's fuel fireball (explosions-4: the burning pool and fuel trail, the flames up the wreck,
+## the tongues), a boat under way (BoatWake, BoatSea's chine sheets),
 ## the wingsuit's fabric and vapour (look2), a jet's landing-light beams (jet-takeoff), a lit beach
 ## bonfire (rc4-bonfire's glow). Measured with tools/shader_warm/first_use_probe EVENTS=wave8.
 ## `WARM_WAVE8=0` leaves them out (the A/B).
@@ -105,6 +105,9 @@ static func run(scene: Node, cam: Camera3D, progress: Callable = Callable(), log
 		["effects", _stage_effects],
 		["idle particles", _stage_ghosts],
 	]
+	if wave8:
+		stages.append(["wave 5-8 blasts", _stage_wave8_blasts])
+		stages.append(["wave 5-8 effects", _stage_wave8_effects])
 	for i in stages.size():
 		if not only_stages.is_empty() and not only_stages.has(String(stages[i][0])):
 			continue
@@ -259,8 +262,6 @@ static func _stage_cars(holder: Node3D, ground: Vector3, fwd: Vector3, right: Ve
 		await _stage_wave3_cars(cars, fwd, tree)
 	if wave4:
 		await _stage_wave4_cars(holder, cars, ground, fwd, right, tree)
-	if wave8:
-		await _stage_wave8_cars(holder, cars, ground, fwd, right, tree)
 
 
 static func _stage_people(holder: Node3D, ground: Vector3, fwd: Vector3, right: Vector3, tree: SceneTree) -> void:
@@ -350,8 +351,6 @@ static func _stage_effects(holder: Node3D, ground: Vector3, fwd: Vector3, right:
 		spot.look_at(p, Vector3.UP)
 	if wave4:
 		_stage_wave4_effects(holder, ground, fwd, right, tree)
-	if wave8:
-		_stage_wave8_effects(holder, ground, fwd, right, tree)
 	await tree.process_frame
 
 
@@ -492,27 +491,32 @@ static func _stage_wave4_effects(holder: Node3D, ground: Vector3, fwd: Vector3, 
 	WantedEscalation.arm_gunship(heli)
 
 
-## Waves 5-8's car first uses (see `wave8`): one car of the row goes up as a fuel fireball and a
-## gas blast goes off beside the row, through WeaponFX.explosion (the look alone: no Explosion.blast,
-## so nothing is pushed, knocked or damaged) - Blast4.after_blast's burning pools and fuel trail,
-## the flames up the car's sides, the tongues, the pops. Blast4's chain is held off (the other cars
-## of the row would catch a fuse and go up for real); the pools are swept with the rest.
-static func _stage_wave8_cars(holder: Node3D, cars: Array, ground: Vector3, fwd: Vector3, right: Vector3, tree: SceneTree) -> void:
+## Waves 5-8's blast first uses (see `wave8`): a car goes up as a fuel fireball, through WeaponFX.explosion (the look alone: no Explosion.blast, so nothing is
+## pushed, knocked or damaged) - Blast4.after_blast's burning pools and fuel trail, the flames up
+## the car's sides, the tongues, the pops. Blast4's chain is held off (a car near it would catch a
+## fuse and go up for real); the pools are swept with the rest.
+static func _stage_wave8_blasts(holder: Node3D, ground: Vector3, fwd: Vector3, right: Vector3, tree: SceneTree) -> void:
 	if not Blast4.enabled:
 		return
+	var car := Vehicle.new()
+	car.setup(Vehicle.BodyType.SEDAN, Color(0.2, 0.25, 0.3), 0)
+	car.collision_layer = 0
+	car.set_meta(TAG, true)
+	holder.add_child(car)
+	car.global_position = ground + fwd * 16.0 + right * 6.0 + Vector3.UP * 1.0
+	await tree.process_frame
 	var depth := Blast4.chain_depth
 	Blast4.chain_depth = 0
-	var car: Vehicle = cars[4] if cars.size() > 4 and is_instance_valid(cars[4]) else null
-	if car != null:
-		BlastFX.fuel_next = true
-		WeaponFX.explosion(car, car.global_position + Vector3.UP * 0.8, 7.0, 1.0)
-		BlastFX.fuel_next = false
-	Blast4.gas_next = true
-	WeaponFX.explosion(holder, ground + fwd * 12.0 - right * 12.0 + Vector3.UP * 0.9, Blast4.gas_radius, 1.0)
-	Blast4.gas_next = false
+	# No secondary pops either: they go off on timers up to 1.6 s later, after the sweep, and the
+	# fireball itself already rehearses what a pop draws. (A pump's gas blast is the same pool and
+	# volume with other uniforms: not staged.)
+	var pops := Blast4.secondary_count
+	Blast4.secondary_count = Vector2i.ZERO
+	BlastFX.fuel_next = true
+	WeaponFX.explosion(car, car.global_position + Vector3.UP * 0.8, 7.0, 1.0)
+	BlastFX.fuel_next = false
 	Blast4.chain_depth = depth
-	for f in HOLD_FRAMES:
-		await tree.process_frame
+	Blast4.secondary_count = pops
 
 
 ## Waves 5-8's effect first uses: a speedboat and a jet ski with their wakes and spray on, a lit
@@ -520,6 +524,7 @@ static func _stage_wave8_cars(holder: Node3D, cars: Array, ground: Vector3, fwd:
 ## wingsuit's two meshes - stand-ins with the fabric's and the vapour's materials and the very
 ## vertex formats WingsuitFx builds (its fabric only exists while he glides).
 static func _stage_wave8_effects(holder: Node3D, ground: Vector3, fwd: Vector3, right: Vector3, tree: SceneTree) -> void:
+	# (Awaited by run() like every stage: the frame at the end is the stage's.)
 	for k in 2:
 		var boat := Boat.new()
 		boat.setup_boat(k, 3 + k)

@@ -6927,6 +6927,13 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   `WARM=0 REHEARSE=1`: the full warm-up no longer fits). `MacroMap.bake()` memoises a pixel's raw
   height (byte-identical, `bake_probe.tscn FULL=1`). Never `x is T` on a list entry that can be
   freed: `is_instance_valid()` first.
+- First uses after waves 5-8 (2026-11-06, docs/HANDOFF.md "First uses after waves 5-8"):
+  WarmRehearsal's `wave 5-8 blasts` stage (a fuel fireball on a car through WeaponFX.explosion,
+  Blast4's chain and secondary pops held off, the BlastPools swept) and `wave 5-8 effects` stage
+  (two boats with copies of their wake emitters, a lit BonfireFire, landing-light beams, stand-ins
+  with the wingsuit's fabric / vapour vertex formats). Measure on lavapipe one event set at a time
+  (`first_use_probe` EVENTS=wave8, each event twice to tell first use from render cost); the blasts
+  still OOM it. `WARM_WAVE8=0` is the A/B; checks `tests/first_use_w8_checks.gd`.
 - The Mac launch (2026-11-05, docs/HANDOFF.md "The Mac launch", docs/PLAYING_ON_MAC.md): the
   window presents frames for the WHOLE load. `LoadPulse` (`scripts/util/load_pulse.gd`) draws the
   loading art on its own RenderingServer canvas and `tick()` presents it with `force_draw()` from
