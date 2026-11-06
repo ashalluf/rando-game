@@ -208,7 +208,7 @@ void fragment() {
 		// The street light through the glass: what faces up or sideways catches most of it.
 		vec3 wn = normalize((INV_VIEW_MATRIX * vec4(NORMAL, 0.0)).xyz);
 		float catch_l = 0.3 + 0.45 * max(wn.y, 0.0) + 0.25 * abs(wn.x) + 0.15 * max(-wn.y, 0.0);
-		emit += alb * fill_col * lamp_factor * night_fill * catch_l;
+		emit += alb * fill_col * lamp_factor * night_fill * catch_l * (1.0 - metal);
 	}
 	ALBEDO = cs_out(alb);
 	ROUGHNESS = rough;
