@@ -29,6 +29,7 @@ const DROP_GLOW_NIGHT := 0.12
 static func dress_wet(mat: ShaderMaterial) -> void:
 	if mat:
 		mat.set_shader_parameter("look2", 1.0 if enabled else 0.0)
+		mat.set_shader_parameter("look5", 1.0 if RainDusk.enabled else 0.0)
 
 
 ## The value baked into the rain curtain shader's `night_look` default (Weather and StormDrama's
