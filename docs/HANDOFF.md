@@ -30727,6 +30727,10 @@ the same (`shots/perf-audit-6` 11-14).
   police_station_checks +641, metro_underground_checks +373, masjid_checks +273, city_crowd +297,
   garage_drive_in_checks +256, freeway_incidents_checks +219. Nothing here moves memory (the
   twins share their meshes; the canopy LOD adds 36 indices).
+- **After merging main (269 commits, wave 8's first batches)**: 6,179 of 6,179 passed, shard
+  peaks 3,200 / 3,959 / 3,510 MB - shard 1 is 41 MB under the 4,000 MB budget now: the next part
+  added to it (or more memory in city_streaming / garage_drive_in / freeway_incidents) will fail
+  memory_audit_checks there; re-deal PART_COST or stage those parts nearer stage_home().
 - **A city load, rendered** (refcams, opengl3, 1280x720): the first launch after the import,
   cold shader caches, 10.5 GB for one camera; warm runs of all ten cameras 9.1-9.2 GB (off / on).
   Headless the load is the gate's 2.2-3.1 GB above.
