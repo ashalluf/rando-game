@@ -847,6 +847,13 @@ func _drive_street(car: Vehicle, leader: Vehicle, delta: float, groups: Dictiona
 			var behind := (along - float(s[3])) * float(dir)
 			if behind > 0.0 and behind < siren_yield_distance:
 				t.yield_t = 1.2
+	# A unit coming out of a fire station ahead on this road: stop short of its bays (StationExit).
+	var sx: float = StationExit.stop_gap(axis, index, dir, along)
+	if sx < INF:
+		acc = minf(acc, _idm(v, v0, sx, 0.0, 0.2))
+		room = minf(room, sx + 0.2)
+		still = minf(still, sx - 0.2)
+		t.yield_t = maxf(float(t.get("yield_t", 0.0)), 0.3)
 	var yielding: float = t.get("yield_t", 0.0)
 	if yielding > 0.0:
 		t.yield_t = yielding - delta

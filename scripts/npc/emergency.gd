@@ -300,6 +300,7 @@ func send(kind: EmergencyCar.Kind, inc: Dictionary) -> EmergencyCar:
 			WorldState.to_local(Vector3(p.x, h + CityChunk.ROAD_TOP + car.road_lift(), p.y))))
 	units.append(car)
 	dispatched += 1
+	car._exit = StationExit.begin(car, plan, car.station, start) # out of its bay, not off the street
 	if not car.station.is_empty():
 		FireStation.open_door(get_tree(), car.station)
 	return car

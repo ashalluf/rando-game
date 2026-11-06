@@ -194,6 +194,18 @@ static func exit_lane(plan: CityPlan, station: Dictionary, goal: Vector2) -> Arr
 
 # --- Building it ---------------------------------------------------------------------------------
 
+## How far the building's face stands back from the lot cell's street edge (m): the lot's own
+## apron, but never more than MAX_SETBACK (wave 8, rc5-fire-station-night: on a deep downtown lot
+## the apron ran 35-40 m, the firehouse a small block far behind a concrete field). The lot behind
+## the building is left as the block's ground. FIRE_STATION_FRONT=0 is the A/B (the old apron).
+const MAX_SETBACK := 7.5
+static var front_capped: bool = OS.get_environment("FIRE_STATION_FRONT") != "0"
+
+
+static func setback(gap_v: float, apron: float) -> float:
+	return minf(gap_v + apron, MAX_SETBACK) if front_capped else gap_v + apron
+
+
 ## Builds the station on its lot in chunk `ch` (FULL: the building, doors, apron, ramp, sign;
 ## LOD: boxes the far city captures). Called from CityChunk._build_lot in place of a Building.
 static func build_lot(ch: CityChunk, lot: Dictionary) -> void:
@@ -214,7 +226,7 @@ static func build_lot(ch: CityChunk, lot: Dictionary) -> void:
 	# The building's front centre in the chunk's space (true world), on the pavement top.
 	var a2: Vector2 = f.a
 	var n2: Vector2 = f.n
-	var front2: Vector2 = (f.o as Vector2) + a2 * (float(f.len) * 0.5) + n2 * (gap_v + apron)
+	var front2: Vector2 = (f.o as Vector2) + a2 * (float(f.len) * 0.5) + n2 * setback(gap_v, apron)
 	var g := ch._gy(front2.x, front2.y)
 	var outward := Vector3(-n2.x, 0.0, -n2.y)
 	var x_axis := Vector3.UP.cross(outward)
@@ -238,7 +250,7 @@ static func build_lot(ch: CityChunk, lot: Dictionary) -> void:
 	node.add_to_group("fire_station")
 	node.set_meta("cell", s.cell)
 	ch.add_child(node)
-	_build_detail(node, w, d, apron + gap_v + ch.plan.sidewalk_width, int(s.number), int(lot.seed))
+	_build_detail(node, w, d, setback(gap_v, apron) + ch.plan.sidewalk_width, int(s.number), int(lot.seed))
 	# Collision: the building (one box), so cars and the player stop at it.
 	var body := StaticBody3D.new()
 	body.name = "Body"
@@ -356,6 +368,8 @@ static func _build_detail(node: Node3D, w: float, d: float, to_kerb: float, numb
 		node.add_child(door)
 		if Time.get_ticks_msec() < int(_open_until.get(node.get_meta("cell"), 0)):
 			door.position.y = BAY_DOOR.y - 0.35
+	FireStationNight.dress(node, doors, w, d, bay_w) # the bays at night: gear, lights, spill
+	FireStationNight.show_spill(node, Time.get_ticks_msec() < int(_open_until.get(node.get_meta("cell"), 0)))
 	# The station's name and number over the doors.
 	if not OS.has_feature("web"):
 		var num := MeshInstance3D.new()
@@ -423,6 +437,10 @@ static func open_door(tree: SceneTree, station: Dictionary) -> void:
 			tw.tween_property(door, "position:y", BAY_DOOR.y - 0.35, DOOR_TIME).set_trans(Tween.TRANS_SINE)
 			tw.tween_interval(DOOR_OPEN_HOLD)
 			tw.tween_property(door, "position:y", 0.0, DOOR_TIME).set_trans(Tween.TRANS_SINE)
+		FireStationNight.show_spill(n, true)
+		var hide := n.create_tween()
+		hide.tween_interval(DOOR_TIME * 2.0 + DOOR_OPEN_HOLD)
+		hide.tween_callback(FireStationNight.show_spill.bind(n, false))
 
 
 ## Materials by name (shared by every station).

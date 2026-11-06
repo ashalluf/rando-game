@@ -89,6 +89,8 @@ var incident: Dictionary = {}
 var goal: Vector2 = Vector2.ZERO
 ## The station this unit came out of (a FireStation entry) or {} from off the map.
 var station: Dictionary = {}
+## Coming out of that station's bay (StationExit), or null.
+var _exit: StationExit = null
 ## Crew aboard and alive (aboard sit in the cabin glass, CarCabin).
 var crew_aboard: int = 2:
 	set(v):
@@ -244,6 +246,7 @@ func _process(delta: float) -> void:
 		if sm:
 			sm.emission_energy_multiplier = 0.35 * _night
 	var lit := lights_running_emergency()
+	EmergencyWash.tick(self, lit, delta) # the flashes on the road and the walls round it
 	for m in _lens_mats:
 		m.set_shader_parameter("lights_on", 1.0 if lit else 0.0)
 	if _light:
@@ -320,7 +323,10 @@ func _physics_process(delta: float) -> void:
 	if is_traffic():
 		match mode:
 			Mode.DISPATCH, Mode.LEAVING, Mode.TRANSPORT:
-				_drive_lane(delta)
+				if _exit != null and not _exit.step(delta):
+					_exit = null
+				if _exit == null:
+					_drive_lane(delta)
 			Mode.BACKING:
 				_back_in(delta)
 			_:
@@ -665,6 +671,9 @@ func strip_for_pool() -> void:
 	bay = -1
 	parked_t = 0.0
 	_back_path = []
+	if _exit != null:
+		_exit._release()
+		_exit = null
 	repair()
 	if _siren:
 		_siren.stop()
