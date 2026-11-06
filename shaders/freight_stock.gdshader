@@ -165,6 +165,12 @@ void fragment() {
 		metal = 0.05;
 	} else if (part == 12 || part == 7) {
 		rough = 0.55;
+		if (rc5 > 0.5 && lamps > -0.5) {
+			// A locomotive's red and sand deepened to a worn oxide and a dusty tan: the bright
+			// livery went salmon pink and cream in the sun under AgX.
+			float redness = smoothstep(0.08, 0.35, vc.r - vc.g);
+			alb = vc * mix(0.82, 0.6, redness);
+		}
 	} else if (part == 1) {
 		// Dark steel, rusted where the weather sits.
 		float r = vn(mp.xz * 3.0 + mp.y * 2.0 + seed * 9.0);

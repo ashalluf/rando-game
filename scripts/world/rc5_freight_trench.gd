@@ -87,3 +87,39 @@ static func conduit(kit: FreightKit, xi: float, side: float, za: float, zb: floa
 static func cast_both(mi: GeometryInstance3D) -> void:
 	if enabled and mi != null:
 		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_DOUBLE_SIDED
+
+
+## The locomotive's windscreen and nose seen from a bridge 30 m off (FreightStock._loco()'s near
+## level): a black rubber frame round each pane and a wiper on it, a drip visor over the screen,
+## grab irons up the nose's front corners and on its top. Its paint is the shader's (rc5).
+static func loco_cab(b: PortKit.Buf, wz0: float, wz1: float, nz0: float, deck: float) -> void:
+	if not enabled:
+		return
+	var lean := Vector3(0, 0.18, -1).normalized()
+	var rub := Color(0.025, 0.025, 0.025)
+	FreightStock._paint(b, rub, FreightStock.P_BLACK, 0.8)
+	for sx: float in [-1.0, 1.0]:
+		var x0 := sx * 0.08
+		var x1 := sx * 1.32
+		var lo_z := wz0 + 0.03 - 0.03
+		var hi_z := wz0 + 0.17 - 0.03
+		var c00 := Vector3(x0, 3.5, lo_z)
+		var c10 := Vector3(x1, 3.5, lo_z)
+		var c11 := Vector3(x1, 4.3, hi_z)
+		var c01 := Vector3(x0, 4.3, hi_z)
+		for e: Array in [[c00, c10], [c10, c11], [c11, c01], [c01, c00]]:
+			b.beam(e[0], e[1], 0.055, 0.035, -1.0, -1.0, lean)
+		# The wiper parked along the pane's foot, its arm up from the pivot.
+		var piv := Vector3(sx * 0.7, 3.52, lo_z - 0.03)
+		b.beam(piv, piv + Vector3(sx * -0.45, 0.62, 0.11), 0.018, 0.012)
+		b.beam(piv + Vector3(sx * -0.45, 0.62, 0.11) + Vector3(sx * 0.2, -0.05, -0.01), piv + Vector3(sx * -0.45, 0.62, 0.11) + Vector3(sx * -0.2, 0.05, 0.01), 0.022, 0.02)
+	# The drip visor over the screen.
+	FreightStock._paint(b, Color(0.07, 0.07, 0.07), FreightStock.P_STEEL, 0.7)
+	b.box(Vector3(-1.5, 4.46, wz1 - 0.26), Vector3(1.5, 4.5, wz1 + 0.02))
+	# Grab irons: up the nose front's corners, and across the nose top by the windscreen.
+	FreightStock._paint(b, FreightStock.SAFETY, FreightStock.P_SAFETY, 1.0)
+	for sx: float in [-1.0, 1.0]:
+		b.beam(Vector3(sx * 1.05, deck + 0.35, nz0 - 0.07), Vector3(sx * 1.05, deck + 1.0, nz0 - 0.07), 0.03, 0.03)
+		b.beam(Vector3(sx * 1.05, deck + 0.35, nz0 - 0.07), Vector3(sx * 1.05, deck + 0.35, nz0 + 0.0), 0.025, 0.025)
+		b.beam(Vector3(sx * 1.05, deck + 1.0, nz0 - 0.07), Vector3(sx * 1.05, deck + 1.0, nz0 + 0.0), 0.025, 0.025)
+	b.beam(Vector3(-0.6, 3.37, wz0 - 0.45), Vector3(0.6, 3.37, wz0 - 0.45), 0.03, 0.03)
