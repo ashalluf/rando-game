@@ -36,7 +36,7 @@ uniform float density = 0.30;
 /// floodlit ground below lights its underside (`under_light`, linear colour x level, under
 /// `under_top` m over the site).
 uniform float look5 = 0.0;
-uniform float flash_gain = 0.32;
+uniform float flash_gain = 0.45;
 uniform float flash_reach = 170.0;
 uniform vec3 under_light = vec3(0.0);
 uniform float under_top = 260.0;
@@ -87,7 +87,7 @@ void vertex() {
 			float under = 1.0 - smoothstep(0.35 * under_top, under_top, centre.y);
 			v_light = smoke_color + cs_srgb_to_linear(sky_tint) * 0.05 + own * burn * 0.55
 				+ flash * lit2 * flash_gain + under_light * under;
-			v_alpha *= 1.25;
+			v_alpha *= 1.6;
 		}
 		v_rot = fw_roll(k, 330u + uint(p)) * 6.2832 + a * 0.05;
 	}
@@ -105,7 +105,7 @@ void fragment() {
 	if (look5 > 0.5) {
 		// Thin edges take more of the light through them than the dense core (a cloud lit from
 		// inside), so a puff reads round instead of a flat brown card.
-		shade *= mix(1.5, 0.85, clamp(tex.a * edge * 1.4, 0.0, 1.0));
+		shade *= mix(1.25, 0.9, clamp(tex.a * edge * 1.4, 0.0, 1.0));
 	}
 	ALBEDO = cs_out(v_light * shade);
 	ALPHA = clamp(v_alpha * tex.a * edge, 0.0, 1.0);

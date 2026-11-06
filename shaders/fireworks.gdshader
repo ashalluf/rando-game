@@ -46,8 +46,8 @@ const float HALO = 2.4;
 /// glow Compatibility has).
 uniform float look5 = 0.0;
 /// The glow round a break: its size against the break's reach, and its brightness.
-uniform float glow_size = 1.35;
-uniform float glow_gain = 0.16;
+uniform float glow_size = 1.7;
+uniform float glow_gain = 0.045;
 
 varying vec3 v_color;
 varying float v_alpha;
@@ -177,6 +177,11 @@ void vertex() {
 					col = j == 0 ? vec3(1.0, 0.75, 0.42) : vec3(1.0, 0.5, 0.14);
 					amt = j == 0 ? 1.2 : 0.7 * (1.0 - float(j) / float(FW_TRAIL));
 					radius = j == 0 ? 0.6 : 0.35;
+					if (look5 > 0.5) {
+						// The climbing comet reads from the hills: brighter, its sparks a longer streak.
+						amt *= 2.2;
+						tail = fw_rise_point(off, burst, rise, max(ts - 0.14, 0.0)) + jit;
+					}
 				}
 			}
 		}
@@ -216,7 +221,8 @@ void fragment() {
 		// The break's glow: a soft round falloff, reaching zero at the quad's edge (an additive
 		// tail would draw the quad on Forward+).
 		float d2g = dot(c, c);
-		float g = exp(-d2g * 3.2) * (1.0 - smoothstep(0.7, 1.0, sqrt(d2g)));
+		float fall = max(1.0 - d2g, 0.0);
+		float g = exp(-d2g * 2.5) * fall * fall;
 		ALBEDO = cs_out(v_color * v_alpha * g);
 	} else {
 	// A capsule round the streak from its tail (0) to its head (v_len), in units of the quad's
@@ -230,7 +236,7 @@ void fragment() {
 	// The head burns brightest; the tail fades back along the streak.
 	float along = v_len > 0.01 ? mix(0.12, 1.0, clamp(y / v_len, 0.0, 1.0)) : 1.0;
 	float core = exp(-x2 * 6.0) * along;
-	vec3 col = mix(v_color, vec3(1.0, 0.96, 0.9), core * 0.55);
+	vec3 col = mix(v_color, vec3(1.0, 0.96, 0.9), core * (look5 > 0.5 ? 0.3 : 0.55));
 	ALBEDO = cs_out(col * v_alpha * across * along);
 	}
 }

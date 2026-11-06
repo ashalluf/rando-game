@@ -77,9 +77,9 @@ static var _env: int = -2
 ## The look's second pass (wave 8 refcam fireworks_ballpark, docs/HANDOFF.md "Fireworks over the
 ## ballpark from Stadium Way"): the shaders' `look5` (no white disc at a break, radial trails, a
 ## soft glow per break, smoke lit by the show and the floodlit ground), and a flash light that
-## reaches the stands and the lots (LOOK5_ATTENUATION, where the old 1.2 left ~3 % of it 300 m
-## off). `RC5_FIREWORKS=0` is the A/B: the old look bit for bit.
-const LOOK5_ATTENUATION := 0.55
+## reaches the stands and the lots (LOOK5_ATTENUATION: 300 m off it is 13x what the old 1.2 left
+## there). `RC5_FIREWORKS=0` is the A/B: the old look bit for bit.
+const LOOK5_ATTENUATION := 0.75
 ## The ballpark's floodlit ground lighting the smoke's underside (linear colour, fireworks_smoke).
 const STADIUM_UNDER := Vector3(0.050, 0.046, 0.038)
 static var _look5: int = -1
