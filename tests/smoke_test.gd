@@ -2962,6 +2962,9 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	# STARLIGHT PLAZA on an event night (tests/rc5_arena_night_checks.gd, ArenaNight): the screens'
 	# spill, the facades' LED, the hotel's crown, the searchlights, the camera row.
 	load("res://tests/rc5_arena_night_checks.gd").new().run(self, city)
+	# The rush_hour refcam (tests/rc5_rush_hour_checks.gd, RushHour): the jam by the hour, its slots,
+	# cap and standing gap, the stop-and-go wave, the camera row.
+	load("res://tests/rc5_rush_hour_checks.gd").new().run(self)
 
 	city.queue_free()
 	_world_state().reset()

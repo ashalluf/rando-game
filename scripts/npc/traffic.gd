@@ -1300,8 +1300,13 @@ func _maintain_freeway() -> void:
 		return
 	var pw := WorldState.to_world(_player.global_position)
 	var here := Vector2(pw.x, pw.z)
+	# How jammed the freeway is at this hour (RushHour; never while staged).
+	RushHour.now_level = 0.0 if staged else RushHour.level(BusyStreets.hour_now(self))
 	# Where the player is along each route, worked out once a route (nearest_on() is a search).
 	var anchors := {}
+	# At the rushes, which way along each route the camera looks (RushHour: the fill goes ahead).
+	var looks := {}
+	var eye_fwd: Vector3 = BusyStreets.eye(get_tree(), _player)[1] if RushHour.now_level > 0.0 else Vector3.ZERO
 	for car in freeway_cars.duplicate():
 		# A car another system took off the main line (StackTraffic's connectors) is not ours.
 		if not is_instance_valid(car) or not car.is_traffic() or not car.traffic.has("fw"):
@@ -1312,10 +1317,13 @@ func _maintain_freeway() -> void:
 		var t: float = car.traffic.t
 		if not anchors.has(ri):
 			anchors[ri] = _fw_anchor(ri, here)
-		if t <= 0.0 or t >= fw.length_of(ri) or absf(t - float(anchors[ri])) > FreewayFill.retire_reach(freeway_range):
+		if RushHour.now_level > 0.0 and not looks.has(ri):
+			looks[ri] = RushHour.look_sign(RushHour.now_level, eye_fwd, fw.point_at(ri, float(anchors[ri]))[1])
+		if t <= 0.0 or t >= fw.length_of(ri) or absf(t - float(anchors[ri])) > FreewayFill.retire_reach(freeway_range) \
+				or (RushHour.now_level > 0.0 and RushHour.behind(t, float(anchors[ri]), int(looks[ri])) and not car.traffic.get("placed", false)):
 			freeway_cars.erase(car)
 			_retire(car)
-	if freeway_cars.size() >= FreewayFill.cap(max_freeway_cars) or not PhysicsBudget.can_spawn():
+	if freeway_cars.size() >= _fw_cap() or not (PhysicsBudget.can_spawn() or RushHour.freeway_room(self)):
 		return
 	# Which routes are close enough to bother with, and where along each the player is.
 	var live: Array[Vector2i] = []
@@ -1328,7 +1336,8 @@ func _maintain_freeway() -> void:
 	if live.is_empty():
 		return
 	var per_route := maxi(1, max_freeway_cars / live.size())
-	var route_shares: Array[int] = FreewayFill.shares(dists, FreewayFill.cap(max_freeway_cars), freeway_range)
+	var route_shares: Array[int] = FreewayFill.shares(dists, _fw_cap(), freeway_range, RushHour.far_weight(RushHour.now_level))
+	var lane_gap: float = RushHour.gap(RushHour.now_level)
 	var added := 0
 	# The share of free slots left empty: by the hour (FreewayCloseup), the old 0.35 when staged.
 	var skip := 0.35 if staged else FreewayCloseup.spawn_skip(BusyStreets.hour_now(self))
@@ -1352,12 +1361,15 @@ func _maintain_freeway() -> void:
 			var lane_taken := {}
 			for car in freeway_cars:
 				if car.traffic.fw == ri:
-					lane_taken[Vector3i(FreewayFill.slot_of(float(car.traffic.t)), int(car.traffic.dir), TrafficAI.fw_lane(fw, car.traffic))] = true
+					lane_taken[Vector3i(FreewayFill.slot_of(float(car.traffic.t), lane_gap), int(car.traffic.dir), TrafficAI.fw_lane(fw, car.traffic))] = true
 			var filling := on_route < int(float(share) * FreewayFill.FILL_BELOW)
 			var room := mini(share - on_route, FreewayFill.PER_TICK_FILL if filling else FreewayFill.PER_TICK)
-			for c: Array in FreewayFill.candidates(ri, anchor, total, lane_taken, filling, Freeway.LANES):
+			var look := RushHour.look_sign(RushHour.now_level, eye_fwd, fw.point_at(ri, anchor)[1]) if RushHour.now_level > 0.0 else 0
+			for c: Array in FreewayFill.candidates(ri, anchor, total, lane_taken, filling or look != 0, Freeway.LANES, lane_gap):
 				if room <= 0:
 					break
+				if look != 0 and not RushHour.offer(float(c[0]), anchor, look, filling):
+					continue
 				# The hour's one roll a slot (written the other way round: freeway_closeup_checks
 				# counts the old fill's line).
 				if skip > _rng.randf():
@@ -1381,6 +1393,22 @@ func _maintain_freeway() -> void:
 				on_route += 1
 				added += 1
 			slot += 1
+
+
+## Is any freeway car of (route, direction, lane) within `reach` metres of `t`?
+func _fw_crowded(ri: int, t: float, dir: int, li: int, reach: float) -> bool:
+	for car in freeway_cars:
+		if is_instance_valid(car) and car.traffic.get("fw", -1) == ri and int(car.traffic.dir) == dir \
+				and int(car.traffic.get("li", -1)) == li and absf(float(car.traffic.t) - t) < reach:
+			return true
+	return false
+
+
+## The freeway car cap: FreewayFill's, grown at the rushes (RushHour).
+func _fw_cap() -> int:
+	if not FreewayFill.enabled or RushHour.now_level <= 0.0:
+		return FreewayFill.cap(max_freeway_cars)
+	return roundi(float(max_freeway_cars) * RushHour.cap_gain(RushHour.now_level))
 
 
 ## Where along route `ri` the player is, in metres. Cheap enough at the 0.5 s maintenance tick.
@@ -1415,6 +1443,9 @@ func _spawn_freeway_car(ri: int, t: float, dir: int, want_li: int = -1) -> void:
 		if want_li >= 0:
 			li = want_li
 		lane = Freeway.lane_fraction(width, li) * float(dir)
+	if BigVehicles.is_big(kind) and RushHour.now_level > 0.0 and _fw_crowded(ri, t, dir, li, 26.0):
+		# A jam's slots are close: a trailer here would stand in the car behind (RushHour).
+		kind = -1
 	var free_li := FreewayIncidents.spawn_lane(ri, t, dir, li)
 	if free_li != li:
 		li = free_li
@@ -1547,6 +1578,9 @@ func _drive_freeway(delta: float) -> void:
 				continue
 			tt.tick = tick
 			var speed: float = car.traffic.speed
+			if RushHour.now_level > 0.0 and not tt.get("placed", false):
+				# Stop-and-go at the rushes (RushHour): the jam's slow bands run back up the traffic.
+				speed = minf(speed, RushHour.wave_cap(freeway_speed, RushHour.now_level, int(tt.fw), dir, float(tt.t), TrafficAI.clock))
 			var leader: Vehicle = group[k + 1] if k + 1 < group.size() else null
 			if leader != null:
 				speed = minf(speed, _fw_follow(car, leader))
@@ -1595,7 +1629,7 @@ func _fw_follow_at(car: Vehicle, t_at: float) -> float:
 func _fw_follow(car: Vehicle, ahead: Vehicle) -> float:
 	var gap: float = absf(float(ahead.traffic.t) - float(car.traffic.t))
 	var extra := float(car.traffic.get("half", 2.4)) + float(ahead.traffic.get("rear", 2.4)) - 4.8
-	return maxf(0.0, (gap - freeway_gap * 0.6 - extra) * 1.4)
+	return maxf(0.0, (gap - RushHour.stand_gap(freeway_gap * 0.6, RushHour.now_level) - extra) * 1.4)
 
 
 ## A car joining the freeway from on-ramp `ramp` of route `ri` (TrafficAI.maybe_ramp_cars()): at
