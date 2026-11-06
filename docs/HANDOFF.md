@@ -30977,3 +30977,70 @@ Not verified: Forward+ (no lavapipe render of the gate: the booth glass emission
 tint were judged on opengl3 only; port_steel's colours go through its own `col()`, so the glass is
 decoded on Forward+ like the shader's other constants). The far city keeps the old gate boxes.
 Checks: `tests/rc5_port_gate_checks.gd`.
+
+## 9ni. The hero in the rain on the web, third pass (wave 8 resume, branch `wt/web-hero-blue`; not fixed)
+
+**Result: no fix.** On current main (after batch 50) the hero is **not blue** in the browser at the
+rain bookmark (`?spawn=2359.4,880,0,12,2&hour=13&weather=rain`): 23 runs of the probe, frames 2 to
+~80, hero region dark (~60,56,48), no blue pixels. What the web draws wrong there instead is a
+**lime-green far range in two straight-edged wedges** that converge on the vanishing point ahead
+(the "pale wedges" of 9lh; the old web-build-5 still `01_` has a pale wedge AND the blue hero in
+the same frame, so they are probably one bug whose colour changes build to build). Native opengl3
+at the same eye, hour and weather draws neither (`05_`). Stills on `shots/web-hero-blue`.
+
+**Established (each a browser run of the probe, one change a report, read one report late):**
+- Not there at frame 2, there from frame ~5 on, and it stays (`02_`).
+- Dims with every DirectionalLight hidden (`03_`); not the sun's shadows (shadow off, PSSM off:
+  unchanged), not the lightning light.
+- Not any of these alone or together: the horizon plane (`/Ground/`) and FarRing (layers 0), the
+  chunks' FarGround, LightRail, Skyline, every FarLandmark, Ridges wires, RockFar, Weather (rain
+  curtain included), the canvas layers (rain lens, vignette), ContactShadows, Traffic, the
+  colour-correction LUT (HourGrade), aerial-perspective fog, all fog (stronger without it), the
+  sky background (forced to a flat colour: the lime stays), sky REALTIME, contrails off,
+  ballpark_glow / street_wear / mural (the screen- and depth-readers in view).
+- Every geometry under `/root/City` at layers 0: gone. All chunks at layers 0: still there. All
+  ~180 non-chunk children of City at layers 0: still there (`04_`, strip `06_strip_p21`). So it
+  needs geometry from BOTH sides, or two things draw it.
+- The horizon plane's material and both bake textures read back the same on web and native
+  (`mat:ground`), as do all 120 sky uniforms but `cloud_detail` (0 on the web), the contrail
+  segments and the sky's process mode (web QUALITY, native INCREMENTAL at that moment).
+- Lime pixels are ~(109,203,44): grass-photo green, not the bake. Swapping the plane's
+  `near_albedo` for solid red changed nothing.
+
+**Not proven, next steps.** (1) Bisect the chunk side and the non-chunk side TOGETHER (hide all
+of one side, then halves of the other: the probe's `kids:a:b` does the non-chunk half; add the
+same for chunk children by name). (2) Note `visible` hides are undone by scripts that set
+`visible` every frame (Weather's curtain, the far landmarks, the plane): use `lay:` / `shader:` /
+`kids:`. (3) Look at the web-only engine limits found in Godot 4.7.2's GLES3 source: the scene
+shader reserves texture units down to -11 (`ltc_lut2`, area lights) and the LTC LUTs are bound
+at the start of every colour pass, so on WebGL2's 16 units a material only owns units 0-4, not the
+9 `tests/web_build_checks.gd` assumes (`WEB_SAMPLERS`); terrain.gdshader has 8 and hero_skin 6.
+Not shown to be the cause here, but the check's number is wrong. (4) Everything here is
+SwiftShader; a real GPU browser may not show it at all.
+
+**Update, same session, after merging main at batch 56 (`c0c77a59`): the wedges are gone.** Two
+clean browser runs of the rebuilt export at the same bookmark (frames 3-22 and 3-19, one with no
+change at all) draw no lime and no wedge, and the hero stays dark (`07_`). Every one of the 23
+runs on the older main (merged at `d3aafc52`) had them from frame ~5, so something merged in
+batches 51-56 removed them. Not bisected. The likeliest candidate is batch 53's "Mac launch" work on
+the load-time shader prime (`bbc4fa4a` "the prime draws no geometry", `191e45dc` no pipelines queued
+while the city is built, the boot compile): drawn geometry left over from the prime would fit
+"needs geometry from both the chunks and the rest" and "dims with the sun". To prove it, export
+`d3aafc52` with `bbc4fa4a` / `191e45dc` reverted and look for the wedges. **Status: the hero is not
+blue and the wedges no longer show on current main. Nothing was changed in the game for it.**
+A separate open point: `WEB_SAMPLERS` (above) is still 9.
+`chunks:<from%>:<to%>` (sorted chunk children) was added to the probe for this pass.
+
+**Tools** (`tools/web_hero_blue/`, the autoload `hero_blue_probe.gd`, exported by
+`export_probe.sh` into build/web_hero_blue, ~20 s; one run ~15-20 min): steps on top of web-build-5's
+(`ap_hide=` one per report): `lay:<path substr>` (layers 0, scripts do not undo it),
+`shader:<file>`, `kids:<from>:<to>` (City's non-chunk children by sorted index), `show:<substr>`,
+`canvas:<substr>`, `gmat:<uniform>=<v>` / `gtex:<sampler>=red|blue` (horizon material),
+`gsky:<uniform>=<v>`, `prop:<node>:<prop>=<int>`, `mat:ground` / `mat:sky` (dumps; diff a web
+log against a native run of the same probe: add the autoload to project.godot, `AP_*` in the
+environment, `AP_OUT=` saves frames; put project.godot back), `env:bg|lut|adj|aerial|skyrt`,
+`sun:noshadow|shadow|pssm<n>`, `q:<level>` (Quality.apply_level, which the web never runs),
+`hero:list|cloth=flat|...`. `decode_probe.py <log> <dir>` writes the frames and a strip. Traps:
+kill the previous `node webshot.js` before a run (it holds port 8123 while it waits for its
+screenshot; the next run dies with EADDRINUSE and writes no log); never run a native city while a
+tab is open (OOM on 15 GB).
