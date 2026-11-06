@@ -31981,3 +31981,55 @@ ways (the spray is one draw, the rings are instances of it); luminance p5/p50/p9
 rings that lie on the sea and age out, the staged pod in turn). Kit stills in seconds:
 `tools/sea_life/kit_shot.tscn` (VIEW=dolphin, AGE=; it now shows a ring by the rolling dolphin).
 Not verified on Forward+ (the spray is unshaded and works in linear through color_space).
+
+## 9d?. The final approach over midtown (refcam5 `airport_final`, wave 8, branch `wt/rc5-airport-final`)
+
+Wave 8's `airport_final` camera (`tools/refcams/cameras_w8.json`): an airliner on its turn onto
+final for 27L, ~110 m over midtown at 19:30 clear, seen from the middle of Highland Blvd at
+z 1425 looking south (yaw 168, pitch 27, fov 55): a deco tower on the left, the utility poles and
+lines down the boulevard's east side, palms and a lit shop pylon on the right, the jet upper
+centre coming toward the lens with its landing lights on. Staging is the existing `air` "final"
+key (`air_dist` 170, `air_frames` 3, `air_flash`): AirTraffic.stage() puts an arrival on the
+arrival_south route's point nearest that spot. Nineteen-thirty is night in this game (the sun sets
+at 18:00): the sky is the night sky, not a dusk one.
+
+Framing notes (each cost a 15-minute run): the turn onto final passes over Crest Ave and Highland
+Blvd between z 1300 and 1700 (`tools/rc5_airport_final/pole_probe.gd` prints the route every 50 m
+round a point and which streets carry overhead lines - StreetDetail's own pole-side hash; Crest
+Ave there has none); Highland at z 1300 is under a freeway deck, and on its west pavement the
+palms hide the jet, hence the centre line.
+
+What read as a game, worst first (`JetFinal`, `scripts/vehicles/jet_final.gd`; `JET_FINAL=0` is
+the A/B for all of it):
+
+1. **From below, half the jet was missing.** At night nothing lit what faces down: the wings, the
+   tailplane and the nacelles' undersides were black against the navy sky, so the jet read as a
+   fuselage with two black discs. A real jet low over Los Angeles carries the city's glow on its
+   belly. airliner_livery.gdshader's new `under_glow` (linear, `UNDER_GLOW`) is added to whatever
+   faces down (a little wrapped round the sides, none on glass, less on bare metal), full under
+   `UNDER_FULL_BELOW` 150 m over the runway, easing to `UNDER_HIGH` of it by 1.4 km, none under
+   `UNDER_GROUND` (the airfield lights a jet on the runway). Set per jet each flight tick.
+2. **The gear was two black blobs.** The livery painted everything under the model's y -0.25 as
+   "gear" at 0.05 grey, and that line also cut the bottom off both nacelles (they reach -0.30).
+   With `final_look` the nacelles keep their paint to the bottom (x < -0.076 in the engine box),
+   the legs and doors are light grey, and the wheels are black tyres round darker bare hubs - a
+   ring further than 0.4-0.5 of the wheel's radius from its axle in the side view (main axle
+   x -0.028, y -0.298, r 0.044; nose x -0.712, y -0.313, r 0.025; measured off jet_airliner.glb's
+   vertices with a few lines of numpy over the glTF buffer).
+3. **The gear stood dark between lit landing lights.** `gear_light` (`GEAR_LIGHT` 0.7, while the
+   landing lights are on) lights the legs and a little of the nacelles' undersides.
+
+Every AmbientJet wears its own copy of its livery material with `final_look` 1
+(`JetFinal.material()`; `_final_mat`), so the parked gate jets (a MultiMesh) and the player's
+airliner keep the shared one, bit for bit. No geometry, no draw is added (a material swap on a
+handful of nodes).
+
+Checked and left: the streak in front of the nose is the landing lights' beams (JetTakeoff) seen
+nearly end-on; the jet's glare (AirportNight's `landing_side` / `landing_glare`) already reads.
+Not touched (others' areas): the starry sky over a lit city, the NightAtmos lens streak on a
+lantern seen head-on (the first Crest Ave framing), palm frond aliasing.
+
+The jet alone in seconds: `tools/rc5_airport_final/final_shot.gd` (opengl3; `JF=0` the old
+livery, `CAM`, `LOOK`, `FOV`, `UNDER`, `GEAR`, `AMB`). Checks: `tests/rc5_airport_final_checks.gd`
+(the row, the shader's defaults off, the shared material untouched, an arrival's own copy and its
+glow / gear lamps, `JET_FINAL=0`).

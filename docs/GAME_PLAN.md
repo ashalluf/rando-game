@@ -4828,3 +4828,11 @@ none of either.
   streaks along their path, never camera-facing balls (they cut flat at the waterline); anything
   that breaks the surface leaves a ring that ages out. The surf's whitewater not reading from a
   pier end was left to the ocean's owners (shared by every beach view). SEA_SPRAY=0 is the A/B.
+
+- **2026-11-06 The final-approach refcam: the jet from below at night (rc5-airport-final, HANDOFF
+  "The final approach over midtown").** A new reference camera (`airport_final`, wave 8's table)
+  looks up from Highland Blvd at an arrival on its turn onto final at 19:30. Decisions: a flying
+  airliner carries the city's glow on what faces down (by height over the runway, none on it) and
+  its gear is painted as gear and lit by its landing lights; the pass lives on each flying jet's
+  own copy of its livery, so parked jets and the shared liveries are untouched. 19:30 stays night
+  (the game's sunset is 18:00). JET_FINAL=0 is the A/B.
