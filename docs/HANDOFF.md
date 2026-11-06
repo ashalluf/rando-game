@@ -28838,3 +28838,145 @@ smooth normals on Forward+ are unproved. No crew AT WORK (no shoot, no dolly, ca
 driven: the film-shoot session's area); the stage walls are as they were; the trailers' variants all
 share three dressings, so a long row repeats every third; the far LOD of the trailers is the old
 `lod_box` path. Checks: `tests/rc4_film_lot_checks.gd` (10). Probe: `tools/rc4_film_lot/crew_probe.tscn`.
+
+## 9d?. Perf audit 6: every refcam after wave 7, counted the way the GPU draws (fleet wave 8, agent branch `wt/perf-audit-6`)
+
+**The ask.** Measure all reference cameras (cameras.json and w5 / w6 / w7: 44 views) with
+`SPLIT=1 OSPLIT=1` on main as of wave 7, find where the frame went since Perf audit 5, cut the
+biggest costs with no visible change (DIFF / `--strict` pairs against an A/A), and measure the
+gate's and a city load's peak memory.
+
+**The finding that changes how to read every earlier audit: the counter hides most of the
+frame.** CLAUDE.md's measurement trap 3 says a MultiMesh surface with LODs is counted ONCE per
+draw call, whatever its instance count. That is every scanned tree, palm and bush, every street
+prop (PropFactory gives every model generated LODs), the facade kit and the rooftop AC units -
+so the `GEO` / `SPLIT` numbers every audit ranked by saw a few hundred thousand triangles where
+the GPU draws millions, and ranked them last. `TRUE=1` on `tools/refcams/refcams_shot.gd`
+(`tools/perf_audit_6/true_groups.gd`, still_shot's `_true_tris()`) counts each group per instance
+at the LOD the renderer picks, the frustum for the camera pass and the cascades a caster's
+sun-swept box reaches for the shadow (an overestimate of the shadow, the same for both sides of a
+pair); `tools/perf_audit_6/true_table.py` tabulates one or two runs. What it says at street_noon,
+all cuts off: plants (FoliageLod ladders, palms, bushes) **16.1 M** (5.5 M camera), street props
+4.5 M, facade kit 3.3 M (2.85 M of it shadow), far planting 1.3 M, roof units 1.0 M, far boxes
+0.6 M - against a counter total of 7.1 M for the whole frame.
+
+**How it was measured.** `SPLIT=1 OSPLIT=1` on the ten original cameras (main b45ba911,
+`build/refcams/base_w4`), a deep split of street_noon / golden_aerial / macarthur with
+`OSPLIT_CATS=Other,StreetProps,Houses,FarCity,Trees OSPLIT_TOP=45` (still_shot now takes
+`OSPLIT_TOP=n` and folds node names that only differ by chunk / tile coordinates into one stem -
+`Sky_3_-2`, `Planting_4_1` - which is why the far city's canopies never ranked before), then the
+same tree with every cut off and on with `TRUE=1` (`ab_off` / `ab_on`), and plain before / after
+runs of the 34 newer cameras (`before_w*` / `after_w*`, every cut off = main's behaviour, the
+same tree). A watchdog kills a run whose log is static for 15 minutes (the occlusion-cull hang of
+9kw did not happen this time). The box restarted once mid-run; that run was repeated whole.
+
+### What grew since Perf audit 5 (counter, the ten cameras)
+
+| camera | PA5 after | main now | draws | what grew |
+|---|---|---|---|---|
+| street_noon | 6.70 M | 7.03 M | 3,630 | street props (bench 0.16 M, trash bags 0.10 M, cafe sets, scooters) |
+| street_night | 6.72 M | 7.09 M | 3,774 | the same |
+| golden_aerial | 4.59 M | 5.81 M | 4,263 | **ShadowTuning's air cascades** (wave 5): SHADOW_TUNING=0 gives 3.29 M / 2,967 draws against 4.26 M / 4,274 on the same tree |
+| macarthur | 4.17 M | 4.79 M | 3,972 | ShadowTuning (+0.61 M, +780 draws), MacArthurLook's shade trees |
+| pier_night | 1.20 M | 1.28 M | 529 | wave-7 pier lights |
+| downtown_aerial, hills | | +4 % | | within noise |
+| sunset, beach, freeway | | flat | | |
+
+ShadowTuning is a look decision (shadows from the air); it stays. By system, counter (deep split):
+the far city's canopies (`FarCity/Planting`) 1.28 M at street_noon and 1.41 M at golden_aerial
+- not the boxes (0.33 / 0.70 M) -, the rooftop AC units 0.24-0.32 M (BSPLIT `mm RoofUnits*`),
+the facade kit's shadow twins 0.23-0.35 M, houses 0.36-0.43 M at the aerials (0.28-0.36 M of it
+shadow; no LODs, so the counter is right there), `LotCars` 0.17 M at golden_aerial.
+
+### What was cut (each behind its own switch; `PerfSix`, `scripts/util/perf_six.gd`)
+
+1. **The far canopies get a sub-pixel coarse level** (`CANOPY_LOD=0`): `PropFactory.canopy_blob()`
+   (24 triangles) carries a 12-triangle level - a triangular antiprism on its own vertices,
+   departure at most 0.22 of the unit - and each Skyline `Planting_*` tile's LOD bias is its
+   biggest canopy's scale, so the renderer takes it only where the change is under its pixel
+   threshold. True far planting: street_noon 1.30 -> 0.82 M, golden_aerial 1.18 -> 0.71 M, hills
+   0.79 -> 0.54 M, freeway 1.01 -> 0.65 M.
+2. **The rooftop AC units cast from a light twin** (`ROOF_UNIT_SHADOW=0`): Building's
+   `RoofUnits` MultiMeshes (the 4,743-triangle condenser) cast the full model into every cascade
+   with no lighter caster; now a SHADOWS_ONLY sibling of the model's shadow proxy (2,383) at LOD
+   bias 0.3. True: 0.99 -> 0.69 M (street_noon), 1.26 -> 0.87 M (freeway), 0.93 -> 0.58 M
+   (golden_aerial).
+3. **Every non-foliage shadow twin at the shadow LOD scale** (`PROP_SHADOW_LOD=0`): only the
+   foliage, palm and knee-high twins took `FoliageLod.SHADOW_LOD_SCALE`; every street prop's proxy
+   twin (and every reach twin of a batch's own mesh) took the camera's. True props: -0.1 to
+   -0.45 M a camera.
+4. **The facade kit's casting pieces through twins** (`KIT_SHADOW_TWIN=0`): awnings, balconies,
+   fire escapes, window ACs, roof vents / tanks, blade signs cast through a reach twin of their
+   own mesh (same reach as their draw distance), so their shadow also takes the shadow LOD scale.
+   Small (-0.03 to -0.10 M): a per-building batch beside the camera picks level 0 whatever its
+   bias. The kit's real shadow cost is the **balconies** (TRUE_KIT=1: 2.06 M of street_noon's
+   2.85 M kit shadow, 1.0-1.1 M at freeway / macarthur), left for a balcony proxy (below).
+
+The counter's own drop (street_noon 7.09 -> 5.70 M, hills 1.78 -> 0.92 M) is mostly the canopy's
+new LOD moving `Planting_*` from per-instance to per-draw counting - read the TRUE columns. Draws
+are flat (street_noon 3,691 -> 3,700, freeway 2,868 -> 2,754, golden 4,259 -> 4,274).
+
+| camera | counter | far planting | roof units | facade kit | props |
+|---|---|---|---|---|---|
+| street_noon | 7.09 -> 5.70 | 1.30 -> 0.82 | 0.99 -> 0.69 | 3.28 -> 3.25 | 4.49 -> 4.29 |
+| street_night | 7.09 -> 5.69 | 1.30 -> 0.82 | 0.99 -> 0.69 | 3.29 -> 3.27 | 4.65 -> 4.44 |
+| sunset | 2.12 -> 1.90 | 0.14 -> 0.12 | 0 | 0 | 0.45 -> 0.44 |
+| golden_aerial | 5.80 -> 4.26 | 1.18 -> 0.71 | 0.93 -> 0.58 | 0.26 -> 0.18 | 1.55 -> 1.28 |
+| downtown_aerial | 3.25 -> 2.88 | 0.32 -> 0.22 | 0.44 -> 0.35 | 0.90 -> 0.90 | 3.58 -> 3.27 |
+| beach | 0.51 -> 0.50 | 0 | 0 | 0 | 0.03 -> 0.03 |
+| hills | 1.78 -> 0.92 | 0.79 -> 0.54 | 0 | 0 | 0.51 -> 0.33 |
+| freeway | 5.40 -> 4.24 | 1.01 -> 0.65 | 1.26 -> 0.87 | 2.10 -> 2.08 | 5.59 -> 5.14 |
+| macarthur | 4.79 -> 4.22 | 0.35 -> 0.35 | 0.55 -> 0.43 | 1.88 -> 1.78 | 1.53 -> 1.30 |
+| pier_night | 1.28 -> 1.25 | 0.03 -> 0.03 | 0 | 0 | 0.32 -> 0.29 |
+
+(millions of triangles; counter = GEO total; the rest TRUE, camera + shadow.) Sum of the touched
+groups at street_noon 10.65 -> 9.64 M true (-9.5 %), golden_aerial 4.57 -> 3.40 M (-26 %).
+
+### Measured and left off
+
+- **Foliage LOD cells** (`FOLIAGE_CELLS=1`, `FOLIAGE_CELL` metres, default 48): a foliage batch
+  (FoliageLod / palm ladder) is drawn as children per cell, so each picks its own level; a
+  chunk-wide batch picks ONE level from its whole box, level 0 whenever the camera is in it. The
+  batch node keeps every instance (anything that reads or hides one by index still works,
+  `hide_instance()` forwards into the cell) and draws none. TRUE plants: street_noon 16.1 ->
+  11.0 M, downtown_aerial 14.3 -> 8.7 M, macarthur 8.7 -> 6.7 M, freeway 17.5 -> 14.9 M - the
+  biggest triangle saving there is - but draws +15 % (street_noon 3,700 -> 4,261), +24 % (macarthur),
+  +50 % (golden_aerial 4,274 -> 6,431). 9af rejected cells on the counter (which counts more LOD'd
+  draws as more triangles, the opposite of the truth); the real trade is triangles for draws, and
+  that wants a Mac measurement (Forward+ draws are cheaper than Compatibility's), so it ships off.
+- **Smaller far-city tiles** (`FAR_TILE_BLOCKS=3`, default 6): planting -0.02 to -0.18 M, boxes
+  under 0.1 M, draws +4 to +27 %. Not worth it. The collapsed instances in partly covered tiles
+  are only ~44k triangles at street_noon (`tools/perf_audit_6/far_cover_probe.gd`).
+
+### Proof of no visible change
+
+`--strict` (shader TIME held, people / cars / aircraft / particles hidden) on street_noon,
+golden_aerial, hills, freeway, macarthur: cuts off twice (A/A) and on once; see the table below
+and `shots/perf-audit-6`.
+
+STRICT_TABLE
+
+### Memory
+
+- **The gate** (`SHARDS=3 SMOKE_PROFILE=1`, this branch): 5,798 of 5,798 passed in 1,516 s;
+  shard peaks **3,107 / 3,840 / 3,798 MB** (PA5: 2,902 / 3,763 / 3,792) - under the 4,000 MB
+  budget, two shards over the 3,600 target as before. By part (`tools/perf_audit_4/gate_rss.py`):
+  the loads 2,185 (city_polish) / 3,073 (city_streaming) / 2,328 (city_cars) MB; then
+  police_station_checks +641, metro_underground_checks +373, masjid_checks +273, city_crowd +297,
+  garage_drive_in_checks +256, freeway_incidents_checks +219. Nothing here moves memory (the
+  twins share their meshes; the canopy LOD adds 36 indices).
+- **A city load, rendered** (refcams, opengl3, 1280x720): the first launch after the import,
+  cold shader caches, 10.5 GB for one camera; warm runs of all ten cameras 9.1-9.2 GB (off / on).
+  Headless the load is the gate's 2.2-3.1 GB above.
+
+### W5 / W6 / W7 cameras
+
+W57_TABLE
+
+### Not done / next
+
+(1) A balcony shadow proxy: 2 M true shadow triangles at street_noon from one kit piece. (2)
+Foliage cells, judged on the Mac (FOLIAGE_CELLS=1 FOLIAGE_CELL=48 / 64). (3) The houses' meshes
+(no LODs, 0.28-0.36 M shadow at the aerials). (4) Trash-bag piles (0.1 M, code mesh, no LOD or
+light twin). (5) Not looked at on Forward+ (geometry-only cuts; the canopy's level is the only
+shape change and it is under a pixel by construction).
