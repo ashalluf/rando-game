@@ -4947,3 +4947,8 @@ none of either.
   SwiftShader browser and are left as they are (not root-caused, unverified on a real GPU, a
   web-only workaround would be blind); the probe tools stay for the next pass. The web bookmarks
   now include four wave 5-8 night / weather views.
+- 2026-11-06 (rc5-sea-of-clouds): the morning marine layer's TOP falls inland (430 m at the
+  coast, 266 m inland, SeaOfClouds) rather than standing flat at 520 m: a June gloom deck is
+  deepest at the coast and thins toward where it burns off, and from the hills the towers and the
+  front range must stand out of it. The underside stays at 255 m everywhere, so every view from
+  under the deck is untouched. SEA_OF_CLOUDS=0 is the A/B.

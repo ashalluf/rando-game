@@ -633,6 +633,16 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   `twilight_shadow()` softens the directional light's shadows between sunset and full night (the
   moon's crisp shadows lay across the sand at 18:30). `MARINE_EVENING=0` is the A/B; checks
   `tests/rc5_marine_evening_checks.gd`.
+- The sea of clouds (wave 8, refcam `sea_of_clouds` in `tools/refcams/cameras_w8.json`, the brow
+  below the east range's fire lookout at 08:30 marine; docs/HANDOFF.md "The sea of clouds from the
+  east range"): `SeaOfClouds` (`scripts/world/sea_of_clouds.gd`): in the morning the deck's TOP
+  (never its underside) falls from `COAST_TOP` 430 m at the coast to `INLAND_TOP` 266 m inland
+  (`top_at()` = marine_layer.gdshader `top_y()`, checked; Weather's under-deck test uses it), so
+  downtown's crowns and the front range stand out of it; the top is smooth-max puffs over broad
+  rolls (`cloud_h()`), lit with bluish creases, `top_gain` brighter, `top_haze` capped (clear air
+  over the inversion), soft against what stands in it (depth, `soft_shore`), out to 12 km on a
+  subdivided plane. `SEA_OF_CLOUDS=0` is the A/B; the deck alone in 20 s
+  `tools/rc5_sea_of_clouds/deck_shot.tscn`; checks `tests/rc5_sea_of_clouds_checks.gd`.
 - Surf and beach (2026-10-04, owner: "the Pacific and the beach, AAA"). One wave model,
   `shaders/surf.gdshaderinc`, included by the ocean, the sand and the spray, mirrored in GDScript
   by `Surf` (`scripts/world/surf.gd`): crests parallel to the shore at `phi = TAU * ((s + wob) / L

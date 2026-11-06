@@ -33276,3 +33276,59 @@ Foliage cells, judged on the Mac (FOLIAGE_CELLS=1 FOLIAGE_CELL=48 / 64). (3) The
 (no LODs, 0.28-0.36 M shadow at the aerials). (4) Trash-bag piles (0.1 M, code mesh, no LOD or
 light twin). (5) Not looked at on Forward+ (geometry-only cuts; the canopy's level is the only
 shape change and it is under a pixel by construction).
+
+## 9d?. The sea of clouds from the east range: the sea_of_clouds refcam (wave 8, refcam5 `rc5-sea-of-clouds`, branch `wt/rc5-sea-of-clouds`)
+
+**The view.** `sea_of_clouds` in `tools/refcams/cameras_w8.json`: 08:30, weather marine, the brow
+below the fire lookout at the end of the east range's Lookout road (6234, 1757, ~468 m), looking
+WNW over the basin at 45 degrees. The front range's ridge roads (the task said "a ridge road
+above the deck") all top out under 380 m and the east range's fire roads under 510 m, while the
+deck's top stood at 520 m: no road anywhere was above the deck. The Lookout brow is the highest
+spot with a clear fall to the basin and downtown in frame. (Probe: `tools/rc5_sea_of_clouds/probe.tscn`;
+it must be a scene, not `--script`: without the autoloads half the hill features fail to compile
+and the heights come out ~150 m off.)
+
+**What read fake (main, `01_before`):**
+1. No sea of clouds at all. The eye (468 m) stood between the underside (255 m) and the top
+   (520 m); each plane shows one face, and east of the deck's edge the camera gets no in-cloud
+   fog either, so the basin was a clear sunny city. From anywhere above 520 m the top was one flat
+   sheet that buried every tower (262-335 m) and the whole front range (crest ~380 m).
+2. The top was lit as low noise rolls (0.4 + 0.6 n.l): a flat beige plain.
+3. The plane met every hill and tower in a ruler-hard line.
+4. The scene's marine fog (the gloom's warm grey, meant for under the deck) hazed the top into
+   the sky; and the planes faded out at 5.2-7.6 km, past which the city under the deck showed.
+
+**What changed (`SeaOfClouds`, `scripts/world/sea_of_clouds.gd`; `SEA_OF_CLOUDS=0` is the A/B):**
+1. In the morning (`morning()`: from 04:00-07:00 to the burn-off's end) the deck's TOP falls from
+   `COAST_TOP` 430 m within 600 m of the coast to `INLAND_TOP` 266 m from 3.6 km inland
+   (`top_at()`; marine_layer.gdshader `top_y()` mirrors it, the top plane is now subdivided
+   120 x 120 and displaced in the vertex stage). The underside stays at 255 m, so every view from
+   under the deck (marine_morning, cemetery_dawn) is untouched; Weather's under-deck test and
+   `settle_wet()` use the local top. `LaWeather.deck_heights()` is unchanged (its checks hold).
+   Downtown's tallest crowns and the front range now stand out of the deck.
+2. The top (`top_look`) is heaped puffs: a smooth-max of round caps on Worley points (`puffs()`,
+   caps that meet the deck flat - a sphere cap's infinite slope drew a dark rim round every puff)
+   at 560 / 170 / 55 m over broad fbm rolls (`cloud_h()`), each scale faded to its mean by the
+   pixel footprint (geometric mean of the two screen axes: the depth axis alone faded every billow
+   kilometres too soon at a grazing look), normal by finite differences, wrapped sun light, bluish
+   sky fill in the creases, a silver sheen toward the sun, `top_gain` (1.22, 1.25, 1.3) brighter
+   than the lit colour Weather hands the deck (it read as a beige plain under the sky's whiter
+   cumulus). Tried and dropped: plain Worley domes (faceted tiles) and billow noise (pitted snow).
+3. The soft shore: the top reads the depth texture and thins over `soft_shore` 55 m of height
+   under it, ragged, so stratus laps up a slope and round a tower's foot.
+4. Over the inversion the haze is capped (`top_haze` 0.00007 a metre) and cooled toward
+   `sky_tint`; the top plane runs to 12 km (rim 8.4-11.6 km) while the underside keeps 8 km.
+
+**Numbers (opengl3, 1280 x 720).** sea_of_clouds luminance p5/p50/p95 123/165/188 -> 125/168/198;
+triangles 4.33 M -> 4.35 M (+0.5 %, the 14.6k-triangle top plane), draws 1222 -> 1217.
+Cost otherwise: three marine planes, as before; the top's fragment work (three puff octaves x 9
+cells x 3 height samples) only while the marine layer is up and the top in view.
+
+**Not verified.** Forward+ (the Mac) not shot: the shader is linear (cs_out), `sky_tint` decoded
+with cs_srgb_to_linear (a raw sRGB global on both), its colours plain Vector3 uniforms, so it
+should match; the depth read follows cemetery_mist's two-renderer NDC. The web build not shot
+(one more sampler, the depth texture: well inside WEB_SAMPLERS).
+
+Tools: `tools/rc5_sea_of_clouds/deck_shot.tscn` (the deck alone with test towers and a hill, 20 s,
+`YAW`/`PITCH`/`Y`, `SEA_OF_CLOUDS=0`), `probe.tscn` (roads over MIN_H and the ground they look
+down on). Checks: `tests/rc5_sea_of_clouds_checks.gd`.
