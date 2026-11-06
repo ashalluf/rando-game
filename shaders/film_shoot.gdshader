@@ -35,6 +35,10 @@ uniform float grime = 0.25;
 // glowed evenly in the shade like a lightbox; retroreflective sheeting is bright only toward a
 // light near the eye).
 uniform float stripe_glow = 0.35;
+// The catering tent's canvas (FilmShootNight sets 1): the panels sag between the frame's bars, the
+// seams and the soiled skirt show, the backlight is held to the lit side - at 0 the canopy was one
+// flat white card under a street lamp.
+uniform float canvas_look = 0.0;
 
 varying vec3 v_local;
 varying float v_code;
@@ -92,6 +96,19 @@ void fragment() {
 		float dirt = fs_noise3(v_local * 2.1);
 		base *= (0.94 + 0.08 * weave) * (1.0 - 0.1 * dirt);
 		rough = 0.85;
+		if (canvas_look > 0.0) {
+			// Panels a metre wide sag between the bars (darker in the middle of each), a seam line on
+			// each bar, grime up from the eave and the skirt, a few water stains.
+			float u = (abs(v_wn.x) > abs(v_wn.z)) ? v_local.z : v_local.x;
+			float s = fract(u / 1.02 + 0.5);
+			float sag = 4.0 * s * (1.0 - s);
+			float seam = smoothstep(0.03, 0.0, abs(s - 0.5) - 0.47);
+			seam = mix(seam, 0.0, smoothstep(0.01, 0.04, px));
+			float eave = smoothstep(2.6, 2.05, v_local.y);
+			float stain = smoothstep(0.62, 0.8, fs_noise3(v_local * 0.9 + 3.1));
+			float k = canvas_look;
+			base *= 1.0 - k * (0.16 * sag * step(2.25, v_local.y) + 0.18 * seam + 0.22 * eave * (0.6 + 0.4 * dirt) + 0.12 * stain);
+		}
 	} else if (code == 6) {
 		base *= 0.85 + 0.2 * fs_noise3(v_local * 25.0);
 		rough = 0.88;
@@ -181,6 +198,6 @@ void fragment() {
 	METALLIC = metal;
 	EMISSION = cs_out(emit);
 	if (code == 5 || code == 13) {
-		BACKLIGHT = cs_out(base * 0.4);
+		BACKLIGHT = cs_out(base * mix(0.4, 0.15, code == 5 ? canvas_look : 0.0));
 	}
 }

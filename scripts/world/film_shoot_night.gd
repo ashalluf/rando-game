@@ -64,6 +64,7 @@ static func dress(ch: CityChunk, m: Dictionary, lay: Dictionary) -> void:
 	if not enabled:
 		return
 	FilmShootKit.material().set_shader_parameter("stripe_glow", STRIPE_GLOW)
+	FilmShootKit.material().set_shader_parameter("canvas_look", 1.0)
 	var acc := Acc.new()
 	var act: Dictionary = lay.action
 	var act2 := FilmShoot.point(m, float(act.t), float(act.o))
@@ -112,6 +113,27 @@ static func dress(ch: CityChunk, m: Dictionary, lay: Dictionary) -> void:
 	_lights(ch, lights)
 
 
+## Micromobility's keep-clear hook: the film set's pavement (the actors' marks and the stretch
+## the HMIs throw on) is cleared of shared scooters and bikes, as a location crew clears it. Points
+## [Vector2, radius] for chunk (ix, iz) - the shoot's set side may be either block beside its street.
+static func keep_clear_points(plan: CityPlan, ix: int, iz: int) -> Array:
+	var out: Array = []
+	if not enabled or not FilmShoot.enabled or plan == null or plan.macro == null:
+		return out
+	for owner: Vector2i in [Vector2i(ix, iz), Vector2i(ix - 1, iz), Vector2i(ix, iz - 1)]:
+		var m := FilmShoot.shoot_of_chunk(plan, owner.x, owner.y)
+		if m.is_empty():
+			continue
+		var lay := FilmShoot.layout(m)
+		var tr: Dictionary = lay.track
+		var act: Dictionary = lay.action
+		var t := float(tr.t0) - 10.0
+		while t <= float(tr.t1) + 10.0:
+			out.append([FilmShoot.point(m, t, float(act.o)), 3.2])
+			t += 3.0
+	return out
+
+
 ## Where an HMI's lens is (its fresnel's centre, chunk space), FilmShootKit.hmi()'s numbers.
 static func hmi_lens(ch: CityChunk, m: Dictionary, h: Dictionary) -> Vector3:
 	var xf := FilmShootBuild.xf_at(m, float(h.t), float(h.o), h.aim)
@@ -143,8 +165,10 @@ static func _lights(ch: CityChunk, lights: Array) -> void:
 		s.distance_fade_enabled = true
 		s.distance_fade_begin = 160.0
 		s.distance_fade_length = 40.0
+		# Chunk space (the holder sits at the chunk's origin; look_at_from_position would take these
+		# for global positions, which they are not once the origin has moved).
+		s.transform = Transform3D(Basis.looking_at(target - lens, Vector3.UP), lens)
 		holder.add_child(s)
-		s.look_at_from_position(lens, target, Vector3.UP)
 		holder.spots.append(s)
 		i += 1
 	# FilmShootBuild's balloon and fill lights (lamp_light omnis: DayNight sets their energy x lamp_gain).
