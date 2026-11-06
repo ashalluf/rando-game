@@ -31203,3 +31203,61 @@ Long Beach sand has no BeachLife (people, path, courts: its planner walks the we
 swash noise runs along z, not along the shore (beach_sand.gdshader's along-shore axis is world z).
 The mirror is an emitted billboard per source: it does not know the islands' own silhouettes (a
 tower behind another mirrors through it). Forward+ seen only for the towers, not the mirror.
+
+## 9d?. The marine layer's evening bank from the beach (refcam5 `marine_evening`, wave 8; branch `wt/rc5-marine-evening`)
+
+**The camera.** A new row in `tools/refcams/cameras_w8.json`: `marine_evening`, 18:30, weather marine,
+eye (-683, 1.7 AGL, 820) on the beach-town sand (the beach is 70 m wide there, coast x -736, the
+path x -676) looking south-west (yaw 127, pitch 5, fov 55) past the lifeguard tower at (-711.6,
+828.9), the pier on the left. At 18:30 `LaWeather.edge_offset()` puts the bank 1,577 m offshore,
+130-300 m tall; this game's sun sets at 18:00 due west, so the light is the afterglow behind the
+bank, not a disc. The first framing (yaw 105 from (-692, 815)) put the waterline people in view but
+only one leaver; the final eye was picked by scoring candidate eyes against the logged leaver
+positions (tower in frame, nets out of it). `ME_DEBUG=1` prints every leaver's spawn.
+
+**What gave it away (main 6f5af3d2), in the order the eye lands, and what was done** (all behind
+`MarineEvening.enabled`, `MARINE_EVENING=0`):
+1. **The bank was a flat khaki smear, darker than the sky.** Two causes. (a) The deck's underside
+   plane (130 m, mode 0) was drawn OVER the bank's whole lower face: all three meshes are
+   render_priority -2 transparents with depth_draw_never, and the planes' 16 km bounds sort them
+   nearer than the ribbon - proved by a debug render painting each mode a flat colour. The bank's
+   material is now render_priority -1 (drawn after the planes; from the shore it stands in front of
+   them). (b) The ribbon's own look: one grey, billows only in its alpha. `bank_look` 1
+   (marine_layer.gdshader mode 2): billows in (along-coast, height) metres at two scales; each
+   billow's top lit by the sky (`up`, from the noise's vertical slope); a cauliflower crest with a
+   soft fringe; a cool slate body (the dusk shade's brightness, its warmth taken out); long rolls low
+   on the face and a paler foot; the thin crest lit by `rim_col` (MarineEvening.rim(): DayNight's
+   horizon this frame warmed by the sun's colour, x1.5, saturated in the shader), strongest toward
+   the sun, faded as the sun sinks; a quarter of the scene haze, cooled (the dusk fog colour is a
+   warm brown that turned the wall khaki); the crest domes taller and rounder.
+2. **A glowing orange line under the bank.** The old foot faded in over its first 1.5 % (~4 m) and
+   the far sea's sunset glare showed through it the whole width of the frame. The wall's foot is now
+   sunk 8 m under the water.
+3. **Hard black shadows on the sand half an hour after sunset** (found when the framing caught a
+   palm: `05_found_hard_palm_shadows_after_sunset.jpg`). Once the sun is down DayNight's one light
+   is the moon (`moon_mix`), at full shadow opacity, while the blue-hour sky is what lights the
+   ground. `MarineEvening.twilight_shadow(elevation, moonlight)` (one hook after DayNight's
+   shadow_opacity line) keeps TWILIGHT_SHADOW 0.25 of them from just before sunset (elevation 0.02)
+   until the night is deep (moonlight 0.55 -> 0.95): x1 to 17:50, x0.85 at 18:00, x0.25 18:10-18:40,
+   x0.36 at 18:45, x0.92 at 19:00, x1 after. **This is global** (every weather): golden_aerial
+   (18:18), brush_fire (18:30), construction_dusk (18:45), oil_islands_dusk (18:45) and the same
+   window at dawn change too - their shadows soften. Decision: hard moon shadows in the blue hour are
+   wrong everywhere, so it was not gated on the marine weather; MARINE_EVENING=0 is the A/B.
+4. **Nobody leaving the beach** - sunbathers and swimwear strollers at 18:30. `MarineEvening
+   .add_leavers()` (one hook in `BeachLife.build()`, after RcPierNight's strollers): `leavers(hour,
+   dens)` clothed BeachWalkers a FULL beach stretch (LEAVERS 14 x a bell 17:24-19:48 x the day's
+   density), in the crowd cap, as build steps; stratified along the stretch, in twos as often as
+   alone, a third with a surfboard, starting low on the beach; `BeachWalker.leaving` sends them up
+   to the back of the sand (0.86-0.96 of its width) and along it, a little faster. Hashes of seed +
+   chunk + index only.
+
+**Forward+.** `fwd_block_shot.tscn BLOCKS=0` on lavapipe (the sky, the weather and the marine layer,
+no ground): the same slate wall and lit crest as opengl3 (bank 87,81,87 vs 75,81,87); off, the old
+ribbon (`04_...`). The beach itself was not shot on Forward+ (the city does not fit lavapipe).
+
+**Not done / not verified.** The leavers carry only boards (no bags, chairs or umbrellas: the walk
+carries no CrowdLife props); they are few in any one view (the beach is at 0.16 of its afternoon at
+18:30). The sky's painted pink cumulus overhead (Compatibility) still read as blobs; the sand's
+foreground is a big plain plane at this eye; the bank's shade was not tuned for an inland view from
+under the deck after 20:30 (the render order assumes a camera on the shore side). Checks:
+`tests/rc5_marine_evening_checks.gd` (8). Stills on `shots/rc5-marine-evening`.

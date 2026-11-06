@@ -4737,3 +4737,10 @@ none of either.
   lit structures standing in water mirror their light in it (the islands' towers as columns in the
   bay); a flood is light thrown up a face from its foot, not a face painted the gel's colour.
   LONG_BEACH_SAND=0 / RC5_OIL_ISLANDS=0 are the A/B.
+- **2026-11-06 The marine_evening refcam: a fog bank is a wall, and twilight has no hard shadows
+  (rc5-marine-evening, HANDOFF "The marine layer's evening bank from the beach").** A new reference
+  camera (`marine_evening`, wave 8's table) on the beach-town sand at 18:30 under the marine weather.
+  The evening bank is drawn as a standing wall in front of the deck it rolls into (billows, a lit
+  crest, its foot in the water), people go home up the sand at the end of the day, and between
+  sunset and full night the directional light (by then the low moon) keeps a quarter of its shadow:
+  the blue-hour sky lights the ground. MARINE_EVENING=0 is the A/B.
