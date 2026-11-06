@@ -1,0 +1,630 @@
+diff --git a/scripts/world/building.gd b/scripts/world/building.gd
+index f9360df..b5acefc 100644
+--- a/scripts/world/building.gd
++++ b/scripts/world/building.gd
+@@ -4,6 +4,8 @@ extends StaticBody3D
+ ## colors and rooftop props from small option lists. Same seed, same building.
+ 
+ const SHADER: Shader = preload("res://shaders/building.gdshader")
++## The raised shop letters standing on a sign band (see sign_letter_material).
++const LETTER_SHADER: Shader = preload("res://shaders/sign_letters.gdshader")
+ 
+ enum Shape { SLAB, TOWER, STEPPED, PODIUM_TOWER, L_SHAPE, SETBACK, CROWN, WAREHOUSE }
+ enum WindowStyle { PUNCHED, RIBBON, CURTAIN, NARROW }
+@@ -346,6 +348,7 @@ func _build_part(part: Dictionary, style: Dictionary) -> void:
+ 	mat.set_shader_parameter("seed", float(seed % 1000))
+ 	mat.set_shader_parameter("roof_style", roof_style)
+ 	mat.set_shader_parameter("shop_span", _shop_spans())
++	apply_sign_atlas(mat)
+ 	# Base, shaft, crown. The shader lays a stone base course over the bottom floors and shifts
+ 	# the tone of the top ones; _add_facade_details caps both with a real band at the same
+ 	# height, so the two have to be asked for from the same place.
+@@ -406,11 +409,282 @@ const SHOP_NAMES := ["PHARMACY", "NAILS & SPA", "DRY CLEAN", "PHONE FIX", "LIQUO
+ 	"SUSHI", "TACOS", "COFFEE STOP", "BANK", "DONUT HOLE", "SUB STOP", "PET SHOP", "BARBER",
+ 	"LAUNDRY", "BOBA", "DENTAL", "TAX PRO", "SMOKE SHOP", "FLOWERS", "RECORDS", "HARDWARE",
+ 	"BOOKS", "BAKERY", "DELI", "OPTICAL", "SHOE REPAIR", "TATTOO", "THRIFT", "CAMERA"]
+-## Cap height of a shop sign, in metres.
+-const SIGN_HEIGHT := 0.40
+-## How far out from the wall the sign sits, and how far a sign still draws.
+-const SIGN_STANDOFF := 0.14
+-const SIGN_DRAW_DISTANCE := 75.0
++## Em size of a shop sign, in metres: one em of the name maps to this much wall. The cap height
++## is about 0.72 of it, so 0.50 sets 36 cm letters on a 77 cm board - which is what a real fascia
++## looks like, and 25 % more pixels of name at every distance than the 0.40 it used to be. Much
++## above this and the tail of a Q drops into the board's bottom lip.
++const SIGN_HEIGHT := 0.50
++## How far out from the wall the raised letters sit (letters fixed to a board, not a sign hung
++## off the wall. They are letters fixed to a board, not a sign hung off the building, and the
++## further out they stand the further they slide off the painted name behind them when the wall
++## is seen at an angle.
++const SIGN_STANDOFF := 0.045
++## How far the raised letters still draw. The painted name from the atlas is at full strength
++## well before this, so the letters no longer have to carry the sign at distance - they are the
++## relief on top of it, and past 34 m that relief is not worth a draw call.
++const SIGN_DRAW_DISTANCE := 34.0
++## Distance band (metres) over which the painted name takes over from the raised letters. Two
++## rules set it. It has to reach full strength before SIGN_DRAW_DISTANCE culls the letters, or
++## the name pops; and it has to stay at zero while the letters are close enough to read, because
++## the letters stand 4.5 cm off the wall and the paint is on it, so a shopfront seen down the
++## street at a glancing angle slides one off the other - at 14 m that is a third of a letter, and
++## the name reads doubled. So: letters alone up close, paint alone past 33 m, and a one-metre
++## overlap where the letters are six pixels tall and nothing can be told apart.
++const SIGN_FADE := Vector2(26.0, 33.0)
++
++# --- The shop-name atlas -------------------------------------------------------------------
++# Every name in SHOP_NAMES, rasterised once at load into one texture, which
++# shaders/building.gdshader samples in the sign-band branch it already draws. That paints the
++# right name on every fascia at any distance for no extra draw call, no geometry and no editor
++# step - and it works on the web build, where the raised letters are skipped entirely. Before
++# this, a shop more than 75 m away (or any shop at all in a browser) had a blank painted board,
++# which is one of the loudest "this is a game level" tells a commercial strip can have.
++## Pixels per em the names are rasterised at. The letters are magnified past about 1.2 m, so
++## this is what decides how crisp a sign is with your nose against it.
++const SIGN_ATLAS_EM := 96
++## Clear pixels kept around each cell, so a mip level does not bleed one name into the next.
++const SIGN_ATLAS_PAD := 7
++## Cells across the atlas.
++const SIGN_ATLAS_COLS := 4
++## Length of the shader's `sign_adv` uniform array: the most names the atlas can hold.
++const SIGN_ADV_SLOTS := 48
++## Extra letter spacing mixed across the names, so a strip is not all one setting. In whole
++## pixels at the TextMesh's own font size (48), because that is the only spacing a FontVariation
++## can be given - a fraction of a pixel there and the raised letters stop matching the painted
++## name behind them.
++const SIGN_TRACKING_PX := [1, 2, 3, 4]
++## Fraction of a shop's wall a name may fill before it is shrunk. Shared with the shader. It has
++## to leave room for the piers that stand at both ends of every shop run: at 0.80 a long name ran
++## its first and last letter straight into one, which reads as a clipped sign rather than a long
++## one. A half-metre pier on a five-metre run is a tenth of it, so a name stops well short.
++const SIGN_ROOM := 0.68
++## Font size the raised letters are generated at (PropFactory.text_mesh uses the same).
++const SIGN_FONT_SIZE := 48
++
++static var _sign_atlas: ImageTexture = null
++## Letter meshes, letter materials and the tracked font variations, shared across the city.
++static var _sign_cache := {}
++## Advance width of each name in ems, measured from the real glyphs. The shader shrinks a name
++## that will not fit its run from this, exactly the way the raised letters are shrunk, so the
++## two are the same size and the crossfade has nothing to show.
++static var _sign_adv := PackedFloat32Array()
++## Size of one atlas cell in ems, and the cell grid.
++static var _sign_cell_em := Vector2.ZERO
++static var _sign_grid := Vector2i.ZERO
++
++
++## The shop-name atlas, built on first use. Null only if the text server has no font at all.
++static func sign_atlas() -> ImageTexture:
++	if _sign_atlas == null:
++		_build_sign_atlas()
++	return _sign_atlas
++
++
++## 32-bit multiply without overflowing GDScript's 64-bit int, so the name hash below is exactly
++## the `uint` arithmetic the shader does. Floats cannot be trusted here: the shader works in
++## 32-bit and this in 64-bit, and a name index that disagrees by one puts a different word on
++## the board than the raised letters spell.
++static func _mul32(a: int, b: int) -> int:
++	return ((a & 0xFFFF) * b + ((((a >> 16) & 0xFFFF) * b) << 16)) & 0xFFFFFFFF
++
++
++static func _sign_hash(a: int, b: int, c: int) -> int:
++	var h := (_mul32(a, 374761393) + _mul32(b, 668265263) + _mul32(c, 2246822519)) & 0xFFFFFFFF
++	h = (h ^ (h >> 13)) & 0xFFFFFFFF
++	h = _mul32(h, 1274126177)
++	return (h ^ (h >> 16)) & 0xFFFFFFFF
++
++
++## How many names the atlas holds: the list, capped at the shader's array length.
++static func sign_name_count() -> int:
++	return mini(SHOP_NAMES.size(), SIGN_ADV_SLOTS)
++
++
++## Which name shop `run` on `face_id` gets. The shader runs the identical hash, so the painted
++## name and the raised letters always spell the same thing.
++static func sign_name_index(run: int, face_id: int, seed_value: int) -> int:
++	var n := sign_name_count()
++	var s := seed_value & 0xFFFF
++	var i := _sign_hash(run & 0xFFFF, face_id, s) % n
++	if run > 0 and i == _sign_hash((run - 1) & 0xFFFF, face_id, s) % n:
++		# Two of the same shop side by side reads as a bug even though real streets do it.
++		i = (i + 1) % n
++	return i
++
++
++## 0..99 for one shop, the roll the shader paints its board colour from (and whether the sign is
++## lit after dark). The letters in front of the board have to know both: dark letters on a cream
++## board, light ones on the rest, and no glow on a shop that leaves its sign off.
++static func sign_board_pick(run: int, face_id: int, seed_value: int) -> int:
++	return _sign_hash(run & 0xFFFF, face_id + 18, (seed_value & 0xFFFF) + 911) % 100
++
++
++## Advance width of one name in ems, measured from the glyphs the atlas was built from.
++static func sign_advance(name_i: int) -> float:
++	if _sign_adv.is_empty():
++		_build_sign_atlas()
++	if name_i < 0 or name_i >= _sign_adv.size():
++		return 4.0
++	return _sign_adv[name_i]
++
++
++## Hands the atlas and its layout to one facade material. Without it the shader's `sign_count`
++## stays 0 and every board is painted blank, which is what they all used to be.
++static func apply_sign_atlas(mat: ShaderMaterial) -> void:
++	var tex := sign_atlas()
++	if tex == null:
++		return
++	mat.set_shader_parameter("sign_atlas", tex)
++	mat.set_shader_parameter("sign_grid", Vector2(_sign_grid))
++	mat.set_shader_parameter("sign_cell_em", _sign_cell_em)
++	mat.set_shader_parameter("sign_adv", _sign_adv)
++	mat.set_shader_parameter("sign_count", sign_name_count())
++	mat.set_shader_parameter("sign_em_px", float(SIGN_ATLAS_EM))
++	mat.set_shader_parameter("sign_em", SIGN_HEIGHT)
++	mat.set_shader_parameter("sign_room", SIGN_ROOM)
++	mat.set_shader_parameter("sign_fade", SIGN_FADE)
++	# The web build has no raised letters at all, so there the paint has to carry the near view
++	# as well; on desktop it fades in as the letters go.
++	mat.set_shader_parameter("sign_paint_near", 1.0 if OS.has_feature("web") else 0.0)
++
++
++## The font the raised letters are set in, with the same tracking the atlas used for this name.
++static func _sign_font(track_px: int) -> Font:
++	var key := "signfont%d" % track_px
++	if _sign_cache.has(key):
++		return _sign_cache[key]
++	var fv := FontVariation.new()
++	fv.base_font = ThemeDB.fallback_font
++	fv.set_spacing(TextServer.SPACING_GLYPH, track_px)
++	_sign_cache[key] = fv
++	return fv
++
++
++## The raised letters of one name: real extruded text, standing just off the board, which is
++## what gives a shopfront relief close up. Cached per name - a street reuses a handful.
++static func sign_letter_mesh(name_i: int) -> Mesh:
++	var key := "signmesh%d" % name_i
++	if _sign_cache.has(key):
++		return _sign_cache[key]
++	var tm := TextMesh.new()
++	tm.text = SHOP_NAMES[name_i]
++	tm.font = _sign_font(SIGN_TRACKING_PX[name_i % SIGN_TRACKING_PX.size()])
++	tm.font_size = SIGN_FONT_SIZE
++	tm.pixel_size = SIGN_HEIGHT / float(SIGN_FONT_SIZE)
++	tm.depth = 0.012
++	tm.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
++	tm.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
++	_sign_cache[key] = tm
++	return tm
++
++
++## Material for the raised letters. It reads `lamp_factor` like the painted name behind it does,
++## so the letters light up with the street lamps and are matte by day - and nothing changes
++## brightness when they cull out and the paint alone carries the sign.
++static func sign_letter_material(light_ink: bool, lit: bool) -> ShaderMaterial:
++	var key := "signmat%s%s" % [light_ink, lit]
++	if _sign_cache.has(key):
++		return _sign_cache[key]
++	var mat := ShaderMaterial.new()
++	mat.shader = LETTER_SHADER
++	mat.set_shader_parameter("ink", Color(0.94, 0.92, 0.87) if light_ink else Color(0.06, 0.06, 0.07))
++	mat.set_shader_parameter("glow", 1.15 if lit else 0.0)
++	_sign_cache[key] = mat
++	return mat
++
++
++static func _build_sign_atlas() -> void:
++	var ts := TextServerManager.get_primary_interface()
++	var font: Font = ThemeDB.fallback_font
++	if ts == null or font == null or font.get_rids().is_empty():
++		# No font at all: leave the atlas null (the shader then paints blank boards) but fill
++		# the widths, or every raised letter asks for the atlas again and rebuilds nothing.
++		_sign_adv.resize(SIGN_ADV_SLOTS)
++		_sign_adv.fill(4.0)
++		return
++	var rids := font.get_rids()
++	var em := float(SIGN_ATLAS_EM)
++	var size_i := Vector2i(SIGN_ATLAS_EM, 0)
++	# Shape every name once and keep where each glyph lands, so the cell layout below and the
++	# blit afterwards cannot disagree.
++	var shaped: Array = []
++	var ink_top := 1e9
++	var ink_bottom := -1e9
++	var max_w := 0.0
++	# One slot per name, padded out to the array the shader declares (48), because a uniform
++	# array has to be handed exactly as many values as it was declared with.
++	_sign_adv.resize(SIGN_ADV_SLOTS)
++	_sign_adv.fill(4.0)
++	for n in sign_name_count():
++		var line := ts.create_shaped_text()
++		ts.shaped_text_add_string(line, SHOP_NAMES[n], rids, SIGN_ATLAS_EM)
++		ts.shaped_text_shape(line)
++		# The same tracking the raised letters are set with, in atlas pixels. It is added after
++		# the last glyph as well, because that is what a FontVariation's glyph spacing does, and
++		# the two have to centre on the same width.
++		var track := float(SIGN_TRACKING_PX[n % SIGN_TRACKING_PX.size()]) * em / float(SIGN_FONT_SIZE)
++		var pen := 0.0
++		var placed: Array = []
++		for g in ts.shaped_text_get_glyphs(line):
++			var frid: RID = g.font_rid
++			var gi: int = g.index
++			if frid.is_valid() and gi != 0:
++				ts.font_render_glyph(frid, size_i, gi)
++				var gsz: Vector2 = ts.font_get_glyph_size(frid, size_i, gi)
++				var off: Vector2 = ts.font_get_glyph_offset(frid, size_i, gi)
++				if gsz.x > 0.5 and gsz.y > 0.5:
++					placed.append([frid, gi, pen + g.offset.x + off.x, g.offset.y + off.y])
++					ink_top = minf(ink_top, g.offset.y + off.y)
++					ink_bottom = maxf(ink_bottom, g.offset.y + off.y + gsz.y)
++			pen += g.advance + track
++		pen = maxf(pen, 1.0)
++		shaped.append([placed, pen])
++		_sign_adv[n] = pen / em
++		max_w = maxf(max_w, pen)
++		ts.free_rid(line)
++	if ink_bottom < ink_top:
++		return
++	# A cell's vertical centre is the line box centre, which is where a TextMesh with
++	# VERTICAL_ALIGNMENT_CENTER puts its text, so the painted name sits on exactly the same line
++	# as the raised letters in front of it.
++	var pad := float(SIGN_ATLAS_PAD)
++	var mid := (font.get_ascent(SIGN_ATLAS_EM) - font.get_descent(SIGN_ATLAS_EM)) * 0.5
++	var half := maxf(absf(ink_top + mid), absf(ink_bottom + mid)) + pad
++	var cell_h := int(ceil(half * 2.0))
++	var cell_w := int(ceil(max_w + pad * 2.0))
++	var cols := SIGN_ATLAS_COLS
++	var rows := int(ceil(float(sign_name_count()) / float(cols)))
++	var base_y := float(cell_h) * 0.5 + mid
++	var img := Image.create(cols * cell_w, rows * cell_h, false, Image.FORMAT_LA8)
++	img.fill(Color(1.0, 1.0, 1.0, 0.0))
++	# The glyph cache's own textures, fetched only now: every glyph has been rendered into them
++	# by the loop above, and fetching one before that can hand back a page without the glyph.
++	var pages := {}
++	for n in shaped.size():
++		var placed: Array = shaped[n][0]
++		var width: float = shaped[n][1]
++		var ox := float((n % cols) * cell_w) + (float(cell_w) - width) * 0.5
++		var oy := float(n / cols) * float(cell_h) + base_y
++		for p: Array in placed:
++			var frid: RID = p[0]
++			var gi: int = p[1]
++			var tidx := ts.font_get_glyph_texture_idx(frid, size_i, gi)
++			if tidx < 0:
++				continue
++			var key := "%d:%d" % [frid.get_id(), tidx]
++			if not pages.has(key):
++				var page: Image = ts.font_get_texture_image(frid, size_i, tidx)
++				if page == null:
++					continue
++				if page.get_format() != Image.FORMAT_LA8:
++					page.convert(Image.FORMAT_LA8)
++				pages[key] = page
++			var uv: Rect2 = ts.font_get_glyph_uv_rect(frid, size_i, gi)
++			img.blend_rect(pages[key], Rect2i(uv), Vector2i(roundi(ox + p[2]), roundi(oy + p[3])))
++	img.generate_mipmaps()
++	_sign_atlas = ImageTexture.create_from_image(img)
++	_sign_cell_em = Vector2(float(cell_w) / em, float(cell_h) / em)
++	_sign_grid = Vector2i(cols, rows)
+ 
+ 
+ ## How many bays make one shop on each face, matching shaders/building.gdshader's `shop_span`.
+@@ -500,6 +774,14 @@ func _add_facade_details(size: Vector3, center: Vector3, bottom: float, storefro
+ 			bands.append([top - 1.6 * floor_h, 0.26, band_projection * 0.5, 0.10, accent])
+ 	if storefront > 0.0:
+ 		bands.append([bottom + storefront + 0.05, 0.25, 0.22, 0.10, accent])
++		# A real top and bottom edge on the sign band the shader paints (0.76 .. 0.93 of the
++		# storefront). Two thin bands in the multimesh the facade already has, so they cost no
++		# draw call at all, and they are what stops a fascia reading as a stripe painted on the
++		# wall: the board now catches the sun along its top and lays a line of shade under it.
++		if shape != Shape.WAREHOUSE:
++			var lip: Color = accent.darkened(0.30)
++			bands.append([bottom + 0.768 * storefront, 0.10, 0.085, 0.10, lip])
++			bands.append([bottom + 0.922 * storefront, 0.10, 0.085, 0.10, lip])
+ 	if masonry and string_course_every > 0 and rows >= string_course_every + 3:
+ 		var f := string_course_every
+ 		while f < rows - 1:
+@@ -628,33 +910,37 @@ func _add_facade_details(size: Vector3, center: Vector3, bottom: float, storefro
+ 			for pu in stops:
+ 				boxes.append([Transform3D(Basis(a * 0.5, Vector3.UP * (storefront - 0.10), n * 0.5),
+ 					fc + a * pu + Vector3(0.0, bottom + (storefront - 0.10) * 0.5, 0.0) + n * 0.14), accent.lightened(0.05)])
+-		# Shop signs. The sign band is drawn by the shader on the storefront; this puts the
+-		# actual name on it, lined up with the same shop runs (`shop_span`). One per face:
+-		# every run would be four names on a wall the player can only read one of.
++		# Shop signs. The band and the name on it are both drawn by the shader, at any distance
++		# and on the web too (see the atlas note above); these are the raised letters standing
++		# on that name for the near view. They have to agree with it exactly - same name, same
++		# size, same line, same colour, same glow - because the two hand over to each other at
++		# SIGN_FADE, and anything that differs shows up as the name changing at that distance.
+ 		if storefront > 0.0 and shape != Shape.WAREHOUSE and signs_on:
+ 			var span: float = spans[face_index]
+ 			var runs := int(float(cols) / span)
+-			var band_y := 0.845 * (position.y + bottom + storefront) - position.y
+-			var last_name := -1
++			# The band the shader paints is 0.76..0.93 up the storefront, measured from the
++			# building's own base, so its centre is 0.845 of the way up.
++			var band_y := bottom + 0.845 * storefront
+ 			for run in runs:
+-				var name_i := absi(hash([seed, "sign_name", face_index, run * 7919])) % SHOP_NAMES.size()
+-				# Two of the same shop side by side reads as a bug even though real streets do
+-				# it; step along the list rather than re-rolling.
+-				if name_i == last_name:
+-					name_i = (name_i + 1) % SHOP_NAMES.size()
+-				last_name = name_i
+-				var text: String = SHOP_NAMES[name_i]
++				# The shader's face ids are 1..4, in this same order.
++				var name_i := sign_name_index(run, face_index + 1, seed % 1000)
++				var pick := sign_board_pick(run, face_index + 1, seed % 1000)
+ 				# The shader measures `u` the opposite way round the box from `a` on every
+ 				# face, so the run's centre has to be mirrored back.
+ 				var u_s := (float(run) + 0.5) * span * pitch
+ 				var sign_mesh := MeshInstance3D.new()
+ 				sign_mesh.name = "Sign%d" % run
+-				sign_mesh.mesh = PropFactory.text_mesh(text, SIGN_HEIGHT)
+-				sign_mesh.material_override = PropFactory.sign_material()
+-				# Rough advance width for this font, so a long name is shrunk to fit its run
+-				# instead of running across the shop next door.
+-				var wide := float(text.length()) * SIGN_HEIGHT * 0.62
+-				var room := span * pitch * 0.80
++				sign_mesh.mesh = sign_letter_mesh(name_i)
++				# The same two rules the shader paints the board by: a cream or a gold board
++				# takes near-black letters, everything else cream, and a shop rolling 22 or
++				# under leaves its sign unlit after dark.
++				var dark_ink := pick > 86 or (pick > 50 and pick <= 56)
++				sign_mesh.material_override = sign_letter_material(not dark_ink, pick > 22)
++				# The real advance width, measured off the glyphs the atlas was built from, so
++				# a name too long for its run is shrunk by exactly the amount the painted name
++				# behind it is shrunk by.
++				var wide := sign_advance(name_i) * SIGN_HEIGHT
++				var room := span * pitch * SIGN_ROOM
+ 				var fit: float = minf(1.0, room / maxf(wide, 0.01))
+ 				sign_mesh.transform = Transform3D(Basis(a, Vector3.UP, n).scaled(Vector3(fit, fit, 1.0)),
+ 					fc + a * (size_u * 0.5 - u_s) + Vector3(0.0, band_y, 0.0) + n * SIGN_STANDOFF)
+diff --git a/shaders/building.gdshader b/shaders/building.gdshader
+index bc37781..2aa856f 100644
+--- a/shaders/building.gdshader
++++ b/shaders/building.gdshader
+@@ -51,6 +51,38 @@ uniform int roof_style = 0;
+ // Building picks these and places the shop signs in the world from the same numbers, so the
+ // names line up with the sign bands drawn here.
+ uniform vec4 shop_span = vec4(3.0, 3.0, 3.0, 3.0);
++
++// --- Shop names ---
++// Every name in Building.SHOP_NAMES, rasterised once into one texture at load (see the atlas
++// note in building.gd). Painting the name here costs one texture fetch on a band this shader
++// already draws, so a fascia carries its name at ANY distance, in the web build too, without a
++// single extra draw call. The raised letters in front of it only exist within a few dozen
++// metres; past that this is the sign.
++uniform sampler2D sign_atlas : hint_default_transparent, filter_linear_mipmap_anisotropic, repeat_disable;
++// Cells across and down the atlas, and the size of one cell in ems.
++uniform vec2 sign_grid = vec2(1.0, 1.0);
++uniform vec2 sign_cell_em = vec2(7.0, 1.3);
++// Advance width of every name in ems, in Building.SHOP_NAMES order, and how many there are.
++// 0 names turns the painted signs off (which is what an unset atlas gets).
++uniform float sign_adv[48];
++uniform int sign_count = 0;
++// Atlas pixels per em, one em of a name in metres, and the fraction of a shop's wall a name
++// may fill before it is shrunk to fit. All three must match Building's.
++uniform float sign_em_px = 96.0;
++uniform float sign_em = 0.50;
++uniform float sign_room = 0.68;
++// Strength of the painted name right at the camera, and the distances it fades in over. On
++// desktop the raised letters carry the near view, so it starts at 0 and takes over as they go;
++// on the web there are no raised letters and Building sets this to 1.
++uniform float sign_paint_near = 1.0;
++uniform vec2 sign_fade = vec2(26.0, 33.0);
++// Minimum letter contrast once the sign is smaller than its texels. Below 1 the name washes
++// out early; far above it the letters crawl as the mip level changes.
++uniform float sign_sharp = 1.7;
++// How brightly a lit sign burns at night. 0 turns the lighting off; it is always 0 by day.
++uniform float sign_glow = 1.0;
++// 0 by day, 1 once the street lamps are on (night, or a dark enough storm).
++global uniform float lamp_factor;
+ // 0 by day, 1 at night (set by DayNight). Windows only glow after dark.
+ global uniform float night_factor;
+ // Wall texture set (albedo, normal, roughness), sampled in wall space: meters per tile.
+@@ -177,6 +209,40 @@ vec3 room_interior(vec2 w, vec3 dir, float wide, float high, float deep, float r
+ }
+ 
+ 
++// The hash that picks a shop's name. Building runs the identical arithmetic in 32-bit ints
++// (Building.sign_name_index), so the painted name and the raised letters in front of it always
++// spell the same word. Doing this in floats would not survive the trip: the shader works in
++// 32-bit and GDScript in 64-bit, and one name index out by one puts a different shop on the
++// board than the letters standing on it.
++uint sign_hash(uint a, uint b, uint c) {
++	uint h = a * 374761393u + b * 668265263u + c * 2246822519u;
++	h ^= h >> 13u;
++	h *= 1274126177u;
++	h ^= h >> 16u;
++	return h;
++}
++
++
++// 0..99 for one shop: which board colour it is painted, and whether it lights up after dark.
++// Building runs the same numbers (sign_board_pick) so the raised letters know whether to be
++// cream or near-black, and whether to glow.
++int sign_board_pick(int run, int face, int seed_value) {
++	return int(sign_hash(uint(run & 0xFFFF), uint(face + 18), uint((seed_value & 0xFFFF) + 911)) % 100u);
++}
++
++
++int sign_name_index(int run, int face, int seed_value, int count) {
++	uint f = uint(face);
++	uint s = uint(seed_value & 0xFFFF);
++	uint n = uint(count);
++	int i = int(sign_hash(uint(run & 0xFFFF), f, s) % n);
++	if (run > 0 && i == int(sign_hash(uint((run - 1) & 0xFFFF), f, s) % n)) {
++		i = (i + 1) % count;
++	}
++	return i;
++}
++
++
+ void fragment() {
+ 	vec3 n = normalize(local_normal);
+ 	vec3 albedo = facade_color;
+@@ -218,6 +284,9 @@ void fragment() {
+ 		float u;
+ 		float pitch;
+ 		float face_id;
++		// How long this wall is, so the shop runs on it can be counted the way Building counts
++		// them (a run that would hang off the end of the wall gets no name).
++		float size_u;
+ 		// A cut corner. Its normal points diagonally, so neither axis branch below can measure
+ 		// along it, and a window grid carried across it would leave half a window either side.
+ 		// It is built as a solid corner pier instead, which is what a chamfered corner usually
+@@ -228,24 +297,41 @@ void fragment() {
+ 			u = dot(local_pos.xz, along) + 0.5 * (part_size.x + part_size.z);
+ 			pitch = window_pitch_x;
+ 			face_id = 5.0;
++			size_u = part_size.x + part_size.z;
+ 		} else if (abs(n.x) > 0.5) {
+ 			u = local_pos.z * sign(n.x) + part_size.z * 0.5;
+ 			pitch = window_pitch_z;
+ 			face_id = n.x > 0.0 ? 1.0 : 2.0;
++			size_u = part_size.z;
+ 		} else {
+ 			u = local_pos.x * sign(-n.z) + part_size.x * 0.5;
+ 			pitch = window_pitch_x;
+ 			face_id = n.z > 0.0 ? 3.0 : 4.0;
++			size_u = part_size.x;
+ 		}
+ 		float v = world_y;
++		// How far along the wall and up it one screen pixel steps. Taken here, where the
++		// control flow is still uniform for the whole triangle (`n` is constant on a face, so
++		// every fragment of a primitive takes the same branch above). A derivative asked for
++		// inside the sign-band branch below would be undefined - that branch only some
++		// fragments of a quad take - and undefined here means a smear of the wrong mip.
++		vec2 du = vec2(dFdx(u), dFdy(u));
++		vec2 dv = vec2(dFdx(v), dFdy(v));
+ 		float col = floor(u / pitch);
+ 		float fu = fract(u / pitch);
+ 		bool storefront = has_storefront && v < ground_floor_height;
++		// Height up the storefront: 0 at the pavement, 1 at the string course over the shops.
++		// Measured up from base_y, not from world zero. A building on the hills or up on the
++		// valley plateau has its ground floor tens of metres up, and dividing world Y by that
++		// put the whole shopfront - glass, bulkhead, sign band and name - down below the
++		// pavement, which is why storefronts off the flat never looked right.
++		float store_m = max(ground_floor_height - base_y, 0.01);
++		float sfv = (v - base_y) / store_m;
+ 		float row;
+ 		float fv;
+ 		if (storefront) {
+ 			row = -1.0;
+-			fv = v / ground_floor_height;
++			fv = sfv;
+ 		} else {
+ 			float vv = v - ground_floor_height;
+ 			row = floor(vv / floor_height);
+@@ -262,6 +348,8 @@ void fragment() {
+ 		bool bulkhead = false;
+ 		bool door_bay = false;
+ 		float shop_seed = 0.0;
++		// Which shop along this wall, counted the way Building counts its runs.
++		float shop_run = 0.0;
+ 		// Window opening in cell units (centre and half size), kept so the fake interior knows
+ 		// where the hole in the wall is.
+ 		vec2 win_c = vec2(0.5, 0.52);
+@@ -271,6 +359,7 @@ void fragment() {
+ 		} else if (storefront) {
+ 			float span = max(shop_span[int(face_id) - 1], 1.0);
+ 			float shop_id = floor(col / span);
++			shop_run = shop_id;
+ 			shop_seed = hash21(vec2(shop_id * 1.7, face_id * 13.0) + seed);
+ 			door_bay = abs(col - (shop_id * span + floor(shop_seed * span))) < 0.5;
+ 			// The door runs to the pavement; a display window sits on a bulkhead.
+@@ -397,16 +486,91 @@ void fragment() {
+ 			}
+ 		} else if (fascia) {
+ 			// Sign band. Each shop paints it its own colour, which is what makes a block read
+-			// as a row of businesses rather than one long building with a stripe on it.
+-			vec3 sign_hue = mix(vec3(0.16, 0.18, 0.22), vec3(0.42, 0.20, 0.16), hash21(vec2(shop_seed, 5.3)));
+-			sign_hue = mix(sign_hue, vec3(0.18, 0.30, 0.26), step(0.66, hash21(vec2(shop_seed, 9.1))));
+-			sign_hue = mix(sign_hue, vec3(0.22, 0.20, 0.26), step(0.86, hash21(vec2(shop_seed, 2.4))));
++			// as a row of businesses rather than one long building with a stripe on it. Mostly
++			// charcoal and slate boards, then a painted one: signwriter's red, deep blue,
++			// bottle green, gold, or a cream board with dark letters. A strip of identical grey
++			// fascias is a strip of nothing, and signage is the one place a street is allowed
++			// to be loud (the same reasoning as Building.AWNING_COLORS).
++			// Every threshold here is on the whole number, never on a float made from it:
++			// Building has to land on the same board to know whether its letters are cream or
++			// black, and a comparison like 0.86 > 0.86 can go either way between the two.
++			int pick100 = sign_board_pick(int(shop_run), int(face_id), int(seed));
++			bool dark_ink = pick100 > 86 || (pick100 > 50 && pick100 <= 56);
++			vec3 sign_hue = mix(vec3(0.12, 0.13, 0.16), vec3(0.30, 0.28, 0.25), hash21(vec2(shop_seed, 11.7)));
++			if (pick100 > 86) {
++				sign_hue = vec3(0.74, 0.72, 0.66);
++			} else if (pick100 > 74) {
++				sign_hue = vec3(0.46, 0.07, 0.07);
++			} else if (pick100 > 64) {
++				sign_hue = vec3(0.07, 0.13, 0.36);
++			} else if (pick100 > 56) {
++				sign_hue = vec3(0.07, 0.24, 0.15);
++			} else if (pick100 > 50) {
++				sign_hue = vec3(0.52, 0.38, 0.06);
++			}
+ 			albedo = sign_hue;
+ 			// A darker lip top and bottom so the band reads as a board fixed to the wall.
+ 			float lip = step(fv, 0.785) + step(0.918, fv);
+ 			albedo *= mix(1.0, 0.55, clamp(lip, 0.0, 1.0));
+ 			rough = 0.55;
+ 			metal = 0.05;
++			// The shop's name, painted straight onto the board out of the atlas.
++			if (sign_count > 0) {
++				float span_u = max(shop_span[clamp(int(face_id) - 1, 0, 3)], 1.0);
++				float run_w = span_u * pitch;
++				int sid = int(shop_run);
++				// Building only names whole runs, so a stub of wall at the end of a wall that
++				// does not make a full shop gets a blank board here too.
++				int runs = int(floor(floor(size_u / pitch + 0.5) / span_u));
++				if (sid < runs) {
++					int idx = sign_name_index(sid, int(face_id), int(seed), sign_count);
++					float adv = sign_adv[clamp(idx, 0, 47)];
++					// A name too long for its run is shrunk to fit, by exactly the rule the
++					// raised letters are shrunk by, so the two are the same size.
++					float fit = min(1.0, (run_w * sign_room) / max(adv * sign_em, 0.001));
++					float em_m = sign_em * fit;
++					// This shader measures u the opposite way round the box from the world on
++					// every face (see the note in Building's sign code), so the run has to be
++					// read back to front here or every name on the street comes out mirrored.
++					float s = 1.0 - (u / run_w - float(sid));
++					vec2 cell = vec2(
++						0.5 + (s - 0.5) * run_w / max(em_m * sign_cell_em.x, 0.001),
++						0.5 - (sfv - 0.845) * store_m / max(em_m * sign_cell_em.y, 0.001));
++					if (cell.x > 0.0 && cell.x < 1.0 && cell.y > 0.0 && cell.y < 1.0) {
++						vec2 slot = vec2(float(idx - (idx / int(sign_grid.x)) * int(sign_grid.x)),
++							floor(float(idx) / sign_grid.x));
++						vec2 auv = (slot + cell) / sign_grid;
++						// Fetch with the atlas gradients worked out by hand from the wall
++						// gradients above, rather than letting the hardware take them inside
++						// this branch. It filters along the sign properly - a fascia is almost
++						// always seen down the street at a glancing angle, where a square
++						// footprint blurs the letters away long before they are small.
++						vec2 k = -1.0 / (em_m * sign_cell_em * sign_grid);
++						float a = textureGrad(sign_atlas, auv,
++							vec2(du.x, dv.x) * k, vec2(du.y, dv.y) * k).a;
++						// Atlas texels across the sharper of the two screen axes: the width the
++						// letter edges have to be softened over.
++						float texels = min(length(vec2(du.x, dv.x)), length(vec2(du.y, dv.y)))
++							* sign_em_px / em_m;
++						// Magnified, the edges get exactly one pixel of softening. Minified,
++						// the mip has already blurred them, so the letters hold a constant
++						// weight and then dissolve into the board instead of crawling.
++						a = clamp((a - 0.5) * max(1.0 / clamp(texels, 0.06, 1.0), sign_sharp) + 0.5, 0.0, 1.0);
++						a *= mix(sign_paint_near, 1.0, smoothstep(sign_fade.x, sign_fade.y,
++							length(world_pos - CAMERA_POSITION_WORLD)));
++						// Cream letters on a dark board, near-black on a cream or gold one.
++						vec3 ink = dark_ink ? vec3(0.06, 0.06, 0.07) : vec3(0.94, 0.92, 0.87);
++						albedo = mix(albedo, ink, a);
++						rough = mix(rough, 0.38, a);
++						metal = mix(metal, 0.0, a);
++						// Most shops light their sign after dark; the rest stay dark boards.
++						// lamp_factor is 0 by day, so none of this costs anything at noon.
++						float lit_sign = pick100 > 22 ? 1.0 : 0.0;
++						float on = lamp_factor * lit_sign * sign_glow;
++						emission += ink * a * on * 1.15 + sign_hue * on * 0.10;
++					}
++				}
++			}
+ 		} else if (bulkhead) {
+ 			// The panelled base under a display window: stall risers are always a different
+ 			// material from the wall, usually tile or painted board.

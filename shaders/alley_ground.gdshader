@@ -1,0 +1,365 @@
+shader_type spatial;
+render_mode cull_back;
+
+// The ground of the city's service alleys (Alleys): ONE mesh a chunk, no shadow. Each piece says
+// what it is in COLOR.r (Alleys.G_*, in 16ths), a variant in COLOR.g and in COLOR.b whether its
+// alley runs along z; on the alley, its aprons and its bumps UV is (metres along the alley,
+// metres across from its centre line) and UV2 (the half width, a per-run seed); elsewhere UV is
+// world metres.
+//   0 the alley: poured concrete slabs either side of a V-gutter ribbon, sawn joints, cracks,
+//     asphalt patches where it was dug up, oil under where trucks stand, tyre polish, a cast-iron
+//     drain in the gutter now and then, grit and leaves along the walls, a damp line down the V
+//   1 the driveway apron across the pavement and its wedge in the gutter
+//   2 the old concrete at the alley's sides
+//   3 a speed bump: asphalt with worn yellow chevrons
+//   4 stencil paint (COLOR.g 0 white, 1 yellow)
+// Tuned in display numbers (disp() / to_lit(), as the industrial ground does).
+
+uniform sampler2D asphalt_tex : source_color, filter_linear_mipmap_anisotropic, repeat_enable;
+uniform sampler2D concrete_tex : source_color, filter_linear_mipmap_anisotropic, repeat_enable;
+uniform sampler2D cracked_tex : source_color, filter_linear_mipmap_anisotropic, repeat_enable;
+
+global uniform float road_wetness;
+global uniform float lamp_factor;
+global uniform vec4 sky_tint;
+
+// AlleyNight (ALLEY_NIGHT, the chunk's own copy): standing water down the gutter and in the slab's
+// dips, and the chunk's alley lamps (chunk-local heads, w 1 warm / 0 cool) mirrored in it.
+uniform float wet_on = 0.0;
+uniform vec4 lamp_heads[18];
+uniform int lamp_count = 0;
+// The mirror's strength: Forward+ adds its own SSR and the real lights' specular on top.
+uniform float mirror_gain = 1.0;
+uniform float mirror_forward = 0.6;
+
+varying float kind;
+varying float variant;
+varying vec3 world_p;
+varying vec3 local_p;
+varying float along_z;
+
+#include "res://shaders/color_space.gdshaderinc"
+#include "res://shaders/pattern_aa.gdshaderinc"
+
+vec3 disp(vec3 c) {
+	return cs_linear_renderer() ? cs_linear_to_srgb(c) : c;
+}
+
+vec3 to_lit(vec3 c) {
+	return cs_linear_renderer() ? cs_srgb_to_linear(c) : c;
+}
+
+float hash12(vec2 p) {
+	vec3 p3 = fract(vec3(p.xyx) * 0.1031);
+	p3 += dot(p3, p3.yzx + 33.33);
+	return fract((p3.x + p3.y) * p3.z);
+}
+
+vec2 hash22(vec2 p) {
+	vec3 p3 = fract(vec3(p.xyx) * vec3(0.1031, 0.1030, 0.0973));
+	p3 += dot(p3, p3.yzx + 33.33);
+	return fract((p3.xx + p3.yz) * p3.zy);
+}
+
+float vnoise(vec2 p) {
+	vec2 i = floor(p);
+	vec2 f = fract(p);
+	f = f * f * (3.0 - 2.0 * f);
+	return mix(mix(hash12(i), hash12(i + vec2(1.0, 0.0)), f.x), mix(hash12(i + vec2(0.0, 1.0)), hash12(i + vec2(1.0, 1.0)), f.x), f.y);
+}
+
+float fbm(vec2 p) {
+	return vnoise(p) * 0.5 + vnoise(p * 2.03 + 7.1) * 0.3 + vnoise(p * 4.1 + 3.3) * 0.2;
+}
+
+// Distance to the nearest edge of a jittered Voronoi tessellation `scale` m across.
+float crack_dist(vec2 p, float scale) {
+	vec2 q = p / scale;
+	vec2 i = floor(q);
+	vec2 f = fract(q);
+	vec2 best = vec2(8.0);
+	for (int y = -1; y <= 1; y++) {
+		for (int x = -1; x <= 1; x++) {
+			vec2 o = vec2(float(x), float(y));
+			vec2 r = o + hash22(i + o) * 0.85 - f;
+			float d = dot(r, r);
+			if (d < best.x) {
+				best.y = best.x;
+				best.x = d;
+			} else if (d < best.y) {
+				best.y = d;
+			}
+		}
+	}
+	return (sqrt(best.y) - sqrt(best.x)) * scale * 0.5;
+}
+
+// 1 on a line every `spacing` m, `w` wide, faded to its average once under a few pixels.
+float lines(float v, float spacing, float w) {
+	float g = abs(fract(v / spacing + 0.5) - 0.5) * spacing;
+	float fw = max(fwidth(v), 0.0005);
+	float fade = 1.0 - smoothstep(0.03, 0.12, fw / spacing * 4.0);
+	return (1.0 - smoothstep(w * 0.5, w * 0.5 + fw, g)) * fade;
+}
+
+float band(float v, float c, float w) {
+	float fw = max(fwidth(v), 0.0005);
+	return 1.0 - smoothstep(w, w + fw, abs(v - c));
+}
+
+void vertex() {
+	kind = floor(COLOR.r * 16.0);
+	variant = COLOR.g;
+	along_z = COLOR.b;
+	world_p = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
+	local_p = VERTEX;
+}
+
+// What still water at `p` (chunk-local, `o` metres across the alley's centre line, `hw` its half
+// width, `az` 1 where it runs along z) mirrors from `cam`: the reflected ray followed to the wall it
+// meets (a facade `wall_back` past the alley's edge, `wall_top` high) - dark, washed warm or cool
+// round each lamp head that lights it - or over the walls the night sky; and each lamp's own image,
+// a tight core where its mirror image meets the ground and a streak toward the eye (the ripples).
+uniform float wall_back = 0.25;
+uniform float wall_top = 11.0;
+vec3 canyon_mirror(vec3 p, vec3 cam, float o, float hw, float az) {
+	vec3 d = normalize(p - cam);
+	vec3 r = vec3(d.x, -d.y, d.z);
+	vec2 across_v = az > 0.5 ? vec2(1.0, 0.0) : vec2(0.0, 1.0);
+	float ro = dot(r.xz, across_v);
+	float t = ro > 0.0 ? (hw + wall_back - o) / max(ro, 1e-3) : (-(hw + wall_back) - o) / min(ro, -1e-3);
+	vec3 hit = p + r * t;
+	float wall = step(hit.y - p.y, wall_top) * step(abs(ro), 0.999);
+	// The wall: dull brick-to-concrete, lit only round the lamps.
+	vec3 wall_col = vec3(0.035, 0.03, 0.028);
+	vec3 lamps = vec3(0.0);
+	vec2 to_eye = cam.xz - p.xz;
+	float de = max(length(to_eye), 0.1);
+	vec2 along = to_eye / de;
+	vec2 acr = vec2(-along.y, along.x);
+	for (int i = 0; i < 18; i++) {
+		if (i >= lamp_count) {
+			break;
+		}
+		vec4 h = lamp_heads[i];
+		vec3 tint = h.w > 0.5 ? vec3(1.0, 0.72, 0.42) : vec3(0.82, 0.88, 1.0);
+		vec3 dw = hit - h.xyz;
+		// A wall-washer's throw: brighter under the head, a cone down the wall.
+		wall_col += tint * 0.55 * exp(-dot(dw.xz, dw.xz) / 3.5 - max(dw.y, 0.0) * max(dw.y, 0.0) / 1.2 - min(dw.y, 0.0) * min(dw.y, 0.0) / 6.0);
+		vec3 img = vec3(h.x, 2.0 * p.y - h.y, h.z);
+		float ti = (cam.y - p.y) / max(cam.y - img.y, 0.05);
+		vec2 q = cam.xz + (img.xz - cam.xz) * ti;
+		vec2 dq = p.xz - q;
+		float da = dot(dq, along);
+		float dc = dot(dq, acr);
+		float len = 0.25 + 0.06 * distance(q, cam.xz);
+		float core = exp(-(dc * dc) / 0.012 - (da * da) / (len * len * 0.12));
+		float streak = exp(-(dc * dc) / 0.03 - (da * da) / (len * len));
+		float fall = 1.0 / (1.0 + 0.004 * dot(q - cam.xz, q - cam.xz));
+		lamps += tint * (core * 2.4 + streak * 0.9) * fall;
+	}
+	vec3 sky = sky_tint.rgb * 0.8;
+	return mix(sky, wall_col * lamp_factor + sky * 0.15, wall) + lamps * lamp_factor;
+}
+
+void fragment() {
+	vec2 p = UV;
+	vec2 w = world_p.xz;
+	// The speed bump's chevron coordinate and its footprint, here in uniform control flow.
+	float chev_t = (abs(p.y) * 0.9 + p.x * 1.6) / 0.9;
+	float chev_fw = fwidth(chev_t);
+	float hw = max(UV2.x, 0.5);
+	float seed = UV2.y;
+	float foot = length(vec2(length(dFdx(p)), length(dFdy(p))));
+	float fade = 1.0 - smoothstep(0.006, 0.03, foot);
+	vec3 albedo;
+	float rough = 0.88;
+	float wet_k = 1.0;
+	float damp = 0.0;
+	if (kind < 0.5) {
+		float s = p.x;
+		float o = p.y;
+		float ao = abs(o);
+		vec3 c = disp(texture(concrete_tex, vec2(s, o) / 3.4).rgb);
+		vec3 cr = disp(texture(cracked_tex, vec2(s, o) / 6.0 + seed * 9.0).rgb);
+		float tone = dot(mix(c, cr, 0.45), vec3(0.333));
+		// Slab by slab: joints across every 3-4.5 m (the run's own pitch), and along the ribbon.
+		float pitch = 3.0 + 1.5 * seed;
+		float slab = floor(s / pitch);
+		float side = o < 0.0 ? 0.0 : 1.0;
+		float stone = 0.9 + 0.14 * hash12(vec2(slab, side + seed * 13.0));
+		vec3 base = vec3(0.45, 0.44, 0.415) * (0.62 + 0.55 * tone) * stone;
+		// Decades of grime: broad dark weathering, darker toward the walls and down the middle
+		// where the trucks run, lighter in the scuffed wheel paths.
+		float weather = fbm(vec2(s, o) * 0.11 + seed * 3.0);
+		base *= mix(0.72, 1.02, weather);
+		float ribbon = 1.0 - smoothstep(0.43, 0.47, ao);
+		// The ribbon is a smoother, darker pour, stained by what runs down it.
+		vec3 rib = vec3(0.33, 0.32, 0.30) * (0.75 + 0.4 * tone);
+		// Half the alleys are asphalt either side of the concrete ribbon: old, grey, oxidised in
+		// broad patches, alligator-cracked where it has failed.
+		if (seed < 0.5) {
+			vec3 a = disp(texture(asphalt_tex, vec2(s, o) / 3.6).rgb);
+			float age = fbm(vec2(s, o) * 0.07 + 3.0 + seed * 9.0);
+			base = a * mix(0.6, 0.82, age) * vec3(1.0, 0.99, 0.97);
+			float failed = smoothstep(0.5, 0.68, fbm(vec2(s, o) * 0.09 + 11.0 + seed * 5.0));
+			float acd = crack_dist(vec2(s, o) + vec2(vnoise(vec2(s, o) * 0.8), vnoise(vec2(s, o) * 0.8 + 3.0)) * 0.5, 0.8);
+			base *= 1.0 - 0.5 * (1.0 - smoothstep(0.012, 0.012 + foot, acd)) * fade * failed;
+			// The ribbon's own concrete reads lighter against it.
+			rib = vec3(0.47, 0.46, 0.43) * (0.7 + 0.45 * tone);
+		}
+		albedo = mix(base, rib, ribbon);
+		float concrete = seed < 0.5 ? ribbon : 1.0;
+		float joint = max(lines(s, pitch, 0.012) * concrete, band(ao, 0.45, 0.008));
+		albedo *= 1.0 - 0.38 * joint;
+		// The damp line down the V, with a scum of algae and silt either side of it.
+		float trickle = (1.0 - smoothstep(0.03, 0.16, ao + 0.05 * (vnoise(vec2(s * 0.7, 3.0)) - 0.5))) * (0.55 + 0.45 * vnoise(vec2(s * 0.25, 1.0) + seed * 5.0));
+		vec3 silt = vec3(0.32, 0.31, 0.24);
+		albedo = mix(albedo, silt * (0.7 + 0.4 * vnoise(vec2(s * 3.0, o * 9.0))), trickle * 0.6);
+		damp = max(damp, trickle * 0.7);
+		// Cracks: a network on old slabs, and long ones across.
+		float old = smoothstep(0.6, 0.85, hash12(vec2(slab * 1.7, side + 4.0 + seed * 3.0)));
+		float cd = crack_dist(vec2(s, o) + vec2(vnoise(vec2(s, o) * 0.9), vnoise(vec2(s, o) * 0.9 + 4.0)) * 0.4, 1.1);
+		float crack = (1.0 - smoothstep(0.004, 0.004 + foot * 0.7, cd)) * fade * old * concrete;
+		float cd2 = crack_dist(vec2(s * 0.3, o * 1.4) + seed * 7.0, 2.2);
+		// The long settlement cracks only here and there, and faint: as a network they drew the
+		// slabs as flagstones.
+		crack = max(crack, (1.0 - smoothstep(0.003, 0.003 + foot * 0.6, cd2)) * fade * 0.3 * smoothstep(0.62, 0.75, vnoise(vec2(s * 0.15, o * 0.5) + 7.0)));
+		albedo *= 1.0 - 0.38 * crack;
+		albedo *= 1.0 - 0.05 * old * (1.0 - fade);
+		// Asphalt patches where the alley was dug up for a pipe: across it, and in lumps.
+		float trench = step(0.78, hash12(vec2(floor(s / 11.0), seed * 31.0)));
+		float tc = (floor(s / 11.0) + 0.3 + 0.4 * hash12(vec2(floor(s / 11.0), 5.0 + seed))) * 11.0;
+		float in_trench = trench * (1.0 - smoothstep(0.55, 0.62, abs(s - tc) + 0.06 * vnoise(vec2(o * 3.0, s))));
+		float lump = smoothstep(0.69, 0.71, fbm(vec2(s, o) * 0.28 + seed * 17.0));
+		float patch_ = max(in_trench, lump);
+		vec3 asph = disp(texture(asphalt_tex, vec2(s, o) / 3.0).rgb);
+		vec3 a_col = asph * mix(0.48, 0.66, fbm(vec2(s, o) * 0.6 + 2.0)) * vec3(1.0, 0.99, 0.97);
+		albedo = mix(albedo, a_col, patch_);
+		// The patch's edge sealant: a dark tar line round it.
+		float seal = max(band(abs(s - tc) + 0.06 * vnoise(vec2(o * 3.0, s)), 0.585, 0.035) * trench,
+			band(fbm(vec2(s, o) * 0.28 + seed * 17.0), 0.70, 0.004));
+		albedo *= 1.0 - 0.55 * seal * fade;
+		// Tyre polish either side of the ribbon, oil where the trucks stand.
+		float track = (1.0 - smoothstep(0.18, 0.4, abs(ao - 0.95))) * (0.6 + 0.4 * vnoise(vec2(s * 0.2, side)));
+		albedo *= 1.0 - 0.14 * track;
+		// Oil: drips where trucks stand (in the wheel paths, stretched along the alley), soaked in
+		// and soft-edged, a ring where an old stain spread.
+		float drip = vnoise(vec2(s * 0.55, o * 1.9) + seed * 23.0 + 11.0) * 0.7 + vnoise(vec2(s, o) * 3.1 + 2.0) * 0.3;
+		float oil = smoothstep(0.6, 0.86, drip) * (1.0 - smoothstep(0.35, 0.9, abs(ao - 0.85))) ;
+		oil += smoothstep(0.7, 0.92, vnoise(vec2(s, o) * 0.9 + 40.0)) * 0.35;
+		oil = clamp(oil, 0.0, 1.0);
+		albedo = mix(albedo, albedo * vec3(0.45, 0.44, 0.43), oil * 0.6);
+		rough = mix(0.86, 0.6, oil);
+		// Grit, dead leaves and litter blown against the walls.
+		float edge = smoothstep(hw - 0.9, hw, ao);
+		float grit = edge * smoothstep(0.35, 0.75, fbm(vec2(s, o) * 2.3 + 5.0));
+		vec3 leaf = mix(vec3(0.36, 0.27, 0.15), vec3(0.47, 0.40, 0.24), vnoise(vec2(s, o) * 31.0));
+		albedo = mix(albedo, mix(vec3(0.33, 0.30, 0.26), leaf, step(0.62, vnoise(vec2(s, o) * 13.0))), grit * 0.7);
+		albedo *= 1.0 - 0.22 * edge;
+		// A cast-iron grate in the V every so often (a hash of the 24 m stretch).
+		float cell = floor(s / 24.0);
+		float gs = (cell + 0.25 + 0.5 * hash12(vec2(cell, seed * 41.0))) * 24.0;
+		vec2 gq = vec2(s - gs, o);
+		if (hash12(vec2(cell, seed * 7.0 + 2.0)) < 0.7 && abs(gq.x) < 0.48 && abs(gq.y) < 0.33) {
+			float frame = step(0.42, abs(gq.x)) + step(0.27, abs(gq.y));
+			// Eight slots across the grate along the flow, box-filtered to their average once a
+			// slot is under a few pixels (at a grazing angle they shimmered into a moire).
+			float gu = (gq.x + 0.4) / 0.1;
+			float sfw = max(fwidth(gu), 0.0005);
+			float gd = abs(fract(gu) - 0.5) * 2.0;
+			float slot = 1.0 - smoothstep(0.55 - sfw, 0.55 + sfw, gd);
+			slot = mix(slot, 0.55, smoothstep(0.2, 0.5, sfw));
+			slot *= step(abs(gq.x), 0.4) * step(abs(gq.y), 0.25);
+			vec3 iron = vec3(0.14, 0.13, 0.12) * (0.9 + 0.2 * vnoise(gq * 6.0));
+			albedo = mix(iron * mix(1.0, 0.3, slot), vec3(0.19, 0.17, 0.15), clamp(frame, 0.0, 1.0));
+			rough = 0.75;
+		} else {
+			// A rust bloom on the concrete round it.
+			float rust = (1.0 - smoothstep(0.48, 0.9, length(max(abs(gq) - vec2(0.48, 0.33), 0.0)))) * step(hash12(vec2(cell, seed * 7.0 + 2.0)), 0.7);
+			albedo = mix(albedo, vec3(0.36, 0.24, 0.15), rust * 0.35 * vnoise(gq * 6.0));
+		}
+	} else if (kind < 1.5) {
+		// The apron: brushed concrete, scored into squares, stained where tyres turn in.
+		vec3 c = disp(texture(concrete_tex, w / 2.6).rgb);
+		albedo = vec3(0.74, 0.73, 0.70) * (0.7 + 0.45 * dot(c, vec3(0.333)));
+		float brush = 0.96 + 0.06 * vnoise(vec2(p.x * 40.0, p.y * 1.5));
+		albedo *= brush;
+		float score = max(lines(p.x, 1.5, 0.01), lines(p.y + 0.0, 1.5, 0.01));
+		albedo *= 1.0 - 0.35 * score;
+		float tyre = smoothstep(0.55, 0.85, fbm(w * 0.6 + 3.0));
+		albedo *= 1.0 - 0.22 * tyre;
+		rough = 0.82;
+	} else if (kind < 2.5) {
+		// The old concrete beside the alley and behind the buildings: weathered, cracked, weeds at
+		// the joints; or (COLOR.g 1) a service yard's old asphalt.
+		vec3 cr = disp(texture(cracked_tex, w / 5.0).rgb);
+		vec3 c = disp(texture(concrete_tex, w / 3.0).rgb);
+		albedo = vec3(0.44, 0.43, 0.41) * (0.62 + 0.5 * dot(mix(c, cr, 0.6), vec3(0.333)));
+		albedo *= mix(0.74, 1.02, fbm(w * 0.12 + 5.0));
+		if (variant > 0.5) {
+			vec3 a = disp(texture(asphalt_tex, w / 3.5).rgb);
+			albedo = a * mix(0.55, 0.75, fbm(w * 0.06 + 3.0));
+			float cd = crack_dist(w + vec2(vnoise(w * 0.8), vnoise(w * 0.8 + 3.0)) * 0.5, 1.2);
+			albedo *= 1.0 - 0.45 * (1.0 - smoothstep(0.008, 0.008 + foot, cd)) * fade * smoothstep(0.45, 0.7, fbm(w * 0.07 + 1.0));
+		}
+		float joint = max(lines(w.x, 3.0, 0.012), lines(w.y, 3.0, 0.012)) * step(variant, 0.5);
+		albedo *= 1.0 - 0.4 * joint;
+		float weeds = joint * smoothstep(0.55, 0.8, vnoise(w * 2.0)) * fade;
+		albedo = mix(albedo, vec3(0.30, 0.34, 0.16) * (0.7 + 0.5 * vnoise(w * 19.0)), weeds * 0.8);
+		albedo *= 1.0 - 0.22 * smoothstep(0.5, 0.8, fbm(w * 0.3 + 9.0));
+		rough = 0.9;
+	} else if (kind < 3.5) {
+		// A speed bump: dark asphalt, worn yellow chevrons across it.
+		vec3 a = disp(texture(asphalt_tex, p / 2.0).rgb);
+		albedo = a * 0.55;
+		float chev = step(0.5, fract((abs(p.y) * 0.9 + p.x * 1.6) / 0.9));
+		if (paa_on()) {
+			chev = paa_stripes(chev_t - 0.5, 1.0, 0.5, chev_fw);
+		}
+		float worn = smoothstep(0.35, 0.75, fbm(p * 3.0 + 5.0));
+		albedo = mix(albedo, vec3(0.86, 0.68, 0.14), chev * (1.0 - worn * 0.75));
+		rough = 0.8;
+	} else {
+		// Stencil paint, overspray at the edges, worn through by tyres.
+		vec2 q = vec2(p.x, p.y);
+		vec3 a = vec3(0.6, 0.59, 0.56);
+		vec3 paint = variant > 0.5 ? vec3(0.88, 0.70, 0.16) : vec3(0.88, 0.88, 0.84);
+		float wear = smoothstep(0.4, 0.8, fbm(q * 3.5 + 7.0));
+		albedo = mix(paint, a, wear * 0.75);
+		rough = 0.75;
+	}
+	float wet = clamp(road_wetness, 0.0, 1.0) * wet_k;
+	wet = max(wet, damp * 0.5);
+	albedo *= 1.0 - 0.32 * wet;
+	float pool = 0.0;
+	float halo = 0.0;
+	if (wet_on > 0.5 && kind < 0.5) {
+		// Water that never dries in a restaurant alley: down the V in lengths, in the slab's low
+		// spots (by the wheel paths), each with a darker damp ring round it.
+		float ao2 = abs(p.y);
+		float gut = (1.0 - smoothstep(0.18, 0.5, ao2 + 0.12 * (vnoise(vec2(p.x * 1.3, 2.0)) - 0.5)))
+			* smoothstep(0.42, 0.58, vnoise(vec2(p.x * 0.16, 5.0) + seed * 9.0));
+		float dip = fbm(vec2(p.x * 0.3, p.y * 1.1) + seed * 21.0 + 3.0) + 0.05 * (vnoise(vec2(p.x * 2.0, p.y * 5.0)) - 0.5);
+		float dip_pool = smoothstep(0.645, 0.665, dip) * (1.0 - smoothstep(hw - 0.5, hw - 0.1, ao2));
+		float d_ring = smoothstep(0.58, 0.65, dip) * (1.0 - smoothstep(hw - 0.3, hw, ao2));
+		float g_ring = (1.0 - smoothstep(0.3, 0.9, ao2)) * smoothstep(0.32, 0.5, vnoise(vec2(p.x * 0.16, 5.0) + seed * 9.0));
+		pool = max(gut, dip_pool);
+		halo = max(max(d_ring, g_ring), pool);
+		albedo *= 1.0 - 0.3 * halo;
+		albedo = mix(albedo, albedo * vec3(0.6, 0.6, 0.62), pool);
+	}
+	ALBEDO = to_lit(clamp(albedo, vec3(0.0), vec3(1.0)));
+	ROUGHNESS = mix(mix(rough, 0.12, wet * 0.8), 0.35, halo * 0.7);
+	ROUGHNESS = mix(ROUGHNESS, 0.03, pool);
+	SPECULAR = mix(0.5, 0.6, pool);
+	if (pool > 0.01 && lamp_factor > 0.01) {
+		vec3 cam = (inverse(MODEL_MATRIX) * vec4(CAMERA_POSITION_WORLD, 1.0)).xyz;
+		vec3 v = normalize(cam - local_p);
+		float fres = 0.25 + 0.75 * pow(1.0 - clamp(v.y, 0.0, 1.0), 4.0);
+		float g = mirror_gain * (cs_linear_renderer() ? mirror_forward : 1.0);
+		// The night sky over the canyon (sky_tint: raw display numbers on both renderers) and the lamps.
+		vec3 m = min(canyon_mirror(local_p, cam, p.y, hw, along_z), vec3(3.0));
+		EMISSION = to_lit(m) * pool * fres * g;
+	}
+}

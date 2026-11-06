@@ -1,0 +1,219 @@
+{
+ "_doc": "The dawn review's cameras (docs/HANDOFF.md 'The dawn review'): the refcams street_noon, golden_aerial, hills and beach views at 06:15, 07:00 and 08:00, the street at 05:45 (the lamps) and looking east into the sunrise at 06:15, clear. Run through tools/refcams with REFCAMS_JSON=<abs path of this file>.",
+ "resolution": [
+  1280,
+  720
+ ],
+ "cameras": [
+  {
+   "name": "street_0615",
+   "label": "Street (Flower at Olympic) 0615",
+   "eye": [
+    2359.4,
+    2.0,
+    880.0,
+    0.0,
+    2.0
+   ],
+   "agl": true,
+   "hour": 6.25,
+   "weather": "clear",
+   "fov": 55
+  },
+  {
+   "name": "aerial_0615",
+   "label": "Downtown from the SW, 140 m, 0615",
+   "eye": [
+    1450.0,
+    140.0,
+    2150.0,
+    -38.0,
+    4.0
+   ],
+   "agl": true,
+   "hour": 6.25,
+   "weather": "clear",
+   "fov": 55
+  },
+  {
+   "name": "hills_0615",
+   "label": "Front range from 260 m 0615",
+   "eye": [
+    300.0,
+    260.0,
+    -650.0,
+    0.0,
+    -6.0
+   ],
+   "agl": true,
+   "hour": 6.25,
+   "weather": "clear",
+   "fov": 55
+  },
+  {
+   "name": "beach_0615",
+   "label": "Beach at the waterline 0615",
+   "eye": [
+    -732.0,
+    2.1,
+    800.0,
+    105.0,
+    -4.0
+   ],
+   "agl": false,
+   "hour": 6.25,
+   "weather": "clear",
+   "fov": 55
+  },
+  {
+   "name": "street_0700",
+   "label": "Street (Flower at Olympic) 0700",
+   "eye": [
+    2359.4,
+    2.0,
+    880.0,
+    0.0,
+    2.0
+   ],
+   "agl": true,
+   "hour": 7.0,
+   "weather": "clear",
+   "fov": 55
+  },
+  {
+   "name": "aerial_0700",
+   "label": "Downtown from the SW, 140 m, 0700",
+   "eye": [
+    1450.0,
+    140.0,
+    2150.0,
+    -38.0,
+    4.0
+   ],
+   "agl": true,
+   "hour": 7.0,
+   "weather": "clear",
+   "fov": 55
+  },
+  {
+   "name": "hills_0700",
+   "label": "Front range from 260 m 0700",
+   "eye": [
+    300.0,
+    260.0,
+    -650.0,
+    0.0,
+    -6.0
+   ],
+   "agl": true,
+   "hour": 7.0,
+   "weather": "clear",
+   "fov": 55
+  },
+  {
+   "name": "beach_0700",
+   "label": "Beach at the waterline 0700",
+   "eye": [
+    -732.0,
+    2.1,
+    800.0,
+    105.0,
+    -4.0
+   ],
+   "agl": false,
+   "hour": 7.0,
+   "weather": "clear",
+   "fov": 55
+  },
+  {
+   "name": "street_0800",
+   "label": "Street (Flower at Olympic) 0800",
+   "eye": [
+    2359.4,
+    2.0,
+    880.0,
+    0.0,
+    2.0
+   ],
+   "agl": true,
+   "hour": 8.0,
+   "weather": "clear",
+   "fov": 55
+  },
+  {
+   "name": "aerial_0800",
+   "label": "Downtown from the SW, 140 m, 0800",
+   "eye": [
+    1450.0,
+    140.0,
+    2150.0,
+    -38.0,
+    4.0
+   ],
+   "agl": true,
+   "hour": 8.0,
+   "weather": "clear",
+   "fov": 55
+  },
+  {
+   "name": "hills_0800",
+   "label": "Front range from 260 m 0800",
+   "eye": [
+    300.0,
+    260.0,
+    -650.0,
+    0.0,
+    -6.0
+   ],
+   "agl": true,
+   "hour": 8.0,
+   "weather": "clear",
+   "fov": 55
+  },
+  {
+   "name": "beach_0800",
+   "label": "Beach at the waterline 0800",
+   "eye": [
+    -732.0,
+    2.1,
+    800.0,
+    105.0,
+    -4.0
+   ],
+   "agl": false,
+   "hour": 8.0,
+   "weather": "clear",
+   "fov": 55
+  },
+  {
+   "name": "street_0545",
+   "label": "Street 05:45 (lamps)",
+   "eye": [
+    2359.4,
+    2.0,
+    880.0,
+    0.0,
+    2.0
+   ],
+   "agl": true,
+   "hour": 5.75,
+   "weather": "clear",
+   "fov": 55
+  },
+  {
+   "name": "streeteast_0615",
+   "label": "Street looking east into the sunrise 06:15",
+   "eye": [
+    2359.4,
+    2.0,
+    880.0,
+    -90.0,
+    3.0
+   ],
+   "agl": true,
+   "hour": 6.25,
+   "weather": "clear",
+   "fov": 55
+  }
+ ]
+}

@@ -1,0 +1,549 @@
+{
+ "_doc": "The golden-hour review's strips (tools/golden_hour/README in docs/HANDOFF.md 'golden hour review'): six views x 17:00-19:30 every half hour, run through tools/refcams with REFCAMS_JSON=<abs path of this file> SHEET_COLS=6.",
+ "resolution": [
+  1280,
+  720
+ ],
+ "cameras": [
+  {
+   "name": "coast_1700",
+   "label": "The Esplanade down the coast 1700",
+   "eye": [
+    -441.66,
+    9.94,
+    3534.58,
+    -178.0,
+    -1.5
+   ],
+   "agl": false,
+   "hour": 17.0,
+   "weather": "clear",
+   "fov": 44
+  },
+  {
+   "name": "coast_1730",
+   "label": "The Esplanade down the coast 1730",
+   "eye": [
+    -441.66,
+    9.94,
+    3534.58,
+    -178.0,
+    -1.5
+   ],
+   "agl": false,
+   "hour": 17.5,
+   "weather": "clear",
+   "fov": 44
+  },
+  {
+   "name": "coast_1800",
+   "label": "The Esplanade down the coast 1800",
+   "eye": [
+    -441.66,
+    9.94,
+    3534.58,
+    -178.0,
+    -1.5
+   ],
+   "agl": false,
+   "hour": 18.0,
+   "weather": "clear",
+   "fov": 44
+  },
+  {
+   "name": "coast_1830",
+   "label": "The Esplanade down the coast 1830",
+   "eye": [
+    -441.66,
+    9.94,
+    3534.58,
+    -178.0,
+    -1.5
+   ],
+   "agl": false,
+   "hour": 18.5,
+   "weather": "clear",
+   "fov": 44
+  },
+  {
+   "name": "coast_1900",
+   "label": "The Esplanade down the coast 1900",
+   "eye": [
+    -441.66,
+    9.94,
+    3534.58,
+    -178.0,
+    -1.5
+   ],
+   "agl": false,
+   "hour": 19.0,
+   "weather": "clear",
+   "fov": 44
+  },
+  {
+   "name": "coast_1930",
+   "label": "The Esplanade down the coast 1930",
+   "eye": [
+    -441.66,
+    9.94,
+    3534.58,
+    -178.0,
+    -1.5
+   ],
+   "agl": false,
+   "hour": 19.5,
+   "weather": "clear",
+   "fov": 44
+  },
+  {
+   "name": "beachsun_1700",
+   "label": "Beach waterline toward the sun 1700",
+   "eye": [
+    -732.0,
+    2.1,
+    800.0,
+    105.0,
+    -4.0
+   ],
+   "agl": false,
+   "hour": 17.0,
+   "weather": "clear",
+   "fov": 55
+  },
+  {
+   "name": "beachsun_1730",
+   "label": "Beach waterline toward the sun 1730",
+   "eye": [
+    -732.0,
+    2.1,
+    800.0,
+    105.0,
+    -4.0
+   ],
+   "agl": false,
+   "hour": 17.5,
+   "weather": "clear",
+   "fov": 55
+  },
+  {
+   "name": "beachsun_1800",
+   "label": "Beach waterline toward the sun 1800",
+   "eye": [
+    -732.0,
+    2.1,
+    800.0,
+    105.0,
+    -4.0
+   ],
+   "agl": false,
+   "hour": 18.0,
+   "weather": "clear",
+   "fov": 55
+  },
+  {
+   "name": "beachsun_1830",
+   "label": "Beach waterline toward the sun 1830",
+   "eye": [
+    -732.0,
+    2.1,
+    800.0,
+    105.0,
+    -4.0
+   ],
+   "agl": false,
+   "hour": 18.5,
+   "weather": "clear",
+   "fov": 55
+  },
+  {
+   "name": "beachsun_1900",
+   "label": "Beach waterline toward the sun 1900",
+   "eye": [
+    -732.0,
+    2.1,
+    800.0,
+    105.0,
+    -4.0
+   ],
+   "agl": false,
+   "hour": 19.0,
+   "weather": "clear",
+   "fov": 55
+  },
+  {
+   "name": "beachsun_1930",
+   "label": "Beach waterline toward the sun 1930",
+   "eye": [
+    -732.0,
+    2.1,
+    800.0,
+    105.0,
+    -4.0
+   ],
+   "agl": false,
+   "hour": 19.5,
+   "weather": "clear",
+   "fov": 55
+  },
+  {
+   "name": "aerial_1700",
+   "label": "Downtown from the SW, 140 m 1700",
+   "eye": [
+    1450.0,
+    140.0,
+    2150.0,
+    -38.0,
+    4.0
+   ],
+   "agl": true,
+   "hour": 17.0,
+   "weather": "clear",
+   "fov": 55
+  },
+  {
+   "name": "aerial_1730",
+   "label": "Downtown from the SW, 140 m 1730",
+   "eye": [
+    1450.0,
+    140.0,
+    2150.0,
+    -38.0,
+    4.0
+   ],
+   "agl": true,
+   "hour": 17.5,
+   "weather": "clear",
+   "fov": 55
+  },
+  {
+   "name": "aerial_1800",
+   "label": "Downtown from the SW, 140 m 1800",
+   "eye": [
+    1450.0,
+    140.0,
+    2150.0,
+    -38.0,
+    4.0
+   ],
+   "agl": true,
+   "hour": 18.0,
+   "weather": "clear",
+   "fov": 55
+  },
+  {
+   "name": "aerial_1830",
+   "label": "Downtown from the SW, 140 m 1830",
+   "eye": [
+    1450.0,
+    140.0,
+    2150.0,
+    -38.0,
+    4.0
+   ],
+   "agl": true,
+   "hour": 18.5,
+   "weather": "clear",
+   "fov": 55
+  },
+  {
+   "name": "aerial_1900",
+   "label": "Downtown from the SW, 140 m 1900",
+   "eye": [
+    1450.0,
+    140.0,
+    2150.0,
+    -38.0,
+    4.0
+   ],
+   "agl": true,
+   "hour": 19.0,
+   "weather": "clear",
+   "fov": 55
+  },
+  {
+   "name": "aerial_1930",
+   "label": "Downtown from the SW, 140 m 1930",
+   "eye": [
+    1450.0,
+    140.0,
+    2150.0,
+    -38.0,
+    4.0
+   ],
+   "agl": true,
+   "hour": 19.5,
+   "weather": "clear",
+   "fov": 55
+  },
+  {
+   "name": "hills_1700",
+   "label": "Front range from 260 m 1700",
+   "eye": [
+    300.0,
+    260.0,
+    -650.0,
+    0.0,
+    -6.0
+   ],
+   "agl": true,
+   "hour": 17.0,
+   "weather": "clear",
+   "fov": 55
+  },
+  {
+   "name": "hills_1730",
+   "label": "Front range from 260 m 1730",
+   "eye": [
+    300.0,
+    260.0,
+    -650.0,
+    0.0,
+    -6.0
+   ],
+   "agl": true,
+   "hour": 17.5,
+   "weather": "clear",
+   "fov": 55
+  },
+  {
+   "name": "hills_1800",
+   "label": "Front range from 260 m 1800",
+   "eye": [
+    300.0,
+    260.0,
+    -650.0,
+    0.0,
+    -6.0
+   ],
+   "agl": true,
+   "hour": 18.0,
+   "weather": "clear",
+   "fov": 55
+  },
+  {
+   "name": "hills_1830",
+   "label": "Front range from 260 m 1830",
+   "eye": [
+    300.0,
+    260.0,
+    -650.0,
+    0.0,
+    -6.0
+   ],
+   "agl": true,
+   "hour": 18.5,
+   "weather": "clear",
+   "fov": 55
+  },
+  {
+   "name": "hills_1900",
+   "label": "Front range from 260 m 1900",
+   "eye": [
+    300.0,
+    260.0,
+    -650.0,
+    0.0,
+    -6.0
+   ],
+   "agl": true,
+   "hour": 19.0,
+   "weather": "clear",
+   "fov": 55
+  },
+  {
+   "name": "hills_1930",
+   "label": "Front range from 260 m 1930",
+   "eye": [
+    300.0,
+    260.0,
+    -650.0,
+    0.0,
+    -6.0
+   ],
+   "agl": true,
+   "hour": 19.5,
+   "weather": "clear",
+   "fov": 55
+  },
+  {
+   "name": "street_1700",
+   "label": "Flower at Olympic, north 1700",
+   "eye": [
+    2359.4,
+    2.0,
+    880.0,
+    0.0,
+    2.0
+   ],
+   "agl": true,
+   "hour": 17.0,
+   "weather": "clear",
+   "fov": 55
+  },
+  {
+   "name": "street_1730",
+   "label": "Flower at Olympic, north 1730",
+   "eye": [
+    2359.4,
+    2.0,
+    880.0,
+    0.0,
+    2.0
+   ],
+   "agl": true,
+   "hour": 17.5,
+   "weather": "clear",
+   "fov": 55
+  },
+  {
+   "name": "street_1800",
+   "label": "Flower at Olympic, north 1800",
+   "eye": [
+    2359.4,
+    2.0,
+    880.0,
+    0.0,
+    2.0
+   ],
+   "agl": true,
+   "hour": 18.0,
+   "weather": "clear",
+   "fov": 55
+  },
+  {
+   "name": "street_1830",
+   "label": "Flower at Olympic, north 1830",
+   "eye": [
+    2359.4,
+    2.0,
+    880.0,
+    0.0,
+    2.0
+   ],
+   "agl": true,
+   "hour": 18.5,
+   "weather": "clear",
+   "fov": 55
+  },
+  {
+   "name": "street_1900",
+   "label": "Flower at Olympic, north 1900",
+   "eye": [
+    2359.4,
+    2.0,
+    880.0,
+    0.0,
+    2.0
+   ],
+   "agl": true,
+   "hour": 19.0,
+   "weather": "clear",
+   "fov": 55
+  },
+  {
+   "name": "street_1930",
+   "label": "Flower at Olympic, north 1930",
+   "eye": [
+    2359.4,
+    2.0,
+    880.0,
+    0.0,
+    2.0
+   ],
+   "agl": true,
+   "hour": 19.5,
+   "weather": "clear",
+   "fov": 55
+  },
+  {
+   "name": "streetwest_1700",
+   "label": "Olympic toward the sun (west) 1700",
+   "eye": [
+    2359.4,
+    2.0,
+    880.0,
+    90.0,
+    3.0
+   ],
+   "agl": true,
+   "hour": 17.0,
+   "weather": "clear",
+   "fov": 55
+  },
+  {
+   "name": "streetwest_1730",
+   "label": "Olympic toward the sun (west) 1730",
+   "eye": [
+    2359.4,
+    2.0,
+    880.0,
+    90.0,
+    3.0
+   ],
+   "agl": true,
+   "hour": 17.5,
+   "weather": "clear",
+   "fov": 55
+  },
+  {
+   "name": "streetwest_1800",
+   "label": "Olympic toward the sun (west) 1800",
+   "eye": [
+    2359.4,
+    2.0,
+    880.0,
+    90.0,
+    3.0
+   ],
+   "agl": true,
+   "hour": 18.0,
+   "weather": "clear",
+   "fov": 55
+  },
+  {
+   "name": "streetwest_1830",
+   "label": "Olympic toward the sun (west) 1830",
+   "eye": [
+    2359.4,
+    2.0,
+    880.0,
+    90.0,
+    3.0
+   ],
+   "agl": true,
+   "hour": 18.5,
+   "weather": "clear",
+   "fov": 55
+  },
+  {
+   "name": "streetwest_1900",
+   "label": "Olympic toward the sun (west) 1900",
+   "eye": [
+    2359.4,
+    2.0,
+    880.0,
+    90.0,
+    3.0
+   ],
+   "agl": true,
+   "hour": 19.0,
+   "weather": "clear",
+   "fov": 55
+  },
+  {
+   "name": "streetwest_1930",
+   "label": "Olympic toward the sun (west) 1930",
+   "eye": [
+    2359.4,
+    2.0,
+    880.0,
+    90.0,
+    3.0
+   ],
+   "agl": true,
+   "hour": 19.5,
+   "weather": "clear",
+   "fov": 55
+  }
+ ]
+}

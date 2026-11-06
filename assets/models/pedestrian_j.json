@@ -1,0 +1,17 @@
+{
+  "name": "pedestrian_j",
+  "prompt": "African American man in his early 30s with deep dark brown skin, short black hair and a trimmed black beard, casual: grey pullover hoodie, dark blue jeans, white sneakers, natural relaxed face, full body standing, ultra realistic, photorealistic, highly detailed, physically accurate materials and proportions, real-world scale, no cartoon or stylized look",
+  "credits": 44,
+  "tasks": {
+    "preview": "01a0cabe-6e37-77ee-9e95-a51ffa9ece00",
+    "refine": "01a0cabf-45c5-72d5-8e2d-739f74bbc229",
+    "rig": "01a0cac0-0187-7427-9785-1568d273d1aa",
+    "animations": "01a0cac0-cb45-716c-9eb4-23aaa6bdf339"
+  },
+  "source": "Meshy (generated for this project)",
+  "animations": [
+    0,
+    613,
+    659
+  ]
+}

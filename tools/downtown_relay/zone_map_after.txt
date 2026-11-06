@@ -1,0 +1,84 @@
+Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org
+
+ -3400 ~~~~~~~nnnnnnnnnnnnnnnn....mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm...nnnnnnnnn^^^^^^
+ -3300 ~~~~~~~:bbb.............mmmmmmmnnnmmmmmmmmmnnnmmmmnmnnnnmmmmm....nnnn^^^^^^^
+ -3200 ~~~~~~~:bbb...........mmmmmmnnnnnnnnnnnnnnnnnnnnnnnnnnnnnmmmmmm..nnnn^^^^^^^
+ -3100 ~~~~~~~:bbb..........mmmmmmnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnmmmmmmm.nnnn^^^^^^^
+ -3000 ~~~~~~~:bbb.........mmmmmmmnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnmmmmmmmmnnnn^^^^^^^
+ -2900 ~~~~~~~:bb.........mmmmmmmmnnnn^nnnnnnnnnnnnn^nnnnnnnnnnnnmmmmmmmnnnn^^^^^^^
+ -2800 ~~~~~~~:bb........mmmmmmmmnn^n^^^^n^^n^nnnn^n^nnnnnnn^^nnnmmmmmmmnnnnn^^^^^^
+ -2700 ~~~~~~~bbb.......mmm#mmmmmnnn^^^^^^^^^^nnnn^^^^nnnnnnn^n^nmmmmmmmnnnnn^^^^^^
+ -2600 ~~~~~~:bbb......mmmm#mmmmnnnnn^n^^^^^^^nnnn^^^n^nnnnnnnnn^nmmmmmmnnnnn^^^^^^
+ -2500 ~~~~~~:bbb......mmmm#mmmmnn^^nn^n^n^^^nnnnnnnnnnnn^nnn^nn^nmmmmmmnnnnn^^^^^^
+ -2400 ~~~~~~:bb......mmmmm#mmmmn^^nnnnnnnnnnnnnnnnnnnnnnnnnnnnn^nmmmmmmnnnnn^^^^^^
+ -2300 ~~~~~~bbb......mmmmm#mmmnn^nnnnnnnnnnnnnnnnnnnnnnnnnnnnnn^^nmmmmmnnnnn^^^^^^
+ -2200 ~~~~~~bbb......mmmmm#mmmn^^nnnnnnnnnnnnnnnnnnnnnnnnnnnmnn^^nmmmmmnnnnn^^^^^^
+ -2100 ~~~~~:bbb.....mmmmmm#mmnn^^nmmmmmmmmmmmmmmmmmmmmmmmmmmmmnn^^nmmmmnnnn^^^^^^^
+ -2000 ~~~~~nnnnnnnnnnnnnnn#nnnn^nmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmn^^nnnnnnnnn^^^^^^^
+ -1900 ~~~~~nnnnnnnnnnnnnnnn#nnn^nmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmn^^nnnnnnnnn^^^^^^^
+ -1800 ~~~~~nn^^^^^^^nn^^^nn#nnn^nmmmDDDDDDDDDDDDDDDDDDDDDDDDDmmmn^^nn^^^^^^^^^^^^^
+ -1700 ~~~~nn^^^^^^^^^^^^^nn#nnnnmmmmDDDDDDDDDDDDDDDDDDDDDDDDDmmmn^^^^^^^^^^^^^^^^^
+ -1600 ~~~~n^^^^^^^^^^^^^^^n#nnnnmmmmDDDDDD#DDDDDDDDDDDDDDDDDDiiin^^^^^^^^^^^^^^^^^
+ -1500 ~~~~n^^^^^^^^^^^^^^^nn#nnnmmmmDDDDD#DDDDDDDDDDDDDLDDDDDiiii^^^^^^^^^^^^^^^^^
+ -1400 ~~~~n^^^^^^^^^^^^^^^nn##nmmmm########DDDDDDDDDDDDDDDDDDiiiin^^^^^^^^^^^^^^^^
+ -1300 ~~~~n^^^^^^^^^^^^L^^nnnn#####mDDDDD#D#DDDDDDDDDDDDDDDDDiiiin^^^^^^^^^^^^^^^^
+ -1200 ~~~~n^^^^^^^^^L^^^^^nnnnmmmmmmDDDDD#DDD###################ii^^^^^^^^^^^^^^^^
+ -1100 ~~~~nn^nnnn^^^^^n^^nnnnnmmmmmmDDDDD#DDDDDDDDDDDDDDDDDDDiiiiin^^n^^n^^nn^^^^^
+ -1000 ~~~~nnnnnnnnnnnnnnnLnnnmmmmmmmDDDDD#DDDDDDDDDDDDDDDDDDDiiiiiinnnnnnnnn^^^^^^
+  -900 ~~~~b#b.......mmmmmmmmmmmmmmmmDDDDD#DDDDDDDDDDLDDDDDDDDiiiiiiiiiinnnn^^^^^^^
+  -800 ~~~~:#b.......mmmmmmmmmmmmmmmmDDDDD#DDDDDDDDDDDDDDDDDDDiiiiiiiiiinnnn^^^^^^^
+  -700 ~~~~:#bccc....mmmmmmmmmmmmmmmmDDDDD#DDDLDDDDDDDDDDDDDDDiiiiiiiiiinnnn^^^^^^^
+  -600 ~~~~:##cccc...mmmmmmmmmmmmmmmmDDDDDDDDDDLDDDDDDDDDDDDDDiiiiiiiiiinnnnn^^^^^^
+  -500 ~~~~:b#cLccmm.mmmmmmmmmmmmmmmmDDDD#DDDDDDDDDDDDDDDDDDDDiiiiiiiiiinnnnn^^^^^^
+  -400 ~~~~~Lc#ccmmmmmmmmmmmmmmmmmmmmDDDD#DDDDDDDDDDDDDDDDDDDDiiiiiiiiiinnnn^^^^^^^
+  -300 ~~~~~bb#cmmmmmmmmmmmmmmmmmmmmmDDDD#DDDLDLDDDDDDDDDDDDDDiiiiiiiiiinnnn^^^^^^^
+  -200 ~~~~~:bb#mmmmmmmmmmmmmmmmmmmmmDDDD#DDDDDDLDDDDDDDDDDDDDiiiiiiiiiinnnnn^^^^^^
+  -100 ~~~~~:bb#mmmmmmmmmmmmmmmmmmmmmDDDD#DDLDDDDDDDDDDDDDDDDDiiiiiiiiiinnnn^^^^^^^
+     0 ~~~~~:bbb#mmm.mmmmmmmmmmmmmmmmDDDD#DDDDDDLDDDDDDDDDDDDDiiiiiiiiiinnn^^^^^^^^
+   100 ~~~~~~bbb#....mmmmmmmmmmmmmmmmDDDD#DDLDDDDDDDDDDDDDDDDDiiiiiiiiiinnn^^^^^^^^
+   200 ~~~~~~:bb#....mmmmmmmmmmmmmmmmDDDD#DDDDDDDDDDDDDDDDDDDDiiiiiiiiiinnnn^^^^^^^
+   300 ~~~~~~:bb#....mmmmmmmmmmmmmmmmDDDD#DDDDDDDDDDDDDDDDDDDDiiiiiiiiiinnnn^^^^^^^
+   400 ~~~~~~:bbb#...mmmmmmmmmmmmmmmmDDD#DDDDDDDDDDDDDDDDDDDDDiiiiiiiiiinnnn^^^^^^^
+   500 ~~~~~~~bbb#...mmmmmmmmmmmmmmmmDDD#DDLDDDDLDDDDDDDDDDDDDiiiiiiiiiinnnnn^^^^^^
+   600 ~~~~~~~:AA#AAAAmmmmmmmmmmmmmmmDDD#DDLDDDDDDDDDDDDDDDDDDiiiiiiiiiinnnn^^^^^^^
+   700 ~~~~~~~:AAA#AAAmmmmmmmmmmmmmmmDDD#LDDDDDDDDDDDDDDDDDDDDiiiiiiiiiinnnn^^^^^^^
+   800 ~~~~~~~:AAA#AALmmmmmmmmmmmmmmmDDD#DDDDDDDDDDDDDDDDDDDDDiiiiiiiiiinnnnn^^^^^^
+   900 ~~~~~~~:AAA#AAAmmmmmmmmmmmmmmmDD#DDDDDDDDDDDDDDDDDDDDDDiiiiiiiiiinnnnn^^^^^^
+  1000 ~~~~~~~:bbb.#.mmmmmmmmmmmmmmmmDD#DLDDDDDDDDDDDDDDDDDDDDiiiiiiiiiinnnn^^^^^^^
+  1100 ~~~~~~~L#################mmmmmDD#DDLDDDDDDDDDDDDDDDDDDDiiiiiiiiiinnnn^^^^^^^
+  1200 ~~~~~~~:bbb.#.mmmmmmmmmmm##mmmDD#DDDDDDDDDDDDDDDDDDDDDDiiiiiiiiiinnnn^^^^^^^
+  1300 ~~~~~~~:bbb...mmmmmmmmmmmmm#mmDD#DDDDLDDDDDDDDDDDDDDDDDiiiiiiiiiinnnn^^^^^^^
+  1400 ~~~~~~~:bb....mmmmmmmmmmmmm##mD#DDDLDDDDDDDDDDDDDDDDDDDiiiiiiiiiinnnn^^^^^^^
+  1500 ~~~~~~nnn:~~~~~~~~mmmmmmmmmm#mD#DDDDDLDDDDDDDDDDDDDDDDDiiiiiiiiiinnnn^^^^^^^
+  1600 ~~~~~nnnnn:~~~~~~~mmmmmmmmmmm#D#DDDLDDDDDDDDDDDDDDDDDDDiiiiiiiiiinnnn^^^^^^^
+  1700 ~~~:n^^^^nn:~~~~~~mmmmmmmmmmm#D#DDDDDDDDDDDDDDDDDDDDDDDiiiiiiiiiinnnnn^^^^^^
+  1800 ~~nn^^^^^nnn~~~~~~mmmmmmmmmmm#DD#DDDDDDDDDDDDDDDDDDDDDDiiiiiii##innnn^^^^^^^
+  1900 ~:n^^^^^^^nn~~~~~~mmmmmmmmmmm#DD#DDDDDDDDDDDDDDDDDDDDDDiiii###iiinnnn^^^^^^^
+  2000 ~nn^^^^^^^nn~~~~~~mmmmmmmmmmmm#DD#DDDDDDDDDDDDDDDDDDDDDi###iiiiiinnnnn^^^^^^
+  2100 ~:nn^^^^^^nn~~~~~~mmmmmmmmmmmm#mm#mmmmmmmmmmmmmmmmmmm###iiiiiiiiinnnnn^^^^^^
+  2200 ~~nn^^^^^^n:~~~~~~mmmmmmmmmmmm#mmm#mmmmmmmmmmmmmm###mmiiiiiiiiiiinnnn^^^^^^^
+  2300 ~~~nn^^^^nn~~~~~~~mmmmmmmmmmmmm#mm#mmmmmmmmmmm###mmmmmiiiiiiiiiiinnnn^^^^^^^
+  2400 ~~~:nnnnnn~~~~~~~~mmmmmmmmiiiii#iii#iiiiiii###iiiiiiiiiiiiiiiiiiinnnnn^^^^^^
+  2500 ~~~~~:nn:~~~~~~~~~mmmmmmmmiiiiii#ii#iiii###iiiiiiiiiiiiiiiiiiiiiinnnnn^^^^^^
+  2600 ~~~~~~~~~~~~~~~~~~mmmmmmmmiiiiii##ii####iiiiiiiiiiiiiiiiiiiiiiiiinnnnn^^^^^^
+  2700 ~~~~~~~~~~~~~~~~~~mmmmmmmmiiiiiii##i#iiiiiiiiiiiiiiiiiiiiiiiiiiiinnnnn^^^^^^
+  2800 ~~~~~~~~~~~~~~~~~~mmmmmmmmiiiiiiii##i#iiiiiiiiiiiiiiiiiiiiiiiiiiinnnn^^^^^^^
+  2900 ~~~~~~~~~~~~~~~~~~mmmmmmmmiiiiiiiiii####iiiiiiiiiiii###########iinnnn^^^^^^^
+  3000 ~~~~~~~~~~~~~~~~~~mmmmmmmmiiiiiiiiiPPP#P###########iiiiiiiiiiiiiinnn^^^^^^^^
+  3100 ~~~~~~~~~~~~~~~~~~mmmmmmmmiiiiiiiiiPPP#PPPiiiiiiiiiiiiiiiiiiiiiiinnnn^^^^^^^
+  3200 ~~~~~~~~~~~~~~~~~~.mmmmmmmiiiiiiiiiPPPPPPPiiiiiiiiiiiiiiiiiiiiiiinnnnn^^^^^^
+  3300 ~~~~~~~~~~~~~~~~~~..mmmmmmiiiiiiiii~~~~~~~iiiiiiiiiiiiiiiiiiiiiiinnnn^^^^^^^
+  3400 ~~~~~~~~~~~~~~~~~~...mmmmmiiiiiiiii~~~L~~~iiiiiiiiiiiiiiiiiiiiiiinnnn^^^^^^^
+  3500 ~~~~~~~~~~~~~~~~~~.....mmmiiiiiiiii~~~~~~~iiiiiiiiiiiiiiiiiiiiiiinnnn^^^^^^^
+  3600 ~~~~~~~~~~~~~~~~~~.......miiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiinnnn^^^^^^^
+  3700 ~~~~~~~~~~~~~~~~~~........iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiinnnn^^^^^^^
+  3800 ~~~~~~~~~~~~~~~~~~........iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiinnnn^^^^^^^
+  3900 ~~~~~~~~~~~~~~~~~~........iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiinnnn^^^^^^^
+  4000 ~~~~~~~~~~~~~~~~~~........iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiinnnn^^^^^^^
+  4100 ~~~~~~~~~~~~~~~~~~........iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiinnnn^^^^^^^
+
+405 Coast Freeway (-899.7968, -860.0) -> (-234.1631, 1228.0) n=88
+105 Century Freeway (-660.1108, 1075.0) -> (4783.845, 2900.592) n=271
+101 Hollywood Freeway (4300.0, -1232.3) -> (571.0167, -2708.866) n=204
+110 Harbor Freeway (2157.4, -1615.7) -> (2400.243, 3112.302) n=218
+10 Santa Monica Freeway (2206.0, 2649.7) -> (4931.565, 1796.47) n=120

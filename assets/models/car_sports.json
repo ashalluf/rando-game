@@ -1,0 +1,10 @@
+{
+  "name": "car_sports",
+  "prompt": "modern two-seat sports coupe, low and wide, sleek aerodynamic body, white paint, black tires with large alloy wheels, tinted windows, no text or logos or badges, ultra realistic, photorealistic, highly detailed, physically accurate materials and proportions, real-world scale, no cartoon or stylized look",
+  "credits": 30,
+  "tasks": {
+    "preview": "01a0b931-7ac0-737e-b471-42e71ad1b13f",
+    "refine": "01a0b932-69c6-72e0-8186-18a696a55ee5"
+  },
+  "source": "Meshy (generated for this project)"
+}
