@@ -309,6 +309,14 @@ func _fire_call(player: Player) -> void:
 			left = true
 			break
 	_check(hosed, "a firefighter lays a hose from the pump panel and puts water on it")
+	if out_at < 0:
+		# The merged gate on wt/gate-flakes-3 (unshuffled, shard 2): hosed, and the fire never went out.
+		for c in _em.crews:
+			if is_instance_valid(c):
+				print("EM_FIRE crew job %d task %d at %s dest %s pose %s water %s stuck %.1f" % [c.job, c.task, c.global_position, c._dest, c._pose,
+					c._water != null and c._water.emitting, c._stuck_t])
+		print("EM_FIRE inc water %.1f, doused %.1f of %.1f, car at %s (wreck %s, extinguished %s), unit mode %d" % [float(inc.get("water", 0.0)),
+			float(car._damage.get("_doused")), car._damage.douse_seconds, car.global_position, car.is_wreck(), car._damage.extinguished, unit.mode])
 	_check(out_at >= 0 and car._damage.extinguished and car.is_wreck(), "the fire goes out (after %.1f s) and the wreck stays" % (out_at / 60.0))
 	if not left:
 		for c in _em.crews:
