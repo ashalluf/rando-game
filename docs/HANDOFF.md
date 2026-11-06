@@ -33320,7 +33320,24 @@ crosses the lower right of this one: it is the street's, left in.
 frame, downspout kind / paint, yard car), industrial_kit.gd (apply), industrial_walls.gdshader (the
 new branch and the mural block, off by default), refcams_shot.gd (`riders`), smoke_test.gd (one line).
 
-**Numbers**: see the report at the end of this section.
+**Numbers** (opengl3, 1280x720, the refcam, with 20 m car cells): RC5_ARTS=0 2.72 M triangles /
+2,199 draws, on 2.75 M / 2,299 (+1 % / +4.5 %: the yard cars' per-cell nodes). The cell was then
+raised to 48 m (`CAR_CELL`) to cut those draws; that build was NOT re-measured. Luminance
+p5/p50/p95 25/136/207 off -> 23/136/207 on. Forward+ (lavapipe, `tools/rc5_arts_district/wall_shot.tscn`,
+the city does not fit there - two 3x3-block block_shot runs were OOM-killed): one brick wall agrees
+with opengl3 (wall mean 51-54 vs 54-58 on both renderers, the same on/off shift), glass a little darker.
+
+**Status (wrap-up, 2026-11-06, the owner moving accounts)**:
+- Done: the five fixes above, the camera row with `riders`, the checks, the docs (CLAUDE.md,
+  GAME_PLAN, VISUAL_ROADMAP row "?"), stills on `shots/rc5-arts-district`.
+- **Not gated**: a `SHARDS=3` gate on the merged head (main merged at 2026-11-06 ~13:30) was
+  running when the lead called the wrap-up and was stopped unfinished. The new checks have never
+  run; run `SMOKE_PARTS=rc5_arts_district_checks` first, then the full gate.
+- Open: re-measure GEO with the 48 m car cell; the ten original cameras (cameras.json) were not
+  shot against RC5_ARTS=0 (the pass touches only industrial_walls' brick / mural branches and
+  Industrial's yard cars, none of which is in those ten views, but nobody looked); the riders
+  stand far up Harbor (small in the frame) - move them nearer (s ~345-350) if wanted; the guy wire
+  crossing the lower right is the street's own; the web build was not exported.
 
 **Checks**: `tests/rc5_arts_district_checks.gd` (the shader branches off by default and the switch on
 the material, the Arts District round the camera still has brick warehouses with murals, the mural
