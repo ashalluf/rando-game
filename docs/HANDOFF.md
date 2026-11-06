@@ -31835,6 +31835,10 @@ A/B, every change behind it):
 **Numbers** (opengl3, 1280x720, the row's staging both sides): before (switch off) vs after - see the
 shots README; triangles 5.31 M -> 5.23 M (-1.5 %), draws 3,097 -> 3,071, luminance p5/p50/p95 5/35/105 -> 5/34/105 (the walkers gone more than pay for
 the eyes). Eyeshine on Forward+ (lavapipe, `tools/rc5_coyote_night/eye_shot.gd`) matches opengl3.
+The ten original cameras, RC5_COYOTE_NIGHT=0 vs on (refcams compare): nine ok; `freeway` (13:00)
+flagged at 9.0 mean |d| and -8 % triangles, and its difference image is only the live freeway
+traffic in other places (nothing of this branch acts at 13:00). pier_night and street_night move
+by 0.01 / 3.3 mean |d| (no shaft in clear air; the rain keeps its own).
 
 **Tools.** `tools/rc5_coyote_night/eye_shot.gd`: a coyote, a raccoon and a deer facing the lens and
 side-on under one lamp, no city, a minute (DIST, SPECIES, TURN, FOV; either renderer). Checks:
