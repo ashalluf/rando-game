@@ -3045,6 +3045,9 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	# The coast_highway refcam (tests/rc5_coast_highway_checks.gd, Rc5CoastHighway, CoastFlutes): the
 	# fluted bluff, the traffic by the hour and its first fill, real garage doors, the camera row.
 	load("res://tests/rc5_coast_highway_checks.gd").new().run(self, city)
+	# The coast highway's beach houses (tests/coast_houses_checks.gd, CoastHouses): forms by hash, setbacks,
+	# glass walls to the sea, footprints and collision kept, the plan unchanged.
+	load("res://tests/coast_houses_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()

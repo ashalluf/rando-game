@@ -4135,6 +4135,13 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   it both ways (queues at the closure; `staged` for checks). `COAST_HIGHWAY=0` /
   `COAST_TRAFFIC=0` are the A/B; probe `tools/coast_highway/probe.gd`; checks
   `tests/coast_highway_checks.gd`.
+- The coast highway's beach houses (2026-11-06, docs/HANDOFF.md "The coast highway's beach houses"):
+  `CoastHouses` (`scripts/world/coast_houses.gd`, one hook at the top of CoastHighwayBuild._house(),
+  FULL only) builds each house on the plan's lot, slab and pilings (`CoastHighwayBuild._base()`):
+  a form by hash (MODERN setback / SHED / GABLE / HIP, `form()`, `massing()` pure), sea faces as
+  glass walls on "hh_glass" (hill_glass.gdshader), glass or cable rails, terraces, furniture.
+  `COAST_HOUSES=0` is the A/B; stills `tools/coast_houses/cameras.json` through refcams; checks
+  `tests/coast_houses_checks.gd`.
 - The coast highway at 17:00 (wave 8, refcam `coast_highway` in `tools/refcams/cameras_w8.json`,
   docs/HANDOFF.md "The coast highway at 17:00 from the seawall"): `CoastFlutes`
   (`scripts/world/coast_flutes.gd`, one line after the carve in `MacroMap.height_at()`; names

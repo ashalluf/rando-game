@@ -4835,3 +4835,9 @@ none of either.
   ground); a traffic system that only spawns out of sight and deletes at a dead end leaves the road
   in view empty, so the coast highway fills its whole reach at load and its cars U-turn at the
   slide. RC5_COAST=0 is the A/B.
+- **2026-11-06 The coast highway's beach houses are Malibu houses (coast-houses, HANDOFF "The coast
+  highway's beach houses").** The plan keeps its lots and rolls; the new house's FORM, setback,
+  rails and furniture are hashes of the house's own seed, so the A/B (COAST_HOUSES=0) changes
+  nothing outside the houses' meshes. Big sea-facing glass goes on the hillside glass shader (a
+  room traced at its real size), never a 0..1 pane. LOD and the far city keep the old boxes: the
+  massing reads from the beach only within the FULL ring.
