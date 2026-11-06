@@ -30897,6 +30897,9 @@ after p50 25 / p95 57 / p99 129, crushed 18.6 % (the beam no longer clips). Cost
 by the moving traffic and rain between two runs (the freeway diff map is the cars alone), as every
 wave-8 pair has been. pier_night and sunset, which look out to sea, are identical (0.01 / 0.02).
 
+**Gate** on the merged branch (origin/main b612a9f7): 6,239 checks passed in three shards, peak
+3.85 GB a shard; `SMOKE_PARTS=rc5_lighthouse_night_checks` alone: 15 checks.
+
 **Forward+** (lavapipe, `tools/glshot/fwd_block_shot.tscn` at the camera's eye, BLOCKS=1,
 RC5_LIGHTHOUSE=0 / 1, ~12 min and killed at exit each): the foam's lace and the stones' speckle hold
 on the Mac's renderer (stills 07-10 on the shots branch). That scene builds no far landmarks, so the
