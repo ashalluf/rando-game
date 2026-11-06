@@ -6545,6 +6545,13 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   chunks keep the premiere beams. Nothing takes the kerb or a prop id. `NIGHTLIFE=0` is the A/B
   (`NIGHTLIFE_ODDS=1`, `NIGHTLIFE_PREMIERE=1` for stills); probe `tools/nightlife/probe.gd`;
   checks `tests/nightlife_checks.gd`.
+- A club's line at 23:30 (wave 8, refcam `club_line` in `tools/refcams/cameras_w8.json`, its
+  `club_line` key forces the openings and stages double-parked pickups; docs/HANDOFF.md "A club's
+  line at 23:30"): `RcClubLine` (`scripts/world/rc5_club_line.gd`): the searchlight shaft starts at
+  the lens, lens-wide, a core thinning up the sky (nightlife_beam `club_look`; the old 2 % ramp hid
+  the first 34 m with no fog to hand it to), a club's black fascia board and big name over its
+  shop's sign band, its colour along the line. `RC5_CLUB_LINE=0` is the A/B; small scene
+  `tools/rc5_club_line/club_shot.tscn`; checks `tests/rc5_club_line_checks.gd`.
 - Street performers (2026-10-30, HANDOFF "Street performers"): `Buskers`
   (`scripts/world/buskers.gd`, static; `plan_block()` pure: hashes of seed + block + face + the
   hour, one act a block, two on a plaza, breakdancers only on plazas) - guitar with an open case,

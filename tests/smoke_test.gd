@@ -2968,6 +2968,8 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	# The storm_downtown refcam (tests/rc5_storm_downtown_checks.gd, RcStorm): the night flash, the
 	# storm curtain at night, the lamp streaks in a storm, the litter, the camera row.
 	load("res://tests/rc5_storm_downtown_checks.gd").new().run(self, city)
+	# The club_line refcam (tests/rc5_club_line_checks.gd, RcClubLine): the beams from the lens, the club's board.
+	load("res://tests/rc5_club_line_checks.gd").new().run(self, city)
 	# Forward+ review h (tests/fwd_review_h_checks.gd, FwdReviewH): waves 6-7's look work on the Mac's renderer.
 	load("res://tests/fwd_review_h_checks.gd").new().run(self, city)
 	# Forward+ review i (tests/fwd_review_i_checks.gd, FwdReviewI): waves 7-8's look work on the Mac's renderer.

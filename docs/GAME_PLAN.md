@@ -4876,3 +4876,8 @@ none of either.
   crammed in two rows with a stash underneath, a pop-up canopy over a table on a share of sales
   (the silhouette), a blanket of things on the lawn. The new kinds join the row after the old ones,
   so nothing else of a sale's plan or of the street moves. RC5_YARD_SALE=0 is the A/B.
+- **2026-11-06 A club takes its sign band; a searchlight starts at its lens (rc5-club-line, HANDOFF
+  "A club's line at 23:30").** A new reference camera (`club_line`, wave 8's table) across 6th St
+  from AFTERGLOW at 23:30. A venue that dresses a shop owns that shop's sign band (a club's fascia
+  board stands over Building's, hiding its name), and a beam is drawn from the lamp: a shaft fades
+  up into the sky, never in from a start 34 m up. RC5_CLUB_LINE=0 is the A/B.
