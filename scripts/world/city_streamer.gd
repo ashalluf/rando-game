@@ -199,6 +199,16 @@ var _lead: Vector2 = Vector2.ZERO
 static var STALE_BUILD_CANCEL: bool = OS.get_environment("STALE_BUILD_CANCEL") != "0"
 ## How many such builds were dropped (the checks read it).
 static var stale_builds_cancelled: int = 0
+## A teleport (update_streaming(true): the load, a check's or a still's jump, the verify pack, a
+## refcam hop) frees the chunks that leave the window AT ONCE, before it builds the new area,
+## instead of keeping them up for the far city's dissolve (lod_fade_time): across a jump the old
+## area is nowhere near the camera, and kept, it was a whole area's meshes held while the next
+## one was built - every teleport peaked at two areas (memory-audit-w8, docs/HANDOFF.md
+## "Memory after wave 8"). Driving, walking and flying (update_streaming(false)) dissolve as
+## before. TELEPORT_FREE=0 is the A/B.
+static var TELEPORT_FREE: bool = OS.get_environment("TELEPORT_FREE") != "0"
+## Chunks freed that way (the checks read it).
+static var teleport_freed: int = 0
 ## CHUNK_SWAP_LOG=1: every chunk replaced or retired within 2 blocks of the player is printed with
 ## the stack (who swapped it), for the gate's "spawn chunk replaced mid-file".
 static var SWAP_LOG: bool = OS.get_environment("CHUNK_SWAP_LOG") == "1"
@@ -453,6 +463,21 @@ func _advance_retiring(delta: float) -> void:
 		entry[1] = float(entry[1]) - delta
 		if float(entry[1]) <= 0.0:
 			_free_retired(k)
+
+
+## Every chunk still standing for its dissolve, freed now (not queue_free(): the frame's end is
+## after the builds this call makes, which is the peak this exists to cut). Out of the tree first,
+## so _exit_tree() drops its parked cars and nothing that walks the scene meets it again.
+func _free_retiring_now() -> void:
+	for k in _retiring.keys():
+		var entry: Array = _retiring[k]
+		var chunk: CityChunk = entry[0]
+		_free_retired(k)
+		if is_instance_valid(chunk) and chunk.is_queued_for_deletion():
+			if chunk.get_parent() != null:
+				chunk.get_parent().remove_child(chunk)
+			chunk.free()
+			teleport_freed += 1
 
 
 func _free_retired(k: Vector2i) -> void:
@@ -769,6 +794,8 @@ func update_streaming(immediate: bool) -> void:
 				and _block_distance(k, Vector2(wp.x, wp.z)) > lod_reach + 150.0
 		if stale or maxi(absi(k.x - here.x), absi(k.y - here.y)) > keep_radius_blocks:
 			_retire_chunk(k)
+	if immediate and TELEPORT_FREE:
+		_free_retiring_now()
 	for k in _pending.keys():
 		var stale_build: bool = _pending[k].level == CityChunk.Level.LOD and not wanted.has(k) \
 				and _block_distance(k, Vector2(wp.x, wp.z)) > lod_reach + 150.0

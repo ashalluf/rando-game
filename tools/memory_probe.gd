@@ -388,6 +388,7 @@ func _tree(city: Node, label: String) -> void:
 		elif top.get_script() != null:
 			key = (top.get_script() as Script).resource_path.get_file().get_basename()
 		var acc: Array = groups.get(key, [0, 0, 0, 0])
+		_cur_owner = key
 		_walk(top, acc, seen)
 		groups[key] = acc
 	var rows: Array = []
@@ -399,6 +400,36 @@ func _tree(city: Node, label: String) -> void:
 	for r in rows.slice(0, 30):
 		var a: Array = r[1]
 		print("TREE   %-34s meshes %7.1f MB  mm %6.1f MB  shapes %6.1f MB  nodes %6d" % [r[0], a[0] / 1048576.0, a[1] / 1048576.0, a[2] / 1048576.0, a[3]])
+	if _env("MESH_TOP", "0") != "0":
+		# MESH_TOP=n: the n biggest mesh families (resource path or name, else the node's name stem)
+		# under each of the six biggest owners - what a TREE row is made of.
+		for r in rows.slice(0, 6):
+			var fam: Dictionary = _mesh_fams.get(r[0], {})
+			var fr: Array = []
+			for k in fam:
+				fr.append([fam[k][0], k, fam[k][1]])
+			fr.sort_custom(func(a, b): return a[0] > b[0])
+			for f in fr.slice(0, int(_env("MESH_TOP", "0"))):
+				print("MESH   %-26s %7.2f MB  x%-5d %s" % [str(r[0]).left(26), f[0] / 1048576.0, f[2], str(f[1]).left(90)])
+	_mesh_fams.clear()
+
+
+var _cur_owner := ""
+var _mesh_fams := {}
+
+
+func _fam(n: Node, m: Mesh, b: int) -> void:
+	if _env("MESH_TOP", "0") == "0":
+		return
+	var k := m.resource_path if m.resource_path != "" else m.resource_name
+	if k == "":
+		k = "<%s>" % String(n.name).rstrip("0123456789@_")
+	var d: Dictionary = _mesh_fams.get(_cur_owner, {})
+	var e: Array = d.get(k, [0, 0])
+	e[0] += b
+	e[1] += 1
+	d[k] = e
+	_mesh_fams[_cur_owner] = d
 
 
 func _walk(n: Node, acc: Array, seen: Dictionary) -> void:
@@ -407,7 +438,9 @@ func _walk(n: Node, acc: Array, seen: Dictionary) -> void:
 		var m := (n as MeshInstance3D).mesh
 		if m and not seen.has(m.get_instance_id()):
 			seen[m.get_instance_id()] = true
-			acc[0] += Sizer.mesh_bytes(m)
+			var mb := Sizer.mesh_bytes(m)
+			acc[0] += mb
+			_fam(n, m, mb)
 	elif n is MultiMeshInstance3D:
 		var mm := (n as MultiMeshInstance3D).multimesh
 		if mm and not seen.has(mm.get_instance_id()):
@@ -420,7 +453,9 @@ func _walk(n: Node, acc: Array, seen: Dictionary) -> void:
 			acc[1] += mm.instance_count * per
 			if mm.mesh and not seen.has(mm.mesh.get_instance_id()):
 				seen[mm.mesh.get_instance_id()] = true
-				acc[0] += Sizer.mesh_bytes(mm.mesh)
+				var mb := Sizer.mesh_bytes(mm.mesh)
+				acc[0] += mb
+				_fam(n, mm.mesh, mb)
 	elif n is CollisionShape3D:
 		var s := (n as CollisionShape3D).shape
 		if s and not seen.has(s.get_instance_id()):
