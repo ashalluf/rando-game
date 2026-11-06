@@ -842,6 +842,11 @@ func _part_material(style: Dictionary) -> ShaderMaterial:
 	mat.set_shader_parameter("caps_real_until", kit_mullion_distance if real_caps else 0.0)
 	mat.set_shader_parameter("facade_mid3", FacadeMid3.enabled)
 	_apply_wall_texture(mat, finish, shape == Shape.WAREHOUSE, style.wall_set, style.weathering)
+	if wall_detail_force >= 0.0 and finish == Finish.FLAT and (style.wall_set as Array).size() == 2:
+		# The photographed wall as detail round the facade colour (landmark_facade's rule).
+		var m: Color = (WALL_TEXTURE_MEAN.get(style.wall_set[0], [Color(0.3, 0.3, 0.3)]) as Array)[0]
+		mat.set_shader_parameter("wall_texture_mean", Vector3(m.r, m.g, m.b))
+		mat.set_shader_parameter("wall_detail", wall_detail_force)
 	_part_mat = mat
 	return mat
 
@@ -1019,6 +1024,13 @@ var shop_frame_force: int = -1
 ## Inert at their defaults.
 var wall_set_force: Array = []
 var weathering_cap: float = 1e9
+## A FLAT wall's photographed texture as detail round the facade colour (divided by its mean, this
+## much of its contrast kept, like landmark_facade.gdshader) instead of multiplied into it; the far
+## boxes then take the wall at the facade colour (FarBuilding: set 15). -1 off (inert).
+var wall_detail_force: float = -1.0
+## Faces (0 +X, 1 -X, 2 +Z, 3 -Z) that may not take the fire escape the building rolls (a party
+## wall a neighbour stands against; the roll is still made). Inert when empty.
+var escape_faces_off: Array[int] = []
 ## Cap height of a shop sign, in metres.
 const SIGN_HEIGHT := 0.40
 ## How far out from the wall the sign sits, and how far a sign still draws.
@@ -1388,6 +1400,8 @@ func _add_facade_details(size: Vector3, center: Vector3, bottom: float, storefro
 	# Fire escapes belong on older brick blocks, on one face only, the way they actually run.
 	var has_escape := finish == Finish.BRICK and shape != Shape.WAREHOUSE and rows >= 3 and _rng.randf() < 0.7
 	var escape_face := _rng.randi() % 4
+	if escape_faces_off.has(escape_face):
+		has_escape = false
 	var escapes: Array[Transform3D] = []
 	# The kit's window surround for this building ("" for none), and its mesh.
 	var kit_surround := _kit_surround if _kit != null else ""

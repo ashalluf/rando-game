@@ -62,6 +62,9 @@ static var look2: bool = OS.get_environment("RC5_HISTORIC") != "0"
 const AC_CHANCE_2 := 0.02
 ## A cap on the rolled weathering of the fronts' walls (Building.weathering_range 0.2-0.9).
 const WEATHERING_2 := 0.35
+## How much of the plaster texture's contrast the walls keep round their colour (the ornament's 0.35
+## was too flat for a wall's area; Building.wall_detail_force).
+const WALL_DETAIL_2 := 0.5
 ## How many historic Buildings have been dressed (probes and checks).
 static var dressed_count: int = 0
 ## The longest ornament build step so far (microseconds; probes and checks) and which it was.
@@ -214,10 +217,16 @@ static func dress(ch: CityChunk, lot: Dictionary, building: Building) -> void:
 	if look2:
 		building.wall_set_force = ["brick_red", 2.6] if spec.brick else ["plaster_white", 2.5]
 		building.weathering_cap = WEATHERING_2
+		building.wall_detail_force = WALL_DETAIL_2
 		building.kit_ac_chance = AC_CHANCE_2
 		var cell: Rect2 = lot.get("cell", Rect2())
 		if cell.size.y > (lot.size as Vector2).y and closes_wall(ch.plan, ch.ix, ch.iz, lot):
 			building.lot_size = Vector2((lot.size as Vector2).x, cell.size.y)
+			# Its side walls are party walls now: no fire escape hung on one (Building faces 2 / 3).
+			var streets := street_faces(ch.plan, ch.ix, ch.iz, lot)
+			for i: int in [2, 3]:
+				if not streets.has(Vector3(0, 0, 1) if i == 2 else Vector3(0, 0, -1)):
+					building.escape_faces_off.append(i)
 	building.max_height = lerpf(hr.x, hr.y, h01([int(lot.seed), "hc height"]))
 	building.min_height = building.max_height
 	building.chamfer_chance = 0.0
