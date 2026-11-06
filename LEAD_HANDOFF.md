@@ -1,3 +1,52 @@
+# Wave 8 lead handoff (2026-11-06 ~12:15 UTC: the owner is moving to a NEW account)
+
+Read CLAUDE.md, docs/HANDOFF.md (section 00000000000 and the newest 9n*/9o* sections) and this.
+Roster: sessions_w8.tsv (status per slug; "merged bNN (main <sha>)" or "running").
+Tasks: tasks_w8.tsv (every row's brief; a new session uses the same create_session prompt shape).
+
+## main
+`8c0de652` = batch 66 (gated green, 6,569 checks). Batches 52-66 landed this wave; CI builds
+425-438 (438 = batch 66, was building at handoff). The Mac launch fix (mac-launch, boot-compile,
+first-use-w8) is in.
+
+## Batch 67 - merged, gate was RUNNING at handoff, NOT on main
+`gate-b67` = main + rc5-freight-trench f43ca2fa + coast-houses bf34140f + rc5-stunt-jump dc6fe637 +
+rc5-bus-stop-rain 34ae2b80 + web-review-5 57905217 + perf-audit-6 032dedab + a HANDOFF numbering
+commit; head `dfd4431c`, pushed to `claude/awesome-euler-de8eps` (the lead's dev branch).
+TO DO: check out dfd4431c, `--import`, `SHARDS=3 GODOT=... tests/headless_check.sh`; green ->
+push to main (check origin/main 8c0de652 is still its ancestor). RISK: perf-audit-6's own gate failed
+4 street_errands door checks in shard 0 (pass alone); batches 63-66 never failed them, so if they
+fail here suspect perf-audit-6 and drop it.
+
+## Batch 68 candidates (all sessions were told to WRAP UP: commit, push, state gate status in HANDOFF)
+Take only heads whose HANDOFF / report says gated green; re-gate the batch as always.
+- rc5-tower-gondola 337a047a (name board fix; its gate: 1 fail = pedestrian_flow flake, passes alone)
+- rc5-buskers-plaza, rc5-fire-station-night, rc5-school-morning, rc5-airport-final, rc5-car-wash,
+  rc5-news-live: refcam5 views, mostly done, were in final A/B renders / gates.
+- gate-flakes-3 (16 commits: many flakes fixed at source incl. CI 429's pedestrian_flow pair),
+  memory-audit-w8 (teleport free, memory-heavy parts dealt first; shard 2 still ~3.8 GB),
+  gate-speed-3 (final gate was running), cinematic-review-w8 (early: runner + family analysis).
+- Wave 8f, started 11:57, just begun: rc5-arts-district, rc5-church-sunday, rc5-switchback-night,
+  rc5-pool-underwater, rc5-surf-dawn, rc5-alley-noon, rc5-storm-sea, rc5-sea-of-clouds,
+  rc5-laundromat-night, web-bonfire (web-only bonfire flames bug; web-review-5 left probes).
+  These will have little or nothing pushed: restart them on the new account (same slug and
+  tasks_w8.tsv row; continue the branch if it exists).
+
+## Known open items
+- Gate memory: shards peak ~3.85-4.0 GB against the 4,000 MB budget (memory_audit_checks) - a
+  re-deal or memory-audit-w8's work is needed before much more lands.
+- Pedestrian_flow passing pair flakes under load (gate-flakes-3 has the fix, not merged yet).
+- Web: bonfire flames do not draw in the browser (web-bonfire task).
+- Coast highway: houses rebuilt (coast-houses, batch 67); pier-end surf foam thin (sea-life note).
+
+## The lead loop (unchanged)
+gate-wt worktree: `git checkout -B gate-bNN origin/main`; `FLEET_TRAILER=... python3
+tools/fleet/merge_branch.py <slug> "Merge wt/<slug> (batch NN)"` per branch; fix docs numbering
+(`## 9??` / duplicate headers / `| ? |` rows), JSON, conflict markers (a branch whose code is already
+merged: keep main's smoke_test.gd); `--import`; SHARDS=3 gate (~40 min); a check failing only in the
+gate: run it alone, harden or fix at source, re-run that shard; push main and the dev branch; update
+the roster; tell the owner the build number.
+
 # Wave 8 lead (2026-11-05, new account)
 Batch 51 is ON MAIN (2f2fb8f5; shard 2 re-gated green, 2,241 checks, 3.8 GB). Wave 8 = 25 sessions,
 roster sessions_w8.tsv, tasks tasks_w8.tsv. The wave-7 sessions below were on the old account: their
