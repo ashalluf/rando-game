@@ -31300,3 +31300,72 @@ the old stacks, no traffic through the gate.
 **Tools.** `tools/rc5_power_plant/coast_probe.tscn` (headless, seconds: coast_x and beach width
 round the plant, the 105's deck segments, the line's towers, the stacks) for framing.
 Checks: `tests/rc5_power_plant_dusk_checks.gd`.
+
+## 9nn. The lighthouse from the breakwater at night, 2026-11-06 (fleet wave 8, agent branch `wt/rc5-lighthouse-night`; VISUAL_ROADMAP "?")
+
+Task `rc5-lighthouse-night` (refcam5): a new reference view, `lighthouse_night` in
+`tools/refcams/cameras_w8.json` - Gull Point light at 22:00 clear from the breakwater's armour stones
+(eye 2463, 5.5, 6850, yaw 22, pitch 3, fov 58: on the stones of the harbour face of the root leg,
+4.8 m off the crest line, looking north-west over the harbour). The row's new optional key
+`lighthouse_t` holds every lantern's rotor at that clock (`LighthouseBeacon.hold_t`, the same as
+`LIGHTHOUSE_T=`; `_lighthouse_clock()` in refcams_shot.gd): 19.8 s swings Gull Point's beam out
+across the water toward the lens. Stills on `shots/rc5-lighthouse-night`.
+
+**What read fake, worst first** (before: main at 9edd6b1e, the same row), and what changed. All of it
+is `RcLighthouse` (`scripts/world/rc5_lighthouse.gd`): one `look` uniform on the kit's four materials
+(set by `RcLighthouse.apply()` from `LighthouseKit.mat()` / `light_mat()`), every look block behind
+`look > 0.5`, defaults 0 = the old shader. `RC5_LIGHTHOUSE=0` is the A/B.
+
+1. **The beam was a solid tube.** lighthouse_beam.gdshader lit the cone's own surface by |N.V|: one
+   brightness from the lens to the frame's edge, a hard rim, an opaque yellow pipe across the sky. Now
+   (look) it is the light the air scatters out of a Gaussian pencil round the beam's axis, integrated
+   along the eye ray in closed form: each ray draws one BACK face of the cone (`FRONT_FACING`
+   discarded; a convex open cone gives exactly one per ray, from outside or inside it), takes the
+   ray's closest approach to the axis (the axis comes from the mesh: `beam_mesh()` now writes each
+   cone's axis in UV2), and adds exp(-d^2 / sigma^2) / (sigma sin phi) - the pencil widens
+   (`waist` 0.35 m, half angle `BEAM_SPREAD_DEG` 0.48 deg, inside the drawn 1.15 deg cone: 2.4 sigma at
+   the far end) and dims as it widens - times a Henyey-Greenstein phase (`BEAM_G` 0.5: bright
+   looking back up the beam, `RcLighthouse.phase()` the GDScript copy), extinction over `extinction`
+   650 m, the far end faded, and drifting haze patches along it (`haze_patches`). `scatter` 0.045 is
+   the brightness. `beam_length` per light (the gate's is 1300 m).
+2. **The lantern was not a light.** The far point (lighthouse_lamp.gdshader) sat at the lamp's centre,
+   behind the lens barrel (0.55 m) and the lantern glass (1.3 m), so its core was never drawn and the
+   lighthouse read as a dark house with a beam coming out of its roof. Look: the billboard is pulled
+   `look_pull` 1.9 m toward the eye, glows steadily (`look_glow` 0.34) in a halo `look_halo` 4.5 x its
+   core, and swells as a panel swings toward the eye (`look_swell`, a cos^14 fringe before the flash).
+3. **The surge foam was flat white sheets**, the brightest thing at the foot of a night frame.
+   breakwater_foam.gdshader's look tears it into lace (cell rims, open middles, streaks drawn back
+   with the drain), greyer, see-through toward its offshore edge.
+4. **The armour stones were cut card with paper-white lime.** armour_stone.gdshader's look bumps
+   every flat face with a rock-scale noise normal (gradients of the value noise at ~0.7 m and ~0.2 m,
+   kept tangent to the face; the near stones only, not the far mound's blocks), makes the bird lime a
+   dull broken speckle streaked down the slope, and keeps wet rock a broken sheen (roughness 0.34+,
+   it was 0.18: a facet at the waterline mirrored the sky whole, like ice).
+
+**Numbers** (refcams, opengl3, 1280x720, the row): before p50 25 / p95 89 / p99 202, crushed 18.3 %;
+after p50 25 / p95 57 / p99 129, crushed 18.6 % (the beam no longer clips). Cost: 3.86 M tris /
+1,205 draws before, 3.84 M / 1,191 after (same meshes; the beam is ALU on its own pixels).
+
+**The ten original cameras** (cameras.json, RC5_LIGHTHOUSE=0 then on, one plain run each, peak
+12.9 GB): seven unchanged (pixels 0.00-1.3 mean |d|); street_noon, street_night and freeway flagged
+by the moving traffic and rain between two runs (the freeway diff map is the cars alone), as every
+wave-8 pair has been. pier_night and sunset, which look out to sea, are identical (0.01 / 0.02).
+
+**Gate** on the merged branch (origin/main b612a9f7): 6,239 checks passed in three shards, peak
+3.85 GB a shard; `SMOKE_PARTS=rc5_lighthouse_night_checks` alone: 15 checks.
+
+**Forward+** (lavapipe, `tools/glshot/fwd_block_shot.tscn` at the camera's eye, BLOCKS=1,
+RC5_LIGHTHOUSE=0 / 1, ~12 min and killed at exit each): the foam's lace and the stones' speckle hold
+on the Mac's renderer (stills 07-10 on the shots branch). That scene builds no far landmarks, so the
+lighthouse, its beam and its lamp are NOT in it: the beam and the lamp are seen on opengl3 only. Both
+work in linear and hand over with cs_out(), the rule for linear-on-both shaders, so their balance
+should hold; their absolute brightness against the Mac's auto exposure is not verified.
+
+**Not done / not verified.** HARBOR GATE LIGHT is not in this frame: it stands 1.3 km east at the
+breakwater's head, behind the eye; no eye on the stones holds both lights and the port (lighthouse
+and gate are ~150 degrees apart from anywhere on the breakwater), and its green beam does not cross
+this view at a clock that also swings Gull Point's toward the lens. The port's cranes are just out of
+frame right; the refinery's flares and the terminal's lights are in it. The headland reads pale under
+the moon (CoastExposure opens a camera over the sea 1.75x at night) - the hills' ground, not this
+task's. The spots' volumetric fog (Forward+ HIGH) still not seen. NEEDS MAC CHECK: the beam's
+brightness on the Mac's auto exposure.

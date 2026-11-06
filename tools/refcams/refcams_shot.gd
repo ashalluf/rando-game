@@ -102,6 +102,7 @@ func _run() -> void:
 		_port_clock(cam)
 		_freight_clock(cam, scene)
 		_fireworks_clock(cam)
+		_lighthouse_clock(cam)
 		Engine.time_scale = 1.0
 		# A "drive" row (cameras_w5.json, chase_cam): the player drives his own car and the shot is
 		# his chase camera (tools/refcams/chase_stage.gd), not the free eye.
@@ -687,6 +688,17 @@ func _fireworks_clock(cam: Dictionary) -> void:
 		if staged.has(s.id):
 			s.clock = float(staged[s.id])
 			s.prev = s.clock
+
+
+## A row's optional "lighthouse_t" (wave 8's lighthouse_night): holds every lighthouse's rotor at
+## that clock (LighthouseBeacon.hold_t, as LIGHTHOUSE_T=), so the beams point the same way every
+## run; a row without it lets the lenses turn (unless LIGHTHOUSE_T is set).
+func _lighthouse_clock(cam: Dictionary) -> void:
+	var lb: GDScript = load("res://scripts/world/lighthouse_beacon.gd")
+	if cam.has("lighthouse_t"):
+		lb.set("hold_t", float(cam.lighthouse_t))
+	elif OS.get_environment("LIGHTHOUSE_T") == "":
+		lb.set("hold_t", -1.0)
 
 
 func _port_clock(cam: Dictionary) -> void:
