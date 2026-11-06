@@ -32444,6 +32444,14 @@ main (RC5_BUSKERS=0 BUSK_PLAZA=none): p1/p5/p50/p95/p99 14/27/163/199/203, sat 0
 2,729 / 1,587,752. After: 13/25/152/199/203, sat 0.303, 5,626,050 / 2,766 / 1,732,659 (+4.1 %
 triangles, +1.4 % draws over the staged before: the square's walkers; the fountain is +3 draws).
 
+**The ten original cameras** (cameras.json, one load each, before = RC5_BUSKERS=0): 9 of 10 within
+the noise (pixels 0.0-1.9 %; downtown_aerial +3.2 % triangles, +3.6 % draws - a plaza in its view
+gets its walkers and fountain); freeway flagged (12 % pixels) only by its live traffic (a van in
+the lane ahead instead of an SUV). Peak 11.4 GB.
+
+**Gate** (SHARDS=3, merged with main at af1fd737): 6,524 checks passed, 0 failed, peak RSS 3,315 /
+3,981 / 4,121 MB a shard.
+
 **A/B and tools.** `RC5_BUSKERS=0`: two pitches a plaza, the cap as before, no open-ground
 walkers, gear at the old height, the old fountain, trios rolled freely. Checks:
 `tests/rc5_buskers_plaza_checks.gd` (the row, the slots, the staging, a staged plaza chunk built at
