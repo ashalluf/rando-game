@@ -31855,18 +31855,20 @@ alike ~1.7-1.9 s a frame, which is llvmpipe drawing the volumes, not compiling);
   them at all.
 
 **Load time** (`tools/load_time/load_time.sh headless`, `LOAD_SCREEN_HEADLESS=1`, this 4-core box;
-the A/B is WARM_WAVE8=0 on the same code):
+the A/B is WARM_WAVE8=0 on the same code, the final head after merging batch 63):
 
 | | WARM_WAVE8=0 | this branch |
 |---|---|---|
-| LOADING total, cold / warm | 195.3 s / 116.3 s | 193.8 s / 120.4 s |
-| screen: rehearsal (warm) | 21.2 s | 27.2 s |
-| rehearsal wave 5-8 blasts / effects (with the gas blast) | - | 1.9-2.1 s / 1.6-1.8 s |
-| peak RSS | 2,616-2,656 MB | 2,637-2,709 MB |
+| screen: rehearsal | 21.1 s (21.2-21.5 in earlier pairs) | 26.2 s (26.3-27.2) |
+| rehearsal wave 5-8 blasts / effects | - | 1.96 s / 1.55 s |
+| LOADING total, cold | 183.9 s | 151.1 s (noise: earlier pair 195.3 / 193.8, warm 116.3 / 120.4) |
+| peak RSS | 2,678 MB | 2,690 MB |
 
-Headless the stages cost their GDScript (the boats' hulls, the blast's layers) and the extra sweep
-frames; the gas blast's ~1 s has since been dropped. On the Mac the GPU work behind the shade adds
-to that (not measured).
+So the cost is ~5 s of the headless rehearsal (the two stages' GDScript - the boats' hulls, the
+fireball's layers, the sedan - plus the sweep's extra frames); the totals swing more than that run
+to run. On the Mac the GPU work behind the shade adds to it (not measured). The boot
+(`load_time.sh boot`, opengl3): the cycle's compile 19.2 s with the 13 new hooks vs 18.9 s without,
+longest gap between frames 992 ms vs 1,002 ms - no worse.
 
 **Checks.** `tests/first_use_w8_checks.gd`: the stages are behind WARM_WAVE8, the probe has the
 events, a rehearsal of the two stages plus the idle particles in the loaded city leaves no
