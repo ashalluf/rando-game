@@ -32452,6 +32452,23 @@ shard's trace, fixed, and the same seed run again: a shuffled deal is determinis
 - onlookers stragglers (batch 63): the lead's narrowing to the closed scene's watchers is kept as
   merged; not reproduced here.
 
-**Runs:** on main 6f5af3d2: 801 (1 fail), 802 PASSED, 803 (3 fails). On the branch: 803 (2), 803
-merged with batch 63 (5, a new deal), 801 (1), 803 PASSED all checks on b8844515 but emergency_checks
-did not parse (fixed), then the final runs listed in the report below.
+Later rounds (the merge with main through batch 63+ changed the deal): ambulance's back lane must
+be level too (the stretcher medic stood 0.6 m down at the ambulance's back); the airport loop is
+watched up to 10 s until it crawls (2 of 20 moved in 3 s); the tree-fire check starts with no crown
+burning (earlier blasts filled max_burning); CarDamage.hold_fire on the physics clock; an EM_FIRE
+trace prints the fire crew when a hosed wreck never goes out (seen once, unshuffled, on fcefb25b's
+predecessor a99f3dcd; did not reproduce alone, nor in the next unshuffled run).
+
+**Runs** (`SHARDS=3`, ~21-28 min, shards 3.3-4.0 GB peak): on main 6f5af3d2: 801 (1 fail), 802
+PASSED, 803 (3). On the branch: 803 (2), 803 merged (5), 801 (1), 803 all passed but
+emergency_checks did not parse (fixed), 805 PASSED 6,422 and 806 PASSED 6,422 (039469cb, two in a row),
+unshuffled on the merge fcefb25b (3: stretcher, loop crawl - fixed), unshuffled a99f3dcd (2: the
+fire never out - traced), 807 PASSED (a99f3dcd), **unshuffled PASSED 6,511 checks on 8140a138**
+(the head before this docs commit, merged with main). 808 on 8140a138 was cut short by the wrap-up
+with no failure in its first ~5,500 checks.
+
+**Open:** the fire-out flake (EM_FIRE trace in place, cause unknown); onlookers' second scene
+(lead's narrowing kept, not reproduced); the gate reset clears WorldState.charred while TreeFire's
+records keep charred trees (checks harden round it; a reset of TreeFire itself would be cleaner).
+Gate loops: a separate worktree, `tools`-free script (`loop.sh <wt> <seed>...`: SHARDS=3
+SMOKE_SHUFFLE=seed headless_check.sh, logs per run); a shuffled deal reproduces its failures.
