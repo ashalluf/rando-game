@@ -26966,9 +26966,22 @@ merged with main and gated green this time). Judged on blast_room_shot.gd at 5 m
    (`BlastPool.flame_gain`, scaling the tongues' size) and fewer of them on a small one. The trail
    cap is 16 puddles. Stills 82-83.
 
+8. **Round 20, the lead: round 19 on Forward+** (small scenes under lavapipe, `tools/glshot`'s
+   blast room through `--rendering-driver vulkan`, stills 84-86). (a) The hot core: added in linear
+   HDR over a volume that is already white-hot at 0.1 s, it bloomed into a flat white sun disc on
+   Forward+ (37.7k clipped pixels in the frame against 6.1k with it off; fine on opengl3). On
+   Forward+ it is now a fifth of the numbers, capped below blackbody4's white plateau
+   (`bb(min(k, 0.86))`), with a lumpier edge, and the card starts at 0.3 of its size and grows with
+   the ball: 18.3k clipped, a lumpy white-hot ball, mean brightness +6 against +41 before. (b) The
+   puddle flames: `flame_tongue.gdshader`'s colours were tuned as display numbers on opengl3, and
+   Forward+ took them as LINEAR, so every tongue drew pale yellow-cream with no red tips. Forward+
+   now decodes them (`fwd_decode`, measured at 0, 0.6 and 1 against opengl3: 1 matches;
+   `BLAST_FLAME_FWD=0` the A/B, `BLAST_FLAME_FWD_DECODE=` for stills). Compatibility is untouched
+   by both.
+
 Looked at and left: the night rocket at 60 m reads dim in the test room (no auto exposure there,
 and the night flash was held down on purpose in round 5); a pool fire still reads partly as a row of
-tongues (round 19 breaks the trail into puddles; the main pool is still one ring). Stills 73-83.
+tongues (round 19 breaks the trail into puddles; the main pool is still one ring). Stills 73-86.
 
 ## 9lb. The camera lens (wave 5, `camera-lens`)
 
