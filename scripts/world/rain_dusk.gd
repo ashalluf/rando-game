@@ -57,3 +57,14 @@ static func cloud(c: Color, w: float) -> Color:
 
 static func golden(g: float, w: float) -> float:
 	return g * (1.0 - w * (1.0 - GOLDEN_KEEP))
+
+
+## The wet road's mirror at a rainy dusk: the share of RainDay's day mirror (the canyon of daylit
+## fronts) handed to the night's (the lit shop fronts, the lamps' streaks), as a lamp level.
+## Under the deck at 18:00 the lamps are on and the fronts are lit, and a road mirroring grey
+## daylit walls read as a dry, dull street.
+const MIRROR_GAIN := 0.9
+
+
+static func mirror_lamps(w: float) -> float:
+	return clampf(w * MIRROR_GAIN, 0.0, 1.0)

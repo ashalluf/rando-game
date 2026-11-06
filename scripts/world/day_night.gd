@@ -665,7 +665,7 @@ func _apply() -> void:
 	# The clock, for what changes with the hour after dark (the far traffic, lit offices).
 	RenderingServer.global_shader_parameter_set("city_hour", hour)
 	lamp_now = lamp_factor
-	RainDay.publish(nf_lamps)
+	RainDay.publish(nf_lamps, RainDusk.mirror_lamps(RainDusk.weight(weather_darken, dusk, golden, moonlight)))
 	# Published for anything that needs to reflect the sky without owning a copy of it (the
 	# ocean, and whatever else wants it): the colour the sky meets the horizon with, and the
 	# direction back toward the sun.
