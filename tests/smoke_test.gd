@@ -3044,6 +3044,9 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	# The sea_life refcam (tests/rc5_sea_life_checks.gd, SeaLife.spray_look): the camera row, the
 	# flat white water and streaked throws, the surfacing rings, the staged pod in turn.
 	load("res://tests/rc5_sea_life_checks.gd").new().run(self, city)
+	# The marine_evening refcam (tests/rc5_marine_evening_checks.gd, MarineEvening): the fog bank's
+	# wall, the people leaving the beach, the twilight shadows, the camera row.
+	load("res://tests/rc5_marine_evening_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()

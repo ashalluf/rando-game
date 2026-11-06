@@ -471,6 +471,8 @@ func _apply() -> void:
 			* (1.0 - marine_sun_cut * marine) * (1.0 + 0.06 * santa_ana) * RainDay.sun_gain(weather_darken, moonlight) + flash * 2.5
 		# Under the deck the light is the whole grey sky: shadows go soft and faint.
 		_sun.shadow_opacity = (1.0 - marine_shadow_cut * marine) * RainDay.shadow_gain(weather_darken, moonlight)
+		# Between sunset and full night the light is the sky's, not the low moon's (MarineEvening).
+		_sun.shadow_opacity *= MarineEvening.twilight_shadow(elevation, moonlight)
 		# No sun disc through the deck: no sharp highlight either (Rc5CemeteryDawn).
 		_sun.light_specular = Rc5CemeteryDawn.sun_specular(marine)
 		# A rainy night's haze is lit by the street lamps, not by a moon behind the cloud. Rain

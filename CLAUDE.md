@@ -623,6 +623,15 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   underside is stratocumulus cells (marine_layer.gdshader `look`, taking half the low haze).
   `Weather.settle_wet()` soaks a still at once. `MARINE_MORNING=0` is the A/B; checks
   `tests/rc2_marine_checks.gd`.
+- The evening fog bank from the beach (wave 8, refcam `marine_evening` in
+  `tools/refcams/cameras_w8.json`, docs/HANDOFF.md "The marine layer's evening bank from the beach"):
+  `MarineEvening` (`scripts/world/marine_evening.gd`): marine_layer.gdshader's `bank_look` makes the
+  bank a wall (foot sunk 8 m in the water, billowed crest lit by `rim()`'s afterglow, slate body),
+  drawn at render_priority -1, AFTER the deck planes (their huge bounds sorted the underside over
+  its face); clothed `BeachWalker.leaving` walkers head up the sand 17:24-19:48 (`add_leavers()`);
+  `twilight_shadow()` softens the directional light's shadows between sunset and full night (the
+  moon's crisp shadows lay across the sand at 18:30). `MARINE_EVENING=0` is the A/B; checks
+  `tests/rc5_marine_evening_checks.gd`.
 - Surf and beach (2026-10-04, owner: "the Pacific and the beach, AAA"). One wave model,
   `shaders/surf.gdshaderinc`, included by the ocean, the sand and the spray, mirrored in GDScript
   by `Surf` (`scripts/world/surf.gd`): crests parallel to the shore at `phi = TAU * ((s + wob) / L
