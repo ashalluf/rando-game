@@ -552,8 +552,8 @@ func dolphins_at(e: Dictionary, t: float, out_splash: Array = [], sounds: Array 
 		var period: float = m[3]
 		var phase: float = m[4]
 		if e.has("sync"):
-			# Staged: every dolphin is a few tenths into a leap at the staged moment.
-			phase = fposmod(0.75 + 0.1 * float(j) - float(e.sync), period)
+			# Staged: the dolphins come up one after another round the staged moment (a third of a second apart).
+			phase = fposmod(0.75 + 0.33 * float(j) - float(e.sync), period)
 		var local := u + phase
 		var cyc := int(floor(local / period))
 		var tau := local - float(cyc) * period - 0.6
