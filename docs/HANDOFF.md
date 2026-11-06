@@ -32390,8 +32390,12 @@ roof height, bands, the end of its drive path and its corners.
    joints run straight across every band.
 
 **Numbers** (refcam GEO, opengl3, the same eye): before (RC5_CAR_PARK_ROOF=0) 5,348,968 triangles,
-3,543 draws; after 5,385,949 / 3,598 (+0.7 % / +55 draws: the new surfaces of the car parks in
-view; see the follow-up below). Luminance p50 88 -> 88, saturation 0.291 -> 0.289.
+3,543 draws; after 5,329,842 / 3,541 (the poles, pipes, heads and pedestals reuse the
+structure's steel, door and precast materials, so the only new surface is the joints'; a first
+version with their own materials was +55 draws). Luminance p50 88 -> 88, saturation 0.291 -> 0.289.
+The ten original cameras, switch off vs on (`compare`): seven within noise; street_noon,
+street_night and freeway flagged by traffic alone (a box truck and a bus parked themselves at the
+lens in the "on" run; the views are otherwise the same).
 
 **Not done / not verified.** Judged on opengl3 only: the metallic paint and the deck's satin were
 not looked at on Forward+ (lavapipe cannot hold the city; a small scene would need the car park
