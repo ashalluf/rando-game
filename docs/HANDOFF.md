@@ -31867,4 +31867,10 @@ rig's owner (the spring arm keeps world-layer clearance only). The bookmark now 
   (it ran a second pass over every bookmark); a `pgrep -f` wait on a pattern that is in the
   waiting shell's own command line never ends (9lh's trap again).
 
+**After** (the branch head: main batch 63 merged, no game code changed here): exported again
+(`index.pck` 620.2 MB) and all twelve bookmarks re-run - every console clean, the stills match the
+befores, the level Santa Ana bookmark draws without the band. The wasm heap ends at 720-930 MB
+(two growth steps at `arena_night`, `macarthur`, `santa_ana`), the JS heap at 0.74-0.88 GB. Gate on
+the head: `SHARDS=3`, 6,422 checks, 0 failed, shard peaks 3.3 / 3.9 / 3.6 GB.
+
 Stills on `shots/web-review-5`.
