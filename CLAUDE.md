@@ -1641,7 +1641,7 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   the wave; later rounds: a rolling lit dust front, the plume's value range, panel debris, the fires'
   underlight on the cap, a held stem, fuel trails and flames up the wreck's sides, a soft crater.
   `EXPLOSIONS_4=0` is the A/B (`BLAST_DUST_ROLL`, `BLAST_VALUE`, `BLAST_CHUNKS`, `BLAST_UNDERLIGHT`,
-  `BLAST_STEM`, `BLAST_WRECK_FIRE`, `BLAST_CRATER`, `BLAST_FLAMES`, `BLAST_PIT`, `BLAST_QUIET`, `BLAST_CORE`, `BLAST_RIBBONS`, `BLAST_FACADES`, `BLAST_DUST_DARK`, `BLAST_SHOCK`, `BLAST_NIGHT`, `BLAST_STREAKS`, `BLAST_RING`, `BLAST_WALL` =0 each part; flame tongues `shaders/flame_tongue.gdshader`, the traced pit `shaders/blast_pit.gdshader`); strips blast_room_shot.gd (`GAS=1`,
+  `BLAST_STEM`, `BLAST_WRECK_FIRE`, `BLAST_CRATER`, `BLAST_FLAMES`, `BLAST_PIT`, `BLAST_QUIET`, `BLAST_CORE`, `BLAST_RIBBONS`, `BLAST_FACADES`, `BLAST_DUST_DARK`, `BLAST_SHOCK`, `BLAST_NIGHT`, `BLAST_STREAKS`, `BLAST_RING`, `BLAST_WALL`, `BLAST_MASONRY`, `BLAST_GROUND_FLASH`, `BLAST_RIBBON_SOFT`, `BLAST_RING_AIR`, `BLAST_BURN`, `BLAST_SCORCH`, `BLAST_VOLUME_ROOM`, `BLAST_PANELS`, `BLAST_FLAME5`, `BLAST_POOL_LIGHT` =0 each part; a secondary pop never takes the last volume slot (`Blast3.takes_fireball(true)`); the ring and ground flash are the AIR's view (faded near and grazing); flame tongues `shaders/flame_tongue.gdshader`, the traced pit `shaders/blast_pit.gdshader`); strips blast_room_shot.gd (`GAS=1`,
   `WEB=1`, `CAR=1 CHAIN=1`, `NIGHT=1 WET=1`, `PROPS=1`, `FACADE=1`, `UP=150`); checks `tests/explosions_4_checks.gd`.
 - The mayhem refcam (2026-11-01, docs/HANDOFF.md "The mayhem refcam"): `mayhem` in
   `tools/refcams/cameras_w5.json` is STAGED (`"stage": "mayhem"` -> `tools/refcams/mayhem_stage.gd`:
@@ -1974,6 +1974,16 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   light keeps `landing_side` of its glare off axis; a patrol helicopter's shaft is `PATROL_BEAM` of a
   pursuit's. A refcam row's staged aircraft prints `REFCAM <name> air at x,y,z`. `AIRPORT_NIGHT=0`
   is the A/B; `jet_shot.gd NIGHT=1 [AN=0]` both renderers; checks `tests/rc3_airport_night_checks.gd`.
+- The terminal's departures kerb (wave 7, refcam `terminal_curb` in `tools/refcams/cameras_w7.json`,
+  docs/HANDOFF.md "The terminal's departures kerb"): `TerminalCurb` (`scripts/world/terminal_curb.gd`,
+  one hook at the end of `Landmarks._build_dropoff()`, near copy only) lays a kerb stone with a white
+  face, steel bollards, concrete slabs, door pylons, loading plates, benches, a check-in podium,
+  carts, a planted median across the lanes, and glass vestibules (`vestibule()`, from
+  AirportTerminal); `CurbTraveller`s stand in groups at pure `spots()` (all under the terminal's
+  chunk) with code-built luggage laid for those who spawned; `loop_speed()` (TrafficManager's loop)
+  stops a share of kerb-lane cars at the kerb on their hazards; `loop_car()` adds taxis and white
+  shuttle vans. `TERMINAL_CURB=0` is the A/B; probe `tools/terminal_curb/probe.gd`; checks
+  `tests/rc4_terminal_curb_checks.gd`.
 - Shop signs: storefront sign bands carry real names. `Building` picks how many window bays
   make one shop per face (`_shop_spans()`, hashed from the seed, never from `_rng`) and passes
   it to the shader as `shop_span`, so the bands the shader draws and the `TextMesh` names the
@@ -4723,6 +4733,13 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   are baked `SkaterPerson` figures that wake into live people when hit or near gunfire.
   `SKATE_PARK=0` is the A/B, `SKATE_T=` / `SKATE_HOLD=1` the clock, `SKATE_DEBUG=1` prints EYEs;
   probe `tools/skate_park/probe.gd`; checks `tests/skate_park_checks.gd`.
+- The skate park refcam (wave 8, `skate_park` in `tools/refcams/cameras_w8.json`, docs/HANDOFF.md
+  "THE PIT at 16:30 from the deck"): `RcSkatePark` (`scripts/world/rc5_skate_park.gd`) -
+  skate_park.gdshader's `look5` (used concrete: pours, the wheel-rubber band, floor grime, a waxed
+  coping, dirt round the lip), the pool air `POOL_AIR` over the coping, the boardwalk's painted
+  boards / murals lit (`paint()`; they were unshaded). A row's `skate_t` holds SkateParkLife's
+  clock; `tools/rc5_skate_park/air_probe.gd` lists air times. `RC5_SKATE=0` the A/B; checks
+  `tests/rc5_skate_park_checks.gd`.
 - Pier park (2026-10-05, "an amusement park on a pier, Santa Monica-style, original"; HANDOFF 9ca):
   RANDO PIER (the `pier` landmark, (-940, -350)) is `PierPark` (`scripts/world/pier_park.gd`):
   the pier plus GULLWING PARK on a platform off its south side. Everything sits in the PARK'S

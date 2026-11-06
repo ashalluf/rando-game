@@ -3,6 +3,7 @@
 	"resolution": [1280, 720],
 	"cameras": [
 		{"name": "hill_home_dusk", "label": "A cantilever hill home's pool deck on the front range (estate 392, 159 m up) at 19:15 clear, looking south over the basin: the infinity pool, the glass wall lit inside, downtown's lights below", "eye": [599.2, 160.6, -1893.5, 170.0, -9.0], "hour": 19.25, "weather": "clear", "fov": 55},
+		{"name": "skate_park", "label": "THE PIT at 16:30 clear, eye level on the high deck by the pool, a skater mid-air over the far coping, the boardwalk and its palms behind", "eye": [-980.3, 6.0, -488.6, -137.0, -3.0], "agl": true, "hour": 16.5, "weather": "clear", "fov": 55, "skate_t": 2.4},
 		{"name": "suburb_night", "label": "A suburban street in the valley at 21:30 clear, on the pavement looking east: lit rooms and TVs, porch lights, lawns, parked cars, the street lamps", "eye": [1979.0, 1.7, 4256.8, -96.0, 1.0], "agl": true, "hour": 21.5, "weather": "clear", "fov": 55, "dog_walker": {"dist": 7.5, "side": -0.5}}
 	]
 }

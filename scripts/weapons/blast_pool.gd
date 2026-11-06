@@ -143,7 +143,7 @@ func _ready() -> void:
 		_light.distance_fade_enabled = true
 		_light.distance_fade_begin = 110.0
 		_light.distance_fade_length = 30.0
-		_light.position = Vector3.UP * 1.1
+		_light.position = Vector3.UP * (2.3 if Blast4.pool_light5 else 1.1)
 		add_child(_light)
 		Blast3.add_fire(_light)
 	_sound = Sfx.loop_player("fire_loop", 0.0)
@@ -231,7 +231,7 @@ func _apply(_delta: float) -> void:
 	if _light != null:
 		var t := age
 		var f := 0.78 + 0.22 * sin(t * 37.0) * sin(t * 13.0 + 0.7) + 0.06 * sin(t * 91.0)
-		_light.light_energy = 6.5 * b * f * Blast4.fire_night_gain()
+		_light.light_energy = (4.2 if Blast4.pool_light5 else 6.5) * b * f * Blast4.fire_night_gain()
 		_light.visible = b > 0.01
 	if _sound != null:
 		_sound.volume_db = linear_to_db(maxf(b, 0.001)) - 1.0

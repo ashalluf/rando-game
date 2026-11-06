@@ -1203,10 +1203,18 @@ func _city_landmarks(city: Node3D, plan: CityPlan, player: CharacterBody3D, macr
 				curb_people += 1
 		_check(curb_people >= 15, "crowd on the terminal curb (%d)" % curb_people)
 		if loop_mgr.loop_cars.size() > 0:
-			var lc: Node3D = loop_mgr.loop_cars[0]
-			var lp0: Vector3 = lc.global_position
-			await _ticks(60)
-			_check(is_instance_valid(lc) and lc.global_position.distance_to(lp0) > 1.0, "loop cars crawl forward")
+			# Any one car may be standing at the kerb on a drop-off (TerminalCurb), so the loop as a
+			# whole must crawl: it is stop-and-go, so some of its cars (a sixth) move in three seconds.
+			var lcs: Array = loop_mgr.loop_cars.duplicate()
+			var lps: Array = []
+			for c in lcs:
+				lps.append(c.global_position)
+			await _ticks(180)
+			var moved := 0
+			for k in lcs.size():
+				if is_instance_valid(lcs[k]) and lcs[k].global_position.distance_to(lps[k]) > 1.0:
+					moved += 1
+			_check(moved >= maxi(2, lcs.size() / 6), "loop cars crawl forward (%d of %d)" % [moved, lcs.size()])
 		var port := macro.port_rect.get_center()
 		player.global_position = _world_state().to_local(Vector3(port.x, 2.0, port.y))
 		city.update_streaming(true)
@@ -2943,6 +2951,10 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	# The Mac launch (tests/mac_launch_checks.gd, LoadPulse): the boot scene, the loop hooks, Quality
 	# frozen under the loading screen, the pulse inactive headless.
 	load("res://tests/mac_launch_checks.gd").new().run(self, city)
+	# The terminal's departures kerb (tests/rc4_terminal_curb_checks.gd, TerminalCurb): travellers, drop-offs.
+	load("res://tests/rc4_terminal_curb_checks.gd").new().run(self, city)
+	# The skate park refcam (tests/rc5_skate_park_checks.gd, RcSkatePark): used concrete, the pool air, lit boardwalk paint.
+	load("res://tests/rc5_skate_park_checks.gd").new().run(self)
 	# The suburb_night refcam (tests/rc5_suburb_night_checks.gd, SuburbMoon, SuburbNight): the moon,
 	# the window spills, the lanterns.
 	load("res://tests/rc5_suburb_night_checks.gd").new().run(self, city)
