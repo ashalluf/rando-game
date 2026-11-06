@@ -2956,6 +2956,9 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	# The Mac launch (tests/mac_launch_checks.gd, LoadPulse): the boot scene, the loop hooks, Quality
 	# frozen under the loading screen, the pulse inactive headless.
 	load("res://tests/mac_launch_checks.gd").new().run(self, city)
+	# The wingsuit_golden refcam (tests/rc5_wingsuit_golden_checks.gd, WingsuitFx look2 / Rc5Wingsuit):
+	# the camera row, the two-skin wing, the sunlit vapour, THE LATTICE's roof lattice.
+	load("res://tests/rc5_wingsuit_golden_checks.gd").new().run(self)
 	# The terminal's departures kerb (tests/rc4_terminal_curb_checks.gd, TerminalCurb): travellers, drop-offs.
 	load("res://tests/rc4_terminal_curb_checks.gd").new().run(self, city)
 	# The skate park refcam (tests/rc5_skate_park_checks.gd, RcSkatePark): used concrete, the pool air, lit boardwalk paint.
@@ -2984,6 +2987,11 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	# The construction site at dusk (tests/rc5_construction_dusk_checks.gd, ConstructionDusk): the
 	# camera row, the late shift, the work lights, the dusk glass and the printed posters.
 	load("res://tests/rc5_construction_dusk_checks.gd").new().run(self, city)
+	# The cemetery_dawn refcam (tests/rc5_cemetery_dawn_checks.gd, Rc5CemeteryDawn): the deck's sun, the lamps going out, mist, grass.
+	load("res://tests/rc5_cemetery_dawn_checks.gd").new().run(self, city)
+	# The suburb_night refcam (tests/rc5_suburb_night_checks.gd, SuburbMoon, SuburbNight): the moon,
+	# the window spills, the lanterns.
+	load("res://tests/rc5_suburb_night_checks.gd").new().run(self, city)
 	# The auto_row refcam (tests/rc5_auto_row_checks.gd, RcAutoRow): real lot cars, measured window cards, a clear frontage.
 	load("res://tests/rc5_auto_row_checks.gd").new().run(self, city)
 

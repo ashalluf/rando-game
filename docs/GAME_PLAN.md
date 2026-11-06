@@ -3805,6 +3805,11 @@ already mapped so milestone 2 is script-only.
   make it faster, and Quality no longer judges the machine by the loading screen. Shader baking
   stays off while Godot 4.7.2's baked Metal exports crash (godot#123266, #124539). No loader
   threads: the codebase's cyclic preloads broke under one.
+- **2026-11-06, the memorial park at dawn (rc5-cemetery-dawn).** Under a full marine deck the sun
+  has no disc: it keeps its diffuse share but loses its highlight, and the photocells keep the
+  lamps on (fading) until the sun is about a dozen degrees up. A mist's damp beads on leaves and
+  dulls a lawn; only rain glazes them. Morning ground mist is a volume cut by the scene's depth over
+  the park, not more global fog (which would grey every other view). RC5_CEMETERY_DAWN=0 the A/B.
 
 ## Correction: what build 135 (0ce833f) actually contained
 
@@ -4668,3 +4673,18 @@ none of either.
   read by at dusk; glass on a half-finished tower shows the fit-out lit behind it, not a black
   mirror; anything pasted on a hoarding is printed (StreetWear's bills), never a flat colour block.
   CONSTRUCTION_DUSK=0 is the A/B.
+
+- 2026-11-05 (wave 8, rc5-wingsuit-golden): a new reference camera, `wingsuit_golden` - the hero in
+  his wingsuit from his own chase camera at 18:00 over Bunker Hill. The suit's membranes are inflated
+  two-skin wings with cells, not single sheets (a chase camera sees a glide edge-on); the vapour
+  starts at a trimmed glide's speed and takes the sky's and the sun's light; the museum roof under
+  the glide gets its skylight lattice, the concert hall's steel reads by face-to-face contrast under
+  a low sun, and the lit crowns wait for dusk (night_factor is 0.7 at the sunset). A refcam row's fov is vertical. WINGSUIT_LOOK=0 / RC5_WINGSUIT=0 are the A/Bs.
+- **2026-11-05 The suburban street at night: the moon is a residential street's dimmer, a lit window
+  lights its yard (rc5-suburb-night, HANDOFF "The suburban street at 21:30").** A new reference
+  camera (`suburb_night`, wave 8's table) stands on the suburb_morning pavement at 21:30. Decisions:
+  the city's one moon, set for a lit downtown, is cut to 0.3 of itself over SUBURBS and BEACHTOWN
+  (off the coast, deep in the night only) because a suburb's own light - lamps, porches, windows -
+  must win over it; anything that says whether a window is lit says it from HouseNights' key and the
+  pane's own 8-bit roll, on the GPU, so the light on the yard always matches the glass; a lantern's
+  wall light is a point source's falloff with the cap's cut, never a soft disc. SUBURB_NIGHT=0 is the A/B.
