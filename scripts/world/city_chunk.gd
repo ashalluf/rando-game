@@ -3298,6 +3298,9 @@ func _build_lot(lot: Dictionary, params: Dictionary, rng: RandomNumberGenerator)
 		lot = rest[0]
 		center = lot.center
 	var fill := LotFill.wanted(self, district)
+	# A Googie motel behind its pole sign (Motels: the car park whose corner the sign stands on).
+	if fill and lot.get("parking", false) and Motels.build_lot(self, lot):
+		return
 	# A surface car park (CityPlan.lots() "parking"; the pad roll above is still made).
 	if fill and lot.get("parking", false) and not StarBoulevard.strip_lot(plan, ix, iz, lot):
 		LotFill.surface_lot(self, lot)

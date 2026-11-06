@@ -253,7 +253,7 @@ static func plan_poles(plan: CityPlan, ix: int, iz: int) -> Array:
 				pa = 7 + int(s * 2.0) % 2
 			Pole.TIRE:
 				pa = 9 + int(s * 2.0) % 2
-		out.append({"kind": pk, "at": at, "out": inward, "along": dir, "a": pa, "b": pb, "flags": flags, "seed": s, "e": e})
+		out.append({"kind": pk, "at": at, "out": inward, "along": dir, "a": pa, "b": pb, "flags": flags, "seed": s, "e": e, "src": src, "id": c.id})
 	return out
 
 
