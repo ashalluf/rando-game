@@ -30590,3 +30590,65 @@ wingsuit is edge-on.
 `WINGSUIT_LOOK=0` is the suit's A/B (the flat sheets, the old vapour), `RC5_WINGSUIT=0` the world's
 (the flat roof, the old steel, the crowns' early glow). `tools/glshot/far_landmark_shot.gd` takes `GOLDEN=1` now (a sun
 6 degrees up in the west under a sunset horizon). Checks: `tests/rc5_wingsuit_golden_checks.gd`.
+
+## 9d?. The back yard pool on a Saturday (fleet wave 8, refcam5 `backyard_pool`, branch `wt/rc5-backyard-pool`)
+
+**The view.** A new reference camera, a row of `tools/refcams/cameras_w8.json`: a valley suburb back
+yard (block -3,-13, seed 1337, the pool at (-200.5, -2274.9)) on a Saturday at 15:00 clear, the eye
+1.7 m over the patio at the house's back line (-199.5, -2281.0), yaw 186 (south), pitch -5, fov 62:
+the pool in front, a lounger pair with two sunbathers on the left, citrus trees, the back fence, the
+bungalow court behind it and the front range over the roofs. Found with
+`tools/rc5_backyard_pool/probe.gd` (suburb lots round a point whose back yard has a pool, a lounger
+pair with sunbathers and a grill; an EYE at the house's back line; `cooks_sat_15`; what stands behind)
+and framed with `tools/glshot/block_shot.tscn` (four minutes a set of eyes, no far city). The first
+pick (-363, -2071, looking north) had a three-storey wall behind the fence filling the frame.
+
+**What gave it away, in the order the eye found it, and the fixes** (`Rc5Backyard`,
+`scripts/world/rc5_backyard.gd`; `RC5_BACKYARD=0` is the A/B, the yards exactly as before):
+- **The pool was a neon slab at the lawn's level.** YardFill's pool is a flat ground piece in
+  lot_yard.gdshader with a 6 cm coping box round it: no water line, no depth, no tank. Now each pool
+  is also a quad at the coping's top (`POOL_TOP`, one `YardPools` mesh a FULL chunk, committed from
+  YardFill.commit(); `pool()` hooked beside `_coping()`) on `shaders/rc5_yard_pool.gdshader`, which
+  TRACES the pool under it: the water `water_drop` (9 cm) under the coping behind a band of blue or
+  teal glass mosaic (a ray meeting a side above the water draws the band), the rippled surface, the
+  view refracted into a tank with a floor sloping from 1.0 to 1.85 m along the long axis, a dark tile
+  stripe and cross bar, a step at the shallow end, plaster mottle; the sun refracted in, a caustic
+  net, the shadow of the sunny wall (the sun ray traced back to the water plane: outside the rect is
+  shadow), red-first absorption along both paths and a teal in-scatter; and the mirror by the
+  reflected ray's elevation - the fence low down, the neighbours' walls and trees above it, then the
+  sky. Emitted (linear on both renderers, color_space), the albedo near black so the renderer adds
+  only the sun's glint. After dark the pool light (HouseNights.pool_variant() in COLOR.g). The old
+  ground piece stays under the quad; LOD / far keep MidCity's pool box. The floats sit at
+  `FLOAT_LIFT` (half in the quad; at the old water level the quad hid them): Backyards._yard_top().
+- **The timber fence was a printed sheet.** lot_walls.gdshader `rc5` (set by `walls_hook()` on
+  YardFill's walls material): every board its own tone with a rounded edge and a 1.8 cm dark gap, a
+  2x6 cap with its shadow under it, a kickboard, grey weathering running down from the cap, dirt at
+  the foot, nail rust. Other wall kinds untouched.
+- **The sunbathers lay in full sun with nothing over them.** `LOUNGER_UMBRELLA` (60 %) of lounger
+  pairs get a market umbrella planted behind their side table (`lounger_umbrella()`, a hash of seed
+  + the pair's place, the same mesh and canvas palette, one more instance in the pair's own prop so it
+  breaks with it; no roll, nothing else moves).
+- **No barbecue on a Saturday afternoon.** Grills only cooked at dinner (17:06-21:30). Now on a
+  Saturday or Sunday (FarmersMarket's calendar; the game starts on a Saturday) `WEEKEND_SHARE` (70 %)
+  of the households with a grill cook a late lunch too, each in its own window from its seed (start
+  11:30-14:00, 1.8-3.4 h; 37 % at 15:00): the `weekend` uniform on BackyardKit's grill and smoke
+  materials, set by `day_hook()` from `Backyards.block()` every chunk build; cooking() in both
+  backyard shaders = `Rc5Backyard.cooking()` (checked). The view's own grill stands just off the left
+  edge (a framing with it in kept the grill as a black box at the frame's edge and lost the hills), so
+  the plume shows in the `04_` still, not in the camera.
+
+**Numbers** (refcams, opengl3 1280x720, `OCCLUSION=0`; RC5_BACKYARD=0 -> on): p5/p50/p95 17/62/173 ->
+17/60/164, saturation 0.389 -> 0.391, 8.24 M -> 8.29 M triangles, 3,902 -> 3,919 draws (the umbrellas,
+the pool quads: +0.6 % / +0.4 %).
+
+**Tools.** `tools/rc5_backyard_pool/probe.gd` (above). Checks: `tests/rc5_backyard_pool_checks.gd`
+(the camera row on a suburb patio with a pool ahead; the lunch window in GDScript and both shaders,
+37 % at 15:00 on a Saturday, none on a weekday, dinner untouched, day_hook(); the pool shader and its
+hooks, the quad at the coping, the floats in it; the umbrella a pure hash near its share behind the
+table; the fence pass off by default; the A/B).
+
+**Not done / seen.** Forward+ (the Mac) not rendered for this camera: the pool is emitted and linear
+on both renderers by construction, but its look there is unchecked. The lawn that fills the bottom
+third is the block's lawn (LawnsCloseup's), untouched; the bungalow court's wall over the fence is
+plain stucco; nobody at the grill. The traced pool assumes an axis-aligned rect (every YardFill pool
+is); objects in the pool other than the floats (a swimmer) would stand on the quad, not in the water.
