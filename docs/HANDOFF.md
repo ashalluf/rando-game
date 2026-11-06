@@ -33071,3 +33071,208 @@ rig's owner (the spring arm keeps world-layer clearance only). The bookmark now 
   waiting shell's own command line never ends (9lh's trap again).
 
 Stills on `shots/web-review-5`.
+
+## 9oo. Perf audit 6: every refcam after wave 7, counted the way the GPU draws (fleet wave 8, agent branch `wt/perf-audit-6`)
+
+**The ask.** Measure all reference cameras (cameras.json and w5 / w6 / w7: 44 views) with
+`SPLIT=1 OSPLIT=1` on main as of wave 7, find where the frame went since Perf audit 5, cut the
+biggest costs with no visible change (DIFF / `--strict` pairs against an A/A), and measure the
+gate's and a city load's peak memory.
+
+**The finding that changes how to read every earlier audit: the counter hides most of the
+frame.** CLAUDE.md's measurement trap 3 says a MultiMesh surface with LODs is counted ONCE per
+draw call, whatever its instance count. That is every scanned tree, palm and bush, every street
+prop (PropFactory gives every model generated LODs), the facade kit and the rooftop AC units -
+so the `GEO` / `SPLIT` numbers every audit ranked by saw a few hundred thousand triangles where
+the GPU draws millions, and ranked them last. `TRUE=1` on `tools/refcams/refcams_shot.gd`
+(`tools/perf_audit_6/true_groups.gd`, still_shot's `_true_tris()`) counts each group per instance
+at the LOD the renderer picks, the frustum for the camera pass and the cascades a caster's
+sun-swept box reaches for the shadow (an overestimate of the shadow, the same for both sides of a
+pair); `tools/perf_audit_6/true_table.py` tabulates one or two runs. What it says at street_noon,
+all cuts off: plants (FoliageLod ladders, palms, bushes) **16.1 M** (5.5 M camera), street props
+4.5 M, facade kit 3.3 M (2.85 M of it shadow), far planting 1.3 M, roof units 1.0 M, far boxes
+0.6 M - against a counter total of 7.1 M for the whole frame.
+
+**How it was measured.** `SPLIT=1 OSPLIT=1` on the ten original cameras (main b45ba911,
+`build/refcams/base_w4`), a deep split of street_noon / golden_aerial / macarthur with
+`OSPLIT_CATS=Other,StreetProps,Houses,FarCity,Trees OSPLIT_TOP=45` (still_shot now takes
+`OSPLIT_TOP=n` and folds node names that only differ by chunk / tile coordinates into one stem -
+`Sky_3_-2`, `Planting_4_1` - which is why the far city's canopies never ranked before), then the
+same tree with every cut off and on with `TRUE=1` (`ab_off` / `ab_on`), and plain before / after
+runs of the 34 newer cameras (`before_w*` / `after_w*`, every cut off = main's behaviour, the
+same tree). A watchdog kills a run whose log is static for 15 minutes (the occlusion-cull hang of
+9kw did not happen this time). The box restarted once mid-run; that run was repeated whole.
+
+### What grew since Perf audit 5 (counter, the ten cameras)
+
+| camera | PA5 after | main now | draws | what grew |
+|---|---|---|---|---|
+| street_noon | 6.70 M | 7.03 M | 3,630 | street props (bench 0.16 M, trash bags 0.10 M, cafe sets, scooters) |
+| street_night | 6.72 M | 7.09 M | 3,774 | the same |
+| golden_aerial | 4.59 M | 5.81 M | 4,263 | **ShadowTuning's air cascades** (wave 5): SHADOW_TUNING=0 gives 3.29 M / 2,967 draws against 4.26 M / 4,274 on the same tree |
+| macarthur | 4.17 M | 4.79 M | 3,972 | ShadowTuning (+0.61 M, +780 draws), MacArthurLook's shade trees |
+| pier_night | 1.20 M | 1.28 M | 529 | wave-7 pier lights |
+| downtown_aerial, hills | | +4 % | | within noise |
+| sunset, beach, freeway | | flat | | |
+
+ShadowTuning is a look decision (shadows from the air); it stays. By system, counter (deep split):
+the far city's canopies (`FarCity/Planting`) 1.28 M at street_noon and 1.41 M at golden_aerial
+- not the boxes (0.33 / 0.70 M) -, the rooftop AC units 0.24-0.32 M (BSPLIT `mm RoofUnits*`),
+the facade kit's shadow twins 0.23-0.35 M, houses 0.36-0.43 M at the aerials (0.28-0.36 M of it
+shadow; no LODs, so the counter is right there), `LotCars` 0.17 M at golden_aerial.
+
+### What was cut (each behind its own switch; `PerfSix`, `scripts/util/perf_six.gd`)
+
+1. **The far canopies get a sub-pixel coarse level** (`CANOPY_LOD=0`): `PropFactory.canopy_blob()`
+   (24 triangles) carries a 12-triangle level - a triangular antiprism on its own vertices,
+   departure at most 0.22 of the unit - and each Skyline `Planting_*` tile's LOD bias is its
+   biggest canopy's scale, so the renderer takes it only where the change is under its pixel
+   threshold. True far planting: street_noon 1.30 -> 0.82 M, golden_aerial 1.18 -> 0.71 M, hills
+   0.79 -> 0.54 M, freeway 1.01 -> 0.65 M.
+2. **The rooftop AC units cast from a light twin** (`ROOF_UNIT_SHADOW=0`): Building's
+   `RoofUnits` MultiMeshes (the 4,743-triangle condenser) cast the full model into every cascade
+   with no lighter caster; now a SHADOWS_ONLY sibling of the model's shadow proxy (2,383) at LOD
+   bias 0.3. True: 0.99 -> 0.69 M (street_noon), 1.26 -> 0.87 M (freeway), 0.93 -> 0.58 M
+   (golden_aerial).
+3. **Every non-foliage shadow twin at the shadow LOD scale** (`PROP_SHADOW_LOD=0`): only the
+   foliage, palm and knee-high twins took `FoliageLod.SHADOW_LOD_SCALE`; every street prop's proxy
+   twin (and every reach twin of a batch's own mesh) took the camera's. True props: -0.1 to
+   -0.45 M a camera.
+4. **The facade kit's casting pieces through twins** (`KIT_SHADOW_TWIN=0`): awnings, balconies,
+   fire escapes, window ACs, roof vents / tanks, blade signs cast through a reach twin of their
+   own mesh (same reach as their draw distance), so their shadow also takes the shadow LOD scale.
+   Small (-0.03 to -0.10 M): a per-building batch beside the camera picks level 0 whatever its
+   bias. The kit's real shadow cost is the **balconies** (TRUE_KIT=1: 2.06 M of street_noon's
+   2.85 M kit shadow, 1.0-1.1 M at freeway / macarthur), left for a balcony proxy (below).
+
+The counter's own drop (street_noon 7.09 -> 5.70 M, hills 1.78 -> 0.92 M) is mostly the canopy's
+new LOD moving `Planting_*` from per-instance to per-draw counting - read the TRUE columns. Draws
+are flat (street_noon 3,691 -> 3,700, freeway 2,868 -> 2,754, golden 4,259 -> 4,274).
+
+| camera | counter | far planting | roof units | facade kit | props |
+|---|---|---|---|---|---|
+| street_noon | 7.09 -> 5.70 | 1.30 -> 0.82 | 0.99 -> 0.69 | 3.28 -> 3.25 | 4.49 -> 4.29 |
+| street_night | 7.09 -> 5.69 | 1.30 -> 0.82 | 0.99 -> 0.69 | 3.29 -> 3.27 | 4.65 -> 4.44 |
+| sunset | 2.12 -> 1.90 | 0.14 -> 0.12 | 0 | 0 | 0.45 -> 0.44 |
+| golden_aerial | 5.80 -> 4.26 | 1.18 -> 0.71 | 0.93 -> 0.58 | 0.26 -> 0.18 | 1.55 -> 1.28 |
+| downtown_aerial | 3.25 -> 2.88 | 0.32 -> 0.22 | 0.44 -> 0.35 | 0.90 -> 0.90 | 3.58 -> 3.27 |
+| beach | 0.51 -> 0.50 | 0 | 0 | 0 | 0.03 -> 0.03 |
+| hills | 1.78 -> 0.92 | 0.79 -> 0.54 | 0 | 0 | 0.51 -> 0.33 |
+| freeway | 5.40 -> 4.24 | 1.01 -> 0.65 | 1.26 -> 0.87 | 2.10 -> 2.08 | 5.59 -> 5.14 |
+| macarthur | 4.79 -> 4.22 | 0.35 -> 0.35 | 0.55 -> 0.43 | 1.88 -> 1.78 | 1.53 -> 1.30 |
+| pier_night | 1.28 -> 1.25 | 0.03 -> 0.03 | 0 | 0 | 0.32 -> 0.29 |
+
+(millions of triangles; counter = GEO total; the rest TRUE, camera + shadow.) Sum of the touched
+groups at street_noon 10.65 -> 9.64 M true (-9.5 %), golden_aerial 4.57 -> 3.40 M (-26 %).
+
+### Measured and left off
+
+- **Foliage LOD cells** (`FOLIAGE_CELLS=1`, `FOLIAGE_CELL` metres, default 48): a foliage batch
+  (FoliageLod / palm ladder) is drawn as children per cell, so each picks its own level; a
+  chunk-wide batch picks ONE level from its whole box, level 0 whenever the camera is in it. The
+  batch node keeps every instance (anything that reads or hides one by index still works,
+  `hide_instance()` forwards into the cell) and draws none. TRUE plants: street_noon 16.1 ->
+  11.0 M, downtown_aerial 14.3 -> 8.7 M, macarthur 8.7 -> 6.7 M, freeway 17.5 -> 14.9 M - the
+  biggest triangle saving there is - but draws +15 % (street_noon 3,700 -> 4,261), +24 % (macarthur),
+  +50 % (golden_aerial 4,274 -> 6,431). 9af rejected cells on the counter (which counts more LOD'd
+  draws as more triangles, the opposite of the truth); the real trade is triangles for draws, and
+  that wants a Mac measurement (Forward+ draws are cheaper than Compatibility's), so it ships off.
+- **Smaller far-city tiles** (`FAR_TILE_BLOCKS=3`, default 6): planting -0.02 to -0.18 M, boxes
+  under 0.1 M, draws +4 to +27 %. Not worth it. The collapsed instances in partly covered tiles
+  are only ~44k triangles at street_noon (`tools/perf_audit_6/far_cover_probe.gd`).
+
+### Proof of no visible change
+
+`--strict` (shader TIME held, people / cars / aircraft / particles hidden) on street_noon,
+golden_aerial, hills, freeway, macarthur: cuts off twice (A/A) and on once; see the table below
+and `shots/perf-audit-6`.
+
+| camera | pixels changed, A/A (any / > 8 levels) | pixels changed, off / on |
+|---|---|---|
+| street_noon | 897 / 54 | 1,125 / 289 |
+| golden_aerial | 443 / 0 | 2,840 / 292 |
+| hills | 1,813 / 825 | 5,264 / 711 |
+| freeway | 22 / 9 | 5 / 1 |
+| macarthur | 446 / 85 | 1,010 / 79 |
+
+(of 921,600.) `refcams.py compare` flags none of the five, A/A or off / on. The extra changed
+pixels are scattered singles along the far city's skyline band (the canopies' coarse level
+switching in under a pixel) and a few shadow texels of rooftop AC units; at 3x the far city reads
+the same (`shots/perf-audit-6` 11-14).
+
+### Memory
+
+- **The gate** (`SHARDS=3 SMOKE_PROFILE=1`, this branch): 5,798 of 5,798 passed in 1,516 s;
+  shard peaks **3,107 / 3,840 / 3,798 MB** (PA5: 2,902 / 3,763 / 3,792) - under the 4,000 MB
+  budget, two shards over the 3,600 target as before. By part (`tools/perf_audit_4/gate_rss.py`):
+  the loads 2,185 (city_polish) / 3,073 (city_streaming) / 2,328 (city_cars) MB; then
+  police_station_checks +641, metro_underground_checks +373, masjid_checks +273, city_crowd +297,
+  garage_drive_in_checks +256, freeway_incidents_checks +219. Nothing here moves memory (the
+  twins share their meshes; the canopy LOD adds 36 indices).
+- **After merging main (269 commits, wave 8's first batches)**: 6,179 of 6,179 passed, shard
+  peaks 3,200 / 3,959 / 3,510 MB - shard 1 is 41 MB under the 4,000 MB budget now: the next part
+  added to it (or more memory in city_streaming / garage_drive_in / freeway_incidents) will fail
+  memory_audit_checks there; re-deal PART_COST or stage those parts nearer stage_home().
+- **After merging main again (230 more commits)**: 6,513 checks; shards 1 and 2 passed (2,041 /
+  2,384), shard 0 failed 4 of 2,092 - all in street_errands' parked-car door sequence ("a walker
+  opens a parked car's driver door ...", then the three that follow from it), which pass run alone
+  (`SMOKE_PARTS=city_crowd`: 113 / 113, all 28 errands checks): an intermittent of the live
+  errands, not these cuts. Peaks 3,262 / **3,998** / 3,977 MB: shards 1 and 2 are now at the
+  4,000 MB budget's edge - the gate's memory needs a re-deal before the next wave adds anything.
+- **A city load, rendered** (refcams, opengl3, 1280x720): the first launch after the import,
+  cold shader caches, 10.5 GB for one camera; warm runs of all ten cameras 9.1-9.2 GB (off / on).
+  Headless the load is the gate's 2.2-3.1 GB above.
+
+### W5 / W6 / W7 cameras
+
+Plain before / after runs (TRUE=1), same tree (the branch before its main merge, ac8b16d2), every
+cut off against on. Draws flat on all of them; the true sum of the touched groups -3 to -41 %.
+canyon_road, hero_foot, rain_day, night_aerial and chase_cam (and stack_aerial / film_lot) were
+shot with occlusion culling off on BOTH sides (a temporary override.cfg, never committed): the
+occlusion-cull hang of 9kw stopped those batches twice (the watchdog killed them after 15 minutes
+of a static log). So their counter numbers are higher than an occluded run's; the pair is fair.
+
+| camera | counter (M) | draws | true far planting | true roof units | true props | true facade kit | true sum of these (M) |
+|---|---|---|---|---|---|---|---|
+| alley_night | 4.23 -> 3.60 | 2383 -> 2372 | 0.54 -> 0.32 | 1.58 -> 1.14 | 4.85 -> 4.55 | 1.40 -> 1.39 | 8.37 -> 7.40 (-12 %) |
+| la_river | 3.64 -> 2.46 | 1214 -> 1202 | 1.12 -> 0.65 | 0.04 -> 0.03 | 0.83 -> 0.68 | 0.00 -> 0.00 | 2.00 -> 1.36 (-32 %) |
+| airport_apron | 2.93 -> 2.13 | 2040 -> 2040 | 0.61 -> 0.40 | 0.00 -> 0.00 | 0.89 -> 0.87 | 0.00 -> 0.00 | 1.51 -> 1.27 (-16 %) |
+| port_crane | 0.79 -> 0.74 | 553 -> 553 | 0.04 -> 0.02 | 0.00 -> 0.00 | 0.80 -> 0.80 | 0.00 -> 0.00 | 0.84 -> 0.82 (-3 %) |
+| marine_morning | 3.33 -> 3.25 | 2540 -> 2542 | 0.01 -> 0.01 | 0.00 -> 0.00 | 0.66 -> 0.64 | 0.00 -> 0.00 | 0.67 -> 0.65 (-3 %) |
+| mayhem | 7.19 -> 6.30 | 5195 -> 5302 | 0.81 -> 0.58 | 0.58 -> 0.35 | 2.60 -> 2.31 | 0.91 -> 0.81 | 4.91 -> 4.06 (-17 %) |
+| suburb_morning | 5.79 -> 5.35 | 2899 -> 2896 | 0.38 -> 0.26 | 0.10 -> 0.07 | 2.57 -> 2.42 | 0.00 -> 0.00 | 3.06 -> 2.75 (-10 %) |
+| crowd_plaza | 5.01 -> 4.04 | 2483 -> 2493 | 0.82 -> 0.57 | 0.96 -> 0.56 | 2.60 -> 2.39 | 1.48 -> 1.43 | 5.86 -> 4.95 (-16 %) |
+| canyon_road | 5.46 -> 3.57 | 2045 -> 2033 | 1.75 -> 1.02 | 0.00 -> 0.00 | 5.00 -> 4.60 | 0.00 -> 0.00 | 6.75 -> 5.62 (-17 %) |
+| hero_foot | 8.96 -> 7.12 | 4928 -> 4912 | 1.64 -> 0.95 | 1.19 -> 0.80 | 2.30 -> 2.11 | 2.76 -> 2.07 | 7.89 -> 5.94 (-25 %) |
+| rain_day | 5.04 -> 4.29 | 3140 -> 3139 | 0.51 -> 0.34 | 0.58 -> 0.35 | 2.63 -> 2.17 | 0.66 -> 0.65 | 4.38 -> 3.52 (-20 %) |
+| night_aerial | 3.58 -> 1.98 | 1601 -> 1606 | 1.52 -> 0.85 | 0.14 -> 0.14 | 0.31 -> 0.31 | 0.00 -> 0.00 | 1.96 -> 1.29 (-34 %) |
+| chase_cam | 7.57 -> 6.04 | 3816 -> 3815 | 1.35 -> 0.73 | 0.89 -> 0.56 | 2.89 -> 2.53 | 5.29 -> 5.13 | 10.41 -> 8.95 (-14 %) |
+| fashion_district | 5.39 -> 4.95 | 3779 -> 3800 | 0.25 -> 0.17 | 3.44 -> 2.62 | 4.98 -> 4.44 | 2.03 -> 1.95 | 10.70 -> 9.17 (-14 %) |
+| stadium_night | 3.84 -> 1.96 | 1085 -> 1085 | 1.81 -> 1.03 | 0.00 -> 0.00 | 0.09 -> 0.09 | 0.00 -> 0.00 | 1.90 -> 1.12 (-41 %) |
+| pier_day | 1.64 -> 1.61 | 582 -> 582 | 0.03 -> 0.03 | 0.00 -> 0.00 | 0.02 -> 0.02 | 0.00 -> 0.00 | 0.05 -> 0.05 (+0 %) |
+| person_closeup | 7.58 -> 6.04 | 3676 -> 3749 | 1.55 -> 0.96 | 1.36 -> 0.87 | 2.48 -> 2.21 | 2.78 -> 2.75 | 8.18 -> 6.79 (-17 %) |
+| car_closeup | 9.68 -> 7.93 | 5385 -> 5294 | 1.25 -> 0.76 | 0.78 -> 0.52 | 1.88 -> 1.77 | 1.26 -> 1.25 | 5.17 -> 4.30 (-17 %) |
+| vernon_industrial | 2.98 -> 2.29 | 1821 -> 1853 | 0.71 -> 0.47 | 0.07 -> 0.04 | 0.78 -> 0.71 | 0.03 -> 0.03 | 1.59 -> 1.25 (-22 %) |
+| freeway_night | 6.36 -> 4.93 | 3242 -> 3259 | 1.33 -> 0.84 | 0.63 -> 0.41 | 4.80 -> 4.53 | 0.71 -> 0.64 | 7.46 -> 6.41 (-14 %) |
+| chinatown_dusk | 4.63 -> 3.85 | 2321 -> 2377 | 0.76 -> 0.45 | 0.12 -> 0.09 | 2.30 -> 2.11 | 0.02 -> 0.02 | 3.21 -> 2.66 (-17 %) |
+| refinery_night | 3.85 -> 2.14 | 1447 -> 1434 | 1.68 -> 0.87 | 0.13 -> 0.06 | 0.33 -> 0.33 | 0.05 -> 0.05 | 2.19 -> 1.31 (-40 %) |
+| rooftop_golden | 3.27 -> 1.83 | 1108 -> 1103 | 1.31 -> 0.77 | 0.16 -> 0.11 | 0.46 -> 0.36 | 0.16 -> 0.16 | 2.09 -> 1.41 (-33 %) |
+| oil_field | 4.20 -> 3.31 | 1317 -> 1319 | 0.84 -> 0.60 | 0.02 -> 0.01 | 0.79 -> 0.54 | 0.00 -> 0.00 | 1.66 -> 1.15 (-30 %) |
+| golf_morning | 5.26 -> 3.77 | 1443 -> 1432 | 1.47 -> 0.85 | 0.00 -> 0.00 | 0.10 -> 0.10 | 0.00 -> 0.00 | 1.57 -> 0.95 (-39 %) |
+| marina_golden | 1.28 -> 1.20 | 929 -> 929 | 0.03 -> 0.03 | 0.00 -> 0.00 | 2.24 -> 1.80 | 0.00 -> 0.00 | 2.27 -> 1.83 (-19 %) |
+| airport_night | 3.22 -> 1.85 | 1534 -> 1543 | 1.25 -> 0.80 | 0.00 -> 0.00 | 0.49 -> 0.48 | 0.00 -> 0.00 | 1.74 -> 1.28 (-26 %) |
+| ridge_sign | 2.70 -> 1.65 | 739 -> 739 | 1.03 -> 0.66 | 0.00 -> 0.00 | 1.74 -> 1.70 | 0.00 -> 0.00 | 2.77 -> 2.36 (-15 %) |
+| broadway_night | 5.44 -> 4.44 | 2804 -> 2780 | 0.83 -> 0.49 | 0.50 -> 0.36 | 2.57 -> 2.47 | 1.90 -> 1.89 | 5.80 -> 5.22 (-10 %) |
+| bonfire_night | 1.90 -> 1.85 | 2346 -> 2350 | 0.04 -> 0.04 | 0.00 -> 0.00 | 0.25 -> 0.22 | 0.00 -> 0.00 | 0.29 -> 0.26 (-12 %) |
+| canals_day | 4.08 -> 3.32 | 3061 -> 3060 | 0.67 -> 0.41 | 0.00 -> 0.00 | 0.56 -> 0.52 | 0.00 -> 0.00 | 1.23 -> 0.93 (-24 %) |
+| port_night | 0.95 -> 0.77 | 587 -> 588 | 0.13 -> 0.08 | 0.00 -> 0.00 | 0.52 -> 0.52 | 0.00 -> 0.00 | 0.65 -> 0.59 (-9 %) |
+| stack_aerial | 5.67 -> 4.61 | 4254 -> 4224 | 0.68 -> 0.44 | 1.69 -> 1.05 | 3.80 -> 3.46 | 2.24 -> 2.23 | 8.41 -> 7.18 (-15 %) |
+| film_lot | 4.14 -> 2.98 | 1904 -> 1891 | 1.01 -> 0.66 | 0.27 -> 0.17 | 0.72 -> 0.67 | 0.20 -> 0.20 | 2.20 -> 1.69 (-23 %) |
+
+### Not done / next
+
+(1) A balcony shadow proxy: 2 M true shadow triangles at street_noon from one kit piece. (2)
+Foliage cells, judged on the Mac (FOLIAGE_CELLS=1 FOLIAGE_CELL=48 / 64). (3) The houses' meshes
+(no LODs, 0.28-0.36 M shadow at the aerials). (4) Trash-bag piles (0.1 M, code mesh, no LOD or
+light twin). (5) Not looked at on Forward+ (geometry-only cuts; the canopy's level is the only
+shape change and it is under a pixel by construction).

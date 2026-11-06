@@ -268,6 +268,10 @@ func _run() -> void:
 		if OS.get_environment("NIGHT_AB") == "1":
 			await _night_ab(scene, png)
 		var c: Array = await _geo_report("GEO_%s" % cam.name)
+		# TRUE=1: the MultiMeshes the renderer's counter counts once per draw (any surface with
+		# LODs: CLAUDE.md measurement trap 3) counted per instance, by group (tools/perf_audit_6).
+		if OS.get_environment("TRUE") == "1":
+			load("res://tools/perf_audit_6/true_groups.gd").call("report", self, cam.name)
 		# SPLIT=1 (OSPLIT=1 too): still_shot's cost table for this camera's frame, every category
 		# hidden in turn (tools/perf_audit_4/split_table.py ranks them from the log).
 		if OS.get_environment("SPLIT") == "1":

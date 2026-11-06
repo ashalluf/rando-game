@@ -7099,6 +7099,13 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   near the camera gets a shadow twin and LODs. `OSPLIT_CATS=` on still_shot / refcams splits any
   category. The first refcams run on a fresh box (empty shader caches) peaks far higher (13.9 GB,
   OOM) than later ones (8.5 GB).
+- Perf audit 6 (2026-11-06, docs/HANDOFF.md "Perf audit 6"): **the counter undercounts every
+  LOD'd MultiMesh** (trap 3), so judge one with `TRUE=1` on refcams (`tools/perf_audit_6/true_groups.gd`,
+  per instance; `true_table.py` tabulates). `PerfSix` (`scripts/util/perf_six.gd`) holds the cuts:
+  the far canopy blob's sub-pixel 12-triangle level (`CANOPY_LOD=0`), the rooftop AC units cast from
+  a light twin (`ROOF_UNIT_SHADOW=0`), every non-foliage shadow twin at the shadow LOD scale
+  (`PROP_SHADOW_LOD=0`), the facade kit's casters through twins (`KIT_SHADOW_TWIN=0`);
+  `FOLIAGE_CELLS=1` (off: draws +8-50 %) splits foliage batches into LOD cells.
 - Memory (2026-10-05, docs/HANDOFF.md "Memory audit"): the smoke test fails past a peak-RSS
   budget (`tests/memory_audit_checks.gd`, 4,000 MB, `MEMORY_BUDGET_MB`; it peaked at 2.94 GB; the
   shards' own target is 3,600 MB).
