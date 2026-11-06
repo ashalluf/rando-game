@@ -15,6 +15,7 @@ func run(t: Node, city: Node3D) -> void:
 	_prop_twins(city)
 	_kit_twins(city)
 	_canopy()
+	_cells(city)
 
 
 func _roof_units(city: Node3D) -> void:
@@ -87,3 +88,12 @@ func _canopy() -> void:
 				bad += 1
 	_t._check(sky == null or bad == 0,
 		"perf-audit-6: far planting tiles carry their biggest canopy's scale as LOD bias (%d tiles, %d wrong)" % [tiles, bad])
+
+
+func _cells(city: Node3D) -> void:
+	var celled := 0
+	for n in city.find_children("Batch_*", "MultiMeshInstance3D", true, false):
+		if (n as Node).has_meta("cells"):
+			celled += 1
+	_t._check((celled > 0) == PerfSix.foliage_cells or not PerfSix.foliage_cells and celled == 0,
+		"perf-audit-6: foliage batches are cut into LOD cells exactly when FOLIAGE_CELLS=1 (%d celled)" % celled)

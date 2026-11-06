@@ -4164,6 +4164,14 @@ none of either.
   material are merged (the knee-high plants: sunset -37 % draws); palm shadow twins follow the
   trees' shadow LOD rule (the one cut that moves pixels: frond-shadow speckle at 100+ m). All
   behind HORIZON_TILES / FAR_COVER_HIDE / PLANT_MERGE / PALM_SHADOW_LOD =0.
+- **2026-11-06 Perf audit 6: count what the GPU draws, not what the counter says (perf-audit-6,
+  HANDOFF "Perf audit 6").** All 44 refcams measured after wave 7. The renderer's counter counts a
+  MultiMesh with LODs once per draw, so foliage, props, the facade kit and the roof units were
+  invisible to every earlier audit; `TRUE=1` counts them per instance. Decisions: the far city's
+  canopies get a sub-pixel coarse level; the rooftop AC units (4.7k triangles each, no lighter
+  caster) cast from their proxy; non-foliage shadow twins take the shadow LOD scale; splitting
+  foliage batches into LOD cells saves the most triangles of all (-15 to -40 % of the foliage) but
+  costs +8-50 % draws, so it ships off (`FOLIAGE_CELLS=1`) until it is judged on the Mac.
 - **2026-11-02 Perf audit 5: what casts a shadow is lighter than what is drawn (perf-audit-5,
   HANDOFF "Perf audit 5").** Wave 4 put the frame back over Perf audit 4's numbers mostly through
   shadows: the near car wheel (12-14k triangles, no LODs, every cascade) on a freeway now full of
