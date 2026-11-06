@@ -5614,6 +5614,14 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   (`Worship.blocked_near()`) and the encampments (`near_rect()`, `WORSHIP_CLEAR`) keep off.
   Names invented. `WORSHIP=0` is the A/B, `WORSHIP_KIND=` forces a kind; probe
   `tools/worship/probe.gd` (EYEs); checks `tests/worship_checks.gd`.
+- The Mission church on a Sunday (wave 8, refcam `church_sunday` in `tools/refcams/cameras_w8.json`,
+  its `sunday` key = WORSHIP_DAY=0 / WORSHIP_HOUR; docs/HANDOFF.md "The Mission church on a Sunday
+  morning"): `WorshipSunday` (`scripts/world/worship_sunday.gd`, one hook after WorshipBuild's
+  `_finish()`) brings a congregation (`Worshipper`, Sunday-best rigs via Pedestrian's `model_pick`)
+  before and after the services the name board lists, on its day only (the synagogue Saturday);
+  `RcChurchSunday` keeps kerb and lawn trees off the front (one hook in `_add_tree()`, after the
+  rolls) and puts `shaders/lime_wash.gdshaderinc` (`lime_wash` in landmark_facade) on the stucco.
+  `WORSHIP_SUNDAY=0` / `RC5_CHURCH=0` the A/Bs; checks `tests/rc5_church_sunday_checks.gd`.
 - Autoload `WorldState`: `world_offset` (local + offset = true world position, use `to_world()` /
   `to_local()`) and the destroyed-prop registry (`mark_destroyed`, `is_destroyed`).
 - Anything that must survive origin re-centering has to be a 3D child of the scene root (the

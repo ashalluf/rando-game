@@ -26,6 +26,10 @@ uniform float seed = 0.0;
 // The palette's bias: 0 the full jewel set, 1 blues, 2 reds and golds, 3 greens and ambers.
 uniform int palette = 0;
 uniform vec3 warm : source_color = vec3(1.0, 0.78, 0.48);
+// rc5 church_sunday (RcChurchSunday.glass_params()): from outside by day a stained window is dark,
+// its colour a hint under the sky's sheen (the protective glazing over it mirrors a little more).
+// 0: the old daylight look. Night (lamp_factor, the hall lit) is untouched.
+uniform float day_dark = 0.0;
 
 varying vec3 wpos;
 varying vec3 wnrm;
@@ -117,10 +121,13 @@ void fragment() {
 	vec3 glass = col * shade;
 	vec3 albedo = mix(glass * 0.16, vec3(0.03, 0.028, 0.026), lead);
 	float mirror = mix(0.08, 0.5, fres) * (1.0 - lead) * (1.0 - 0.7 * night_factor);
+	float dark = (mode == 0 || mode == 2) ? day_dark * (1.0 - night_factor) : 0.0;
+	albedo *= mix(1.0, 0.38, dark);
+	mirror *= 1.0 + 0.5 * dark;
 	vec3 emission = sky * mirror * lm_sky_now();
 	// Daylight through from the far side (a hint of the colour), and the hall lit at night.
 	vec3 through = (mode == 3 || mode == 1) ? warm * mix(vec3(1.0), glass, 0.4) : glass;
-	emission += through * (1.0 - lead) * (day_glow * (1.0 - night_factor) + glow * lit);
+	emission += through * (1.0 - lead) * (day_glow * (1.0 - night_factor) * mix(1.0, 0.35, dark) + glow * lit);
 	ALBEDO = cs_out(albedo);
 	ROUGHNESS = mix(0.1, 0.8, lead);
 	METALLIC = 0.0;

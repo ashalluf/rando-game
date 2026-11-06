@@ -185,6 +185,8 @@ static func _glass(mode: int, palette: int, sd: float) -> ShaderMaterial:
 	m.set_shader_parameter("palette", palette)
 	m.set_shader_parameter("seed", sd)
 	m.set_shader_parameter("glow", [2.4, 1.6, 2.6, 1.3][mode])
+	for k2: String in RcChurchSunday.glass_params():
+		m.set_shader_parameter(k2, RcChurchSunday.glass_params()[k2])
 	_mats[k] = m
 	return m
 
@@ -808,6 +810,7 @@ static func _mission(ctx: Dictionary) -> void:
 		if q.x > 0.01:
 			prof.append(Vector2(xc - q.x, fh + q.y))
 	_slab_profile(g, "stucco", prof, zf + th + 0.3, zf - 0.3, "trim")
+	RcChurchSunday.espadana_soffit(g, xc, hw, fh, zf + th, zf + th + 0.3)
 	# A small niche bell in the crest, and the cross on top.
 	var nz := zf + 0.1
 	wall(g, "stucco", Vector3(xc - 0.9, fh + 2.2, zf + th + 0.32), Vector3(1, 0, 0), Vector3(0, 0, 1), 1.8, 2.0, 0.02,
@@ -825,6 +828,7 @@ static func _mission(ctx: Dictionary) -> void:
 	for k in 2:
 		g.box("glass_stained", tc + Vector3(0, 4.0 + float(k) * 3.8, tw * 0.5 + KEEP), Vector3(0.4, 1.6, 0.02))
 	g.box("trim", tc + Vector3(0, shaft_h + 0.15, 0), Vector3(tw + 0.5, 0.3, tw + 0.5), Color.WHITE, Basis(), 0.04)
+	RcChurchSunday.tower_dress(g, tc, tw, shaft_h)
 	# The belfry: four arched openings, a bell in each, open to the sky.
 	var bel0 := shaft_h + 0.3
 	var bh := 5.2
