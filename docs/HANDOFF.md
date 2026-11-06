@@ -33344,7 +33344,12 @@ the same merge: SHARDS=3, 6,578 checks passed, 0 failed, peak RSS 3.96 GB a shar
 does not touch, a different one each time - run 1 `a rocket brings a helicopter down` (+2 that
 follow from it, air_traffic_checks) and `loop cars crawl forward` (city_landmarks), run 2 `blood
 gore 2: a ray finds the parked car's top` - and each passes alone (`SMOKE_PARTS=city_landmarks,
-air_traffic_checks`: 74 passed; `SMOKE_PARTS=blood_gore_2_checks`: 40 passed) and in the other run. Stills on
+air_traffic_checks`: 74 passed; `SMOKE_PARTS=blood_gore_2_checks`: 40 passed) and in the other run.
+
+Status (wrap-up, 2026-11-06): done - the camera row, JetFinal's three fixes, checks, docs, stills.
+Open - a Forward+ (lavapipe) look at the glow's strength; a fully green SHARDS=3 run on the head
+(green on the 8c0de652 merge; the a870978b merge's two runs each had one unrelated flake that
+passes alone, see above), so the head is not gated green. Nothing else is in progress. Stills on
 `shots/rc5-airport-final`. Not verified: Forward+ (no lavapipe pass for the glow's strength on the
 Mac's renderer; `under_glow` and `gear_light` are linear and go through cs_out like the rest of
 the livery's emission, so both renderers read them the same way by construction).
