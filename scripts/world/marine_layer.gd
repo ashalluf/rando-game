@@ -133,6 +133,8 @@ func drive(weight: float, edge_x: float, bank: float, lit: Color, shade: Color, 
 	var sz := snappedf(at.z + off.z, snap) - off.z
 	_under.global_transform = Transform3D(Basis(Vector3.RIGHT, PI), Vector3(sx, deck.x, sz))
 	_top.global_position = Vector3(sx, deck.y, sz)
+	# From under the deck's underside its top can never show: skip its (subdivided) plane there.
+	_top.visible = not SeaOfClouds.enabled or at.y + off.y > deck.x - 5.0
 	_bank.global_position = Vector3(0.0, 0.0, sz)
 	_bank.visible = bank > 0.003
 	var lit3 := Vector3(lit.r, lit.g, lit.b)

@@ -22213,6 +22213,13 @@ count except the rain frames (+-0.4 %, the rain's own particles differ run to ru
 ALU in fragments that were already running: two smoothed hashes a far lane pixel, two derivative
 pairs on road pixels at night.
 
+**The other marine cameras.** Strict A/B (`--strict`, SEA_OF_CLOUDS=0 vs on): marine_morning,
+marine_evening and cemetery_dawn are pixel-identical (mean pixel difference 0.00); only the
+triangle counter moved (+0.6 to +4.1 %: the subdivided top plane, drawn though wholly discarded
+from below), so the top plane is now hidden while the camera is under the deck's underside.
+cameras.json (the ten originals) has no marine weather, where the marine planes are hidden: not
+re-shot.
+
 **Not verified.** Forward+ (the Mac): tuned on opengl3 only; the platoons' contrast and the
 ranked glow may read stronger under AgX and bloom - knobs `FT_PLATOON_*`, `FT_TAIL_MEAN`,
 `RANK_*`. The airport still in the set predates the last beam change (e4354e0d: 0.4 from the air,
@@ -27263,6 +27270,13 @@ this camera. The eleven cameras (the ten + this) shot as an A/B (`NIGHT_AERIAL=0
 diff map is the cars alone); street_night and pier_night within noise. The helicopter-shaft range was
 tightened after that run and only night_aerial was shot again.
 
+**The other marine cameras.** Strict A/B (`--strict`, SEA_OF_CLOUDS=0 vs on): marine_morning,
+marine_evening and cemetery_dawn are pixel-identical (mean pixel difference 0.00); only the
+triangle counter moved (+0.6 to +4.1 %: the subdivided top plane, drawn though wholly discarded
+from below), so the top plane is now hidden while the camera is under the deck's underside.
+cameras.json (the ten originals) has no marine weather, where the marine planes are hidden: not
+re-shot.
+
 **Not verified.** Forward+ (the Mac): tuned on opengl3. The lane mean is emitted light; under AgX and
 bloom the knots may read hotter - knobs `FT_NEAR_BLOOM`, `FT_CELLS_*` (with their copies in
 NightAerial). The beam is tuned on one premiere beam at 1.4 km.
@@ -31417,6 +31431,13 @@ bodies cast nothing): **6.08 M / 3,269 (shadows 1.82 M), +3.8 % triangles and +3
 the view the change is for**. Every windscreen the load measured (RC5_AUTO_ROW_DEBUG=1 prints them):
 sedan, pickup, sports, crossover from the real Vehicles, none failed on the static bodies.
 
+**The other marine cameras.** Strict A/B (`--strict`, SEA_OF_CLOUDS=0 vs on): marine_morning,
+marine_evening and cemetery_dawn are pixel-identical (mean pixel difference 0.00); only the
+triangle counter moved (+0.6 to +4.1 %: the subdivided top plane, drawn though wholly discarded
+from below), so the top plane is now hidden while the camera is under the deck's underside.
+cameras.json (the ten originals) has no marine weather, where the marine planes are hidden: not
+re-shot.
+
 **Not verified.** Forward+ (the Mac): the far twins' paint (car_park_car.gdshader, GLOSS) and the
 cards under AgX were seen only on opengl3. A body type whose profile has no clear bonnet-to-roof
 climb at x 0.42 gets no card (none failed in the refcam load; RC5_AUTO_ROW_DEBUG=1 says so). The dealer's
@@ -33323,6 +33344,13 @@ and the heights come out ~150 m off.)
 triangles 4.33 M -> 4.35 M (+0.5 %, the 14.6k-triangle top plane), draws 1222 -> 1217.
 Cost otherwise: three marine planes, as before; the top's fragment work (three puff octaves x 9
 cells x 3 height samples) only while the marine layer is up and the top in view.
+
+**The other marine cameras.** Strict A/B (`--strict`, SEA_OF_CLOUDS=0 vs on): marine_morning,
+marine_evening and cemetery_dawn are pixel-identical (mean pixel difference 0.00); only the
+triangle counter moved (+0.6 to +4.1 %: the subdivided top plane, drawn though wholly discarded
+from below), so the top plane is now hidden while the camera is under the deck's underside.
+cameras.json (the ten originals) has no marine weather, where the marine planes are hidden: not
+re-shot.
 
 **Not verified.** Forward+ (the Mac) not shot: the shader is linear (cs_out), `sky_tint` decoded
 with cs_srgb_to_linear (a raw sRGB global on both), its colours plain Vector3 uniforms, so it
