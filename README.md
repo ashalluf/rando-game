@@ -11,3 +11,5 @@ Refcam `historic_core` (tools/refcams/cameras_w8.json): Spring St in the histori
 - 09/10 - block render: tan blotchy walls under ivory ornament, then walls matching
 
 All opengl3 (Compatibility). Not judged on Forward+ yet.
+- 11_after_final_historic_core.jpg - the final after (merged with main 2026-11-06, the pavement stains soaked in)
+- 12/13 - the foreground pavement: StreetWear's hard-edged stains, then soaked in (stain_soft)
