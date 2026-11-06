@@ -1,0 +1,10 @@
+{
+  "name": "jet_airliner",
+  "prompt": "twin-engine narrow-body passenger airliner, engines under the wings, white fuselage with a plain blue tail, landing gear down, rows of windows, no text or logos, nose pointing forward, ultra realistic, photorealistic, highly detailed, physically accurate materials and proportions, real-world scale, no cartoon or stylized look",
+  "credits": 30,
+  "tasks": {
+    "preview": "01a0b982-0f16-7225-abc8-a394a3d3a3e2",
+    "refine": "01a0b983-6385-7454-ae54-88fc2c849bb4"
+  },
+  "source": "Meshy (generated for this project)"
+}

@@ -1,0 +1,235 @@
+shader_type spatial;
+render_mode cull_disabled;
+
+// The farmers' market (scripts/world/farmers_market_kit.gd, farmers_market_build.gd): canopies,
+// tables, crates and their produce, flowers, bread, jars, the bollards, signs, banners, stall
+// marks and string lights. One material, so each piece is one MultiMesh draw a chunk.
+//
+// * Vertex colour alpha x 20 says what a face is (FarmersMarketKit.C_*): 0 the vertex colour, 2
+//   aluminium / steel, 4 canopy canvas (INSTANCE_CUSTOM.rgb, sRGB), 6 produce skin, 7 glass (jars,
+//   bottles), 8 wood, 9 cardboard, 10 cloth (UV2.y 1: gingham), 12 a lamp (bulbs, a scale's
+//   display, reflective tape), 14 leaves and petals, 16 a chalk board, 18 bread crust, 20 paint.
+// * UV2 is (roughness, metallic). UV is metres off the face's dominant axis (an ellipsoid's runs
+//   0..1 round and down it).
+// * Colour space: vertex colours and instance data arrive raw on both renderers and are authored
+//   sRGB; everything is worked in linear and handed over with cs_out() (color_space.gdshaderinc).
+// * Double-sided (the canvas is seen from under the canopy); Godot turns the normal for a back face.
+
+#include "res://shaders/color_space.gdshaderinc"
+
+global uniform float lamp_factor;
+
+// String-light bulbs by day (a faint filament glow: at 0.6 every bulb read as a lit yellow ball
+// at 10:00, refcam farmers_market) and at night.
+uniform float bulb_day = 0.18;
+uniform float bulb_night = 7.0;
+// How much sun the canvas lets through to its underside.
+uniform float canvas_through = 0.55;
+// Road grime creeping up from the asphalt (metres) and how dark it gets.
+uniform float grime_height = 0.3;
+uniform float grime = 0.22;
+
+varying vec3 v_local;
+varying vec3 v_paint;
+varying float v_code;
+varying vec3 v_lnormal;
+
+float fm_hash(vec2 p) {
+	p = fract(p * vec2(123.34, 456.21));
+	p += dot(p, p + 45.32);
+	return fract(p.x * p.y);
+}
+
+float fm_noise(vec2 p) {
+	vec2 i = floor(p);
+	vec2 f = fract(p);
+	f = f * f * (3.0 - 2.0 * f);
+	return mix(mix(fm_hash(i), fm_hash(i + vec2(1.0, 0.0)), f.x),
+		mix(fm_hash(i + vec2(0.0, 1.0)), fm_hash(i + vec2(1.0, 1.0)), f.x), f.y);
+}
+
+float fm_noise3(vec3 p) {
+	return fm_noise(p.xz + p.y * 1.7) * 0.6 + fm_noise(p.yx * 1.9 + p.z) * 0.4;
+}
+
+// Skin relief on produce and leaves (refcam farmers_market, 2026-11-05): a height field in metres
+// off the mesh position, turned into a normal by its screen derivatives (no tangents needed), and
+// faded once its cells are under a couple of pixels. 0 is the old smooth plastic skin.
+uniform float skin_relief = 1.0;
+// The table cloths' hanging folds (0: a flat sheet).
+uniform float cloth_drape = 1.0;
+// The aluminium's brushed grain along the legs (1) or across them (0, the old ripples).
+uniform float grain_along = 1.0;
+
+// The bump: perturb `n` (view space) by the height `h` (metres) over the surface at `p` (view space).
+vec3 fm_bump(vec3 n, vec3 p, float h) {
+	vec3 dpdx = dFdx(p);
+	vec3 dpdy = dFdy(p);
+	vec3 r1 = cross(dpdy, n);
+	vec3 r2 = cross(n, dpdx);
+	float det = dot(dpdx, r1);
+	if (abs(det) < 1e-12) {
+		return n;
+	}
+	vec3 grad = sign(det) * (dFdx(h) * r1 + dFdy(h) * r2);
+	return normalize(abs(det) * n - grad);
+}
+
+void vertex() {
+	v_local = VERTEX;
+	v_lnormal = NORMAL;
+	v_code = COLOR.a * 20.0;
+	v_paint = INSTANCE_CUSTOM.rgb;
+	// A batch without custom data (or a plain mesh) hands over black: that is white canvas.
+	if (dot(v_paint, v_paint) < 0.0001) {
+		v_paint = vec3(0.93, 0.93, 0.91);
+	}
+}
+
+void fragment() {
+	int code = int(round(v_code));
+	vec3 base = cs_srgb_to_linear(COLOR.rgb);
+	float rough = UV2.x;
+	float metal = UV2.y;
+	vec3 emit = vec3(0.0);
+	float lamp = clamp(lamp_factor, 0.0, 1.0);
+	// How fine a pixel is on this surface (detail below a pixel fades to its mean).
+	float px = length(fwidth(v_local));
+	if (code == 2) {
+		// Aluminium and steel: a fine brushed grain, a few scuffs.
+		// The grain runs along a tube: the legs are upright, so it changes fast round them and slowly
+		// up them (it ran across them, and the near leg was a stack of ripples).
+		vec2 gq = grain_along > 0.5 ? vec2((v_local.x + v_local.z) * 90.0, v_local.y * 3.0) : vec2(v_local.y * 90.0, v_local.x * 4.0 + v_local.z * 4.0);
+		float g = mix(fm_noise(gq), 0.5, smoothstep(0.004, 0.02, px));
+		rough = clamp(rough + (g - 0.5) * 0.2, 0.15, 0.9);
+		base *= 0.94 + 0.08 * g;
+	} else if (code == 4) {
+		// Canopy canvas: polyester weave, a faint grubbiness toward the hems, seams down the faces.
+		base = cs_srgb_to_linear(v_paint);
+		float weave = mix(fm_noise(UV * 260.0), 0.5, smoothstep(0.002, 0.01, px));
+		float dirt = fm_noise3(v_local * 2.3) * 0.5 + fm_noise3(v_local * 7.0) * 0.5;
+		float hem = smoothstep(2.05, 1.94, v_local.y);
+		base *= (0.94 + 0.08 * weave) * (1.0 - 0.1 * dirt - 0.12 * hem * dirt);
+		rough = 0.82;
+		metal = 0.0;
+	} else if (code == 6) {
+		// Produce: a broken tone and fine speckle (lenticels, dimples), the wet sheen of the skin.
+		float n = fm_noise3(v_local * 70.0);
+		float spot = smoothstep(0.72, 0.9, fm_noise3(v_local * 160.0 + 3.0));
+		spot = mix(spot, 0.15, smoothstep(0.002, 0.006, px));
+		base *= (0.86 + 0.26 * n) * (1.0 - 0.18 * spot);
+		// Toward the stem a fruit is a little darker and duller.
+		rough = clamp(rough + 0.25 * (1.0 - UV.y) * 0.4, 0.15, 0.85);
+		// Skin: pebbly on the rough skins (avocado, peach fuzz, citrus pores), a faint dimple on
+		// the glossy ones; and a broader blush / bruise mottle across each fruit.
+		float pebbly = smoothstep(0.42, 0.62, UV2.x);
+		float cell = fm_noise3(v_local * mix(260.0, 420.0, pebbly));
+		float h = (cell - 0.5) * mix(0.00025, 0.0011, pebbly) * skin_relief;
+		h *= 1.0 - smoothstep(0.0012, 0.004, px);
+		NORMAL = fm_bump(NORMAL, VERTEX, h);
+		float blush = fm_noise3(v_local * 18.0 + 11.0);
+		base *= mix(1.0, 0.8 + 0.4 * blush, skin_relief);
+		rough = clamp(rough + (cell - 0.5) * 0.25 * pebbly * skin_relief, 0.15, 0.9);
+	} else if (code == 7) {
+		// Glass jars and bottles: a deep tone (what is in them), glossy, a little light through.
+		base *= 0.9;
+		emit = base * 0.05;
+	} else if (code == 8) {
+		// Wood: grain along the plank, darker rings, weathered grey on the faces up top.
+		vec2 g = UV * vec2(3.0, 40.0);
+		float grain = fm_noise(g) * 0.6 + fm_noise(g * 3.1) * 0.4;
+		grain = mix(grain, 0.5, smoothstep(0.004, 0.02, px));
+		base *= 0.78 + 0.38 * grain;
+		base = mix(base, vec3(dot(base, vec3(0.33))) * 1.05, 0.15 * fm_noise3(v_local * 1.3));
+		rough = 0.85;
+	} else if (code == 9) {
+		// Cardboard: kraft fibres and a print smudge now and then.
+		float f = mix(fm_noise(UV * 120.0), 0.5, smoothstep(0.003, 0.012, px));
+		base *= 0.9 + 0.15 * f;
+		rough = 0.95;
+	} else if (code == 10) {
+		// Cloth: a weave and, on a gingham cloth, the check.
+		float w = mix(fm_noise(UV * 300.0), 0.5, smoothstep(0.002, 0.008, px));
+		base *= 0.92 + 0.12 * w;
+		// Where it hangs (a side face) it falls in folds that open toward the hem: a few soft
+		// ridges across the face, wider and deeper down, the valleys a shade darker. A flat
+		// sheet down a table's front read as the side of a box.
+		// (UV2.x over 0.935 is the sandbags, 0.95: no folds there.)
+		float hang = (1.0 - smoothstep(0.35, 0.6, abs(v_lnormal.y))) * step(UV2.x, 0.935);
+		float shade = 1.0;
+		vec2 cuv = UV;
+		if (hang > 0.0 && cloth_drape > 0.0) {
+			vec3 ln = normalize(v_lnormal);
+			float along = dot(v_local.xz, vec2(-ln.z, ln.x));
+			float drop = clamp((0.76 - v_local.y) / 0.7, 0.0, 1.0);
+			float ph = along * 15.0 + fm_noise(vec2(along * 3.0, 1.7)) * 3.0;
+			float wave = sin(ph);
+			float h = wave * (0.002 + 0.01 * drop) * hang * cloth_drape;
+			NORMAL = fm_bump(NORMAL, VERTEX, h);
+			shade = 1.0 - 0.14 * hang * cloth_drape * (0.5 - 0.5 * wave) * (0.3 + 0.7 * drop);
+			// The weave bunches into the folds: a check's verticals crowd in the valleys.
+			cuv.x += cos(ph) * (0.004 + 0.012 * drop) * hang * cloth_drape;
+		}
+		if (metal > 0.5) {
+			vec2 c = step(0.5, fract(cuv * 9.0));
+			float check = (c.x + c.y) * 0.5;
+			check = mix(check, 0.5, smoothstep(0.01, 0.05, px));
+			base = mix(vec3(0.85, 0.84, 0.8), base, 0.35 + 0.65 * check);
+		}
+		base *= shade;
+		metal = 0.0;
+	} else if (code == 12) {
+		// A lamp: the string's bulbs, a scale's display, a bollard's reflective band.
+		emit = base * mix(bulb_day, bulb_night, lamp);
+		rough = 0.15;
+		metal = 0.0;
+	} else if (code == 13) {
+		// A festoon bulb: clear glass by day (the sky and the canopy seen through it, a filament
+		// glowing faintly), its warm light (the vertex colour) at night. Lit as code 12 by day
+		// every bulb read as a solid yellow ball (refcam farmers_market, 2026-11-05).
+		vec3 glass = vec3(0.62, 0.63, 0.62);
+		base = mix(glass, base, lamp);
+		emit = cs_srgb_to_linear(COLOR.rgb) * mix(bulb_day * 0.5, bulb_night, lamp);
+		rough = 0.06;
+		metal = 0.0;
+	} else if (code == 14) {
+		// Leaves and petals: veins and a lighter tip, the crinkle in relief.
+		float n = fm_noise3(v_local * 90.0);
+		base *= 0.82 + 0.3 * n;
+		float hl = (fm_noise3(v_local * 140.0) - 0.5) * 0.0012 * skin_relief * (1.0 - smoothstep(0.0015, 0.005, px));
+		NORMAL = fm_bump(NORMAL, VERTEX, hl);
+		rough = clamp(rough, 0.55, 0.9);
+	} else if (code == 16) {
+		// A chalk board: dark slate with the price chalked on it in a couple of strokes.
+		vec2 q = fract(UV * vec2(8.0, 10.0));
+		float chalk = smoothstep(0.85, 0.95, fm_noise(UV * vec2(60.0, 14.0))) * step(0.25, q.y) * step(q.y, 0.75);
+		chalk = mix(chalk, 0.12, smoothstep(0.004, 0.012, px));
+		base = mix(base, vec3(0.8, 0.8, 0.76), chalk);
+		rough = 0.9;
+	} else if (code == 18) {
+		// Bread crust: darker on top where it baked, a dusting of flour, a fine bubbly texture.
+		float n = fm_noise3(v_local * 55.0);
+		float top = clamp(NORMAL.y * 0.5 + 0.5, 0.0, 1.0);
+		base *= (0.82 + 0.3 * n) * mix(1.08, 0.85, top);
+		float flour = smoothstep(0.62, 0.85, fm_noise3(v_local * 30.0 + 7.0)) * top;
+		base = mix(base, vec3(0.8, 0.76, 0.68), flour * 0.45);
+		rough = 0.85;
+	} else if (code == 20) {
+		base = cs_srgb_to_linear(v_paint);
+	}
+	// Grime from the road on what stands on it (not the lamps or the canvas up in the air).
+	if (code != 12 && code != 13 && code != 4 && code != 6 && code != 14 && code != 18) {
+		float gh = clamp(1.0 - v_local.y / grime_height, 0.0, 1.0);
+		float n = fm_noise(v_local.xz * 4.0 + v_local.y * 3.0);
+		base *= 1.0 - grime * gh * (0.5 + 0.5 * n);
+	}
+	ALBEDO = cs_out(base);
+	ROUGHNESS = rough;
+	METALLIC = metal;
+	EMISSION = cs_out(emit);
+	if (code == 4) {
+		BACKLIGHT = cs_out(base * canvas_through);
+	} else if (code == 14) {
+		BACKLIGHT = cs_out(base * 0.25);
+	}
+}
