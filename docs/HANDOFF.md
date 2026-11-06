@@ -32397,3 +32397,63 @@ view; see the follow-up below). Luminance p50 88 -> 88, saturation 0.291 -> 0.28
 not looked at on Forward+ (lavapipe cannot hold the city; a small scene would need the car park
 alone). Downtown's towers still read dark at 18:15 on this renderer - that is the city-wide grade
 and glass at that hour, not this view's to change. The lamps are off at 18:15 (lamp_factor 0).
+
+## 9d?. The buskers' plaza at 15:30 (fleet wave 8, `wt/rc5-buskers-plaza`; VISUAL_ROADMAP row "?")
+
+**The camera.** `buskers_plaza` in `tools/refcams/cameras_w8.json`: Pershing Square's block (the
+downtown PLAZA at block 26,0 on seed 1337), 15:30 clear, eye (2808, 1.7, 131) yaw 32 pitch -4,
+FOV 55 - eye level in the crowd on the busy end of the square, the breakdancer in a freeze on his
+cardboard with his ring clapping, the mariachi trio beside them, the fountain and (far, beyond it)
+the silver statue. Staging keys (refcams_shot.gd `_busk_plaza()`): `busk_plaza`
+("break,statue,mariachi" -> BUSK_PLAZA: a plaza's slots 0, 1, 2 forced to those kinds whatever the
+odds and the hours; "none" stages nothing), the row's `hour` -> BUSK_HOUR (every act built for
+15:30, not the load's hour), `busk_break_t` 13.5 -> BUSK_BREAK_T (the dancer's routine held at
+the one-hand freeze; his ring claps while it is held).
+
+**What read fake, in the order the eye found it** (main, still 01 on `shots/rc5-buskers-plaza`):
+1. *Nobody playing.* On main the plaza showed a drum kit and nobody (the first framing still): the
+   acts' people are spawned through the crowd cap, and by the time the plaza's chunk ran its
+   busker steps downtown had spent it. `Rc5Buskers.reserve_room()`: an act's people (a dozen at
+   most a block) come anyway (`Buskers.spawn_person`); the cap's trim still frees the farthest.
+2. *An empty field of setts.* A plaza block's walkers file round its pavement ring; the 100 x 175 m
+   square itself was empty. A plaza whose acts were laid gets `PLAZA_WALKERS` (36) x
+   PlazaCrowd.hour_factor of its own walkers on its open ground (`plaza_walkers()`: PlazaCrowd's
+   open ground, so CrowdFlow, the rig deal and point-to-point targets come with it; own stream,
+   spawned as deferred steps through the cap), and passers-by can stop on an outer row of the
+   break ring (`ring_spots()`, 7 vendor_queue spots over a 300-degree arc).
+3. *The dancer on bare stone.* The plaza's paving is a 4 cm slab over SIDEWALK_TOP; the gear was
+   laid at SIDEWALK_TOP, so the cardboard (6 mm), the case's foot and the plinth's base were
+   buried (`gear_lift()` lifts gear on a plaza 4 cm; the statue now stands exactly on its plinth).
+4. *A flat cyan disc for a fountain.* The plaza fountain's water was an unshaded 16-sided cylinder
+   cap. `fountain()`: a 48-segment pool disc under the coping on the landmarks' fountain water
+   (dark, rippled, the sky mirrored), eight jets leaning in round the column and a curtain of
+   sixteen streams falling off the bowl on the landmarks' jet shader; `basin()`: a 64-sided cast
+   stone basin with an overhanging coping (the 16 facets were 4.7 m wide), one collision cylinder
+   as before. Both hooks in `CityChunk._build_plaza()` (no roll, nothing else moves; LOD / far
+   unchanged).
+5. *Acts 40 m apart and alike.* Buskers' two plaza pitches stand either side of the fountain; a
+   third (`SLOTS` 3) now stands `SIDE_STEP` 13.5 m beside slot 0 at the same end of the square
+   (side by a hash), rolled like the others (PLAZA odds, its own id; slots 0 and 1 roll exactly as
+   before - checked over 16 plazas). And a trio drew the same rig twice (two identical faces in
+   charro): `trio_rigs()` gives each player a rig the trio has not used (`rig_of()` mirrors
+   `seed_for()`'s pick).
+
+**Numbers** (refcams, opengl3 1280x720, `buskers_plaza`; tris / draws / shadow tris):
+main (RC5_BUSKERS=0 BUSK_PLAZA=none): p1/p5/p50/p95/p99 14/27/163/199/203, sat 0.300, 5,218,054 /
+2,662 / 1,501,296. Staged, fixes off (RC5_BUSKERS=0): 13/26/160/199/203, sat 0.301, 5,402,023 /
+2,729 / 1,587,752. After: 13/25/152/199/203, sat 0.303, 5,626,050 / 2,766 / 1,732,659 (+4.1 %
+triangles, +1.4 % draws over the staged before: the square's walkers; the fountain is +3 draws).
+
+**A/B and tools.** `RC5_BUSKERS=0`: two pitches a plaza, the cap as before, no open-ground
+walkers, gear at the old height, the old fountain, trios rolled freely. Checks:
+`tests/rc5_buskers_plaza_checks.gd` (the row, the slots, the staging, a staged plaza chunk built at
+15:30: three acts, the gear lift, the fountain parts, the ring spots, three distinct mariachis,
+open ground, an act through a spent cap, the A/B). Stills on `shots/rc5-buskers-plaza`.
+
+**Not done / not verified.** The fountain, pool and jets are not seen on Forward+ (the shaders are
+the landmarks', already used on the Mac; the basin is a PropFactory.pbr concrete). The square's
+paving is still one sett texture over 100 x 175 m with a 5 m joint grid (CityChunk._build_plaza's
+road("paving") - the biggest thing left in the frame). The one-hand freeze tips the whole body
+about its feet (Busker._break_routine), so from the side it reads more like a fall than a freeze;
+a pivot about the planted hand with the legs up wants a real clip. No audio (as Buskers). The
+statue at the far end is 50 m out and mostly hidden by the fountain's jets in this frame.

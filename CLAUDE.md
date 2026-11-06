@@ -6551,6 +6551,16 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   with two-bone arm solves to the instrument (`Busker.two_bone()`); passers-by stop at
   `vendor_queue` spots. No audio. `BUSKERS=0` is the A/B; stills `tools/buskers/busk_shot.tscn`
   (every act alone, seconds), `tools/buskers/probe.gd` EYEs; checks `tests/buskers_checks.gd`.
+- The buskers' plaza (wave 8, refcam `buskers_plaza` in `tools/refcams/cameras_w8.json`, docs/HANDOFF.md
+  "The buskers' plaza at 15:30"): `Rc5Buskers` (`scripts/world/rc5_buskers.gd`): a plaza holds a
+  third pitch beside the first (`slot_side()`; slots 0 / 1 rolled as before), an act's people take
+  the crowd cap's room or come anyway (`reserve_room()`), a plaza with acts gets open-ground
+  walkers (`plaza_walkers()`, PlazaCrowd), the gear sits on the plaza's 4 cm paving
+  (`gear_lift()`: the cardboard was buried), passers-by join the break ring (`ring_spots()`), a
+  trio is three rigs (`trio_rigs()`), the plaza fountain is a 64-sided basin with a pool and jets
+  on the landmark water / jet shaders (`basin()`, `fountain()`, hooks in `_build_plaza()`).
+  Staging: `busk_plaza` (BUSK_PLAZA=kinds, BUSK_HOUR), `busk_break_t` (BUSK_BREAK_T, 13.5 the
+  freeze). `RC5_BUSKERS=0` is the A/B; checks `tests/rc5_buskers_plaza_checks.gd`.
 - Valet stands (2026-10-30, docs/HANDOFF.md "Valet stands"): `Valets` (`scripts/world/valets.gd`,
   after Parklets in a FULL chunk's steps) puts a podium, key box, A-frame and umbrella
   (`ValetKit`, on `StreetVendors.material()`) at a hotel LOBBY (hash of the Building) or a

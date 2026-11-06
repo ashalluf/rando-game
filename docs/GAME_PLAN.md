@@ -295,6 +295,12 @@ already mapped so milestone 2 is script-only.
 
 ## Decisions log
 
+- **2026-11-06 The buskers' plaza (rc5-buskers-plaza, HANDOFF "The buskers' plaza at 15:30").**
+  A performer and the few people his act brings are part of the scene, not crowd filler: they come
+  even when the cap is spent (an act's gear with nobody playing it was the plaza's worst failure).
+  A plaza with acts is open ground with passers-by of its own, its acts cluster at one end (a
+  third pitch beside the first) and its fountain is water, not a flat disc. RC5_BUSKERS=0 is the A/B.
+
 - **2026-11-02 The terminal's departures kerb (rc4-terminal-curb, HANDOFF "The terminal's
   departures kerb").** A landmark's people and their props are dealt from ONE pure list of spots,
   and the props are laid only for the people who actually spawned (a bag with nobody beside it
