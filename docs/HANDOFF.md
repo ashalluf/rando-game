@@ -32800,8 +32800,8 @@ the noise (pixels 0.0-1.9 %; downtown_aerial +3.2 % triangles, +3.6 % draws - a 
 gets its walkers and fountain); freeway flagged (12 % pixels) only by its live traffic (a van in
 the lane ahead instead of an SUV). Peak 11.4 GB.
 
-**Gate** (SHARDS=3, merged with main at af1fd737): 6,524 checks passed, 0 failed, peak RSS 3,315 /
-3,981 / 4,121 MB a shard.
+**Gate** (SHARDS=3, merged with main at 8c0de652): 6,582 checks passed, 0 failed (6,524 at the
+earlier merge af1fd737, peak RSS 3,315 / 3,981 / 4,121 MB a shard).
 
 **A/B and tools.** `RC5_BUSKERS=0`: two pitches a plaza, the cap as before, no open-ground
 walkers, gear at the old height, the old fountain, trios rolled freely. Checks:
