@@ -20,8 +20,8 @@ uniform sampler2D puff : source_color, filter_linear_mipmap;
 uniform float height = 2.6;
 uniform float rise_seconds = 4.5;
 uniform float radius_base = 0.12;
-uniform float radius_top = 0.75;
-uniform float density = 0.42;
+uniform float radius_top = 0.6;
+uniform float density = 0.34;
 uniform vec3 steam_color = vec3(0.78, 0.78, 0.8);
 // The window's and the street's warm light on the plume's underside after dark.
 uniform float under_light = 0.55;
@@ -41,7 +41,7 @@ void vertex() {
 	float r = mix(radius_base, radius_top, sqrt(h01));
 	vec3 wind_w = normalize(vec3(1.0, 0.0, -0.4)) * (0.5 + wind_factor * 2.0);
 	vec3 wind = (inverse(MODEL_MATRIX) * vec4(wind_w, 0.0)).xyz;
-	vec3 c = vec3(0.0, y, 0.0) + wind * h01 * h01 * height * 0.7;
+	vec3 c = vec3(0.0, y, 0.0) + wind * h01 * h01 * height * 0.35;
 	float w = TIME * 0.9 + rnd * 6.28;
 	c.xz += vec2(sin(w), cos(w * 0.8)) * r * 0.35;
 	vec2 corner = UV * 2.0 - 1.0;

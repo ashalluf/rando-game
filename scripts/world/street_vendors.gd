@@ -263,6 +263,9 @@ static func plan_block(plan: CityPlan, ix: int, iz: int, hour: float) -> Array:
 			else:
 				var margin := 9.0 if kind == Kind.TRUCK else 6.5
 				t = lerpf(margin, length - margin, _h01([plan.seed, "vend_t"] + id))
+				# Not in a bus stop's kerb zone (TacoTruckNight, the rc5 refcam).
+				if kind == Kind.TRUCK and TacoTruckNight.truck_in_stop(plan, ix, iz, e, rect, t):
+					continue
 			var variant := int(_h01([plan.seed, "vend_var"] + id) * 1000.0)
 			out.append({
 				"kind": kind, "face": e, "t": t, "place": place, "variant": variant,
@@ -1150,6 +1153,7 @@ static func material() -> ShaderMaterial:
 			_material.set_shader_parameter("marker_night", TacoTruckNight.MARKER_NIGHT)
 			_material.set_shader_parameter("marker_day", TacoTruckNight.MARKER_DAY)
 			_material.set_shader_parameter("interior_night", TacoTruckNight.INTERIOR_GLOW)
+			_material.set_shader_parameter("interior_detail", 1.0)
 	return _material
 
 

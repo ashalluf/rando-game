@@ -14,6 +14,8 @@ extends RefCounted
 ## - **A truck parked in a bike lane** among the delineator posts (Micromobility takes the parking
 ##   lane for its lane): a face whose stretch carries a bike lane gets no truck (`truck_blocked()`,
 ##   asked after the truck's roll, so nothing else moves).
+## - **A truck parked in a BUS ZONE** on its red kerb, under the stop's plate: a truck whose
+##   stretch is a stop's kerb zone is not there either (`truck_in_stop()`, after its roll too).
 ## - **A dead box at night.** No running lights, no steam off the stack: the truck now carries
 ##   amber clearance lamps over the cab, red ones at the rear and lit tail lamps (vendor shader
 ##   code 19, `MARKER_*`), and a plume of steam rising off the extractor stack lit warm from below
@@ -51,6 +53,28 @@ static func truck_blocked(plan: CityPlan, ix: int, iz: int, e: int) -> bool:
 	if e == 3:
 		return Micromobility.lane_on(plan, CityPlan.AXIS_X, ix + 1, iz)
 	return Micromobility.lane_on(plan, CityPlan.AXIS_Z, iz + 1, ix)
+
+
+## Whether a truck at `t` metres along face `e` of block (ix, iz) would stand in a bus stop's
+## kerb zone (the red kerb and the BUS ZONE plate: BigVehicles.in_stop_zone, which the parked cars
+## keep out of too). Its middle and both ends are asked.
+static func truck_in_stop(plan: CityPlan, ix: int, iz: int, e: int, rect: Rect2, t: float) -> bool:
+	if not enabled:
+		return false
+	var edge: Array = CityChunk._sidewalk_edges(rect)[e]
+	var a: Vector2 = edge[0]
+	var dir := ((edge[1] as Vector2) - a).normalized()
+	var lane: float
+	if e == 3:
+		lane = plan.road_pos(CityPlan.AXIS_X, ix + 1) - CityPlan.parking_offset(plan.road_width(CityPlan.AXIS_X, ix + 1))
+	else:
+		lane = plan.road_pos(CityPlan.AXIS_Z, iz + 1) - CityPlan.parking_offset(plan.road_width(CityPlan.AXIS_Z, iz + 1))
+	for d: float in [-StreetVendors.TRUCK_HALF, 0.0, StreetVendors.TRUCK_HALF]:
+		var kerb := a + dir * (t + d)
+		var c := Vector2(lane, kerb.y) if e == 3 else Vector2(kerb.x, lane)
+		if BigVehicles.in_stop_zone(plan, c):
+			return true
+	return false
 
 
 ## How many people wait at this truck at `hour` (`id` the vendor's own id).

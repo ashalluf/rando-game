@@ -6243,6 +6243,15 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   `STREET_VENDORS=0` turns it off (the A/B). Look with `tools/glshot/vendor_shot.gd` (the stands
   alone, seconds; `NIGHT=1`) and find them with `tools/vendor_probe.gd`; checks:
   `tests/street_vendors_checks.gd`.
+- The taco truck at 23:00 (wave 8, refcam `taco_truck_night` in `tools/refcams/cameras_w8.json`,
+  docs/HANDOFF.md "The taco truck at 23:00"): `TacoTruckNight` (`scripts/world/taco_truck_night.gd`,
+  hooks in StreetVendors): a truck brings 1-3 regulars by the hour (`TacoCustomer` at its queue
+  spots, spots taken; the last vendor spawn step spawns whoever is left), the cook at the counter
+  (`COOK_X`), no truck in a bike lane (`truck_blocked()`) or a bus stop's kerb zone
+  (`truck_in_stop()`) - both after the roll -, running lamps (vendor shader code 19), the menu box
+  and kitchen dimmer (seams on the kitchen), steam off the stack (`shaders/taco_steam.gdshader`).
+  `RC5_TACO=0` is the A/B; probe `tools/rc5_taco_truck/probe.gd`; checks
+  `tests/rc5_taco_truck_checks.gd`.
 - Parklets (fleet wave 2, docs/HANDOFF.md "Outdoor dining parklets"): `Parklets`
   (`scripts/world/parklets.gd`) reads every FULL building's ground-floor shop fronts
   (`Building.shop_fronts`, recorded beside `shop_pools`) and, for a CAFE or RESTAURANT room on the

@@ -32,6 +32,9 @@ uniform float led_night = 5.0;
 // Running lamps (code 19: a truck's clearance and tail lamps; TacoTruckNight).
 uniform float marker_night = 3.2;
 uniform float marker_day = 0.25;
+// The truck's kitchen behind the cook (TacoTruckNight, 0 = the old flat lit wall): stainless
+// sheets with their seams, lit brightest under the ceiling tubes and falling off to the floor.
+uniform float interior_detail = 0.0;
 // Brushed stainless: how strong the grain is in the roughness.
 uniform float steel_grain = 0.35;
 // Road grime creeping up from the pavement (metres) and how dark it gets.
@@ -120,6 +123,9 @@ void fragment() {
 	float metal = UV2.y;
 	vec3 emit = vec3(0.0);
 	float lamp = clamp(lamp_factor, 0.0, 1.0);
+	// The kitchen's sheet seams (code 9 below): derivatives outside the branches.
+	vec2 seam_q = vec2(v_local.z / 0.61, (v_local.y - 0.88) / 0.9);
+	vec2 seam_fw = fwidth(seam_q);
 	if (code == 20) {
 		base = cs_srgb_to_linear(v_paint);
 		// Paint gets a faint orange-peel and a little chalking on the upper panels.
@@ -159,6 +165,21 @@ void fragment() {
 		// The lit inside of a truck: fluorescent tubes on stainless, always a little lit (the
 		// day outside is brighter than it, so it reads dim), bright after dark.
 		emit = base * mix(interior_day, interior_night, lamp);
+		if (interior_detail > 0.0) {
+			// Sheet seams every 0.61 m along and 0.9 m up, box-filtered by the pixel's footprint.
+			vec2 q = seam_q;
+			vec2 fw = max(seam_fw, vec2(1e-4));
+			vec2 dq = abs(fract(q) - 0.5);
+			vec2 line = 1.0 - smoothstep(0.5 - 0.012 / 0.61 - fw, 0.5 - fw * 0.5, dq);
+			float seam = clamp(1.0 - (1.0 - line.x) * (1.0 - line.y), 0.0, 1.0);
+			seam = mix(seam, 0.03, smoothstep(0.15, 0.5, max(fw.x, fw.y)));
+			float fall = mix(0.38, 1.05, smoothstep(1.0, 2.9, v_local.y));
+			float grain = 0.9 + 0.1 * sv_noise(vec2(v_local.z * 3.0, v_local.y * 40.0));
+			emit *= mix(1.0, fall * grain * (1.0 - 0.55 * seam), interior_detail);
+			base *= mix(1.0, 0.75 * (1.0 - 0.5 * seam), interior_detail);
+			rough = mix(rough, 0.32, interior_detail);
+			metal = mix(metal, 0.6, interior_detail);
+		}
 	} else if (code == 11) {
 		emit = base * mix(bulb_day, bulb_night, lamp);
 		rough = 0.2;
