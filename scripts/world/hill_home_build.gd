@@ -486,6 +486,7 @@ func _pool() -> void:
 	SwimWater.add_poly(ch, PackedVector2Array([Vector2(WY(u0, v0, 0).x, WY(u0, v0, 0).z), Vector2(WY(u1, v0, 0).x, WY(u1, v0, 0).z),
 		Vector2(WY(u1, v1, 0).x, WY(u1, v1, 0).z), Vector2(WY(u0, v1, 0).x, WY(u0, v1, 0).z)]), wy, wy - SwimWater.POOL_DEPTH, SwimWater.Kind.POOL)
 	Rc5HillHome.pool_spill(self, r, cop, inf)
+	PoolUnder.build(self, r, inf, wy, wv1) # the tank seen from under the water (wave 8, pool_underwater)
 	# Loungers on the court side of the pool.
 	if Rc5HillHome.loungers(self, r):
 		return

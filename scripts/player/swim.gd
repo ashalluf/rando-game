@@ -245,7 +245,9 @@ func _swim(delta: float, w: Dictionary, tp: Vector3) -> void:
 	var move_dir: Vector3 = p._camera_relative_direction(input)
 	var boosting := Input.is_action_pressed("boost") or _stage in ["boost", "leap"]
 	var pitch: float = p.camera_rig.rotation.x
-	var deep_enough := surface - floor_y > 2.2
+	# A pool's painted tank is 1.7 m deep: deep enough to dive in (PoolUnder, wave 8; the old 2.2
+	# kept him at the surface of every pool).
+	var deep_enough := surface - floor_y > (1.5 if PoolUnder.enabled and int(w.kind) in [SwimWater.Kind.POOL, SwimWater.Kind.TANK] else 2.2)
 	var v := p.velocity
 	_since_leap += delta
 
@@ -618,6 +620,7 @@ func _update_view() -> void:
 		_overlay.global_position = cam.global_position
 		var off := WorldState.world_offset
 		_underside_mat.set_shader_parameter("world_offset", Vector2(off.x, off.z))
+		PoolUnder.apply(WorldState.to_world(cam.global_position), _underside_mat, _overlay_mat) # a hill home's tank (wave 8)
 		if not _under_sound.playing:
 			_under_sound.play()
 	elif _under_sound.playing:

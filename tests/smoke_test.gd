@@ -3074,6 +3074,9 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	# The marina_night refcam (tests/rc5_marina_night_checks.gd, MarinaNight): the lights the water
 	# mirrors, the restaurants' fronts and names, the jib covers, the camera row.
 	load("res://tests/rc5_marina_night_checks.gd").new().run(self, city)
+	# The pool_underwater refcam (tests/rc5_pool_underwater_checks.gd, PoolUnder): the tank under a
+	# hill pool's sheet, the underside's mirror and window, the veil cut to the water, the camera row.
+	load("res://tests/rc5_pool_underwater_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()

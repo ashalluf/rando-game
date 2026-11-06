@@ -88,6 +88,10 @@ func _run() -> void:
 		# A "hero" row (cameras_w5.json's hero_foot) stages the player on foot at the eye's x, z and
 		# shoots through his own CameraRig: the default third-person view, not a free camera.
 		_hero = cam.get("hero", {}) if cam.get("hero", null) is Dictionary else {}
+		# A "swim" row (cameras_w8.json, pool_underwater): the eye under a pool's surface. The player
+		# is parked at the eye (so Swim takes him into that water and the underwater pass and the
+		# surface's underside draw for the eye) and hidden.
+		_swim_row = cam.has("swim")
 		var y := float(eye[1])
 		if cam.get("agl", false) and plan != null:
 			y += float(plan.height_at(Vector2(float(eye[0]), float(eye[2]))))
@@ -249,6 +253,9 @@ func _run() -> void:
 		await process_frame
 		if not _hero.is_empty():
 			_hero_report(player, cam.name)
+		if _swim_row:
+			var sw: Variant = player.get("swim")
+			print("REFCAM %s swim: swimming %s, water %s" % [cam.name, sw.get("swimming") if sw else "?", sw.get("water") if sw else "?"])
 		if traffic_staged:
 			scene.get_node("Traffic").set("staged", false)
 		_unstage_rail(scene)
@@ -452,6 +459,8 @@ func _clear_lens(shot: String) -> void:
 			print("REFCAM %s: hid %s, its body held the lens" % [shot, car.name])
 
 
+## The row being shot is a "swim" row (the eye under a pool's surface).
+var _swim_row := false
 ## The staging script of the camera being shot (null for a plain camera).
 var _stager: GDScript = null
 var _air_staged: Node = null
@@ -599,6 +608,8 @@ func _place(player: Node3D, fov: float) -> void:
 	if _eye_cam:
 		player.global_position = _eye_cam.global_position
 	player.set("velocity", Vector3.ZERO)
+	if _swim_row:
+		player.visible = false
 	# An eye in the underground station (rail_at rows): the parked player is let through the city's
 	# ground box at once, or each step throws him out to the street and the tunnel train is hidden.
 	if _rail_held and player is PhysicsBody3D:

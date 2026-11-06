@@ -11,6 +11,7 @@ shader_type spatial;
 render_mode unshaded, cull_disabled, depth_test_disabled, depth_draw_never, blend_mix, shadows_disabled, fog_disabled, skip_vertex_transform;
 
 #include "res://shaders/color_space.gdshaderinc"
+#include "res://shaders/pool_tank.gdshaderinc"
 
 uniform sampler2D screen_tex : hint_screen_texture, filter_linear_mipmap, repeat_disable;
 uniform sampler2D depth_tex : hint_depth_texture, filter_nearest, repeat_disable;
@@ -27,6 +28,11 @@ uniform vec3 absorb = vec3(0.30, 0.055, 0.045);
 // The sky (no depth) is this far.
 uniform float far = 60.0;
 uniform float wobble = 0.0035;
+// In a hill home's pool (PoolUnder, 1): the water ends at the tank's walls and its surface, so a
+// ray that leaves it (over the vanishing edge, up through Snell's window) is veiled only over the
+// metres it is in the water; pt_camera is the camera's TRUE world position.
+uniform float pt_on = 0.0;
+uniform vec3 pt_camera = vec3(0.0);
 
 void vertex() {
 	POSITION = vec4(VERTEX.xy * 2.0, 1.0, 1.0);
@@ -53,6 +59,16 @@ void fragment() {
 	}
 	vec4 fwd = INV_PROJECTION_MATRIX * vec4(uv * 2.0 - 1.0, 0.5, 1.0);
 	vec3 ray = normalize(mat3(INV_VIEW_MATRIX) * (fwd.xyz / fwd.w));
+	if (pt_on > 0.5) {
+		vec3 fo = pt_frame(pt_camera);
+		vec3 fd = pt_dir(ray);
+		vec3 bmn = vec3(pt_rect.x, pt_rect.y, pt_y.y);
+		vec3 bmx = vec3(pt_rect.z, pt_rect.w, pt_y.x);
+		vec3 inv = 1.0 / (fd + vec3(1.0e-6));
+		vec3 tf = max((bmn - fo) * inv, (bmx - fo) * inv);
+		float exit_t = max(min(min(tf.x, tf.y), tf.z), 0.0);
+		dist = min(dist, exit_t);
+	}
 	// Softer the further: the picture taken from a blurrier mip as the water thickens.
 	float lod = clamp(dist / visibility, 0.0, 2.5);
 	vec3 c = cs_in(textureLod(screen_tex, uv, lod).rgb);
