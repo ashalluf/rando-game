@@ -32751,6 +32751,8 @@ lights' columns are not occluded by the docks' floats (only by boats); the moonl
 a little flat grey.
 ## 9d?. The buskers' plaza at 15:30 (fleet wave 8, `wt/rc5-buskers-plaza`; VISUAL_ROADMAP row "?")
 
+**Status (wrap-up, 2026-11-06):** DONE and ready to merge. The pushed head a78fcf27 passed a full `SHARDS=3` gate after merging main 8c0de652 (6,582 passed, 0 failed); this commit only adds this status line. What is still open is in "Not done / not verified" below. Stills are on `shots/rc5-buskers-plaza`.
+
 **The camera.** `buskers_plaza` in `tools/refcams/cameras_w8.json`: Pershing Square's block (the
 downtown PLAZA at block 26,0 on seed 1337), 15:30 clear, eye (2808, 1.7, 131) yaw 32 pitch -4,
 FOV 55 - eye level in the crowd on the busy end of the square, the breakdancer in a freeze on his
