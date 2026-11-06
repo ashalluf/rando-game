@@ -59,7 +59,7 @@ const BANK_REACH := 14.0
 ## A FULL hill chunk the lake trail runs through samples its terrain this finely: at the usual 32 to
 ## 48 a side (5-8 m a vertex) the 3 m bench and its banks fell between the vertices and the lake
 ## side drew as rounded lumps whatever the carve said.
-const TRAIL_TILE_N := 96
+const TRAIL_TILE_N := 64
 
 static var _overlook_for: Reservoir = null
 static var _overlook: Dictionary = {}

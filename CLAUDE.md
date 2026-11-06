@@ -4302,7 +4302,7 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   (`scripts/world/rc5_reservoir.gd`): reservoir_water's `rc5` (no engine specular on Compatibility,
   none over the traced ridge on Forward+; the dam's face, parapet and the intake towers mirrored), an
   overlook in the dam's balustrade on the east trail (`overlook()`, pure; the fence open there), the
-  trail bench graded 1:1 cut / 2:1 fill in `Reservoir._carve()` on a 96-a-side tile (`tile_n()`, one
+  trail bench graded 1:1 cut / 2:1 fill in `Reservoir._carve()` on a 64-a-side tile (`tile_n()`, one
   hook in `_sample_terrain()`: 5-8 m vertices drew the bench as green pillows), the DG trail
   (`trail2`), scree off the trail, chain_link's `scale_uv` (LotFill's stretched panels drew the
   weave 2-3x wide city-wide), hill_scatter's `rc5_edge` (torn clump outlines). `RC5_RESERVOIR=0` is

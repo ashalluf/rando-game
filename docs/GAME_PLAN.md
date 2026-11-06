@@ -4744,6 +4744,6 @@ none of either.
   where the trace draws something (all of it on Compatibility), or the sky is added twice and the
   lake turns into a cyan pool; what stands at the water (the dam's face, its towers) is traced as
   geometry, not as a ridge table; a 3 m bench needs terrain vertices finer than 3 m (the trail's
-  chunks sample at 96 a side) and graded banks, never a smooth blend; the lake fence gets an overlook
+  chunks sample at 64 a side) and graded banks, never a smooth blend; the lake fence gets an overlook
   where the view is, built in the dam's own balustrade; chain-link UVs are true metres whatever an
   instance's stretch (a city-wide fix). RC5_RESERVOIR=0 is the A/B.
