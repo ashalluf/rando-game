@@ -32444,6 +32444,12 @@ p95 175 -> 183, saturation 0.364 -> 0.344; triangles 3.20 M -> 3.26 M (+1.8 %), 
 1,756 (+30: the emitters), shadow triangles 1.128 M -> 1.147 M. Peak RSS of the one-camera run
 5.1 GB.
 
+**The ten original cameras** (cameras.json, RC5_STUNT_JUMP=0 -> on, plain runs, not strict): 7 ok;
+street_noon, street_night and freeway flagged on pixels only (10.3 / 8.4 / 6.6 mean), and their diff
+images are live traffic, buses, walkers and rain drops (and the night street's reflections of
+them) placed differently run to run - nothing of this branch is in those views; triangles and
+draws within 2 % on all ten. Peak RSS of the ten-camera run 12.2 GB.
+
 **A/B**: `RC5_STUNT_JUMP=0` (no flight boxes cleared, no bursts, no hanging, the old plate and
 landing front). **Checks**: `tests/rc5_stunt_jump_checks.gd` (the row, every launch's flight box
 over its lip and its landing, purity, the hang's curve and limits, the plate's uniform, the
