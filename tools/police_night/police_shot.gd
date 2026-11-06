@@ -11,7 +11,7 @@ extends SceneTree
 ##
 ## Env: OUT png path; RAIN=0..1 wet road and rain (road_wetness, rain_intensity); VIEW=chase
 ## (default: behind the player, the cruisers coming) | low (at the road, the mirrored strobes) |
-## block (the roadblock and its flares); LOOK=0 the A/B (the old bar and its own BarLight);
+## block (the roadblock and its flares) | bar (the first cruiser's bar close up); LOOK=0 the A/B (the old bar and its own BarLight);
 ## T=seconds the flash clock is held at; STRIP=n saves n frames 0.05 s apart from T (OUT_00.png ...);
 ## FRAMES before the shot (default 30). Nothing here names a class as a TYPE (compiled before the
 ## autoloads exist).
@@ -131,6 +131,9 @@ func _initialize() -> void:
 			cam.look_at_from_position(Vector3(1.0, 0.55, 10.0), Vector3(-0.5, 1.0, -20.0))
 		"block":
 			cam.look_at_from_position(Vector3(-1.0, 2.4, -44.0), Vector3(0.0, 0.8, -66.0))
+		"bar":
+			# fwd-review-i: the first cruiser's light bar from a few metres (the LED bar's housing).
+			cam.look_at_from_position(Vector3(0.6, 2.5, -9.5), Vector3(-2.2, 1.4, -14.0))
 		_:
 			cam.look_at_from_position(Vector3(1.8, 3.2, 12.0), Vector3(0.0, 1.2, -24.0))
 	cam.current = true
