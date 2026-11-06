@@ -4872,6 +4872,42 @@ none of either.
   Vehicle.PAINTS: a lot of cars side by side is where a third saturated reads as toys. The roof
   is precast double tees with sealed joints, so the deck shader draws that structure rather than a
   noise. RC5_CAR_PARK_ROOF=0 is the A/B.
+- 2026-11-06 (rc5-yard-sale): a yard sale must read as one from across the street - the tables
+  crammed in two rows with a stash underneath, a pop-up canopy over a table on a share of sales
+  (the silhouette), a blanket of things on the lawn. The new kinds join the row after the old ones,
+  so nothing else of a sale's plan or of the street moves. RC5_YARD_SALE=0 is the A/B.
+- **2026-11-06 A club takes its sign band; a searchlight starts at its lens (rc5-club-line, HANDOFF
+  "A club's line at 23:30").** A new reference camera (`club_line`, wave 8's table) across 6th St
+  from AFTERGLOW at 23:30. A venue that dresses a shop owns that shop's sign band (a club's fascia
+  board stands over Building's, hiding its name), and a beam is drawn from the lamp: a shaft fades
+  up into the sky, never in from a start 34 m up. RC5_CLUB_LINE=0 is the A/B.
+- **2026-11-06 The reservoir_dam refcam: a lake mirrors what stands round it (rc5-reservoir-dam,
+  HANDOFF "Lake Shallufer's dam from the lake trail").** A new reference camera (`reservoir_dam`,
+  wave 8's table) on an overlook of the east lake trail at 10:30, looking at the arch dam.
+  Decisions: a traced water mirror owns the reflection - the engine's own sky reflection is off
+  where the trace draws something (all of it on Compatibility), or the sky is added twice and the
+  lake turns into a cyan pool; what stands at the water (the dam's face, its towers) is traced as
+  geometry, not as a ridge table; a 3 m bench needs terrain vertices finer than 3 m (the trail's
+  chunks sample at 64 a side) and graded banks, never a smooth blend; the lake fence gets an overlook
+  where the view is, built in the dam's own balustrade; chain-link UVs are true metres whatever an
+  instance's stretch (a city-wide fix). RC5_RESERVOIR=0 is the A/B.
+- **2026-11-06 The film_shoot_night refcam: a set's lamps light the night (rc5-film-shoot-night,
+  HANDOFF "The film shoot at 22:00").** A new reference camera (`film_shoot_night`, wave 8's table)
+  behind the north barricades of the Crest Ave shoot, a 26 degree lens down the closed street. A lamp
+  that is part of a scene must LIGHT it, not only glow: the HMIs were bright lenses lighting nothing,
+  so each now carries a SpotLight3D aimed at the action (driven off DayNight.lamp_now by its own
+  node: `lamp_light` is OmniLight3D-only), a bloom, a faint haze shaft and the pool it throws, the
+  balloon's light is a balloon's (wide, several street lamps), the basecamp has work lights; the
+  location crew clears the set's pavement of scooters; retroreflective sheeting is not a lightbox.
+  FILM_SHOOT_NIGHT=0 is the A/B.
+- **2026-11-06 The marina at night: water that carries the lights (rc5-marina-night, HANDOFF "The
+  marina at night").** A new reference camera (`marina_night`, wave 8's table) on the east
+  headwalk at 21:00. Still water at night is judged by the lights in it: every light near it
+  is mirrored as a column narrow across and long down the view, broken by the chop, and lit
+  fronts across the water are mirrored past what stands in front of them; a water body's night
+  term is never a uniform glow in its ripples (that reads as paving). The jetty nav lights stay
+  out of this frame (occluded by boats from every headwalk spot that holds the restaurants).
+  MARINA_NIGHT=0 is the A/B.
 - 2026-11-06, gate speed 3 (gate-speed-3): the shards' deal was refreshed from a whole sharded run
   (192 of 337 parts had no measured cost and were dealt at 6 s), so the three shards end together:
   wall 1,391 -> 1,258 s with more checks. Raising max_physics_steps_per_frame for the gate was
