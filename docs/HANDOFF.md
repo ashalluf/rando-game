@@ -28985,9 +28985,24 @@ canopy soffit 148 -> 163; at the first, wider eye asphalt 118 -> 61, pavers 177 
 172 -> 190. Forward+ (lavapipe, `tools/night_lamps/lamp_street.tscn --hour=23.5`, a lamp every 30 m):
 under a lamp 43 -> 41, the pavement under it 91 -> 89, the road between 8 -> 8 - the change barely
 touches a sparse street on the Mac's renderer; `LAMP_EVERY=12` (new env on the tool) is the city's
-density (numbers below). The ten refcams (cameras.json), main -> branch: only street_night moves
-(p95 -8, p50 -1; the wet street keeps its lamp streaks), the day ones are unchanged but for traffic
-(street_noon and freeway flag on moved cars).
+density: under a lamp 72 -> 63, the pavement under it 85 -> 75, the road between lamps 38 -> 29, the
+far pavement 39 -> 25, the near road 34 -> 24 - the pools still read as pools, the gaps between them
+are darker. The ten refcams (cameras.json), main -> branch: only street_night moves (p95 -8, p50 -1;
+the wet street keeps its lamp streaks), the day ones are unchanged but for traffic (street_noon and
+freeway flag on moved cars); sunset and the golden aerial are unchanged. Wave 5: alley_night flags
+(p50 -13, p95 -23, crush +4.9 %, 49 mired cooler) - the street lamps' wash no longer reaches into the
+alley mouth, so it is lit by its own bulkhead lamps; night_aerial within tolerance. Wave 6:
+freeway_night, chinatown_dusk, broadway_night within tolerance.
+
+**Cost.** This camera: main 6,086,006 triangles / 3,172 draws -> 6,230,358 / 3,233 (+2.4 %, the
+car at the pump and its driver). The light changes add no draw.
+
+**Stills** (`shots/rc5-gas-station-night`): 01-02 before (main), 03-08 NIGHT_AB passes and the first
+eye, 09-11 the final eye after, its GAS_NIGHT=0 / NIGHT_GROUND=0 A/Bs; README there.
+
+**Not done / not seen.** The gas station itself on Forward+ (only the lamp street was rendered on
+lavapipe: the whole city does not fit). alley_night is darker by design of the fix; if it reads too
+dark on the Mac, its own bulkhead lamps (AlleyNight) are the knob, not the street lamps.
 
 **Tools.** `NIGHT_AB=1` (refcams_shot.gd, any camera); the row key `pump_car`; `LAMP_EVERY=` on
 lamp_street.tscn. Checks: `tests/rc5_gas_station_night_checks.gd` (the row, the UV2 code round
