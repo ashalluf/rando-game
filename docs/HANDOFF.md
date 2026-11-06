@@ -30846,6 +30846,7 @@ lists a truck's cook, regulars and queue spots round a point after a real load.
 - The lamp post in the camera's frame stands between the eye and the queue (the street's own).
 - The ten original cameras were not re-shot with this branch (time); the change is limited to
   vendor trucks, the vendor shader and the trucks' placement rules.
+
 ## 9d?. The power plant at dusk from the beach (fleet wave 8, refcam5 `power_plant_dusk`, branch `wt/rc5-power-plant-dusk`)
 
 **The camera.** `power_plant_dusk` in `tools/refcams/cameras_w8.json`: the wet sand north of the
