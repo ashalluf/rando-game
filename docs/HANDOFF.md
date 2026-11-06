@@ -31982,7 +31982,7 @@ rings that lie on the sea and age out, the staged pod in turn). Kit stills in se
 `tools/sea_life/kit_shot.tscn` (VIEW=dolphin, AGE=; it now shows a ring by the rolling dolphin).
 Not verified on Forward+ (the spray is unshaded and works in linear through color_space).
 
-## 9??. Forward+ review i: waves 7-8's look work on the Mac's renderer (fleet wave 8, session `fwd-review-i`, branch `wt/fwd-review-i`)
+## 9ny. Forward+ review i: waves 7-8's look work on the Mac's renderer (fleet wave 8, session `fwd-review-i`, branch `wt/fwd-review-i`)
 
 Same method as reviews a-h: each feature in a SMALL scene on Forward+ under lavapipe beside the
 same frame on opengl3; stills and their README on `shots/fwd-review-i`. Scope: every shader changed
@@ -32056,7 +32056,7 @@ pixel of three additive materials on Forward+ only). Checks: `tests/fwd_review_i
 include, the beam and glow hand-overs, the pools and the switch, every wave 7-8 additive quad handing
 its amount over on Forward+).
 
-## 9ny. The marine layer's evening bank from the beach (refcam5 `marine_evening`, wave 8; branch `wt/rc5-marine-evening`)
+## 9nz. The marine layer's evening bank from the beach (refcam5 `marine_evening`, wave 8; branch `wt/rc5-marine-evening`)
 
 **The camera.** A new row in `tools/refcams/cameras_w8.json`: `marine_evening`, 18:30, weather marine,
 eye (-683, 1.7 AGL, 820) on the beach-town sand (the beach is 70 m wide there, coast x -736, the
@@ -32114,7 +32114,7 @@ foreground is a big plain plane at this eye; the bank's shade was not tuned for 
 under the deck after 20:30 (the render order assumes a camera on the shore side). Checks:
 `tests/rc5_marine_evening_checks.gd` (8). Stills on `shots/rc5-marine-evening`.
 
-## 9nz. Spring St at 16:00: the historic_core refcam (fleet wave 8, `rc5-historic-core`, branch `wt/rc5-historic-core`)
+## 9oa. Spring St at 16:00: the historic_core refcam (fleet wave 8, `rc5-historic-core`, branch `wt/rc5-historic-core`)
 
 A new reference view, `historic_core` in `tools/refcams/cameras_w8.json`: Spring St in the historic
 core (HistoricCore, HistoricFacade, section 9eo) at 16:00 clear, from the west pavement at the 4th St
@@ -32177,7 +32177,7 @@ and were not shot.
 block built FULL: sets, detail, caps, brick, the far code's set 15, the street wall closed, no fire
 escape on a party wall; RC5_HISTORIC=0 the old fronts).
 
-## 9oa. The marketplace lane at 12:30: a new refcam5 `pueblo_lane`, 2026-11-06 (agent branch `wt/rc5-pueblo-lane`)
+## 9ob. The marketplace lane at 12:30: a new refcam5 `pueblo_lane`, 2026-11-06 (agent branch `wt/rc5-pueblo-lane`)
 
 **The camera.** `pueblo_lane` in `tools/refcams/cameras_w8.json`: PASEO DE LAS GOLONDRINAS
 (PuebloLane, docs 9ep) at 12:30 clear, eye 1.65 m up in the lane's EAST aisle 3.5 m from its south
@@ -32230,7 +32230,7 @@ road shader's existing desat path. Near-camera density varies run to run (walker
 whole ring; the shoppers stand at random stalls). The adobe fronts are still clean (no wainscot,
 no foot grime on the LandmarkGeo walls). Not done among the goods: the sombreros on the back walls (lathes seen edge-on read as discs), the folded sarapes and blouses (boxes), the leather bags (boxes), the silver (slivers). The goods pass is not in the after refcam still that was measured (shot before it); its close-up is 05.
 
-## 9ob. The coast highway at 17:00 from the seawall, 2026-11-06 (fleet wave 8, branch `wt/rc5-coast-highway`; VISUAL_ROADMAP "?")
+## 9oc. The coast highway at 17:00 from the seawall, 2026-11-06 (fleet wave 8, branch `wt/rc5-coast-highway`; VISUAL_ROADMAP "?")
 
 **The camera.** `coast_highway` in `tools/refcams/cameras_w8.json`: on the seawall's apron by the
 open beach (z -1135, d 33 from the waterline), 1.7 m up, looking north up the stretch at 17:00
@@ -32292,7 +32292,7 @@ stand where the plan put them in 2026-10; the moving traffic is kinematic and po
 U-turn at the closure (~280 m from the camera). The houses' street faces are only seen obliquely
 from the refcam; the proof stills are `06_before_house_fronts.jpg` / `07_after_house_fronts.jpg`.
 
-## 9oc. Coyotes and raccoons at 02:00 (refcam5 `coyote_night`, wave 8, `wt/rc5-coyote-night`)
+## 9od. Coyotes and raccoons at 02:00 (refcam5 `coyote_night`, wave 8, `wt/rc5-coyote-night`)
 
 **The view.** A new reference camera in `tools/refcams/cameras_w8.json`: a suburban street in the
 south basin (road 32, z 4241.6, 24 m wide, kerb carts out on both kerbs) at 02:00 clear, the eye
@@ -32353,7 +32353,7 @@ is (a real tapetum shines only with a light near the viewer's line of sight; her
 counts). The wild animals' raccoon idle still sniffs head-down except at the carts or alert. The
 porch-light share (82 % of lived-in houses) is left as it was.
 
-## 9od. The car park's roof deck at 18:15, 2026-11-06 (fleet wave 8, `wt/rc5-car-park-roof`; VISUAL_ROADMAP "?")
+## 9oe. The car park's roof deck at 18:15, 2026-11-06 (fleet wave 8, `wt/rc5-car-park-roof`; VISUAL_ROADMAP "?")
 
 **The view.** New refcam5 row `car_park_roof` in `tools/refcams/cameras_w8.json`: the roof of the
 TEMPLE GARAGE (five decks, block (18, 2), x 1700-1771, z 347-389 on the default seed, roof at
