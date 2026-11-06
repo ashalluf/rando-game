@@ -72,6 +72,21 @@ const LIGHT_GAIN := 1.5
 const REACH_PER_HEIGHT := 2.4
 const POST_FALLOFF := 5.79 # 3.5^1.4
 const FALLOFF := 1.5
+## NightGround (wave 8, rc5-gas-station-night): the city stands a lamp every 12 m (24 m on each kerb,
+## staggered), so at REACH_PER_HEIGHT / FALLOFF above every point of a street sat inside two or three
+## lamps' light and the road was one even wash. A point source's d^-2 over 2 x the height: the light
+## under each head unchanged (the gain normalises by h^attenuation), the road between lamps darker.
+## NIGHT_GROUND=0 puts REACH_PER_HEIGHT / FALLOFF back.
+const POINT_REACH_PER_HEIGHT := 2.0
+const POINT_FALLOFF := 2.0
+
+
+static func reach_per_height() -> float:
+	return POINT_REACH_PER_HEIGHT if NightGround.enabled else REACH_PER_HEIGHT
+
+
+static func falloff() -> float:
+	return POINT_FALLOFF if NightGround.enabled else FALLOFF
 ## The two lamps' light. NightCity's sodium (1.0, 0.86, 0.62) read as a warm-white bulb, not the
 ## deep amber of high-pressure sodium, and its LED (0.86, 0.92, 1.0) as a cold blue-white that the
 ## night grade turned grey-green on the asphalt; LA's LED heads are ~3000-4000 K.
@@ -96,10 +111,10 @@ static func tune_light(light: OmniLight3D, h: float) -> void:
 	if not enabled:
 		return
 	var hh := maxf(h, 2.5)
-	light.omni_range = maxf(light.omni_range, REACH_PER_HEIGHT * hh)
+	light.omni_range = maxf(light.omni_range, reach_per_height() * hh)
 	# Steeper than the kit's eased decay: a pool under each lamp and dimmer road between them,
 	# never one even wash (the gain below puts the light under the head back where it was).
-	light.omni_attenuation = maxf(light.omni_attenuation, FALLOFF)
+	light.omni_attenuation = maxf(light.omni_attenuation, falloff())
 	light.light_color = light_color(light.light_color)
 	var gain := LIGHT_GAIN * pow(hh, light.omni_attenuation) / POST_FALLOFF
 	light.set_meta("lamp_gain", float(light.get_meta("lamp_gain", 1.0)) * gain)

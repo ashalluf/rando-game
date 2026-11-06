@@ -4533,6 +4533,16 @@ none of either.
   per variant and batched, never per copy; a studio keeps its asphalt (the industrial ground with
   `kept`, worn only by tyre tracks); the basecamp's gaps hold carts and the doors chairs, from the
   layout alone, after every roll; the lot's walkers mostly wear crew blacks. RC4_FILM_LOT=0 is the A/B.
+- **2026-11-05 The gas station at 23:30: the night street is lit in pools, the canopy lights its
+  forecourt (rc5-gas-station-night, HANDOFF "The gas station at 23:30").** A new reference camera
+  (`gas_station_night`, wave 8's table) stands across the street from a roadside gas station at
+  23:30. Decisions: a street lamp's real light falls off as a point source (d^-2 over 2 x its
+  height), so the city's dense lamps (every 12 m staggered) give pools with dark between them, never
+  an even wash - the light under each head is unchanged; on Compatibility the additive lamp pool
+  only adds the share the omni does not already give (Forward+ already did); a canopy's LED panels
+  light and mirror in their own forecourt per pixel (no extra lights); a gas station often has a car
+  at a pump with its driver standing by it, from a hash after every roll. NIGHT_GROUND=0 and
+  GAS_NIGHT=0 are the A/Bs.
 - **2026-11-02 The river_night refcam: a structure's own lights light its surroundings, and water at
   night mirrors what is lit (rc4-river-night, HANDOFF "The LA River at night").** A new reference
   camera (`river_night`, wave 7's table) on the LA River's bed 65 m south of the 6th St ribbon bridge

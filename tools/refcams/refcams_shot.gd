@@ -38,6 +38,7 @@ func _initialize() -> void:
 	DirAccess.make_dir_recursive_absolute(_out_dir)
 	_golf_group()
 	_bonfire_lit()
+	_pump_car()
 	_lowrider_meet()
 	_arena_event()
 	_market_day()
@@ -193,6 +194,10 @@ func _run() -> void:
 		_unstage_rail(scene)
 		var png := _out_dir.path_join("%s.png" % cam.name)
 		get_root().get_texture().get_image().save_png(png)
+		# NIGHT_AB=1 (rc5-gas-station-night): what lights the night ground - the frame again with
+		# each light source taken away in turn (<name>_nab_<what>.png) and the environment printed.
+		if OS.get_environment("NIGHT_AB") == "1":
+			await _night_ab(scene, png)
 		var c: Array = await _geo_report("GEO_%s" % cam.name)
 		# SPLIT=1 (OSPLIT=1 too): still_shot's cost table for this camera's frame, every category
 		# hidden in turn (tools/perf_audit_4/split_table.py ranks them from the log).
@@ -415,6 +420,18 @@ func _bonfire_lit_for(cam: Dictionary) -> void:
 	bf.set("force_lit", int(cam.get("bonfire_lit", -1)))
 
 
+## A row's optional "pump_car" (wave 8's gas_station_night): 1 puts a car at a pump, its driver
+## beside it, on every gas station (GasNight.force_pump_car, as PUMP_CAR=1) whatever the station's
+## hash. Set before the city loads: the car is placed as its chunk builds.
+func _pump_car() -> void:
+	if OS.get_environment("PUMP_CAR") != "":
+		return
+	var only := OS.get_environment("ONLY").split(",", false)
+	for cam: Dictionary in _cameras().get("cameras", []):
+		if int(cam.get("pump_car", 0)) == 1 and (only.is_empty() or String(cam.name) in only):
+			OS.set_environment("PUMP_CAR", "1")
+
+
 ## A row's optional "lowrider_meet" (wave 7's lowrider_meet): {"on": 1, "pose": "i:routine:s[:side],..."}
 ## holds every meet on (LOWRIDER_MEET=1) and freezes row cars mid-routine (LOWRIDER_POSE). Set before
 ## the city loads: the meet's row is parked as its chunk builds.
@@ -606,6 +623,81 @@ func _port_clock(cam: Dictionary) -> void:
 		pl.set("hold", true)
 	else:
 		pl.set("hold", OS.get_environment("PORT_HOLD") == "1")
+
+
+## NIGHT_AB=1: the frame again with each light source off in turn, and the night numbers printed.
+func _night_ab(scene: Node, png: String) -> void:
+	var day := scene.get_node_or_null("DayNight")
+	var we := scene.find_child("WorldEnvironment", true, false) as WorldEnvironment
+	var env: Environment = we.environment if we else null
+	if env == null:
+		var cam := get_root().get_viewport().get_camera_3d()
+		env = cam.environment if cam and cam.environment else null
+	if day:
+		day.set_process(false)
+		day.set_physics_process(false)
+	var suns: Array = scene.find_children("*", "DirectionalLight3D", true, false)
+	if env:
+		print("NIGHT_AB env: tonemap_exposure %.3f ambient_source %d ambient_energy %.3f sky_contribution %.3f ambient_color %s fog %s fog_density %.5f bg_energy %.3f" % [env.tonemap_exposure, env.ambient_light_source, env.ambient_light_energy, env.ambient_light_sky_contribution, env.ambient_light_color, env.fog_enabled, env.fog_density, env.background_energy_multiplier])
+	for d in suns:
+		var dl := d as DirectionalLight3D
+		print("NIGHT_AB sun %s visible %s energy %.3f color %s dir %s" % [dl.name, dl.visible, dl.light_energy, dl.light_color, -dl.global_transform.basis.z])
+	var cam3 := get_root().get_viewport().get_camera_3d()
+	if cam3 and cam3.attributes:
+		print("NIGHT_AB camera attributes %s" % cam3.attributes)
+	var lamps: Array = get_nodes_in_group("lamp_light")
+	var pools: Array = []
+	for n in scene.find_children("*", "GeometryInstance3D", true, false):
+		var nm := String(n.name).to_lower()
+		if nm.contains("pool") or nm.contains("spill") or nm.contains("glow"):
+			pools.append(n)
+	print("NIGHT_AB %d lamp lights, %d pool/spill/glow nodes" % [lamps.size(), pools.size()])
+	var eye := cam3.global_position if cam3 else Vector3.ZERO
+	for l in lamps:
+		var o := l as OmniLight3D
+		if o and o.is_visible_in_tree() and o.global_position.distance_to(eye) < 60.0:
+			print("NIGHT_AB lamp %s/%s at %s (d %.1f) energy %.2f range %.1f att %.2f" % [o.get_parent().name, o.name, (o.global_position - eye).snapped(Vector3.ONE * 0.1), o.global_position.distance_to(eye), o.light_energy, o.omni_range, o.omni_attenuation])
+	for n in pools:
+		var g := n as GeometryInstance3D
+		if g.is_visible_in_tree() and g is MultiMeshInstance3D and (g as MultiMeshInstance3D).multimesh:
+			var mm := (g as MultiMeshInstance3D).multimesh
+			var near := 0
+			for i in mm.visible_instance_count if mm.visible_instance_count >= 0 else mm.instance_count:
+				if (g.global_transform * mm.get_instance_transform(i)).origin.distance_to(eye) < 40.0:
+					near += 1
+			if near > 0:
+				print("NIGHT_AB pools %s/%s: %d within 40 m" % [g.get_parent().name, g.name, near])
+	var variants := ["nolamps", "nopools", "nomoon", "noamb", "nothing"]
+	for v: String in variants:
+		var saved := {}
+		if v in ["nolamps", "nothing"]:
+			for l in lamps:
+				saved[l] = (l as Node3D).visible
+				(l as Node3D).visible = false
+		if v in ["nopools", "nothing"]:
+			for n in pools:
+				saved[n] = (n as Node3D).visible
+				(n as Node3D).visible = false
+		if v in ["nomoon", "nothing"]:
+			for d in suns:
+				saved[d] = (d as Node3D).visible
+				(d as Node3D).visible = false
+		var amb := [0.0, 0.0]
+		if env and v in ["noamb", "nothing"]:
+			amb = [env.ambient_light_energy, env.ambient_light_sky_contribution]
+			env.ambient_light_energy = 0.0
+			env.ambient_light_sky_contribution = 0.0
+		for i in 4:
+			await process_frame
+		get_root().get_texture().get_image().save_png(png.get_basename() + "_nab_%s.png" % v)
+		for n in saved:
+			(n as Node3D).visible = saved[n]
+		if env and v in ["noamb", "nothing"]:
+			env.ambient_light_energy = amb[0]
+			env.ambient_light_sky_contribution = amb[1]
+	if day:
+		day.set_process(true)
+		day.set_physics_process(true)
 
 
 ## A row's optional "rail_at" ("<station>[:<dir>[:<seconds from mid-dwell>]]", wave 7's

@@ -28943,6 +28943,84 @@ driven: the film-shoot session's area); the stage walls are as they were; the tr
 share three dressings, so a long row repeats every third; the far LOD of the trailers is the old
 `lod_box` path. Checks: `tests/rc4_film_lot_checks.gd` (10). Probe: `tools/rc4_film_lot/crew_probe.tscn`.
 
+## 9mx. The gas station at 23:30: the night street in pools, the canopy lights its forecourt (fleet wave 8, `rc5-gas-station-night`)
+
+A new reference camera, `gas_station_night` (`tools/refcams/cameras_w8.json`): the HALCYON station
+at (-64.6, 519.2) (Roadside's gas pad facing -x) from the pavement across its frontage at 23:30
+clear, eye [-84.5, 1.7 agl, 507, yaw -108, pitch 1.5], fov 55, `pump_car` 1.
+
+**What gave it away (main, `01_before` / `02_before` on `shots/rc5-gas-station-night`).** The lead's
+review, and the numbers agree: the GROUND. At 23:30 the asphalt read 118 of 255, the pavers 177,
+the forecourt only a little brighter (172) - an even, day-like wash in which the canopy did not
+read as the light source. Then: the forecourt itself was a flat additive disc with no light under
+the panels; no car at a pump; nobody fuelling.
+
+**Measured: what lights a night frame.** `NIGHT_AB=1` on refcams_shot.gd saves the frame again
+with each source taken away (the `lamp_light` omnis, every pool / spill / glow node, the moon, the
+ambient; `nothing` = all four) and prints the environment and every lamp within 60 m. On main at
+this camera the asphalt was 118; without the lamps' omnis 73, without the pools 62, without the
+moon 96, without the ambient 115, without all of them 4. Three sources, each an even wash. The
+lamps: the city stands one every 24 m on each kerb, staggered (one per 12 m), cobra heads 6-9 m up,
+each omni reaching 2.4 x its height with a d^-1.5 falloff (NightLamps, wave 4) - every point of the
+street sat inside two or three lamps' light. The pools: on Compatibility (every opengl3 still and
+the web) the street lamp's additive pool was added at full strength on top of the omni; Forward+
+already adds only `street_forward` 0.4 of it.
+
+**The fix, at the source (`NightGround`, `scripts/world/night_ground.gd`; `NIGHT_GROUND=0` the A/B,
+which restores the old numbers exactly):**
+- NightLamps' omni is a point source: `NightLamps.POINT_FALLOFF` 2.0 over `POINT_REACH_PER_HEIGHT`
+  2.0 x the head's height (read through `NightLamps.falloff()` / `reach_per_height()` in
+  `tune_light()`; the old `FALLOFF` 1.5 / `REACH_PER_HEIGHT` 2.4 stay the A/B). The gain still
+  normalises by h^attenuation, so the light UNDER each head is unchanged (checked to 1 %); at 1.7 h
+  it is 0.09 of it where it was 0.12, and the windowed reach ends sooner.
+- On Compatibility a street lamp's pool (light_pool.gdshader, `INSTANCE_CUSTOM.a` 1) adds
+  `street_compat` = `NightGround.POOL_COMPAT` 0.45 of itself (set in `PropFactory.light_pool()`).
+
+**The gas station (`GasNight`, `scripts/world/gas_night.gd`; `GAS_NIGHT=0` the A/B; hooks in
+`Roadside._gas()` after every roll):**
+- The forecourt concrete is written with the canopy in its UV2 (`forecourt_u2()`: 100 + half width,
+  half depth + 100 x the pad's quarter turn; its UV frame metres from the canopy's centre), and
+  `roadside.gdshader`'s `gas_forecourt()` lights it from every recessed LED panel (a downward Lambert
+  source, h^4/r^4 - a pool under each panel, a falloff past the canopy's edge) and mirrors the panels
+  in the sealed concrete (the reflected ray met with the soffit's plane, a soft blob blurred by its
+  travel x roughness, by Fresnel). Uniforms `canopy_under`, `forecourt_light`, `forecourt_gloss`.
+  The old flat forecourt pool stays at `POOL_ALPHA` 0.55 (it still spills onto the apron), the omni
+  moves down and out to cover the canopy (`light_spot()`).
+- A car at a pump on `PUMP_CAR_ODDS` 0.6 of stations: a real parked Vehicle (meta `roadside` and
+  `pump_car`, empty, lamps off) 2.25 m off a hash-picked island, its rear quarter at the dispenser;
+  its driver (`CUSTOMER_ODDS` 0.8) a StreetVendor standing at the pump facing it, in the crowd cap
+  (group `gas_customer`). `PUMP_CAR=1` (the row's `pump_car`) forces both on every station.
+  roadside_checks' queued-car check skips `pump_car` (it is empty on purpose).
+
+**Numbers (opengl3 1280x720).** This camera, main -> branch: pavers 123 -> 90, forecourt 184 -> 177,
+canopy soffit 148 -> 163; at the first, wider eye asphalt 118 -> 61, pavers 177 -> 136, forecourt
+172 -> 190. Forward+ (lavapipe, `tools/night_lamps/lamp_street.tscn --hour=23.5`, a lamp every 30 m):
+under a lamp 43 -> 41, the pavement under it 91 -> 89, the road between 8 -> 8 - the change barely
+touches a sparse street on the Mac's renderer; `LAMP_EVERY=12` (new env on the tool) is the city's
+density: under a lamp 72 -> 63, the pavement under it 85 -> 75, the road between lamps 38 -> 29, the
+far pavement 39 -> 25, the near road 34 -> 24 - the pools still read as pools, the gaps between them
+are darker. The ten refcams (cameras.json), main -> branch: only street_night moves (p95 -8, p50 -1;
+the wet street keeps its lamp streaks), the day ones are unchanged but for traffic (street_noon and
+freeway flag on moved cars); sunset and the golden aerial are unchanged. Wave 5: alley_night flags
+(p50 -13, p95 -23, crush +4.9 %, 49 mired cooler) - the street lamps' wash no longer reaches into the
+alley mouth, so it is lit by its own bulkhead lamps; night_aerial within tolerance. Wave 6:
+freeway_night, chinatown_dusk, broadway_night within tolerance.
+
+**Cost.** This camera: main 6,086,006 triangles / 3,172 draws -> 6,230,358 / 3,233 (+2.4 %, the
+car at the pump and its driver). The light changes add no draw.
+
+**Stills** (`shots/rc5-gas-station-night`): 01-02 before (main), 03-04 after (final and first eye),
+05 main's NIGHT_AB passes, 06-07 and 09 Forward+ lamp street (30 m and 12 m spacing), 08 the ten
+refcams, 10 alley_night, 11 the wave 6 night cameras; README there.
+
+**Not done / not seen.** The gas station itself on Forward+ (only the lamp street was rendered on
+lavapipe: the whole city does not fit). alley_night is darker by design of the fix; if it reads too
+dark on the Mac, its own bulkhead lamps (AlleyNight) are the knob, not the street lamps.
+
+**Tools.** `NIGHT_AB=1` (refcams_shot.gd, any camera); the row key `pump_car`; `LAMP_EVERY=` on
+lamp_street.tscn. Checks: `tests/rc5_gas_station_night_checks.gd` (the row, the UV2 code round
+trip, the shader's function, the omni's reach, NightGround's light under / between a head and its
+switch, the compat pool share, a FULL station with a car and its driver, none with GAS_NIGHT=0).
 ## 9mf. The refinery's road at night (refcam refinery_night follow-up, fleet wave 7, branch `wt/rc4-refinery-road`)
 
 **The camera** is wave 6's `refinery_night` (`tools/refcams/cameras_w6.json`, unchanged): the south
