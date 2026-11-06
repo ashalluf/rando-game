@@ -4578,6 +4578,11 @@ none of either.
   lit room or pool lights the paving in front of it (an additive spill, display numbers); a pool
   mirrors the lit glass beside it; the terraced garden keeps out of an infinity pool's view (after
   the rolls); a hash fed an interpolated varying is quantised first. RC5_HILL_HOME=0 is the A/B.
+- 2026-11-05 (fleet wave 8, gate-flakes-2): the gate's last open flakes. A jointed doll's settle and
+  freeze clocks run on the physics step (a long frame froze dolls mid-fall, in play too on a slow
+  frame); shop doors and far-walker borrowing take only the plain crowd by script (a valet was sent
+  through a door for good); the crowd-flow passing check meets nearest the camera. RAGDOLL_PHYSICS_TICK=0
+  is the A/B.
 - **2026-11-05 The blast, rounds 13-18 (explosions-4 resumed, wave 8, HANDOFF "The blast, fourth
   pass").** The aerial view gets a ground flash under the burst; the shock ring and the flash are
   the air's view only (faded near the eye and at a grazing look: from the street they painted the

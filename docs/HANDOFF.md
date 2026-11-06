@@ -29551,6 +29551,68 @@ background. When Godot fixes those: `shader_baker/enabled=true` and `application
 pipeline cache (default on), macOS's own Metal cache, and LoadCache (the bake and the far city;
 any script change misses it - every new build's first launch is cold).
 
+## 9ms. The gate's intermittent failures, wave 8 (fleet wave 8, `gate-flakes-2` resumed, branch `wt/gate-flakes-2`)
+
+The task: section 9ks's "Still open" (the follower lagging its leader, ragdoll_feel's stair roll,
+pedestrian_flow's passing pair under three parallel shards) and the two checks the lead hardened on
+`gate-b51` (the shotgun crate, the hero's head pop; that branch is merged here as it was). The three
+open ones pass every run of their file alone - also with three CPU burners beside it, and in every
+weather and at five hours (`FLOW_STATES=1`, `FLOW_REPEAT=n`, `RF_REPEAT=n`: probes left in the
+files) - so each was looked at for what a LOADED shard, or an earlier file, changes.
+
+**Found and fixed:**
+- **ragdoll_feel "rolls down the steps" (15202): a game bug.** `Ragdoll._process()` ran
+  `RagdollJoints.tick()` - the settle timer, the `settle_max` age and RagdollFeel's rolling nudge -
+  on the FRAME time. On a loaded box (or a slow frame on the Mac) one frame is seconds of wall time
+  for a handful of physics ticks: the doll aged past `settle_max`, or counted a brief lull as
+  `settle_hold` of stillness, and froze where it lay (on the top step). The tick now runs in
+  `Ragdoll._physics_process()` (`Ragdoll.PHYSICS_TICK`, `RAGDOLL_PHYSICS_TICK=0` the A/B); the
+  stair check feeds the doll a 9 s frame right after the knock and requires it still jointed.
+- **pedestrian_flow "comes out of a shop door" (my shuffled 21101: `script valet.gd`).** The door
+  systems took "the plain crowd" by `_lives()`, but a valet, vendor, busker, diner, market shopper
+  ... override `_lives()` to get the life clips: a valet was borrowed for a door and stayed hidden.
+  `StreetErrands.plain()` tests the script (pedestrian.gd / replica_walker.gd) and is used by
+  `CrowdFlow._pass_door()` / `_far_walker()` and StreetErrands' `_from_pool()` / `_from_far()` (a far
+  valet could also have been taken as a parked car's driver). gate_flakes_2_checks proves a valet
+  still lives and is never plain.
+- **pedestrian_flow "two walkers on one line step round each other" (1202, 12202, batch 37).** The
+  pair started at the camera's x and walked east: they met 34.6 m from the camera (B set off beyond
+  it), at the very edge of `CrowdFlow.RANGE` (35 m), inside which alone they step round each other.
+  A camera a few metres further off (the spring arm against what an earlier file or the hour left by
+  the player) and they walked through. They now meet at the point of the pavement nearest the camera,
+  on the nearer pavement (~25 m off).
+
+- **street_closeup "the same props in the same places with it off" / "Batch_sg_plate differs" (my
+  final gate and CI run 424 on main, shard 2): a seed-determinism bug.** `CityChunk._park_car()`, the
+  pavement trash cans, the barrels and the tyres returned BEFORE their rng draws when
+  `PhysicsBudget.can_spawn()` said no, so a block built while the city sat at its 500-body cap rolled
+  every later car, can, hydrant, shelter and plate differently (a hydrant 50 m off, a bus shelter
+  gone). The check builds one Broadway block twice: in that shard's deal the city was near the cap
+  and the first build's own cans and cars tipped the second over it - deterministic for the deal,
+  reproduced with `SMOKE_PARTS=<the shard's files>` (the three files before it alone do not). The
+  rolls are drawn now and only the body is skipped (`CityChunk.BUDGET_ROLLS`, `BUDGET_ROLLS=0` the
+  A/B); gate_flakes_2_checks builds a block with room and with the cap at 0 and compares (it fails
+  on the A/B). In play: a block rebuilt mid-fight, at the cap, is now the same block.
+
+**The deck's debris (batch 53, shard 0: "0 landed, 0 under").** Not the shard: the check watched
+120 ticks, and Blast3's pieces bounce until they are slow enough to settle, with unseeded throws -
+alone a run settled two pieces in that window, so now and then none. The check now watches for the
+pieces' whole flight (`MAX_FLIGHT` + 0.5 s, stopping once every piece is down) and counts a landing
+only on the deck; alone it reads 7 landed, three runs out of three. The street closeup check keeps
+the lead's PhysicsBudget headroom (main 32921534) beside the source fix.
+
+**Not reproduced (traces added):** the follower's lag (1303, 6101, 18505: mean 2.1 m, the same
+numbers each time). It passed in every probe; on failure the check now prints the pair every half
+second (positions, speeds, slot, heading, acts, strides, rain, crossings) and every solid within
+1.2 m of the follower (`FLOW_FOLLOWER` lines; `FLOW_PASSING` and `RF_STAIRS` likewise). The suspect:
+the follower's slot is the kerb side (1.2 m off the kerb, among the kerb furniture), and what stands
+there goes with the hour and day the spawn chunk was built at. The shotgun crate: the lead's retry and
+its `SHOTGUN_CRATE` line stand (the fire is a physics tick, the cooldown runs on the frame time and
+only gets shorter on a slow frame; nothing found).
+
+**Runs** (`SHARDS=3`, shuffled, ~32 min each, shards 3.2-3.7 GB RSS): 21101 (cut short by a tool
+limit at ~4,800 checks: the valet), 21202 PASSED 5,797, 21303 PASSED 5,797 (both on 7f68e37f). Final unshuffled gate on the branch merged with main (batch 54), 445099a3: PASSED 5,977 checks in 3 shards, 29 min, shards 3.5-3.8 GB peak RSS.
+
 ## 9mn. The terminal's departures kerb (rc4-terminal-curb, wave 7, 2026-11-02)
 
 New reference camera `terminal_curb` (`tools/refcams/cameras_w7.json`): the airport's departures
