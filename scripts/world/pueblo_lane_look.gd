@@ -6,6 +6,7 @@ extends RefCounted
 ## This holds the numbers that fix that, behind one switch (`PUEBLO_LANE_LOOK=0` the A/B):
 ## - the lane's crowd by the hour the chunk is built at (`LANE_KEYS`: a market, quiet at night,
 ##   packed at lunch), the extra walkers spawned after the lane's own on their own seeded stream;
+## - half the extra people LaneShoppers born at the stalls' fronts (they stop and browse);
 ## - a seller in every `VENDOR_EVERY`-th stall (was 4);
 ## - the lane's brick a worn, browner clay (`BRICK_TINT`, `BRICK_WEAR`) rather than an orange sheet;
 ## - the pergola's timbers grained (the market's K_WOOD), not flat brown boxes;
@@ -46,6 +47,17 @@ static func lane_extra(hour: float) -> int:
 	if not enabled:
 		return 0
 	return clampi(roundi(float(LANE_BASE) * hour_factor(hour)), LANE_BASE, LANE_MOST) - LANE_BASE
+
+
+## One shopper (LaneShopper) on the lane's ring `rect`, born at `at` (a stall's queue spot), under
+## the crowd cap (PuebloLane.people_steps()).
+static func spawn_shopper(chunk: CityChunk, rect: Rect2, seed_value: int, at: Vector2, y0: float) -> void:
+	if not is_instance_valid(chunk) or not chunk._take_crowd_room():
+		return
+	var ped := LaneShopper.new()
+	ped.setup_lane(rect, seed_value)
+	ped.position = Vector3(at.x, y0 + 0.1, at.y)
+	chunk.add_child(ped)
 
 
 static func vendor_every() -> int:

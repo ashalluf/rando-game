@@ -218,7 +218,12 @@ static func people_steps(lm: Dictionary, chunk: CityChunk) -> Array[Callable]:
 		rng.seed = hash([chunk.plan.seed, ID, "lane_look"])
 		steps.append(chunk._count_crowd_room)
 		for i in extra:
-			steps.append(chunk._spawn_walker.bind(lane_w, 2.0, rng))
+			if i % 2 == 1 and not queue.is_empty():
+				# Every other one a shopper born at a stall's front (the queue spots laid above).
+				var spot: Dictionary = queue[hash([chunk.plan.seed, ID, "shopper", i]) % queue.size()]
+				steps.append(PuebloLaneLook.spawn_shopper.bind(chunk, lane_w, hash([chunk.plan.seed, ID, "shopper_seed", i]), spot.p, float(info.y0)))
+			else:
+				steps.append(chunk._spawn_walker.bind(lane_w, 2.0, rng))
 		if debug:
 			steps.append(func() -> void:
 				var n := 0
