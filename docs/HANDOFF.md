@@ -32291,3 +32291,64 @@ the front range's own (outside the stretch: not fluted). The cars parked on the 
 stand where the plan put them in 2026-10; the moving traffic is kinematic and pops round in its
 U-turn at the closure (~280 m from the camera). The houses' street faces are only seen obliquely
 from the refcam; the proof stills are `06_before_house_fronts.jpg` / `07_after_house_fronts.jpg`.
+
+## 9oc. Coyotes and raccoons at 02:00 (refcam5 `coyote_night`, wave 8, `wt/rc5-coyote-night`)
+
+**The view.** A new reference camera in `tools/refcams/cameras_w8.json`: a suburban street in the
+south basin (road 32, z 4241.6, 24 m wide, kerb carts out on both kerbs) at 02:00 clear, the eye
+1.45 m up in the north parking lane at x 1273 looking west along the north kerb toward the moon
+(the default gibbous moon at 02:00 sits where the sun is at 16:30). Its optional `wildlife` key
+(`tools/refcams/wild_stage.gd`, handled in refcams_shot.gd after the dog walker) stages animals at
+TRUE world points - `[species, x, z, yaw_deg, pose, seed]`, poses stand / sniff / sit / bins / alert
+/ walk / trot - switches the live survey off and frees what it had put down; `"look": [indices]`
+keeps those animals' heads turned to the lens (WildAnimal's new `look_hold`, a world point the head
+stays on: the rig's look eases in over a second, so it must hold through the staging frames). The
+row: a coyote crossing under the lamp at (1256.8, 4233.6) glancing at the lens, a raccoon up and
+watching from the gutter in front of the carts, another rooting at their far end.
+
+**What gave it away** (the before, judged against a 2026 open-world night):
+1. People strolling a dark residential street at 2 a.m. A chunk builds its whole planned crowd
+   whatever the hour, and BusyStreets only thins out of view, toward a quarter of it.
+2. The street lamp's drawn light cone (NightAtmos' shaft, night_shaft.gdshader) read as a pink
+   column hanging under the lamp against a clear night sky. In clear air the eye sees no cone.
+3. The animals did not read at all: a coyote 16 m off is an orange smudge, a raccoon behind the
+   carts a grey blob. At night the first thing you see of either is its eyes.
+4. Every "nice" house's path lights and facade / cypress uplights still burning at 02:00.
+
+**What changed** (`Rc5CoyoteNight`, `scripts/world/rc5_coyote_night.gd`; `RC5_COYOTE_NIGHT=0` is the
+A/B, every change behind it):
+- **Eyeshine.** `attach_eyes()` (one hook at the end of `WildAnimal._ready()`) hangs a BoneAttachment3D
+  "Eyeshine" on the head bone with a unit quad per eye at `DogMesh.Builder.eye_centre()` (its +Z the
+  eye's look). `shaders/wild_eyeshine.gdshader`: a camera-facing sprite pulled toward the lens past
+  the eyeball, `max(eye size, MIN_PX` 2.6 px at 1080 lines), lit by lamp_factor x how squarely the eye
+  faces the lens (smoothstep 0.2-0.8 of the cosine), in the species' tapetum colour (`TAPETUM`: canid
+  yellow-green, raccoon amber, deer blue-white), added in display numbers (house_glow's rule; decoded
+  on Forward+), fog off. A far pair keeps 35 % of its strength. Two draws an animal, at most 14.
+- **The small hours.** `small_hours(hour)`: 1 until 23:00, down to `SMALL_HOURS_KEEP` 0.12 by 01:00,
+  held to 04:30, back by 06:00. Only SUBURBS / BEACHTOWN BUILDINGS blocks (`house_block()`).
+  `CityChunk._spawn_walker()` makes its rng roll first, then `keep_walker()` keeps it by a hash of the
+  walker's seed at `crowd_factor x small_hours` (nothing else on the block moves); BusyStreets'
+  `balance_crowd()` multiplies its want by `crowd_gain()`, so it does not top them back up.
+- **Timers.** The landscape glows (path-light pools and halos, facade and cypress uplight cones and
+  halos) carry alpha + `TIMER_FLAG` 2 (`timer_alpha()`); house_glow and house_lamp (path lights are
+  kind 2 there) read `city_hour` behind `timer_look` and fade them 23:30-00:30 (`timer_level()`, the
+  shaders' copy checked). Porch lanterns, carriage lamps and numbers are untouched.
+- **No cone in clear air.** night_shaft.gdshader `clear_cut`: the shaft scaled by
+  smoothstep(0.32, 0.6, haze) - gone at CLEAR (0.30), about half under overcast (0.45), whole in rain,
+  storm and the marine layer. Halos stay. This also takes the shafts out of every other clear night
+  (pier_night).
+
+**Numbers** (opengl3, 1280x720, the row's staging both sides): before (switch off) vs after - see the
+shots README; triangles 5.31 M -> 5.23 M (-1.5 %), draws 3,097 -> 3,071, luminance p5/p50/p95 5/35/105 -> 5/34/105 (the walkers gone more than pay for
+the eyes). Eyeshine on Forward+ (lavapipe, `tools/rc5_coyote_night/eye_shot.gd`) matches opengl3.
+
+**Tools.** `tools/rc5_coyote_night/eye_shot.gd`: a coyote, a raccoon and a deer facing the lens and
+side-on under one lamp, no city, a minute (DIST, SPECIES, TURN, FOV; either renderer). Checks:
+`tests/rc5_coyote_night_checks.gd` (the hours, timers, shaders' copies, a staged coyote's two
+sprites, the camera row).
+
+**Not done / unverified.** The coyote's fur shells still read speckled orange on Compatibility (the
+shell dither has no TAA there); not judged on Forward+ in the city. Eyeshine ignores where the light
+is (a real tapetum shines only with a light near the viewer's line of sight; here any lit night
+counts). The wild animals' raccoon idle still sniffs head-down except at the carts or alert. The
+porch-light share (82 % of lived-in houses) is left as it was.

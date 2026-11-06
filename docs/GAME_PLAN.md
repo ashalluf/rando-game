@@ -4859,3 +4859,11 @@ none of either.
   ground); a traffic system that only spawns out of sight and deletes at a dead end leaves the road
   in view empty, so the coast highway fills its whole reach at load and its cars U-turn at the
   slide. RC5_COAST=0 is the A/B.
+- **2026-11-06, coyotes and raccoons at 02:00 (rc5-coyote-night).** At night an animal is seen
+  first by its eyes: the tapetum throws light back toward the viewer, so wild animals carry an
+  eyeshine sprite pair, lit only after dark and only while the eye faces the lens, sized never under
+  a couple of pixels (the eye itself is under one at street distance). A residential street at
+  2 a.m. is empty: suburban house blocks keep an eighth of their walkers in the small hours, decided
+  by a hash after each walker's roll so no other roll moves. Landscape lighting is on timers that
+  end by 00:30; porch lights stay. A lamp's light cone is not drawn in clear air (it read as a
+  coloured column against the sky); only haze, mist and rain show one. RC5_COYOTE_NIGHT=0 the A/B.

@@ -6310,6 +6310,14 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   no gore) placed by `Wildlife` (city.tscn, like Birds; `plan_cell()` pure: seed + 46 m cell + half
   hour, zone, block, `WildSpecies.activity()`). `WILDLIFE=0` the A/B; off in the smoke test but in
   its checks (`tests/wildlife_checks.gd`); stills `WILD=` on still_shot.gd, spots `tools/wildlife/probe.gd`.
+- Coyotes at 02:00 (wave 8, refcam `coyote_night` in `tools/refcams/cameras_w8.json`, its `wildlife`
+  key stages animals - `tools/refcams/wild_stage.gd`; docs/HANDOFF.md "Coyotes and raccoons at 02:00"):
+  `Rc5CoyoteNight` (`scripts/world/rc5_coyote_night.gd`): eyeshine sprites on every WildAnimal's head
+  bone (`shaders/wild_eyeshine.gdshader`: after dark, facing the lens, never under `MIN_PX`); suburban
+  house blocks keep `SMALL_HOURS_KEEP` of their walkers 01:00-04:30 (`keep_walker()` after the roll,
+  `crowd_gain()` in BusyStreets); landscape lights off from 00:30 (glow alpha + 2, house_glow /
+  house_lamp `timer_look`); no lamp shaft in clear air (night_shaft `clear_cut`). `RC5_COYOTE_NIGHT=0`
+  the A/B; eyes alone `tools/rc5_coyote_night/eye_shot.gd`; checks `tests/rc5_coyote_night_checks.gd`.
 - Street errands (2026-10-05, "the pavement's comings and goings"): `StreetErrands`
   (`scripts/npc/street_errands.gd`, static) gives walkers within `life_range` somewhere real to
   go, rolled from `Pedestrian._try_life()` on their own stream (`hash([seed, "errand"])`, never
