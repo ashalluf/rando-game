@@ -31203,3 +31203,51 @@ Long Beach sand has no BeachLife (people, path, courts: its planner walks the we
 swash noise runs along z, not along the shore (beach_sand.gdshader's along-shore axis is world z).
 The mirror is an emitted billboard per source: it does not know the islands' own silhouettes (a
 tower behind another mirrors through it). Forward+ seen only for the towers, not the mirror.
+
+## 9d?. Spring St at 16:00: the historic_core refcam (fleet wave 8, `rc5-historic-core`, branch `wt/rc5-historic-core`)
+
+A new reference view, `historic_core` in `tools/refcams/cameras_w8.json`: Spring St in the historic
+core (HistoricCore, HistoricFacade, section 9eo) at 16:00 clear, from the west pavement at the 4th St
+corner looking north-east across the junction up the east side, whose fronts face the low sun.
+`EYE=3100.0,1.7,-206.0,-34.0,9.0`, FOV 60, five street cars staged on Spring (`street_cars`), walkers
+within 2.5 m cleared (`clear_people`). Two other eyes were tried from the same load (stills on the
+shots branch): mid-block put a street lamp, a share-bike dock and (some runs) a walker in the lens.
+
+**What gave it away, in the order the eye lands on it**, and what was done (all `HistoricCore.look2`,
+`RC5_HISTORIC=0` the A/B):
+1. **The walls were half as bright as their own ornament.** Ivory cornices and pilasters on tan,
+   blotchy walls; the panels between the windows read as dirty squares. Cause: building.gdshader
+   MULTIPLIED a FLAT wall's photo into the facade colour (`facade * tex * 1.3`: plaster_white's mean
+   is 0.27 linear, so the wall drew at ~0.35 of its colour), while landmark_facade.gdshader (the
+   ornament) divides the photo by its mean and keeps it as detail. New `wall_detail` uniform
+   (building.gdshader, -1 = the old wall, bit-identical): a FLAT or BRICK wall's photo / its mean,
+   that much of its contrast kept. `Building.wall_detail_force` sets it, with `wall_texture_mean`
+   as this renderer hands the texture over (linear; raw sRGB on Compatibility). The historic fronts
+   take the ornament's set (`wall_set_force` plaster_white, brick_red for brick; the roll is still
+   made), detail 0.5 (brick 0.85, its mortar is in the photo). The far code takes such a wall as set
+   15 (its average IS the facade colour), so the near / far swap keeps the tone. The ornament's own
+   mean on Compatibility is now the raw one too (it drew 1.35x its stone in every opengl3 still).
+2. **The brick was orange plastic in the sun**: the red photo squared into the palette's red.
+   `PRESSED_BRICK_2` (darker, browner) and the detail rule (the palette decides the hue).
+3. **Slots between the banks.** Lots are their grid cell less a 2-3 m gap, so every front stood
+   alone with bare side walls and fire escapes in the slot - Spring St is a continuous street wall.
+   A front now fills its cell along the avenue (`lot_size` z = the cell) where `closes_wall()`: every
+   lot touching it in its column is a front of the same avenue (not a car park or yard); the cell is
+   the lot's own, so neighbours meet exactly. Its side walls are party walls: the fire escape the
+   building rolls is dropped there (`Building.escape_faces_off`, the roll still made).
+4. **Weathering and window units**: grime capped at 0.35 (`weathering_cap`; rolled 0.2-0.9), window
+   ACs 0.02 (0.07): a bank's front on Spring St is kept, the boxes read as kit.
+5. **Framing**: the eye at the corner (above).
+
+**Shared files touched**: building.gd (inert hooks: `wall_set_force`, `weathering_cap`,
+`wall_detail_force`, `escape_faces_off`), building.gdshader (`wall_detail`, off by default),
+far_building.gd (one condition), historic_core.gd / historic_facade.gd, historic_core_checks.gd (its
+"same street" comparison takes the lot's cell), smoke_test.gd (one line).
+
+**Numbers**: NUMBERS_HERE
+
+**Not verified**: VERIFY_HERE
+
+**Checks**: `tests/rc5_historic_core_checks.gd` (the row; the shader path off by default; a Spring St
+block built FULL: sets, detail, caps, brick, the far code's set 15, the street wall closed, no fire
+escape on a party wall; RC5_HISTORIC=0 the old fronts).

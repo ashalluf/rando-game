@@ -3810,6 +3810,11 @@ already mapped so milestone 2 is script-only.
   lamps on (fading) until the sun is about a dozen degrees up. A mist's damp beads on leaves and
   dulls a lawn; only rain glazes them. Morning ground mist is a volume cut by the scene's depth over
   the park, not more global fog (which would grey every other view). RC5_CEMETERY_DAWN=0 the A/B.
+- **2026-11-06, Spring St at 16:00 (rc5-historic-core).** A building's wall photo is detail round
+  its colour, never a second albedo multiplied in: the historic fronts' walls drew at half the
+  brightness of their own ornament in the same stone. The historic core is a continuous street wall
+  (fronts meet where their neighbours are fronts), not banks standing apart with slots between.
+  RC5_HISTORIC=0 is the A/B.
 
 ## Correction: what build 135 (0ce833f) actually contained
 
