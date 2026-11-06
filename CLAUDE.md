@@ -5273,6 +5273,15 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   `tools/historic/steps.tscn` times them, `HISTORIC_TIME=1` prints each);
   LOD / far: the cornice and belt as plain far boxes. Hashes of seed + lot only. `HISTORIC_CORE=0`
   is the A/B; probe `tools/historic/probe.gd`; checks `tests/historic_core_checks.gd`.
+- Spring St at 16:00 (wave 8, refcam `historic_core` in `tools/refcams/cameras_w8.json`,
+  docs/HANDOFF.md "Spring St at 16:00"): `HistoricCore.look2` - the fronts' walls in the ornament's
+  stone (`Building.wall_set_force`, `wall_detail_force`: building.gdshader's `wall_detail` divides a
+  FLAT / BRICK wall's photo by its mean, as landmark_facade does; it was multiplied in, so the walls
+  drew ~2x darker than their own cornices; the far code takes such a wall as set 15), darker brick
+  (`PRESSED_BRICK_2`), weathering capped, fewer window units, the street wall closed (a front fills
+  its cell along the avenue where `closes_wall()`; no fire escape on the party walls,
+  `Building.escape_faces_off`), the pavement's stains soaked in (street_wear `stain_soft`).
+  `RC5_HISTORIC=0` is the A/B; checks `tests/rc5_historic_core_checks.gd`.
 - Westlake (owner, 2026-09-24: "MacArthur Park and a bunch of homeless tents up on random
   streets in downtown and people slumped over"): the first **replica area** on the street grid.
   **The park is ON** (`LandmarkMacArthurPark.enabled`, since 2026-09-24 evening; it was held off

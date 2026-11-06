@@ -32113,3 +32113,66 @@ carries no CrowdLife props); they are few in any one view (the beach is at 0.16 
 foreground is a big plain plane at this eye; the bank's shade was not tuned for an inland view from
 under the deck after 20:30 (the render order assumes a camera on the shore side). Checks:
 `tests/rc5_marine_evening_checks.gd` (8). Stills on `shots/rc5-marine-evening`.
+
+## 9nz. Spring St at 16:00: the historic_core refcam (fleet wave 8, `rc5-historic-core`, branch `wt/rc5-historic-core`)
+
+A new reference view, `historic_core` in `tools/refcams/cameras_w8.json`: Spring St in the historic
+core (HistoricCore, HistoricFacade, section 9eo) at 16:00 clear, from the west pavement at the 4th St
+corner looking north-east across the junction up the east side, whose fronts face the low sun.
+`EYE=3100.0,1.7,-206.0,-34.0,9.0`, FOV 60, five street cars staged on Spring (`street_cars`), walkers
+within 2.5 m cleared (`clear_people`). Two other eyes were tried from the same load (stills on the
+shots branch): mid-block put a street lamp, a share-bike dock and (some runs) a walker in the lens.
+
+**What gave it away, in the order the eye lands on it**, and what was done (all `HistoricCore.look2`,
+`RC5_HISTORIC=0` the A/B):
+1. **The walls were half as bright as their own ornament.** Ivory cornices and pilasters on tan,
+   blotchy walls; the panels between the windows read as dirty squares. Cause: building.gdshader
+   MULTIPLIED a FLAT wall's photo into the facade colour (`facade * tex * 1.3`: plaster_white's mean
+   is 0.27 linear, so the wall drew at ~0.35 of its colour), while landmark_facade.gdshader (the
+   ornament) divides the photo by its mean and keeps it as detail. New `wall_detail` uniform
+   (building.gdshader, -1 = the old wall, bit-identical): a FLAT or BRICK wall's photo / its mean,
+   that much of its contrast kept. `Building.wall_detail_force` sets it, with `wall_texture_mean`
+   as this renderer hands the texture over (linear; raw sRGB on Compatibility). The historic fronts
+   take the ornament's set (`wall_set_force` plaster_white, brick_red for brick; the roll is still
+   made), detail 0.5 (brick 0.85, its mortar is in the photo). The far code takes such a wall as set
+   15 (its average IS the facade colour), so the near / far swap keeps the tone. The ornament's own
+   mean on Compatibility is now the raw one too (it drew 1.35x its stone in every opengl3 still).
+2. **The brick was orange plastic in the sun**: the red photo squared into the palette's red.
+   `PRESSED_BRICK_2` (darker, browner) and the detail rule (the palette decides the hue).
+3. **Slots between the banks.** Lots are their grid cell less a 2-3 m gap, so every front stood
+   alone with bare side walls and fire escapes in the slot - Spring St is a continuous street wall.
+   A front now fills its cell along the avenue (`lot_size` z = the cell) where `closes_wall()`: every
+   lot touching it in its column is a front of the same avenue (not a car park or yard); the cell is
+   the lot's own, so neighbours meet exactly. Its side walls are party walls: the fire escape the
+   building rolls is dropped there (`Building.escape_faces_off`, the roll still made).
+4. **Weathering and window units**: grime capped at 0.35 (`weathering_cap`; rolled 0.2-0.9), window
+   ACs 0.02 (0.07): a bank's front on Spring St is kept, the boxes read as kit.
+5. **The pavement's stains** (the lead's note: the nearest thing in the frame, pale blotches a
+   metre wide across the slabs): StreetWear's pavement stains (`_pavement()`, SPOT_STAIN) were a
+   hard-edged blot at 0.75 of a flat colour, one of them tan. street_wear.gdshader's `stain_soft`
+   (0 the old stain; StreetWear sets it 1 unless `RC5_HISTORIC=0`) soaks them in: a feathered blot
+   at 0.3, a faint tide mark, fewer drops. City-wide (StreetWear is another area's: a uniform, the
+   placement and rolls untouched).
+6. **Framing**: the eye at the corner (above).
+
+**Shared files touched**: building.gd (inert hooks: `wall_set_force`, `weathering_cap`,
+`wall_detail_force`, `escape_faces_off`), building.gdshader (`wall_detail`, off by default),
+far_building.gd (one condition), historic_core.gd / historic_facade.gd, historic_core_checks.gd (its
+"same street" comparison takes the lot's cell), smoke_test.gd (one line).
+
+**Numbers** (opengl3, 1280x720, the refcam): on 7.23 M triangles / 4,956 draws, `RC5_HISTORIC=0`
+7.24 M / 4,934 - flat (closing the slots hides the side walls the extension adds; the escapes and
+window units dropped give back the rest). Luminance p5/p50/p95 29/135/228 off -> 29/125/218 on: the
+whiter-than-white ornament and the sunlit fronts come down to their stone. The ten original refcams
+`RC5_HISTORIC=0` vs on: 8 of 10 within noise; freeway and street_night flagged by different traffic
+only (no building in either changes). Checks alone: 27 passed with historic_core_checks, peak 2.06 GB.
+
+**Not verified**: Forward+ (the Mac): every still is opengl3. The wall's mean is the one each
+renderer hands over (linear on Forward+), so the near wall should equal its facade colour there as on
+Compatibility, but nobody has looked. The brick block in the camera is the only brick front checked by
+eye; the checks' block has none. The web build was not exported. Main St's fronts get the same rules
+and were not shot.
+
+**Checks**: `tests/rc5_historic_core_checks.gd` (the row; the shader path off by default; a Spring St
+block built FULL: sets, detail, caps, brick, the far code's set 15, the street wall closed, no fire
+escape on a party wall; RC5_HISTORIC=0 the old fronts).

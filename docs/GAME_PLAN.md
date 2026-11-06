@@ -3817,6 +3817,11 @@ already mapped so milestone 2 is script-only.
   is under the pixel there. Car lamp halos are the air between lamp and eye, so they fade out within
   12 m rather than 5. DRIVER_RAIN=0 is the A/B.
 
+- **2026-11-06, Spring St at 16:00 (rc5-historic-core).** A building's wall photo is detail round
+  its colour, never a second albedo multiplied in: the historic fronts' walls drew at half the
+  brightness of their own ornament in the same stone. The historic core is a continuous street wall
+  (fronts meet where their neighbours are fronts), not banks standing apart with slots between.
+  RC5_HISTORIC=0 is the A/B.
 
 ## Correction: what build 135 (0ce833f) actually contained
 
