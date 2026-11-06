@@ -44,6 +44,9 @@ static func ensure(from: Node, marina: Marina) -> void:
 		_apply_static(false)
 		return
 	_apply_static(true)
+	# MarinaNight's quay lamps take their type from the plan.
+	if from is CityChunk and MarinaNight.plan == null:
+		MarinaNight.plan = (from as CityChunk).plan
 	if _inst != null and is_instance_valid(_inst):
 		_inst.mr = marina
 		return
@@ -64,6 +67,8 @@ static func instance() -> MarinaGolden:
 static func _apply_static(on: bool) -> void:
 	if not on:
 		MarinaBuild.water_material().set_shader_parameter("mm_count", 0)
+		MarinaBuild.water_material().set_shader_parameter("ml_count", 0)
+		MarinaBuild.water_material().set_shader_parameter("mf_count", 0)
 
 
 func _process(delta: float) -> void:
@@ -87,6 +92,8 @@ func refresh() -> int:
 	if ws != null:
 		off = ws.get("world_offset")
 	var c := cam.global_position + off
+	# MarinaNight: the lights round the basin for the water to mirror.
+	MarinaNight.push(mat, mr, Vector2(c.x, c.z))
 	return push(mat, mr, Vector2(c.x, c.z))
 
 

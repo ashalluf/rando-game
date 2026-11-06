@@ -11,6 +11,13 @@ uniform vec3 wire_color : source_color = vec3(0.58, 0.59, 0.60);
 // Diamond size (metres) and the wire's width as a share of it.
 uniform float diamond = 0.06;
 uniform float wire = 0.09;
+// 1: UV.x times the instance's own stretch along x (LotFill's one-metre panel is scaled to each run's
+// length, which drew the weave 2-3 times too wide; Rc5Reservoir). 0: the UV as it comes.
+uniform float scale_uv = 0.0;
+
+void vertex() {
+	UV.x *= mix(1.0, length(MODEL_MATRIX[0].xyz), scale_uv);
+}
 
 float bayer4(vec2 p) {
 	ivec2 q = ivec2(mod(p, 4.0));

@@ -306,6 +306,7 @@ static func _occupied_more(chunk: CityChunk) -> Array:
 	for c in chunk.get_children():
 		if c is Node3D and String(c.name).begins_with("BroadwayClock"):
 			out.append([Vector2((c as Node3D).position.x, (c as Node3D).position.z), 0.9])
+	out.append_array(FilmShootNight.keep_clear_points(chunk.plan, chunk.ix, chunk.iz))  # a film set's pavement
 	return out
 
 

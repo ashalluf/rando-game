@@ -76,6 +76,12 @@ const KINDS := ["table6_0", "table6_1", "table6_2", "table6_bare", "card_0", "ca
 static func warm() -> Array:
 	for k: String in KINDS:
 		get_mesh(k)
+	if Rc5YardSale.enabled:
+		for k: String in ["blanket_0", "blanket_1"]:
+			get_mesh(k)
+		for c in Rc5YardSale.canopy_variants():
+			for v in 3:
+				get_mesh("canopy_%d_%d" % [c, v])
 	return [material()]
 
 
@@ -97,6 +103,18 @@ static func get_mesh(kind: String) -> Mesh:
 			return _cached(kind, _balloons)
 		"free_box":
 			return _cached(kind, _free_box)
+	if kind.begins_with("canopy_"):
+		var cv := kind.trim_prefix("canopy_").split("_")
+		return _cached(kind, func() -> Mesh:
+			var g := BackyardKit.G.new()
+			Rc5YardSale.canopy(g, int(cv[0]), cv[1] if cv.size() > 1 else "0")
+			return g.mesh(material()))
+	if kind.begins_with("blanket_"):
+		var bv := int(kind.trim_prefix("blanket_"))
+		return _cached(kind, func() -> Mesh:
+			var g := BackyardKit.G.new()
+			Rc5YardSale.blanket(g, bv)
+			return g.mesh(material()))
 	push_error("YardSaleKit: no mesh %s" % kind)
 	return null
 
@@ -114,6 +132,22 @@ static func bike_paint(i: int) -> Color:
 ## grey steel tube with their braces; and the goods on it.
 static func _table6(goods: String) -> Mesh:
 	var g := BackyardKit.G.new()
+	_table6_build(g, goods)
+	return g.mesh(material())
+
+
+## The six-foot table and its goods into `g`, its foot centre at `o` (Rc5YardSale's canopy).
+static func table6_into(g: BackyardKit.G, goods: String, o: Vector3) -> void:
+	var sub := BackyardKit.G.new()
+	_table6_build(sub, goods)
+	var base := g.v.size()
+	for i in sub.v.size():
+		g.vert(sub.v[i] + o, sub.n[i], sub.c[i], sub.uv[i], sub.uv2[i])
+	for i in sub.idx.size():
+		g.idx.append(sub.idx[i] + base)
+
+
+static func _table6_build(g: BackyardKit.G, goods: String) -> void:
 	var top := col(Color(0.9, 0.9, 0.87), K_HDPE)
 	var steel := col(Color(0.5, 0.51, 0.52), K_METAL)
 	var t := TABLE6_TOP
@@ -135,7 +169,12 @@ static func _table6(goods: String) -> Mesh:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = hash(["ys_table6", goods])
 	_goods(g, goods, Vector2(1.7, 0.66), t, rng)
-	return g.mesh(material())
+	# The refcam pass: what did not fit on top is stashed underneath (a box and a tote).
+	if Rc5YardSale.enabled and goods != "bare":
+		_closed_box(g, Vector3(-0.32, 0, 0.08), Vector3(0.44, 0.3, 0.36), rng.randf_range(-0.2, 0.2))
+		var tote := col(Color(0.12, 0.3, 0.55) if rng.randf() < 0.5 else Color(0.85, 0.85, 0.83), K_GLOSS)
+		BackyardKit.box(g, Transform3D(Basis(Vector3.UP, 0.1), Vector3(0.3, 0.14, 0.05)), Vector3(0.48, 0.28, 0.36), tote)
+		_open_box(g, Vector3(0.3, 0.28, 0.05), Vector3(0.36, 0.16, 0.3), rng, "open_box")
 
 
 ## A card table: a square vinyl-padded top on four folding legs.
@@ -174,6 +213,26 @@ static func _goods(g: BackyardKit.G, goods: String, size: Vector2, t: float, rng
 		var tmp: Variant = list[i]
 		list[i] = list[j]
 		list[j] = tmp
+	if Rc5YardSale.enabled and goods != "bare":
+		# Crammed: the tall things in a back row, the rest of the list (again, re-shuffled) in
+		# front, edge to edge, each nudged off its line.
+		var tall := ["open_box", "book_box", "records", "lamp", "fan", "blender", "vase", "radio", "games", "basket"]
+		var back: Array = list.filter(func(k: String) -> bool: return k in tall)
+		var front: Array = list.filter(func(k: String) -> bool: return not (k in tall))
+		front.append_array(list)
+		for row in 2:
+			var items: Array = back if row == 0 else front
+			var x := -size.x * 0.5
+			var used := {}
+			for k: String in items:
+				var w := _good_width(k)
+				if x + w > size.x * 0.5 or (row == 1 and used.get(k, 0) > 0 and rng.randf() < 0.5):
+					continue
+				used[k] = int(used.get(k, 0)) + 1
+				var z := (0.17 if row == 0 else -0.16) * size.y / 0.66 + rng.randf_range(-0.03, 0.03)
+				_good(g, k, Vector3(x + w * 0.5, t, z), rng)
+				x += w + rng.randf_range(0.0, 0.04)
+		return
 	var x := -size.x * 0.5
 	for k: String in list:
 		var w := _good_width(k)
