@@ -71,6 +71,7 @@ static func road_material() -> ShaderMaterial:
 		_road_mat.set_shader_parameter("albedo_tex", PropFactory.texture("asphalt", "Color"))
 		_road_mat.set_shader_parameter("normal_tex", PropFactory.texture("asphalt", "NormalGL"))
 		_road_mat.set_shader_parameter("rough_tex", PropFactory.texture("asphalt", "Roughness"))
+		_road_mat.set_shader_parameter("rc5", 1.0 if RcSwitchback.on() else 0.0)
 	return _road_mat
 
 
@@ -78,6 +79,7 @@ static func rail_material() -> ShaderMaterial:
 	if _rail_mat == null:
 		_rail_mat = ShaderMaterial.new()
 		_rail_mat.shader = load("res://shaders/canyon_guardrail.gdshader")
+		_rail_mat.set_shader_parameter("rc5", 1.0 if RcSwitchback.on() else 0.0)
 	return _rail_mat
 
 
@@ -185,6 +187,9 @@ static func build(ch: CityChunk, segs: Array[Dictionary]) -> bool:
 					_rail_piece(rail, p0, p1, g0, g1, out, t0 * seg_len, start_end, end_end)
 					rails += 1
 				prev_rail[s] = want
+	# Curve chevrons round the sharp bends (RcSwitchback), in the rail's mesh.
+	if ch.level == CityChunk.Level.FULL:
+		rails += RcSwitchback.build_chevrons(rail, plan, area)
 	if quads > 0:
 		st.generate_normals()
 		st.generate_tangents()
@@ -338,7 +343,11 @@ static func _rail_piece(st: SurfaceTool, p0: Vector2, p1: Vector2, g0: float, g1
 			# The blockout behind the beam, then the post behind it, both timber.
 			_box(st, Vector3(p.x, g + RAIL_BOTTOM + 0.15, p.y) + o3 * 0.17, dir, out, Vector3(0.15, 0.36, 0.2), K_TIMBER)
 			_box(st, Vector3(p.x, g + 0.2, p.y) + o3 * 0.37, dir, out, Vector3(0.15, 1.2, 0.2), K_TIMBER)
-			if int(roundf(s / POST_SPACING)) % 8 == 0:
+			if RcSwitchback.on():
+				# The reflector on the beam's face toward the road (RcSwitchback).
+				if RcSwitchback.reflector_at(s):
+					RcSwitchback.reflector_box(st, p, g, dir, out)
+			elif int(roundf(s / POST_SPACING)) % 8 == 0:
 				# A reflector tab on the beam's top.
 				_box(st, Vector3(p.x, g + RAIL_TOP + 0.04, p.y) + o3 * 0.02, dir, out, Vector3(0.08, 0.08, 0.01), K_REFLECTOR)
 		s += POST_SPACING

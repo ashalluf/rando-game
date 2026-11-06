@@ -10,8 +10,21 @@ func _ready() -> void:
 	var city: Node = (load("res://scenes/levels/city.tscn") as PackedScene).instantiate()
 	var macro := MacroMap.new()
 	macro.seed = city.world_seed
+	var plan := CityPlan.new()
+	plan.seed = macro.seed
+	for key in ["block_size_range", "street_width", "avenue_width", "sidewalk_width", "downtown_radius", "midtown_radius"]:
+		plan.set(key, city.get(key))
+	plan.macro = macro
 	city.free()
 	macro.setup()
+	# CHEV=x,z: RcSwitchback's chevrons within 200 m of the point.
+	var chev := OS.get_environment("CHEV")
+	if chev != "":
+		var cp := Vector2(float(chev.split(",")[0]), float(chev.split(",")[1]))
+		for c: Dictionary in RcSwitchback.chevrons(plan, Rect2(cp - Vector2(200, 200), Vector2(400, 400))):
+			print("CHEV %.1f,%.1f y %.1f t %s o %s" % [c.pos.x, c.pos.y, c.y, str(c.t), str(c.o)])
+		get_tree().quit()
+		return
 	var hr: HillRoads = macro.hill_roads
 	var n := 0
 	for ri in hr.roads.size():

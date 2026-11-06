@@ -38,11 +38,22 @@ uniform float oil = 0.35;
 uniform float crack_amount = 0.6;
 uniform float patch_amount = 0.35;
 
+// RcSwitchback (1 on): two-way yellow raised markers between the double yellow (amber lenses,
+// retroreflective after dark toward the camera's headlights), and the crack sealant as glossy tar
+// in rarer runs (0: the old matte net, bit for bit).
+uniform float rc5 = 0.0;
+uniform float marker_spacing = 14.6;
+uniform vec3 marker_body = vec3(0.30, 0.30, 0.28);
+uniform vec3 marker_lens = vec3(1.0, 0.62, 0.08);
+uniform float marker_glow = 3.0;
+
 global uniform vec3 origin_shift;
 global uniform float road_wetness;
+global uniform float lamp_factor;
 
 varying vec3 world_pos;
 varying vec2 lat;
+varying float along;
 
 float hash12(vec2 p) {
 	vec3 p3 = fract(vec3(p.xyx) * 0.1031);
@@ -72,6 +83,7 @@ float band(float x, float c, float w, float fw) {
 void vertex() {
 	world_pos = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz + origin_shift;
 	lat = vec2(UV.x, UV2.x);
+	along = UV.y;
 }
 
 void fragment() {
@@ -81,6 +93,7 @@ void fragment() {
 	float half_w = lat.y;
 	float fw = max(fwidth(x), 1e-4);
 	float px = length(fwidth(w));
+	float fa = max(fwidth(along), 1e-4);
 
 	// The asphalt's edge, crumbled: a ragged line round half_w, eaten in by `ravel`.
 	float rag = (fbm(w * 1.3) - 0.5) * 0.5 + (vnoise(w * 6.0) - 0.5) * 0.18;
@@ -120,8 +133,14 @@ void fragment() {
 	vec2 wq = w + vec2(vnoise(w * 0.7), vnoise(w * 0.7 + 5.2)) * 1.6;
 	float cr = abs(vnoise(wq * 0.8 + 41.0) - 0.5);
 	float net = (1.0 - smoothstep(0.0, 0.01 + px * 0.02, cr)) * smoothstep(0.62, 0.75, vnoise(w * 0.05 + 29.0));
+	if (rc5 > 0.5) {
+		// The net only in rare old stretches, and every snake broken into runs: sealant is laid
+		// crack by crack, not as a mesh over the lane.
+		net *= smoothstep(0.74, 0.84, vnoise(w * 0.035 + 61.0)) * step(0.42, vnoise(w * 0.9 + 5.0));
+		joint *= step(0.3, vnoise(w * vec2(0.6, 0.6) + 17.0));
+	}
 	float crack = clamp(joint + net, 0.0, 1.0) * crack_amount * (1.0 - smoothstep(0.06, 0.3, px));
-	a = mix(a, vec3(0.035, 0.034, 0.033), crack * 0.85);
+	a = mix(a, vec3(0.035, 0.034, 0.033), crack * mix(0.85, 0.6, rc5));
 	a *= mix(0.7, 1.3, clamp(grain, 0.0, 2.0) * 0.5 + 0.25);
 
 	// Paint: the double yellow down the centre, the white edge lines, worn by the tyres and by age.
@@ -148,6 +167,30 @@ void fragment() {
 	col *= mix(1.0, mix(0.55, 0.7, 1.0 - on_asphalt), wet);
 	float rough = mix(mix(0.93, 0.78, on_asphalt), 0.12, wet * on_asphalt) - (paint_y + paint_w) * 0.08;
 	rough = mix(rough, rough * mix(0.85, 1.05, rough_t), on_asphalt) - tracks * 0.06 * on_asphalt - oil_band * 0.12;
+	vec3 glow = vec3(0.0);
+	if (rc5 > 0.5) {
+		// Tar is glossier than the chip seal round it: the snakes catch the sky's sheen.
+		rough -= crack * 0.45;
+		// The raised markers: a 10 cm square body in the gap of the double yellow every
+		// marker_spacing along the segment, never drawn under a pixel (its glint keeps its energy).
+		// Each axis keeps its own footprint (along the road a grazing pixel spans metres: one
+		// shared footprint drew every far marker as a long glowing dash).
+		float sz = 0.1;
+		float sx = max(sz, fw * 1.4);
+		float sa = max(sz, fa * 1.4);
+		float ds = abs(fract(along / marker_spacing + 0.37) - 0.5) * marker_spacing;
+		float mx = 1.0 - smoothstep(sx * 0.5 - fw * 0.5, sx * 0.5 + fw * 0.5, abs(x));
+		float ma = 1.0 - smoothstep(sa * 0.5 - fa * 0.5, sa * 0.5 + fa * 0.5, ds);
+		float mk = mx * ma * step(2.4, half_w) * on_asphalt;
+		float cover = (sz / sx) * (sz / sa);
+		col = mix(col, marker_body, mk * cover);
+		rough = mix(rough, 0.35, mk * cover);
+		// The lenses face both ways along the road: back toward a camera looking along it low.
+		vec3 vw = normalize(CAMERA_POSITION_WORLD - (INV_VIEW_MATRIX * vec4(VERTEX, 1.0)).xyz);
+		float graze = 1.0 - smoothstep(0.15, 0.6, abs(vw.y));
+		// A lens under a pixel still glints (a point source): its glow keeps sqrt of its cover.
+		glow = marker_lens * marker_glow * clamp(lamp_factor, 0.0, 1.0) * graze * mk * sqrt(cover);
+	}
 
 	// The shoulder's outer edge is torn into the bank.
 	float outer = UV2.y;
@@ -157,6 +200,7 @@ void fragment() {
 	}
 
 	ALBEDO = cs_out(col);
+	EMISSION = cs_out(glow);
 	ROUGHNESS = clamp(rough, 0.05, 1.0);
 	SPECULAR = 0.45;
 	NORMAL_MAP = mix(vec3(0.5, 0.5, 1.0), nt, mix(0.35, 0.6, on_asphalt));

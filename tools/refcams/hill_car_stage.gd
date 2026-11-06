@@ -34,7 +34,7 @@ static func stage(tree: SceneTree, scene: Node, row: Dictionary) -> void:
 	var space := car.get_world_3d().direct_space_state
 	var ys := []
 	for k in [-2.0, 0.0, 2.0]:
-		var p := at + dir * k
+		var p: Vector2 = at + dir * float(k)
 		var top: Vector3 = ws.call("to_local", Vector3(p.x, 400.0, p.y))
 		var q := PhysicsRayQueryParameters3D.create(top, top + Vector3.DOWN * 500.0, 1)
 		q.exclude = [(car as CollisionObject3D).get_rid()]
@@ -51,6 +51,8 @@ static func stage(tree: SceneTree, scene: Node, row: Dictionary) -> void:
 	car.global_transform = Transform3D(Basis.from_euler(Vector3(pitch, yaw, 0.0)), ws.call("to_local", Vector3(at.x, y + lift, at.y)))
 	car.set("traffic_speed", 0.0)
 	_car = car
+	if OS.get_environment("SB_DEBUG") != "":
+		_debug(tree, ws)
 	print("REFCAM hill_car: %s at %.1f,%.1f,%.1f yaw %.0f pitch %.1f lights %s" % [car.name, at.x, y + lift, at.y, rad_to_deg(yaw), rad_to_deg(pitch), str(car.call("lights_running"))])
 
 
@@ -58,3 +60,19 @@ static func unstage() -> void:
 	if is_instance_valid(_car):
 		_car.queue_free()
 	_car = null
+
+
+## SB_DEBUG=x,y,z (TRUE world): every drawn geometry whose box holds that point, by path.
+static func _debug(tree: SceneTree, ws: Node) -> void:
+	var c := OS.get_environment("SB_DEBUG").split(",")
+	var at: Vector3 = ws.call("to_local", Vector3(float(c[0]), float(c[1]), float(c[2])))
+	var stack: Array[Node] = [tree.root]
+	while not stack.is_empty():
+		var n: Node = stack.pop_back()
+		for k in n.get_children():
+			stack.append(k)
+		var g := n as GeometryInstance3D
+		if g and g.is_visible_in_tree():
+			var box := g.global_transform * g.get_aabb()
+			if box.grow(0.5).has_point(at) and box.size.length() < 400.0:
+				print("SB_DEBUG %s %s size %s" % [g.get_path(), g.get_class(), str(box.size)])
