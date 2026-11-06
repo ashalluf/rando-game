@@ -31886,3 +31886,51 @@ rehearsal leaves nothing) runs the new stages too.
   still waits on a pipeline on Metal is not measured here.
 - A Weather state reached mid-play for the first time (Santa Ana's smoke pall, the storm's bolt) is
   covered only by the idle-particle copies of what sits hidden under Weather.
+
+## 9nw. The Coral Line's aerial structure at night (wave 8, refcam5 `rc5-rail-aerial`)
+
+Task: a new reference view, `rail_aerial` (tools/refcams/cameras_w8.json): the Coral Line's box
+girder where it swings west off Flower onto River Blvd and crosses the 110 (flyover s 2538, rail
+22.9 m, the 110's deck ~15 m), from River Blvd below at 20:00 clear - eye 1.7 m over the ground at
+(2384, 2793), yaw 86 (west), pitch 15, fov 55. Its `rail_s` key ("2470:1", refcams_shot.gd, the
+RAIL_S rule) holds a train on the curve. `tools/rc5_rail_aerial/probe.gd` lists the flyovers, the
+freeways under them and the poles there (the s 2293 flyover is the 10, s 2538 the 110, s 3127 the
+105). What gave it away, in order, and what was done (`RcRailAerial`,
+`scripts/world/rc5_rail_aerial.gd`, hooks in LightRailKit; `RC5_RAIL_AERIAL=0` is the A/B):
+
+1. **The structure carried no light.** At 20:00 the girder was a flat grey band in the dark, the
+   columns plain; nothing on a guideway that runs trains every five minutes was lit. Now every
+   pole on the structure carries an LED walkway luminaire either side (a bracket, housing and lens,
+   kind-7 lens on the structure shader, a NightAtmos halo, a pool on the ballast), and a downlight
+   pair hangs under the girder halfway between columns (`soffit_spots()`: on the structure, never
+   over a freeway deck) with a pool on the street below (FreewayKit's pool material).
+2. **What those lamps light stayed dark.** The rail gets its own copy of the freeway structure
+   material (`structure_material()`, carrying the freeway's `under_fill` along) with
+   `rail_wash` (freeway_structure.gdshader, 0 = the block skipped, the freeway untouched): the
+   columns and hammerheads washed from the top down, the soffit and the girder's underside by the
+   street lamps below, the poles and their arms by their own lamps (all emitted, x lamp_factor).
+   The freeway's scupper rust (a blotch every 12 m along the fascia) is respaced to the piers and
+   faint (`RUST_*`).
+3. **The overhead wires were invisible.** 4-6.5 mm prisms 40 m up drew as a few broken dots.
+   Main's RcRailCrossing (merged while this ran) now draws the line's wires as UtilityPoles
+   ribbons; on the structure RcRailAerial takes over with `shaders/rail_wire.gdshader`
+   ("RailWiresLit"): the same camera-facing ribbon, weathered copper, and after dark the light it
+   catches from the nearest pole's lamp (UV.y = metres to the nearest pole, `catch_*`), so the
+   catenary reads as fine lit lines over the train fading between poles - what a photograph of an
+   aerial line at night shows.
+
+**Numbers** (refcams, opengl3 1280x720; before = main 6f5af3d2, after = this branch before the
+merge): p1/p5/p50/p95/p99 3/10/29/106/158 -> 3/10/31/111/161, crushed 2.3 -> 2.3 %, CCT 7,868 ->
+7,304 K; triangles 4.93 M -> 4.91 M, draws 3,360 -> 3,377, shadow 1.28 M -> 1.27 M (flat).
+
+**Forward+**: a city block downtown OOMs lavapipe (fwd_block_shot, killed twice on 15 GB), so
+`tools/rc5_rail_aerial/fwd_scene.tscn` renders the pieces alone (a column, soffit, pole, lens and
+the wires on the real materials at lamp_factor 1) under both renderers: column 71/61/49 vs
+72/61/50, soffit 33/26/18 vs 34/28/20, pole 46/42/34 vs 47/44/36, lens saturated on both - the
+same. The wires' brightest pixel is 113 on Compatibility and 151 on Forward+ (a sub-pixel alpha
+blend added in linear): brighter on the Mac, not wrong, but `catch_gain` is the knob if it reads hot.
+
+Not done / not verified: the curve's flat-shaded facets (one normal per 2 m quad) still show on the
+soffit; the fascia's vnoise grime smears remain (shared freeway look); the ten original cameras
+are untouched by construction (only the light rail kit's FULL chunks change and none of the ten
+looks at the aerial structure) but were not re-shot; the whole view was judged on opengl3 only.

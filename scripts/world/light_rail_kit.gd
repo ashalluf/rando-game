@@ -69,12 +69,20 @@ var fine := SurfaceTool.new()
 var _fine_any := false
 ## RcRailCrossing: the wires as UtilityPoles' camera-facing ribbons ([points, radius, kind]).
 var _ribbons: Array = []
+## RcRailAerial: the wires over the aerial structure as ribbons that catch the pole lamps (they
+## take over from RcRailCrossing's there; RC5_RAIL_AERIAL=0 hands them back).
+var ribbons := SurfaceTool.new()
+var _ribbons_any := false
+## The s of the next _wire()'s two ends and whether that segment is on the structure (_wires()).
+var _wire_s := Vector2.ZERO
+var _wire_aerial := false
 
 
 func _init(c: CityChunk) -> void:
 	super(c)
 	line = LightRail.of(plan)
 	fine.begin(Mesh.PRIMITIVE_TRIANGLES)
+	ribbons.begin(Mesh.PRIMITIVE_TRIANGLES)
 
 
 ## Everything this chunk owns of the line, then commits it. Returns false when there was nothing.
@@ -404,6 +412,8 @@ func _wires(i: int) -> void:
 	for track: float in [-1.0, 1.0]:
 		var a := _wire_points(sa, track)
 		var b := _wire_points(sb, track)
+		_wire_s = Vector2(sa, sb)
+		_wire_aerial = line.mode[i] == LightRail.Mode.AERIAL or line.mode[j] == LightRail.Mode.AERIAL
 		_wire(a[0], b[0], 0.0065, RcRailCrossing.KIND_CONTACT)
 		_wire(a[1], b[1], 0.0055)
 		# A dropper wherever one falls in this segment (every ~9 m of the span).
@@ -414,6 +424,7 @@ func _wires(i: int) -> void:
 			var sd: float = span[0] + step * float(k)
 			if sd >= sa and sd < sb:
 				var w := _wire_points(sd, track)
+				_wire_s = Vector2(sd, sd)
 				_wire(w[0], w[1], 0.004)
 
 
@@ -443,6 +454,11 @@ func _wire_points(s: float, track: float) -> Array:
 
 
 func _wire(a: Vector3, b: Vector3, r: float, kind: int = RcRailCrossing.KIND_STEEL) -> void:
+	if RcRailAerial.enabled and _wire_aerial:
+		RcRailAerial.wire(ribbons, a, b, r, RcRailAerial.KIND_DROPPER if r < 0.005 else RcRailAerial.KIND_WIRE,
+			RcRailAerial.to_pole(line, _wire_s.x), RcRailAerial.to_pole(line, _wire_s.y))
+		_ribbons_any = true
+		return
 	if RcRailCrossing.enabled:
 		_ribbons.append([PackedVector3Array([a, b]), r, kind])
 		return
@@ -485,6 +501,8 @@ func _pole(s: float) -> void:
 		var contact := c + r3 * (track * half + stagger) + Vector3.UP * cy
 		prism(body, tip + Vector3.UP * my - r3 * track * 0.25, contact + Vector3.UP * 0.02, 0.018, 0.018, 4, _col(RAIL_STEEL, S_STEEL))
 		prism(body, c + r3 * track * 0.12 + Vector3.UP * my, c + r3 * track * 0.42 + Vector3.UP * my, 0.06, 0.06, 6, _col(Color(0.45, 0.30, 0.18), S_PAINTED))
+	if RcRailAerial.enabled and m == LightRail.Mode.AERIAL:
+		RcRailAerial.pole_lamps(self, smp)
 
 
 # --- Features: poles, columns, stations, crossings, substations ------------------------------
@@ -519,6 +537,15 @@ func _features(area: Rect2) -> bool:
 			continue
 		_column(smp, ground, deck_bottom)
 		any = true
+	# The downlights under the girder between columns (RcRailAerial).
+	if RcRailAerial.enabled:
+		for s: float in RcRailAerial.soffit_spots(line, plan, _owns):
+			var smp := line.sample(s)
+			var street := _street(smp.pos)
+			var deck_bottom: float = float(smp.y) - 0.168 - 0.38 - DECK_DEPTH
+			if deck_bottom - street > 4.0:
+				RcRailAerial.soffit_lights(self, smp, deck_bottom, street)
+				any = true
 	# Stations.
 	for st in line.stations:
 		if _owns(st.pos):
@@ -934,10 +961,15 @@ func _substation(smp: Dictionary) -> void:
 # --- Commit ----------------------------------------------------------------------------------
 
 func _commit() -> void:
-	var mi := _add("RailStructure", body.commit(), structure_material())
+	var smat: ShaderMaterial = RcRailAerial.structure_material(structure_material())
+	var mi := _add("RailStructure", body.commit(), smat)
 	mi.add_to_group("light_rail_static")
+	if _ribbons_any:
+		var wm := _add("RailWiresLit", ribbons.commit(), RcRailAerial.wire_material())
+		wm.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		wm.add_to_group("light_rail_static")
 	if _fine_any:
-		var fm := _add("RailDetail", fine.commit(), structure_material())
+		var fm := _add("RailDetail", fine.commit(), smat)
 		fm.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		fm.add_to_group("light_rail_static")
 	if not _ribbons.is_empty():

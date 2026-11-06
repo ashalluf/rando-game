@@ -1431,6 +1431,15 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   escalators (level 2, standing on the step), alighters ride up, arrivals refill the island while
   `MetroStation.showing`. `METRO_LOOK=0` / `METRO_CROWD=0` the A/Bs; checks
   `tests/rc4_metro_station_checks.gd`.
+- The Coral Line's aerial structure at night (wave 8, refcam `rail_aerial` in
+  `tools/refcams/cameras_w8.json`, its `rail_s` key stages a train as RAIL_S; docs/HANDOFF.md "The
+  Coral Line's aerial structure at night"): `RcRailAerial` (`scripts/world/rc5_rail_aerial.gd`,
+  hooks in LightRailKit): on the structure the overhead wires are RcRailCrossing's ribbons lit near
+  each pole after dark (`shaders/rail_wire.gdshader`, "RailWiresLit": UV.y = metres to the nearest pole), LED
+  walkway lamps on every aerial pole, downlight pairs under the girder between columns with pools on
+  the street, the columns / soffit / poles washed (freeway_structure `rail_wash`, on the rail's own
+  material copy, 0 = the freeway untouched). `RC5_RAIL_AERIAL=0` is the A/B; checks
+  `tests/rc5_rail_aerial_checks.gd`.
 - Freight rail (2026-10-05, "freight trains on the industrial rail"; HANDOFF 9do): the **Arroyo
   Pacific's Harbor Subdivision** (invented railroad, mark APXR) down ALAMEDA ST (a pinned real
   street that runs the whole map). **The line is a DATA TABLE** (`FreightRail`,

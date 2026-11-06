@@ -3037,6 +3037,8 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	# The Googie motel refcam (tests/rc5_googie_motel_checks.gd, Motels): the motor court behind a
 	# motel pole sign, the camera row, the sign's light.
 	load("res://tests/rc5_googie_motel_checks.gd").new().run(self, city)
+	# The rail_aerial refcam (tests/rc5_rail_aerial_checks.gd, RcRailAerial): the guideway's wire ribbons, lamps, washes.
+	load("res://tests/rc5_rail_aerial_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()

@@ -819,7 +819,7 @@ func _stage_rail(cam: Dictionary, scene: Node) -> void:
 	if cam.has("rail_cross"):
 		_stage_rail_cross(cam, scene)
 		return
-	if not cam.has("rail_at"):
+	if not cam.has("rail_at") and not cam.has("rail_s"):
 		return
 	var sys := scene.get_node_or_null("LightRail")
 	var line: Variant = sys.get("line") if sys else null
@@ -828,13 +828,20 @@ func _stage_rail(cam: Dictionary, scene: Node) -> void:
 		return
 	# LightRail is reached through its script: naming it compiles it before the autoloads exist.
 	var lr: Variant = (line as Object).get_script()
-	var at := String(cam.rail_at).split(":", false)
-	lr.clock = float(line.call("clock_at_station", at[0].to_int(), at[1].to_int() if at.size() > 1 else 0,
-		at[2].to_float() if at.size() > 2 else 0.0))
+	if cam.has("rail_s"):
+		# wave 8's rail_aerial: "<s>:<dir>[:<seconds before>]", a train's nose at s along the line
+		# (LightRailSystem's RAIL_S).
+		var rs := String(cam.rail_s).split(":", false)
+		lr.clock = float(line.call("clock_at_s", rs[0].to_float(), rs[1].to_int() if rs.size() > 1 else 0,
+			rs[2].to_float() if rs.size() > 2 else 0.0))
+	else:
+		var at := String(cam.rail_at).split(":", false)
+		lr.clock = float(line.call("clock_at_station", at[0].to_int(), at[1].to_int() if at.size() > 1 else 0,
+			at[2].to_float() if at.size() > 2 else 0.0))
 	sys.set("hold", true)
 	sys.call("step")
 	_rail_held = true
-	print("REFCAM %s: light rail clock %.1f (%s)" % [cam.name, float(lr.clock), cam.rail_at])
+	print("REFCAM %s: light rail clock %.1f (%s)" % [cam.name, float(lr.clock), cam.get("rail_s", cam.get("rail_at", ""))])
 
 
 ## A row's optional "rail_cross" ("<crossing>[:<dir>[:<seconds before the nose>]]", wave 8's

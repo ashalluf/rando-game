@@ -113,6 +113,11 @@ the train's ends over the pull-out, `chunk_probe.gd` what each yard chunk lays.
 Run with `REFCAMS_JSON=tools/refcams/cameras_w8.json`. `rush_hour` (rc5-rush-hour): the 105 at 17:40
 clear from the caged footbridge east of the 110 (`fb_f_1_213`), the lens just outside the cage looking
 west down the carriageways into the sun; `shot_frames` 90 lets RushHour's jam build.
+`rail_aerial` (rc5-rail-aerial): the Coral Line's structure where it swings off Flower over the 110,
+from River Blvd below at 20:00 clear, looking west. Its optional `rail_s` key ("<s>:<dir>[:<seconds
+before>]", LightRailSystem's RAIL_S) sets and holds the light rail's clock so a train's nose is at
+s along the line (dir 1 runs toward the downtown terminus); "2470:1" puts a train on the curve.
+`tools/rc5_rail_aerial/probe.gd` prints the flyovers, the freeways under them and the poles there.
 
 ## Running
 
