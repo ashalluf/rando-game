@@ -23,16 +23,22 @@ func run(st: SceneTree) -> void:
 		var ws: Node = tree.root.get_node("/root/WorldState")
 		# The airport's north runway, heading west (flat, wide, nothing parked): SPAWN=x,z,yaw.
 		var sp := OS.get_environment("SPAWN").split(",")
-		var at := Vector3(60.0, 0.0, 912.0) if sp.size() < 3 else Vector3(float(sp[0]), 0.0, float(sp[1]))
+		var at := Vector3(40.0, 0.0, 870.0) if sp.size() < 3 else Vector3(float(sp[0]), 0.0, float(sp[1]))
 		yaw0 = PI * 0.5 if sp.size() < 3 else deg_to_rad(float(sp[2]))
 		player.global_position = ws.to_local(at) + Vector3(0, 2, 0)
 		at_world = at
 		for i in 400:
 			await tree.process_frame
 			var q := PhysicsRayQueryParameters3D.create(ws.to_local(at) + Vector3(0, 50, 0), ws.to_local(at) + Vector3(0, -50, 0), 1)
-			var hit := (tree.current_scene as Node3D).get_world_3d().direct_space_state.intersect_ray(q)
+			var space := (tree.current_scene as Node3D).get_world_3d().direct_space_state
+			var hit := space.intersect_ray(q)
+			while not hit.is_empty() and hit.collider is StreetProps:
+				q.exclude = q.exclude + [hit.rid]
+				hit = space.intersect_ray(q)
 			if i > 60 and not hit.is_empty() and hit.collider.name != "GroundBody":
 				print("ground: ", hit.collider.name, " y ", hit.position.y)
+				at.y = ws.to_world(hit.position).y
+				at_world = at
 				break
 		for i in 60:
 			await tree.process_frame
@@ -56,6 +62,10 @@ func run(st: SceneTree) -> void:
 	var types := OS.get_environment("TYPES")
 	if types == "":
 		types = "sedan,crossover,pickup,sports,moto,low"
+	if OS.get_environment("KERB") != "":
+		for t in types.split(","):
+			await _kerb(t)
+		return
 	for t in types.split(","):
 		await _probe(t)
 
@@ -200,3 +210,38 @@ func _clear_traffic() -> void:
 		if is_instance_valid(c):
 			c.queue_free()
 	(tm.get("cars") as Array).clear()
+
+
+## A 0.25 m kerb (CityChunk.SIDEWALK_TOP) ahead and to the right, met at `ang` degrees: does the
+## car mount it (wheels up, speed kept) or stop dead against it?
+func _kerb(t: String) -> void:
+	var k := StaticBody3D.new()
+	k.collision_layer = 1
+	k.collision_mask = 0
+	var cs := CollisionShape3D.new()
+	var b := BoxShape3D.new()
+	b.size = Vector3(40, 0.25, 200)
+	cs.shape = b
+	k.add_child(cs)
+	root.add_child(k)
+	for ang: float in [10.0, 20.0, 35.0, 60.0]:
+		for v0: float in [4.0, 8.0, 14.0]:
+			# Kerb face 6 m to the right (+x) of the start; the car is turned `ang` toward it.
+			k.global_position = origin + Vector3(6.0 + 20.0, -origin.y + 0.125, 0)
+			var c := await _spawn(t)
+			c.global_basis = Basis(Vector3.UP, -deg_to_rad(ang))
+			c.linear_velocity = -c.global_basis.z * v0
+			Input.action_press("move_forward", 0.3)
+			var minv := v0
+			var up := false
+			var y0 := c.global_position.y
+			for i in 240:
+				await tree.physics_frame
+				minv = minf(minv, c.linear_velocity.length())
+				if c.global_position.x > origin.x + 8.0 and c.global_position.y > y0 + 0.18:
+					up = true
+			_release()
+			print("KERB %s %2.0f deg %4.1f m/s: %s  slowest %.1f m/s  x %.1f  y %.2f" % [t, ang, v0, "MOUNTED" if up else "BLOCKED", minv, c.global_position.x - origin.x, c.global_position.y - y0])
+			_free(c)
+			await tree.physics_frame
+	k.queue_free()
