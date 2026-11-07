@@ -169,6 +169,8 @@ func _scenario(type: int, kind: String, v0: float) -> Dictionary:
 					Input.action_release("move_forward")
 				var f := _frame(car)
 				max_beta = maxf(max_beta, absf(f[2]))
+				if OS.get_environment("TRAJ") == "1" and Engine.get_physics_frames() % 3 == 0:
+					_traj(car, "%s_%s_%d_%d" % [Vehicle.BODY_NAMES[type], kind, int(v0), int(DriveAssist.enabled)])
 				if OS.get_environment("TRACE") == "1" and Engine.get_physics_frames() % 6 == 0:
 					print("TR t=%.2f v=%.1f beta=%.1f yaw=%.2f steer=%.3f ef=%.0f k=%.2f y=%.2f vy=%.2f roll=%.2f grav=%.2f contact=%s skid=%s" % [t, f[0], f[2], car.angular_velocity.y, car.steering, car.engine_force, float(car.get_meta("da_k", 0.0)), car.global_position.y, car.linear_velocity.y, car.global_basis.x.y, car.gravity_scale, str(car.wheels.map(func(w): return int(w.is_in_contact()))), str(car.wheels.map(func(w): return snappedf(w.get_skidinfo(), 0.01)))])
 				if t > 1.0:
@@ -266,6 +268,8 @@ func _ai(kind: String, v0: float) -> Dictionary:
 		t += dt
 		var f := _frame(car)
 		max_beta = maxf(max_beta, absf(f[2]))
+		if OS.get_environment("TRAJ") == "1" and Engine.get_physics_frames() % 3 == 0:
+			_traj(car, "police_%s_%d" % [kind, int(DriveAssist.enabled)], start)
 		if OS.get_environment("AI_TRACE") == "1" and Engine.get_physics_frames() % 15 == 0:
 			print("AI t=%.2f ang=%.2f spd=%.1f steer=%.2f yaw=%.2f ef=%.0f br=%.0f" % [t, float(st.get("ang", 0.0)), f[0], car.steering, car.angular_velocity.y, car.engine_force, car.brake])
 		if kind == "ai_uturn" and absf(float(st.get("ang", 9.0))) < 0.2 and not r.has("t_turn") and t > 0.5:
@@ -279,3 +283,9 @@ func _ai(kind: String, v0: float) -> Dictionary:
 	car.queue_free()
 	await get_tree().physics_frame
 	return r
+
+
+## TRAJ=1: one line per few ticks - the car's centre and heading relative to where it started.
+func _traj(car: Vehicle, label: String, origin: Vector3 = Vector3(0, 0, 0)) -> void:
+	var p := car.global_position - origin
+	print("TJ %s %.2f %.2f %.3f %.2f" % [label, p.x, p.z, car.global_rotation.y, car.global_basis.x.y])
