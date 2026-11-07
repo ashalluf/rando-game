@@ -568,6 +568,8 @@ var driver: Node3D:
 		driver = v
 		if v != null:
 			_npc_driver = false
+		else:
+			DriveHandling.release(self) # the player's tyres back to the car's own
 		_update_occupant()
 		CarInteriors.driver_changed(self, v)
 ## How close the player has to be to get in (meters from the origin; big for aircraft).
@@ -1047,9 +1049,12 @@ func _physics_process(delta: float) -> void:
 		hold_crash_watch(3)
 		angular_velocity = Vector3.ZERO
 		Sfx.play("jump", global_position, -2.0, 0.7)
-	var steer_factor := lerpf(1.0, steer_min_factor, clampf(absf(speed) / (steer_full_speed * 3.0), 0.0, 1.0))
-	_steer_target = -input.x * max_steer * steer_factor
-	steering = lerpf(steering, _steer_target, 1.0 - exp(-steer_speed * delta))
+	if DriveHandling.enabled: # speed-sensitive steering, grip, assists (scripts/vehicles/drive_handling.gd)
+		DriveHandling.steer(self, input.x, speed, delta)
+	else:
+		var steer_factor := lerpf(1.0, steer_min_factor, clampf(absf(speed) / (steer_full_speed * 3.0), 0.0, 1.0))
+		_steer_target = -input.x * max_steer * steer_factor
+		steering = lerpf(steering, _steer_target, 1.0 - exp(-steer_speed * delta))
 	# A wheel into a deep pothole (RoadWear): a jolt at that corner.
 	RoadWear.bump(self)
 	_air_time = _air_time + delta if is_airborne() else 0.0
