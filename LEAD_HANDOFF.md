@@ -1,3 +1,6 @@
+
+# Wave 9 (2026-11-07): driving
+Owner: "the driving is off, it does not accelerate properly and does not let me turn right". Eight sessions, tasks_w9.tsv, roster sessions_w9.tsv. drive-fix finds the root cause first; the others build feel on top in their own files.
 # Wave 8 lead handoff (2026-11-06 ~12:15 UTC: the owner is moving to a NEW account)
 
 Read CLAUDE.md, docs/HANDOFF.md (section 00000000000 and the newest 9n*/9o* sections) and this.
