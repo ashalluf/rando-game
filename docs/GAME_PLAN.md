@@ -4953,3 +4953,9 @@ none of either.
   reversing a J-turn, and rear-driven cars power-oversteer. An arcade slip-angle controller on top
   of real per-wheel grip and brakes, so every body drifts alike and never spins out on its own.
   DRIVE_DRIFT=0 is the A/B.
+- **2026-11-07 The car that would not turn right (drive-fix, HANDOFF "The car that would not turn
+  right").** The owner's car rolled over at full lock from ~50 km/h (the steering asked for more
+  grip than a car can have, Godot's tyres gave it, and the body tipped and went into flight mode);
+  a right turn from the kerb lane is the tight one, hence "won't turn right". Full lock is now
+  limited by the sideways pull it asks for (steer_lateral_limit 16 m/s^2) and the keyboard diagonal
+  keeps full throttle and steer. DRIVE_FIX=0 is the A/B.
