@@ -555,6 +555,7 @@ func _tick_wheels(car: Vehicle, wet: float, smoke: Array, dust: Array, screech: 
 				# A burnout is thick on the rear tyres.
 				if driven and spin > 0.3 and rear:
 					s = minf(1.0, s * 1.3 + 0.25)
+				s = DriveDrift.fx_smoke(car, rear, s) # a drift smokes from the rear (drive_drift.gd)
 				if wet > wet_spray:
 					dust.append([s * clampf(wet * 1.4, 0.3, 1.0), key, cp, dir, Color(0.92, 0.94, 0.97, 0.55), 1])
 				else:

@@ -997,6 +997,7 @@ func _physics_process(delta: float) -> void:
 		engine_force = 0.0
 		brake = parking_brake if linear_velocity.length() < parking_speed else 2.0
 		steering = lerpf(steering, 0.0, 1.0 - exp(-steer_speed * delta))
+		DriveDrift.idle(self) # the handbrake and drift layer puts the tyres back (drive_drift.gd)
 		if _engine_sound and _engine_sound.playing:
 			_engine_sound.stop()
 		return
@@ -1050,6 +1051,7 @@ func _physics_process(delta: float) -> void:
 	var steer_factor := lerpf(1.0, steer_min_factor, clampf(absf(speed) / (steer_full_speed * 3.0), 0.0, 1.0))
 	_steer_target = -input.x * max_steer * steer_factor
 	steering = lerpf(steering, _steer_target, 1.0 - exp(-steer_speed * delta))
+	DriveDrift.step(self, delta, input, airborne) # handbrake, drift, power oversteer (drive_drift.gd)
 	# A wheel into a deep pothole (RoadWear): a jolt at that corner.
 	RoadWear.bump(self)
 	_air_time = _air_time + delta if is_airborne() else 0.0
