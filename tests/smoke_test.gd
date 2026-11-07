@@ -416,6 +416,8 @@ func _run() -> void:
 	await load("res://tests/hero_locomotion_2_checks.gd").new().run(self, player)
 	# The hero at arm's length, second pass (tests/hero_closeup_2_checks.gd): hair, brows, lips, velour.
 	await load("res://tests/hero_closeup_2_checks.gd").new().run(self, player)
+	# Steering and grip for the player's car (tests/drive_steer_checks.gd, DriveHandling).
+	await load("res://tests/drive_steer_checks.gd").new().run(self, player)
 	await _test_weapons(player)
 	_test_buildings()
 	level.free() # Free now, so the city scene cannot pick up this level's player.

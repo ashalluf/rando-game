@@ -1532,6 +1532,14 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   sun's side), the mainline ballast's `rc5` (crevice shadow in the mean, fouled), the crib up near
   the tie tops, a conduit to the wall lights; freight_stock `rc5` (loco roofs grimed and sooted, fan
   guards, a deeper livery) and `loco_cab()` (windscreen frames, wipers, grab irons). `RC5_FREIGHT_TRENCH=0` is the A/B; checks `tests/rc5_freight_trench_checks.gd`.
+- Steering and grip (wave 9, docs/HANDOFF.md "Steering and grip for the player's car"):
+  `DriveHandling` (`scripts/vehicles/drive_handling.gd`, one hook replacing Vehicle's steering
+  lines, `release()` in the driver setter) for the PLAYER's car only: a keyboard ramp / stick curve
+  (`shape()`), speed-sensitive lock (`lock_at()`), the tyres x `tyre_grip`/wheel_grip with a
+  grippier rear (remembered, divided back out on exit), counter-steer from the REAR AXLE's slip
+  (`counter_steer()`; car meta `assist_share` lets a drift own the slide), yaw settle by torque
+  impulse. `DRIVE_HANDLING=0` is the A/B; probe `tools/drive_steer/probe.tscn` (`--fixed-fps 60`,
+  `BODIES=`, `TESTS=`); checks `tests/drive_steer_checks.gd` (room part).
 - Cars fly (owner, 2026-09-20: "easily fly cars around the way I fly the main character"). A
   car that leaves the ground goes into stabilised flight (`Vehicle._fly()`): it holds itself
   level instead of tumbling, the stick aims it (W/S nose down/up, A/D turn with a bank), and

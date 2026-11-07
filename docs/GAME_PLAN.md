@@ -4947,3 +4947,9 @@ none of either.
   SwiftShader browser and are left as they are (not root-caused, unverified on a real GPU, a
   web-only workaround would be blind); the probe tools stay for the next pass. The web bookmarks
   now include four wave 5-8 night / weather views.
+- 2026-11-07 (wave 9, drive-steer): the player's car gets a tyre limit (~1.35 g, DriveHandling
+  `tyre_grip` 1.6 over the car's 10.5) instead of endless grip that snapped into a spin;
+  speed-sensitive lock, a keyboard ramp, counter-steer on a sliding tail. Decisions: the slip
+  angle is read at the rear axle (the CoM's points into every turn); the rear grips 18 % more than
+  the front, so the car pushes wide at the limit rather than spins; traffic and NPC cars keep
+  their own steering and grip.

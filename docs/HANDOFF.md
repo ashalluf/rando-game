@@ -33276,3 +33276,57 @@ Foliage cells, judged on the Mac (FOLIAGE_CELLS=1 FOLIAGE_CELL=48 / 64). (3) The
 (no LODs, 0.28-0.36 M shadow at the aerials). (4) Trash-bag piles (0.1 M, code mesh, no LOD or
 light twin). (5) Not looked at on Forward+ (geometry-only cuts; the canopy's level is the only
 shape change and it is under a pixel by construction).
+
+## 9d?. Steering and grip for the player's car (fleet wave 9, session `drive-steer`, branch `wt/drive-steer`)
+
+**What it was.** Measured headless (`tools/drive_steer/probe.tscn`: the real player in a real car on
+a flat 6 km slab, simulated Input actions, `--fixed-fps 60`), main's steering is symmetric - left
+and right yaw rates match to the decimal on every body - but the tyres have no limit: the car's
+`wheel_grip` (VehicleWheel3D `wheel_friction_slip` 10.5) held 2.7 g at 54 km/h on full lock, 3.1 g
+in a 60 km/h slalom, and then let go all at once: full lock at 108 km/h spun every body round
+(spd -35 km/h, 167 degrees of slip), a 100 km/h slalom spun the crossover (24 g spikes). The lock
+only fell to 0.42 rad by 30 km/h (`steer_min_factor`), the keyboard snapped the wheels to lock in
+0.3 s, and a sliding tail was never caught.
+
+**What it is now.** `DriveHandling` (`scripts/vehicles/drive_handling.gd`), ONE hook in
+`Vehicle._physics_process()` (it replaces the three steering lines; `DRIVE_HANDLING=0` keeps them)
+and one in the `driver` setter (`release()` on getting out). Per tick, the player's car only:
+1. Input shaping: a key eases in (`key_in` 3.2/s rising to `key_in_max` 7/s over `key_in_ramp`
+   0.25 s: full lock in ~0.25 s, a tap a small correction), back to centre at `key_out` 6.5/s and
+   across centre at `key_flip` 9/s; a stick goes through `stick_expo` 0.45 and light smoothing.
+   "Digital" = a steering key physically down, or an action strength of exactly 0 / 1.
+2. Speed-sensitive lock `lock_at()`: `low_lock` 0.6 rad to `lock_full_speed` 6 m/s, then the
+   kinematic angle for `lat_target` 1.15 g times `lock_margin` 2.2, never under `high_lock` 0.075.
+3. Grip: on the first driven tick every wheel's friction_slip x (`tyre_grip` 1.6 / wheel_grip) x
+   `front_grip` 0.95 / `rear_grip` 1.12 (the factor is remembered and divided back out on exit,
+   unless something reset the tyre to full grip meanwhile). Others that multiply friction (flat
+   tyres, the PIT) still work on top.
+4. Counter-steer `counter_steer()`: the slip angle is taken at the REAR AXLE (v + w x r) - the CoM's
+   own slip points into every turn, and counter-steering that tightened every corner - and past
+   `assist_from` 3 degrees the front wheels turn toward the slide by `assist_gain` 1.6 of it
+   (`assist_handbrake` 0.4 of that while the handbrake is held; a drift system may set car meta
+   `assist_share` 0..1 to own the slide).
+5. Yaw settle: wheel centred, gripping, grounded, over `settle_speed`: a torque impulse decays the
+   yaw rate at `yaw_settle` 2.6/s (never a write to angular_velocity, the Motorcycles trap).
+
+**Numbers** (sedan; the crossover, pickup and sports car are within a few % of it, all symmetric):
+
+| | main | now |
+|---|---|---|
+| full lock 18 km/h | 46 deg/s, 0.42 g | 57 deg/s, 0.53 g |
+| full lock 54 km/h | 102 deg/s, 2.69 g | 50 deg/s, 1.30 g |
+| full lock 108 km/h | spins round | 27 deg/s, 1.37 g, 0.8 deg slip |
+| slalom 60 km/h | 3.14 g peak | 1.36 g |
+| slalom 100 km/h | spins (156 deg slip) | 1.40 g, 1 deg slip |
+| 90-degree turn 40 km/h | 1.22 s, r 8.4 m | 1.68 s, r 11.2 m |
+| full lock forced at 70 km/h | 2.2 g grip | 1.2 g, pushes wide (2.3 deg slip) |
+| tail kicked 4 rad/s at 80 km/h | (gain 0) 127 deg round | 4 deg, caught in 0.75 s |
+| 0-100 km/h / stop from 100 | 2.70 s / 21.1 m | 2.75 s / 21.1 m |
+
+Tune first: `tyre_grip` (the whole limit: 1.6 is ~1.35 g; up for a grippier arcade car),
+`rear_grip` (balance: closer to `front_grip` is looser), `lat_target` / `lock_margin` (how much
+lock at speed), `key_in*` / `key_out` (keyboard feel), `assist_gain` (how hard it catches a slide).
+
+Not done: the owner's "cannot turn right" is not reproduced on a flat slab (drive-fix owns it; the
+handling is odd in the input by construction). Motorcycles, boats, aircraft and the helicopter keep
+their own steering. Not felt on the Mac.

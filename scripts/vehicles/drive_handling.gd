@@ -118,7 +118,8 @@ static func shape(cur: float, raw: float, digital: bool, held_s: float, delta: f
 ## Pure: the full lock (radians) at `speed` m/s for a car of wheelbase `wb`, capped at `cap`.
 static func lock_at(speed: float, wb: float, cap: float) -> float:
 	var v := absf(speed)
-	var top := minf(low_lock, maxf(cap, low_lock)) # a car with a bigger max_steer keeps low_lock
+	# `cap` (the car's own max_steer) only ever raises the lock: a body tuned to turn tighter keeps it.
+	var top := maxf(cap, low_lock)
 	if v <= lock_full_speed:
 		return top
 	var kin := atan(wb * lat_target * 9.8 / (v * v)) * lock_margin
@@ -191,10 +192,9 @@ static func release(car: Vehicle) -> void:
 	if h.grip_applied:
 		for i in mini(car.wheels.size(), h.grip_factors.size()):
 			var w: VehicleWheel3D = car.wheels[i]
-			if is_instance_valid(w):
-				# Something reset the tyre to the car's full grip meanwhile (CrashBreakup's repair):
+			# Something reset the tyre to the car's full grip meanwhile (CrashBreakup's repair):
 			# it is the car's own again, leave it.
-			if w.wheel_friction_slip < car.wheel_grip * 0.99:
+			if is_instance_valid(w) and w.wheel_friction_slip < car.wheel_grip * 0.99:
 				w.wheel_friction_slip /= float(h.grip_factors[i])
 	car.remove_meta("drive_handling")
 
