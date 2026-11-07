@@ -33309,7 +33309,7 @@ centre of mass 28 cm over the road.
   the body's collision box has square lower edges, and on a 25 cm kerb (or a low sports body on
   any kerb at an angle) its edge scraped / caught the kerb's and stopped and slewed the car. A body
   contact with a StaticBody under `KERB_HEIGHT` (0.42 m) over the road is a step: the speed it took
-  is handed back (`KERB_KEEP` 0.8) and, if its normal faces the travel, that corner is lifted
+  is handed back (`KERB_KEEP` 1.0) and, if its normal faces the travel, that corner is lifted
   (`KERB_LIFT` 1.6 m/s). Walls are taller and left alone (drive-collide's area).
 - The drawn body leans on top (`DRIVE_LEAN=0` the A/B): the BodyModel holder and NightLights are
   turned about a pivot `LEAN_PIVOT` over the road by a sprung (`LEAN_HZ` 1.7, `LEAN_ZETA` 0.42)
@@ -33352,7 +33352,8 @@ drawn lean; 0 is the physics alone), `PROFILES[*].f` (softer = more pitch and a 
 **Checks** `tests/drive_weight_checks.gd` (one line in smoke_test's `_city_files`): the classes and
 profiles, `tuned()` keeps the ride height, getting in re-springs and keeps the ride, a 1 m drop
 settles under 2 s with at most 3 bounces, a hard stop dips the nose and comes back, the bars, out
-stops the node, DRIVE_SUSPENSION=0 leaves a car alone. No Input is pressed in the gate (the car's
+stops the node, DRIVE_SUSPENSION=0 leaves a car alone, and a sports car at part throttle into a
+25 cm kerb at 20 degrees: 0.57 m/s left without the assist (stopped dead), 5.6 with it. No Input is pressed in the gate (the car's
 own script is held off and its brake set by hand). An oddity left open: on the gate's deck the
 sedan comes to rest 2.7 cm lower after the drop than before it (the hubs read the same); the probe
 on a bare ground box shows 0.0 cm, so the check only asks for stillness and within 4 cm.

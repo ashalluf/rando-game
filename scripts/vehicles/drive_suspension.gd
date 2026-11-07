@@ -75,7 +75,7 @@ const KERB_HEIGHT := 0.42
 ## Upward speed given to the corner on a step (m/s at most), and the share of the speed the
 ## contact took that is handed back along the travel.
 const KERB_LIFT := 1.6
-const KERB_KEEP := 0.8
+const KERB_KEEP := 1.0
 ## Not below this speed (parking against a kerb is not climbing it).
 const KERB_MIN_SPEED := 1.2
 

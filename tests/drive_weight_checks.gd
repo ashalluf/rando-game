@@ -18,6 +18,7 @@ var _city: Node3D
 var _deck: StaticBody3D
 var _top: Vector3
 var _brake: float = 2.0
+var _engine: float = 0.0
 
 
 func run(t: Node, city: Node3D) -> void:
@@ -31,6 +32,11 @@ func run(t: Node, city: Node3D) -> void:
 	var was := DriveSuspension.enabled
 	DriveSuspension.enabled = true
 	await _live()
+	DriveSuspension.kerb_enabled = false
+	var off_keep: float = await _kerb(false)
+	DriveSuspension.kerb_enabled = true
+	var on_keep: float = await _kerb(true)
+	_check(on_keep > off_keep + 0.8, "the kerb assist keeps %.2f m/s against %.2f without it (DRIVE_KERB=0)" % [on_keep, off_keep])
 	DriveSuspension.enabled = false
 	var off := _car(Vector3(12.0, 1.2, 0.0))
 	await _ticks(90)
@@ -163,9 +169,64 @@ func _live() -> void:
 	await _ticks(2)
 
 
-func _car(at: Vector3) -> Vehicle:
+## A sports car coasting at 30 km/h into a 25 cm kerb at 20 degrees: its body's edge meets the
+## kerb's, the assist hands the speed back.
+func _kerb(judge: bool) -> float:
+	var kb := StaticBody3D.new()
+	kb.collision_mask = 0
+	var cs := CollisionShape3D.new()
+	var bx := BoxShape3D.new()
+	bx.size = Vector3(200.0, 0.25, 8.0)
+	cs.shape = bx
+	kb.add_child(cs)
+	_city.add_child(kb)
+	kb.global_position = _top + Vector3(0.0, 0.125, -24.0)
+	var car := _car(Vector3(0.0, 1.2, -13.0), Vehicle.BodyType.SPORTS)
+	car.rotation.y = deg_to_rad(70.0)
+	await _ticks(300)
+	var stand := Node3D.new()
+	_city.add_child(stand)
+	car.driver = stand
+	_brake = 0.0
+	await _held(car, 30)
+	var ds := car.get_node_or_null(^"DriveSuspension") as DriveSuspension
+	var fwd := -car.global_basis.z
+	car.sleeping = false
+	car.linear_velocity = fwd * 8.33
+	car.hold_crash_watch(3)
+	var keep := 99.0
+	var hit := -1
+	# Part throttle (Godot's engine_force pushes toward +Z, the car's tail: negative is ahead).
+	_engine = -car.engine_power * 0.5
+	var at_hit := 0.0
+	for i in 360:
+		await _held(car, 1)
+		# Throttle on below 30 km/h, off above (no Input in the gate).
+		_engine = -car.engine_power * 0.6 if car.linear_velocity.dot(fwd) < 8.33 else 0.0
+		if hit < 0 and car.global_position.z - _top.z < -18.0:
+			hit = i
+			at_hit = car.linear_velocity.length()
+		elif hit >= 0 and i < hit + 60:
+			keep = minf(keep, car.linear_velocity.length())
+		elif hit >= 0:
+			break
+	if judge:
+		_check(ds != null and ds.kerb_steps > 0 and keep > 4.5,
+			"a low car into a 25 cm kerb at 30 km/h keeps its speed (%.2f of %.2f m/s, %d steps)" % [keep, at_hit, ds.kerb_steps if ds else -1])
+		_check(_h(car) > 0.2, "and ends up on the pavement")
+	car.driver = null
+	car.queue_free()
+	stand.queue_free()
+	kb.queue_free()
+	_brake = 2.0
+	_engine = 0.0
+	await _ticks(2)
+	return keep
+
+
+func _car(at: Vector3, type: int = Vehicle.BodyType.SEDAN) -> Vehicle:
 	var car := Vehicle.new()
-	car.setup(Vehicle.BodyType.SEDAN, Color(0.5, 0.5, 0.55), Vehicle.Addon.NONE)
+	car.setup(type, Color(0.5, 0.5, 0.55), Vehicle.Addon.NONE)
 	car.position = _top + at
 	_city.add_child(car)
 	return car
@@ -202,7 +263,7 @@ func _build_deck() -> void:
 func _held(car: Vehicle, n: int) -> void:
 	for i in n:
 		car.set_physics_process(false)
-		car.engine_force = 0.0
+		car.engine_force = _engine
 		car.brake = _brake
 		await _tree.physics_frame
 
