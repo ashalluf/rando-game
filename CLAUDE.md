@@ -2521,6 +2521,14 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   (`tools/glshot/drive_fx_stage.gd`: a car driven badly in front of the camera). Checks:
   `tests/driving_fx_checks.gd`. Trap: `ensure()` is called by every car a chunk builds in one
   frame and the add is deferred, so "made but not yet added" must count as made (it made dozens).
+- Impacts (wave 9, docs/HANDOFF.md "Impacts and traffic"): `DriveImpacts`
+  (`scripts/vehicles/drive_impacts.gd`, one hook in Vehicle / Motorcycle `_physics_process` while
+  the player drives): a traffic car about to be hit is dropped out of the traffic before the solver
+  meets it (kinematic = infinite mass) and both get a 1D collision's velocities; a shallow wall hit
+  keeps its speed along the wall and swings the heading onto it; a wedged car is nudged free; a car
+  resting on its body with no wheel down is not flying (`_fly()` held W's nose-down on its bumper).
+  `DRIVE_IMPACTS=0` the A/B (`DRIVE_SHOVE`, `DRIVE_GLANCE`, `DRIVE_UNSTICK`, `DRIVE_PROP_KEEP`);
+  probe `tools/drive_collide/probe.tscn`; checks `tests/drive_collide_checks.gd`.
 - Car panic (2026-10-05, docs/HANDOFF.md "Drivers react to chaos"): `CarPanic`
   (`scripts/npc/car_panic.gd`) hears `Pedestrian.alarm()` and gives street traffic drivers in
   reach a reaction (BRAKE, SWERVE, KERB only where `kerb_clear()`, REVERSE with `traffic.rev`

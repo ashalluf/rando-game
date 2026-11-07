@@ -85,6 +85,10 @@ const NUDGE_UP := 2.6
 const NUDGE_PUSH := 2.4
 const NUDGE_COOLDOWN := 1.0
 
+## Beached: slower than this (m/s) and lying on its body this long (s) is not flying.
+const BEACHED_SPEED := 2.0
+const BEACHED_SECONDS := 0.25
+
 ## --- props ---
 const PROP_SLOW_SHARE := 0.45
 
@@ -93,6 +97,7 @@ static var shoves: int = 0
 static var glances: int = 0
 static var nudges: int = 0
 static var scrapes: int = 0
+static var beached: int = 0
 static var last_shove: Dictionary = {}
 static var last_glance: Dictionary = {}
 
@@ -109,6 +114,7 @@ class State:
 	var shoved := {} # instance id -> seconds left
 	var redirect := 0.0 # seconds left of the nose being swung onto `line`
 	var line := Vector3.FORWARD
+	var beached := 0.0 # seconds it has lain on its body with no wheel down
 
 
 static func _state(car: Vehicle) -> State:
@@ -136,6 +142,7 @@ static func tick(car: Vehicle, delta: float) -> void:
 	if glance_on and st.have_prev:
 		_glance(car, st, delta)
 	if unstick_on:
+		_beached(car, st, delta)
 		_unstick(car, st, delta)
 	st.prev_v = car.linear_velocity
 	st.have_prev = true
@@ -323,6 +330,34 @@ static func _swing(car: Vehicle, line: Vector3, delta: float) -> void:
 	var roll_axis := -car.global_basis.z
 	w -= roll_axis * w.dot(roll_axis) * 0.5
 	car.angular_velocity = w
+
+
+## No wheel touches but the BODY rests on something and it is barely moving (nosed into the road
+## off a median or a ramp, on its side against a wall): that is not flight. Vehicle._fly() would
+## hold the attitude the stick asks for - W is nose down - and stand the car on its bumper for
+## good, so its air clock is held under flight_grace and gravity and the upright torque lay it
+## back on its wheels. Boost still flies.
+static func _beached(car: Vehicle, st: State, delta: float) -> void:
+	if car.linear_velocity.length() > BEACHED_SPEED or Input.is_action_pressed("boost") or not car.is_airborne():
+		st.beached = 0.0
+		return
+	var d: Dictionary = car._dims()
+	_box.size = Vector3(float(d.width) + 0.3, 1.4, float(d.length) + 0.3)
+	_q.shape = _box
+	_q.collision_mask = 1 | 4
+	_q.exclude = [car.get_rid()]
+	var xf := car.global_transform.orthonormalized()
+	xf.origin += xf.basis.y * 0.55
+	_q.transform = xf
+	if car.get_world_3d().direct_space_state.get_rest_info(_q).is_empty():
+		st.beached = 0.0
+		return
+	st.beached += delta
+	if st.beached >= BEACHED_SECONDS:
+		car._air_time = 0.0
+		if car.gravity_scale != 1.0:
+			car.gravity_scale = 1.0
+		beached += 1
 
 
 # --- unstick -----------------------------------------------------------------------------------

@@ -20,7 +20,7 @@ func _ready() -> void:
 	_deck = _static_box(Vector3(800, 1, 800), Vector3(0, -0.5, 0))
 	await get_tree().physics_frame
 	var only := OS.get_environment("SCEN")
-	var all := ["coast", "traffic", "offset", "bus", "moving", "wall50", "wall80", "headon", "parked", "wedge"]
+	var all := ["coast", "traffic", "offset", "bus", "moving", "wall50", "wall80", "headon", "parked", "wedge", "median"]
 	for s: String in all:
 		if only != "" and not (s in only.split(",")):
 			continue
@@ -220,3 +220,20 @@ func _s_wedge() -> void:
 		if freed < 0.0 and car.global_position.z < start.z - 4.0:
 			freed = t
 	print("PROBE wedge: throttle against a post -> free after %s s, moved %.1f m" % ["%.1f" % freed if freed >= 0.0 else "never", car.global_position.distance_to(start)])
+
+
+## A raised median 0.32 m high and 1.4 m wide across the path, met at walking pace with the
+## throttle held: over it, or high-centred on it?
+func _s_median() -> void:
+	_items.append(_static_box(Vector3(12.0, 0.64, 1.4), Vector3(0.0, 0.0, -6.0)))
+	var car := await _driven(Vector3(0, 0.6, 0), 0.0, 3.0, true)
+	var t := 0.0
+	var over := -1.0
+	while t < 8.0:
+		await get_tree().physics_frame
+		t += 1.0 / Engine.physics_ticks_per_second
+		if over < 0.0 and car.global_position.z < -12.0:
+			over = t
+		if OS.get_environment("TRACE") == "1" and Engine.get_physics_frames() % 15 == 0:
+			print("  t %.2f pos %s v %s up %.2f contact %d nudges %d" % [t, car.global_position, car.linear_velocity, car.global_basis.y.y, car.wheels.filter(func(w): return w.is_in_contact()).size(), DriveImpacts.nudges])
+	print("PROBE median: 0.32 m median at 11 km/h, throttle held -> over after %s s (z %.1f, nudges %d)" % ["%.1f" % over if over >= 0.0 else "never", car.global_position.z, DriveImpacts.nudges])

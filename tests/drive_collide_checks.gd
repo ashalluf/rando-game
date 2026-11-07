@@ -47,6 +47,7 @@ func run(t: Node, city: Node3D) -> void:
 	await _bus()
 	await _walls()
 	await _wedge()
+	await _median()
 	await _lamp()
 
 	Input.action_release("move_forward")
@@ -135,6 +136,17 @@ func _wedge() -> void:
 	await _run(car, 5.0)
 	var moved := car.global_position.distance_to(start)
 	_check(moved > 4.0, "throttle against a post gets the car free (%.1f m, %d nudges)" % [moved, DriveImpacts.nudges - n0])
+	_clear()
+
+
+func _median() -> void:
+	# A raised median met at walking pace with the throttle held: the car hops it, noses into the
+	# road and must not stay stood on its bumper (Vehicle._fly() holding W's nose-down).
+	_items.append(_static_box(Vector3(12.0, 0.64, 1.4), _at(Vector3(0.0, 0.0, -6.0))))
+	var car := await _driven(Vector3(0.0, 0.6, 0.0), 0.0, 3.0, true)
+	await _run(car, 6.0)
+	var gone := _top.z - car.global_position.z
+	_check(gone > 40.0, "a car that noses in off a median drives on (%.0f m on, beached %d)" % [gone, DriveImpacts.beached])
 	_clear()
 
 

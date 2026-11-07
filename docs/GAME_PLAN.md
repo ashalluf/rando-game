@@ -4947,3 +4947,8 @@ none of either.
   SwiftShader browser and are left as they are (not root-caused, unverified on a real GPU, a
   web-only workaround would be blind); the probe tools stay for the next pass. The web bookmarks
   now include four wave 5-8 night / weather views.
+- 2026-11-07 (drive-collide): the player's car meets the world through DriveImpacts, not the raw
+  solver: kinematic traffic is shoved (dropped out of the traffic before contact, a 1D collision
+  with restitution 0.3, the traffic car's share x1.35 - arcade, the player is overpowered), shallow
+  wall hits keep 88 % of the speed along the wall and turn the nose onto it, a wedged car is
+  nudged free, a car lying on its body is not flying. Head-on walls still stop the car.

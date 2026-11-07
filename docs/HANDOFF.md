@@ -33276,3 +33276,76 @@ Foliage cells, judged on the Mac (FOLIAGE_CELLS=1 FOLIAGE_CELL=48 / 64). (3) The
 (no LODs, 0.28-0.36 M shadow at the aerials). (4) Trash-bag piles (0.1 M, code mesh, no LOD or
 light twin). (5) Not looked at on Forward+ (geometry-only cuts; the canopy's level is the only
 shape change and it is under a pixel by construction).
+
+## 9d?. Impacts and traffic: the player's car hitting things (fleet wave 9, `drive-collide`, `wt/drive-collide`)
+
+**What was wrong** (measured with `tools/drive_collide/probe.tscn`, a flat deck, a sedan with a
+stand-in driver coasting into each obstacle; `DRIVE_IMPACTS=0` is main):
+
+- A **kinematic traffic car is infinite mass** to the solver: 50 km/h into a stationary one left
+  the player at 0.0 m/s and the traffic car exactly where it was (still traffic, 0 m moved). Same
+  for an off-centre hit and a bus. Nothing ever dropped a traffic car out of the traffic except
+  guns and blasts.
+- A **30-degree wall hit stopped the car dead**: 50 km/h -> 0.0 m/s, 80 km/h -> 0.1 m/s, the
+  nose still 30 degrees into the wall (the body's friction on the wall takes the speed along it).
+- **Throttle against a post: never free** (0.7 m in 6 s).
+- **Off a raised median the car can stand on its nose for good**: no wheel touches, so it counts
+  as flying and `Vehicle._fly()` holds the attitude the stick asks for - W is nose DOWN - so with
+  W held it stays on its bumper (17.9 m on in 8 s, then stuck). This is probably part of "the car
+  does not drive" in the owner's report whenever a jump or a kerb ends nose-first.
+
+**DriveImpacts** (`scripts/vehicles/drive_impacts.gd`, one hook line in Vehicle._physics_process
+after the driver test, the same in Motorcycle's, one factor in PropBreak.smash_ahead):
+
+- **shove**: a box query ahead of the player's car (like smash_ahead) finds a traffic car about to
+  be hit, `drop_out_of_traffic()`s it BEFORE the solver meets it and gives both cars a 1D
+  collision's velocities (`RESTITUTION` 0.3, real masses), the traffic car `SHOVE_GAIN` 1.35x its
+  share and the player `PLAYER_LOSS_SHARE` 0.75 of his (arcade: the player's car hits like a
+  truck), applied at the player's nose so an off-centre push spins it (`SHOVE_SPIN`), its tyres at
+  `SHOVE_GRIP` 0.35 for `SHOVE_SLIDE` 1 s so it slews instead of rolling on, a crash dent for both
+  and a metal hit. A bus (9,600 kg) takes 2.2 m/s and the sedan bounces back 9.8.
+- **glance**: past a one-step speed loss (`GLANCE_LOSS`), a body box query finds the wall's normal;
+  under `GLANCE_MAX` (sin 0.66, ~41 deg) the velocity is put back to `GLANCE_KEEP` 0.88 of what it
+  had along the wall plus a `GLANCE_BOUNCE` off it, and for `REDIRECT_SECONDS` the HEADING itself
+  is turned onto the wall line at up to `SWING_RATE` 2.4 rad/s (a yaw rate alone was fought by the
+  tyres, which steered it back in). Rubbing along a wall afterwards gets `SCRAPE_GIVE_BACK` 0.75 of
+  each step's loss back. Head-on hits are left alone (they stop).
+- **unstick**: throttle held, under `STUCK_SPEED` and pressed against something (or high-centred)
+  for `STUCK_SECONDS` 1.1 s: a nudge up `NUDGE_UP` and sideways off what it touches (square on:
+  away from the contact point, nose turned that way).
+- **beached**: slow, no wheel down, the body touching something for 0.25 s: the car's air clock is
+  held, so `_fly()` lets go and it falls back on its wheels. Boost still flies.
+- **props**: the player's car loses `PROP_SLOW_SHARE` 0.45 of PropBreak's SLOW (a lamp at 80 km/h:
+  18.1 -> 16.2 m/s in the checks; 0.2 of the speed before).
+
+**Numbers** (probe, coasting into each; "coast" alone leaves 9.9 of 13.9 and 16.1 of 22.2 m/s
+after 2 s):
+
+| scenario | main | DriveImpacts |
+| --- | --- | --- |
+| 50 km/h into a stopped traffic sedan | player 0.0 m/s, other not moved | player 4.6, other 8.1 m/s, out of traffic, 7.8 m |
+| same, 1.2 m off centre | player 0.0 | player 4.8, other 7.9 m/s, yawed 7 deg |
+| 50 km/h into a traffic bus | player 0.0, bus not moved | player bounces 1.0, bus 1.8 m/s |
+| 30 deg wall at 50 km/h | 0.0 m/s, nose 30 deg in | 7.3 m/s after 2 s, nose on the wall line |
+| 30 deg wall at 80 km/h | 0.1 m/s | 10.6 m/s after 2 s, nose on the line |
+| head-on wall 50 km/h | 0 | 0 (unchanged) |
+| parked car 50 km/h | player 4.3, other 4.4 | same (already physical) |
+| throttle against a post | never free | free after 2.7 s |
+| 0.32 m median at 11 km/h, W held | stood on its nose at 17.9 m | drives on (142 m) |
+
+**Knobs most likely to need tuning** (all consts at the top of drive_impacts.gd): `SHOVE_GAIN` /
+`PLAYER_LOSS_SHARE` (how light traffic feels), `RESTITUTION`, `SHOVE_GRIP` / `SHOVE_SLIDE` (how
+much a shunted car slides), `GLANCE_MAX` / `GLANCE_KEEP` (which hits scrape through and how much
+they keep), `SWING_RATE`, `STUCK_SECONDS` / `NUDGE_*`, `PROP_SLOW_SHARE`.
+
+Switches: `DRIVE_IMPACTS=0` all; `DRIVE_SHOVE=0`, `DRIVE_GLANCE=0`, `DRIVE_UNSTICK=0` (unstick and
+beached), `DRIVE_PROP_KEEP=0`. Checks `tests/drive_collide_checks.gd` (35: on a deck 300 m over
+the city - shove, A/B, bus, glance, head-on, post, median, lamp at 80). Probe:
+`godot --headless --path . res://tools/drive_collide/probe.tscn` (`SCEN=wall50,traffic`,
+`TRACE=1` per tick, `DRIVE_IMPACTS=0` the before), ~1 minute.
+
+**Not done / not verified**: judged by numbers only, not by eye on the Mac (the owner should drive
+into traffic and along a freeway barrier). Traffic hitting the STOPPED player (kinematic into
+physical) is unchanged. Only the player's car shoves (a physical cruiser or a shoved car hitting
+another traffic car still meets a wall). The glance query reads layer 1 only, so a parked car
+(layer 3) side-swiped at speed is the solver's. Kerb snagging at an angle is drive-weight's.
