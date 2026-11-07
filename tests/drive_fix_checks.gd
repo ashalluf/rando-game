@@ -130,7 +130,8 @@ func _accel() -> void:
 func _yaw() -> void:
 	for v0: float in [15.0, 30.0]:
 		var rates: Array[float] = []
-		var upright := true
+		var tilt := 0.0
+		var flew := 0
 		for act: String in ["move_left", "move_right"]:
 			var car := await _spawn()
 			car.hold_crash_watch(3)
@@ -141,8 +142,9 @@ func _yaw() -> void:
 			var n := 0
 			for i in 90:
 				await _tree.physics_frame
-				if car.global_basis.y.y < cos(deg_to_rad(35.0)) or car.get("_was_airborne"):
-					upright = false
+				tilt = maxf(tilt, rad_to_deg(acos(clampf(car.global_basis.y.y, -1.0, 1.0))))
+				if car.get("_was_airborne"):
+					flew += 1
 				if i >= 45:
 					sum += car.angular_velocity.y
 					n += 1
@@ -152,7 +154,7 @@ func _yaw() -> void:
 		var r := absf(rates[1])
 		_check(rates[0] > 0.05 and rates[1] < -0.05 and absf(l - r) <= 0.1 * maxf(l, r),
 				"drive-fix: at %.0f m/s left and right turn alike (yaw %.3f / %.3f rad/s)" % [v0, rates[0], rates[1]])
-		_check(upright, "drive-fix: full lock at %.0f m/s keeps the car on its wheels (no roll, no flight)" % v0)
+		_check(tilt < 35.0 and flew == 0, "drive-fix: full lock at %.0f m/s keeps the car on its wheels (tilt %.0f deg, %d ticks in flight)" % [v0, tilt, flew])
 
 
 func _release() -> void:
