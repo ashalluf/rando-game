@@ -4948,8 +4948,8 @@ none of either.
   web-only workaround would be blind); the probe tools stay for the next pass. The web bookmarks
   now include four wave 5-8 night / weather views.
 - 2026-11-07 (drive-engine, wave 9): the player's car pulls through a torque curve and a gearbox
-  (DriveTrain), per class of body and per kilogram: sedans 0-100 km/h in 4.3 s to 194 km/h,
-  muscle 3.3 s / 252, exotics 2.3-2.7 s / 324-374, vans 5.9 s / 158, trucks 14 s / 115, buses
+  (DriveTrain), per class of body and per kilogram: sedans 0-100 km/h in 3.8 s to 194 km/h,
+  muscle 2.8 s / 252, exotics 2.1-2.3 s / 323-373, vans 5.3 s / 158, trucks 13 s / 115, buses
   ~100 km/h; nitro roughly halves the 0-100 and adds 40 % top speed. The gears and revs are
   EngineAudio's own step on the car's state, so the voice and the pull agree. Godot's body
   damping (0.15/s) was the hidden drag that held every car to 146 km/h: the drive train hands it

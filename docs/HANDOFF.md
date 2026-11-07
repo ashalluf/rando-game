@@ -33325,7 +33325,28 @@ faded: 270 km/h backwards. Buses and trucks (heavier, `BigVehicles.tune()`): 87 
 
 ### Numbers (probe, flat slab, `--fixed-fps 60`, all bodies at once; km/h, s, m/s2)
 
-BEFORE_AFTER_TABLE
+| body | 0-100 before -> after | top before -> after | lift-off decel | reverse top |
+|---|---|---|---|---|
+| Sedan | 2.02 -> 3.78 | 146.2 -> 193.9 | 5.07 -> 2.87 | 271 -> 40 |
+| Crossover | 2.02 -> 3.78 | 146.2 -> 193.9 | 5.07 -> 2.87 | 271 -> 40 |
+| Hatchback | 2.02 -> 4.20 | 146.2 -> 179.6 | 5.07 -> 2.77 | 271 -> 40 |
+| Pickup | 2.02 -> 3.95 | 146.2 -> 186.8 | 5.07 -> 3.05 | 271 -> 40 |
+| Van | 2.02 -> 5.25 | 146.2 -> 158.0 | 5.07 -> 2.56 | 271 -> 32 |
+| Sports | 2.02 -> 2.78 | 146.2 -> 251.5 | 5.07 -> 3.83 | 271 -> 47 |
+| Vantari | 2.02 -> 2.32 | 146.2 -> 323.0 | 5.07 -> 4.31 | 271 -> 50 |
+| Kestrel | 2.02 -> 2.10 | 146.2 -> 373.3 | 5.07 -> 4.85 | 271 -> 50 |
+| Muscle | 2.02 -> 2.78 | 146.2 -> 251.5 | 5.07 -> 3.83 | 271 -> 47 |
+| SUV | 2.02 -> 3.95 | 146.2 -> 186.8 | 5.07 -> 3.05 | 271 -> 40 |
+| Hardtop Lowrider | 2.02 -> 4.47 | 146.2 -> 168.8 | 5.07 -> 2.71 | 271 -> 36 |
+| City Bus | - -> 26.72 | 87.0 -> 100.6 | 2.94 -> 1.70 | 269 -> 22 |
+| Box Truck | - -> 13.42 | 87.0 -> 114.9 | 2.95 -> 1.78 | 269 -> 22 |
+| Semi | - -> 13.42 | 87.0 -> 114.9 | 2.94 -> 1.78 | 269 -> 22 |
+| Sport Bike | 3.85 -> 3.12 | 135.4 -> 272.6 | 4.84 -> 5.19 | 68 -> 14 |
+| Scooter | - -> 8.52 | 70.2 -> 104.3 | 2.77 -> 2.97 | 100 -> 11 |
+
+Nitro held (after): Sedan 0-100 1.90 s, top 275.5, Sports 0-100 1.60 s, top 354.8, Kestrel 0-100 1.20 s, top 527.0, Box Truck 0-100 4.97 s, top 161.7, Sport Bike 0-100 1.68 s, top 384.2 (before: every body 0.9-1.8 s and 294-368 km/h).
+
+In the city (smoke test, a sedan parked a few cm under the slab has to climb its edge from rest): 9.4 m in the first 2 s (the check wants 8).
 
 ### Tuning knobs (most likely to change)
 

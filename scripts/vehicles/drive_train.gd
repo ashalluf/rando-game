@@ -38,39 +38,42 @@ static var enabled: bool = OS.get_environment("DRIVETRAIN") != "0"
 ## the redline), xp (torque peak, share of the redline), eb (engine braking at the redline in first,
 ## m/s2), rev_top (m/s).
 const SPECS := {
-	"compact": {"prof": "four", "pkw": 165.0, "top": 50.0, "first": 12.0, "gtop": 49.0, "grip": 0.78,
+	"compact": {"prof": "four", "pkw": 165.0, "top": 50.0, "first": 12.0, "gtop": 49.0, "grip": 1.0,
 		"launch": 0.5, "xp": 0.55, "eb": 1.8, "rev_top": 11.0},
-	"sedan": {"prof": "four", "pkw": 190.0, "top": 54.0, "first": 13.0, "gtop": 53.0, "grip": 0.82,
+	"sedan": {"prof": "four", "pkw": 190.0, "top": 54.0, "first": 13.0, "gtop": 53.0, "grip": 1.05,
 		"launch": 0.5, "xp": 0.55, "eb": 1.8, "rev_top": 11.0},
-	"lux": {"prof": "v8", "pkw": 250.0, "top": 63.0, "first": 15.0, "gtop": 62.0, "grip": 0.9,
+	"lux": {"prof": "v8", "pkw": 250.0, "top": 63.0, "first": 15.0, "gtop": 62.0, "grip": 1.12,
 		"launch": 0.45, "xp": 0.5, "eb": 2.0, "rev_top": 12.0},
-	"truck": {"prof": "v8", "pkw": 175.0, "top": 52.0, "first": 13.0, "gtop": 51.0, "grip": 0.78,
+	"truck": {"prof": "v8", "pkw": 175.0, "top": 52.0, "first": 13.0, "gtop": 51.0, "grip": 1.0,
 		"launch": 0.42, "xp": 0.45, "eb": 2.2, "rev_top": 11.0},
-	"van": {"prof": "four", "pkw": 125.0, "top": 44.0, "first": 10.5, "gtop": 43.0, "grip": 0.66,
+	"van": {"prof": "four", "pkw": 125.0, "top": 44.0, "first": 10.5, "gtop": 43.0, "grip": 0.86,
 		"launch": 0.48, "xp": 0.5, "eb": 1.8, "rev_top": 9.0},
-	"muscle": {"prof": "v8", "pkw": 330.0, "top": 70.0, "first": 17.0, "gtop": 68.0, "grip": 1.0,
+	"muscle": {"prof": "v8", "pkw": 330.0, "top": 70.0, "first": 17.0, "gtop": 68.0, "grip": 1.22,
 		"launch": 0.45, "xp": 0.45, "eb": 2.4, "rev_top": 13.0},
-	"super": {"prof": "v12", "pkw": 480.0, "top": 90.0, "first": 21.0, "gtop": 88.0, "grip": 1.2,
+	"super": {"prof": "v12", "pkw": 480.0, "top": 90.0, "first": 21.0, "gtop": 88.0, "grip": 1.38,
 		"launch": 0.48, "xp": 0.65, "eb": 2.6, "rev_top": 14.0},
-	"hyper": {"prof": "v12", "pkw": 640.0, "top": 104.0, "first": 23.0, "gtop": 101.0, "grip": 1.35,
+	"hyper": {"prof": "v12", "pkw": 640.0, "top": 104.0, "first": 23.0, "gtop": 101.0, "grip": 1.52,
 		"launch": 0.48, "xp": 0.65, "eb": 2.8, "rev_top": 14.0},
-	"lowrider": {"prof": "v8", "pkw": 150.0, "top": 47.0, "first": 13.0, "gtop": 46.0, "grip": 0.7,
+	"lowrider": {"prof": "v8", "pkw": 150.0, "top": 47.0, "first": 13.0, "gtop": 46.0, "grip": 0.9,
 		"launch": 0.4, "xp": 0.4, "eb": 1.8, "rev_top": 10.0},
-	"police": {"prof": "v8", "pkw": 270.0, "top": 66.0, "first": 15.0, "gtop": 65.0, "grip": 0.92,
+	"police": {"prof": "v8", "pkw": 270.0, "top": 66.0, "first": 15.0, "gtop": 65.0, "grip": 1.12,
 		"launch": 0.45, "xp": 0.48, "eb": 2.2, "rev_top": 12.0},
-	"medium": {"prof": "diesel", "pkw": 90.0, "top": 37.0, "first": 5.0, "gtop": 36.0, "grip": 0.5,
+	"medium": {"prof": "diesel", "pkw": 90.0, "top": 37.0, "first": 5.0, "gtop": 36.0, "grip": 0.62,
 		"launch": 0.4, "xp": 0.35, "eb": 1.4, "rev_top": 8.0},
-	"heavy": {"prof": "diesel", "pkw": 62.0, "top": 32.0, "first": 4.0, "gtop": 31.0, "grip": 0.38,
+	"heavy": {"prof": "diesel", "pkw": 62.0, "top": 32.0, "first": 4.0, "gtop": 31.0, "grip": 0.46,
 		"launch": 0.42, "xp": 0.35, "eb": 1.2, "rev_top": 6.0},
-	"bus": {"prof": "bus", "pkw": 55.0, "top": 28.0, "first": 5.0, "gtop": 27.0, "grip": 0.36,
+	"bus": {"prof": "bus", "pkw": 55.0, "top": 28.0, "first": 5.0, "gtop": 27.0, "grip": 0.42,
 		"launch": 0.4, "xp": 0.35, "eb": 1.1, "rev_top": 6.0},
-	"moto_sport": {"prof": "moto", "pkw": 620.0, "top": 76.0, "first": 17.0, "gtop": 74.0, "grip": 1.05,
+	"moto_sport": {"prof": "moto", "pkw": 620.0, "top": 76.0, "first": 17.0, "gtop": 74.0, "grip": 1.1,
 		"launch": 0.5, "xp": 0.7, "eb": 2.6, "rev_top": 4.0},
-	"moto_cruiser": {"prof": "moto", "pkw": 290.0, "top": 56.0, "first": 14.0, "gtop": 55.0, "grip": 0.8,
+	"moto_cruiser": {"prof": "moto", "pkw": 290.0, "top": 56.0, "first": 14.0, "gtop": 55.0, "grip": 0.9,
 		"launch": 0.4, "xp": 0.4, "eb": 2.4, "rev_top": 4.0},
-	"moto_scooter": {"prof": "moto", "pkw": 160.0, "top": 29.0, "first": 8.0, "gtop": 28.5, "grip": 0.6,
+	"moto_scooter": {"prof": "moto", "pkw": 160.0, "top": 29.0, "first": 8.0, "gtop": 28.5, "grip": 0.68,
 		"launch": 0.55, "xp": 0.6, "eb": 1.6, "rev_top": 3.0},
 }
+
+## DRIVETRAIN_LOG=1 prints the player's car's drive train ten times a second.
+static var log_ticks: bool = OS.get_environment("DRIVETRAIN_LOG") == "1"
 
 ## Pull left through a gear change (EngineAudio's 0.24 s throttle cut).
 const SHIFT_PULL := 0.35
@@ -266,6 +269,9 @@ static func drive(car: Vehicle, throttle: float, speed: float, boost: bool, delt
 			car.engine_force = 0.0
 			car.brake = -a * mass / float(n_drive) * delta
 		st.force = f
+		if log_ticks and Engine.get_physics_frames() % 6 == 0:
+			print("DRIVETRAIN v %.2f gear %d rpm %.0f a %.2f ef %.0f n %d damp %.3f grounded %s mass %.0f up %.2f y %.3f c %d%d%d%d br %.1f" % [
+				speed, g + 1, float(st.rpm), a, car.engine_force, n_drive, damp, str(grounded), mass, car.global_basis.y.y, car.global_position.y, int(car.wheels[0].is_in_contact()), int(car.wheels[1].is_in_contact()), int(car.wheels[2].is_in_contact()), int(car.wheels[3].is_in_contact()), car.brake])
 	elif throttle < 0.0 and speed <= 1.0:
 		# Reverse: its own gear, a gentle launch, `rev_top` m/s.
 		var rv := maxf(-speed, 0.0)
