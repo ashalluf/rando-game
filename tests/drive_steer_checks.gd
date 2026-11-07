@@ -26,6 +26,9 @@ func run(t: Node, player: Node) -> void:
 		_check(true, "DRIVE_HANDLING=0: the handling checks on the slab are skipped")
 		return
 	var home: Vector3 = player.global_position
+	# The first Vehicle makes DrivingFX in ITS level; made here it would sit under the smoke test's
+	# root (no DayNight) into the city part. Free one these cars made.
+	var fx_before: Variant = load("res://scripts/vehicles/driving_fx.gd").call("instance")
 	_slab = StaticBody3D.new()
 	var cs := CollisionShape3D.new()
 	var box := BoxShape3D.new()
@@ -82,6 +85,9 @@ func run(t: Node, player: Node) -> void:
 	await _ticks(2)
 	_car.queue_free()
 	_slab.queue_free()
+	var fx_now: Variant = load("res://scripts/vehicles/driving_fx.gd").call("instance")
+	if fx_before == null and fx_now != null and is_instance_valid(fx_now):
+		(fx_now as Node).queue_free()
 	_player.global_position = home
 	_player.set("velocity", Vector3.ZERO)
 	await _ticks(4)

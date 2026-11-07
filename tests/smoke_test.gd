@@ -69,7 +69,7 @@ const CITY_PARTS := ["city_streaming", "city_terrain", "city_landmarks", "city_c
 const INLINE_FILES := ["downtown_checks", "hero_moves_checks", "street_life_checks",
 	"crowd_anim_checks", "crowd_life_checks", "crowd_hat_checks", "photo_mode_checks",
 	"wingsuit_checks", "traffic_ai_checks", "street_errands_checks", "dog_checks", "hero_closeup_checks",
-	"hero_face_2_checks", "hero_locomotion_2_checks", "hero_closeup_2_checks"]
+	"hero_face_2_checks", "hero_locomotion_2_checks", "hero_closeup_2_checks", "drive_steer_checks"]
 ## Wall seconds each part took in a whole run on the 4-core fleet box (SMOKE_PROFILE=1 prints
 ## them as PART lines; refreshed 2026-10-30 from main a3db077f, tools/gate/part_costs.py); a file missing here counts DEFAULT_COST. Only the deal depends on them.
 const PART_COST := {

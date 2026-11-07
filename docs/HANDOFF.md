@@ -33336,3 +33336,9 @@ cuts steer to 71 %) reaches `DriveHandling.steer()` unchanged, and while DriveHa
 `lock_at()` (also grip-limited, but by the tyres DriveHandling sets) replaces `Vehicle.steer_lock()`.
 With `DRIVE_HANDLING=0` the car steers by drive-fix's line (`DRIVE_FIX=0` as well: main's). The probe
 reads the same numbers to the decimal after the merge.
+
+Gate trap found here: the room part made no Vehicle before these checks, so the first Vehicle in a
+shard (and with it DrivingFX, which lives in ITS level) used to be made in the city. Made in the room
+it sits under the smoke test's root with no DayNight and reads hour 12 into the city part
+(driving_fx_checks' "a cold morning puffs the player's exhaust" failed in shard 2). The checks free a
+DrivingFX their cars made; the file is in INLINE_FILES.
