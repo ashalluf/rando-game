@@ -10,6 +10,17 @@ extends Node3D
 
 var player: Node
 var car: Node
+## TRACE=1 prints a "TR <test> <t> <steering rad> <yaw deg/s> <heading deg>" line a tick in the
+## slalom, the junction and the kick (tools/drive_steer/plot.py draws them).
+var _trace := OS.get_environment("TRACE") == "1"
+var _tt := 0.0
+
+
+func _tr(tag: String) -> void:
+	if not _trace:
+		return
+	_tt += 1.0 / Engine.physics_ticks_per_second
+	print("TR %s %.3f %.4f %.2f %.2f" % [tag, _tt, car.steering, rad_to_deg(car.angular_velocity.y), rad_to_deg(_heading())])
 var _floor: StaticBody3D
 
 
@@ -93,6 +104,7 @@ func _fresh_car(b: int) -> void:
 	car.global_position = Vector3(0.0, 1.2, 0.0)
 	car.rotation = Vector3.ZERO
 	await _ticks(30)
+	_tt = 0.0
 	player.call("enter_vehicle", car)
 	await _ticks(20)
 
@@ -221,6 +233,7 @@ func _slalom(b: int, kmh: float) -> void:
 			var acc := (vel - prev) * Engine.physics_ticks_per_second
 			lat_max = maxf(lat_max, absf(acc.dot(car.global_basis.x)) / 9.8)
 			prev = vel
+			_tr("slalom%.0f" % kmh)
 			var dh := wrapf(_heading() - h0, -PI, PI)
 			hmin = minf(hmin, dh)
 			hmax = maxf(hmax, dh)
@@ -231,6 +244,7 @@ func _slalom(b: int, kmh: float) -> void:
 	for i in 300:
 		_cruise(v)
 		await _ticks(1)
+		_tr("slalom%.0f" % kmh)
 		if settle < 0.0 and absf(car.angular_velocity.y) < 0.03:
 			settle = (i + 1) / float(Engine.physics_ticks_per_second)
 	print("SLALOM body=%d %.0f km/h lat_peak=%.2f g swing=%.1f..%.1f deg beta_max=%.1f settle=%.2fs spd=%.1f up=%.2f" % [b, kmh,
@@ -250,6 +264,7 @@ func _junction(b: int, dir: float) -> void:
 		_cruise(v)
 		await _ticks(1)
 		t += 1.0 / Engine.physics_ticks_per_second
+		_tr("junction" + ("R" if dir > 0.0 else "L"))
 		turned = absf(wrapf(_heading() - h0, -PI, PI))
 		if turned >= PI * 0.25 and pmid == p0:
 			pmid = car.global_position
@@ -262,6 +277,7 @@ func _junction(b: int, dir: float) -> void:
 	for i in 120:
 		_cruise(v)
 		await _ticks(1)
+		_tr("junction" + ("R" if dir > 0.0 else "L"))
 		over = maxf(over, absf(wrapf(_heading() - h0, -PI, PI)) - PI * 0.5)
 	print("JUNCTION body=%d %s 40 km/h t=%.2fs radius=%.1f m overshoot=%.1f deg exit=%.1f km/h" % [b,
 		"R" if dir > 0.0 else "L", t, radius, rad_to_deg(over), _speed() * 3.6])
@@ -331,6 +347,7 @@ func _recover(b: int, gain: float) -> void:
 	for i in 300:
 		_cruise(80.0 / 3.6)
 		await _ticks(1)
+		_tr("kick")
 		var vel: Vector3 = car.linear_velocity
 		var flat := Vector3(vel.x, 0.0, vel.z)
 		var beta := absf(rad_to_deg((-car.global_basis.z).signed_angle_to(flat, Vector3.UP))) if flat.length() > 2.0 else 0.0
