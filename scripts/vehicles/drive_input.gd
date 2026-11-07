@@ -15,8 +15,8 @@ extends RefCounted
 ##   first (it used to throttle against the roll). Reverse fades out at `reverse_top_speed` (it
 ##   had no cap: 48 m/s backwards after eight seconds of S). Returns (drive, brake): drive > 0
 ##   forward throttle, < 0 reverse; brake 0..1 of the car's brake_force, -1 = coast.
-## * `handbrake()`: the `handbrake` action (right mouse, pad RB) - NOT alt_fire, whose LT is the
-##   brake pedal now. With the pad's RB the handbrake, it no longer tunes the radio in a car
+## * `handbrake()`: the `handbrake` action (right mouse, Ctrl, pad RB) - and alt_fire only when it
+##   is not the pad's LT, the brake pedal now. With the pad's RB the handbrake, it no longer tunes the radio in a car
 ##   (`radio_step()`).
 ## * `steer_rate()`: the steering's rate multiplier - `steer_sensitivity` turning in,
 ##   `auto_centre` coming back (GameSettings "drive_steer" / "drive_centre").
@@ -93,18 +93,21 @@ static func vector() -> Vector2:
 	return Vector2(steer(), brake_pedal() - throttle())
 
 
-## The handbrake: the `handbrake` action (right mouse, pad RB); alt_fire when that action is
-## missing or DriveInput is off.
+## The handbrake: the `handbrake` action (right mouse, Ctrl, pad RB), or alt_fire unless that is
+## the pad's LT (the brake pedal now: alt_fire held with drive_brake down is not the handbrake).
+## alt_fire alone when DriveInput is off.
 static func handbrake() -> bool:
 	if not enabled or not _has(&"handbrake"):
 		return Input.is_action_pressed("alt_fire")
-	return Input.is_action_pressed("handbrake")
+	if Input.is_action_pressed("handbrake"):
+		return true
+	return Input.is_action_pressed("alt_fire") and _strength(&"drive_brake") < TRIGGER_DEAD
 
 
 ## Gear and pedals for `car` this tick: Vector2(drive, brake). drive > 0 throttle forward, < 0
 ## reverse (both 0..1 before the car's own power, fade and nitro); brake 0..1 of brake_force, or
 ## -1 to coast (the car's old 1.0 rolling resistance).
-static func pedals(car: Node, speed: float, delta: float) -> Vector2:
+static func pedals(car: Object, speed: float, delta: float) -> Vector2:
 	var id := car.get_instance_id()
 	if id != _car_id:
 		_car_id = id
@@ -159,13 +162,13 @@ static func pedals(car: Node, speed: float, delta: float) -> Vector2:
 
 
 ## Is `car` in reverse (the player's selector)?
-static func in_reverse(car: Node) -> bool:
+static func in_reverse(car: Object) -> bool:
 	return enabled and car != null and car.get_instance_id() == _car_id and _reverse
 
 
 ## The selector's letter for the HUD: R in reverse, N standing with no pedal, else D. Falls back
 ## to `fallback` (VehicleHud's speed rule) for a car DriveInput is not driving.
-static func gear(car: Node, forward_mps: float, fallback: String) -> String:
+static func gear(car: Object, forward_mps: float, fallback: String) -> String:
 	if not enabled or car == null or car.get_instance_id() != _car_id:
 		return fallback
 	if _reverse:
