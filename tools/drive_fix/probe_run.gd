@@ -86,9 +86,13 @@ func _release() -> void:
 
 
 func _spawn(t: String) -> Vehicle:
+	var sets := OS.get_environment("SET")
 	if mode == "city":
 		_clear_traffic()
 	var car := _make(t)
+	for kv in sets.split(",", false):
+		var p := kv.split("=")
+		car.set(p[0], float(p[1]))
 	root.add_child(car)
 	if at_world != Vector3.INF:
 		origin = tree.root.get_node("/root/WorldState").to_local(at_world) + Vector3(0, 1.5, 0)
@@ -135,29 +139,45 @@ func _probe(t: String) -> void:
 		var rates := []
 		for act: String in ["move_left", "move_right"]:
 			var c := await _spawn(t)
+			c.contact_monitor = true
+			c.max_contacts_reported = 8
 			c.linear_velocity = -c.global_basis.z * v0
 			await tree.physics_frame
 			Input.action_press(act)
-			var yaw0 := 0.0
-var at_world := Vector3.INF
 			var sum := 0.0
 			var n := 0
 			var lat := 0.0
 			var vend := 0.0
+			var roll := 0.0
+			var flew := 0
+			var lifted := 0
 			for i in 90: # 1.5 s
 				# hold speed: a gentle velocity correction along the nose only
 				var f := -c.global_basis.z
 				var vf := c.linear_velocity.dot(f)
-				c.linear_velocity += f * (v0 - vf) * 0.2
+				if OS.get_environment("HOLD") != "0":
+					c.linear_velocity += f * (v0 - vf) * 0.2
 				await tree.physics_frame
+				roll = maxf(roll, rad_to_deg(acos(clampf(c.global_basis.y.y, -1.0, 1.0))))
+				if c.get("_was_airborne"):
+					flew += 1
+				for w in c.wheels:
+					if not w.is_in_contact():
+						lifted += 1
+						break
 				if i >= 45:
 					sum += c.angular_velocity.y
 					n += 1
 					lat += absf(c.linear_velocity.dot(c.global_basis.x))
 			vend = _speed(c)
+			var hits := []
+			for b in c.get_colliding_bodies():
+				hits.append("%s(%s, layer %d)" % [b.name, b.get_class(), b.collision_layer])
+			if not hits.is_empty():
+				print("    touching: ", ", ".join(hits))
 			_release()
 			rates.append(sum / maxf(n, 1))
-			print("  %s v0 %.0f %s: yaw rate %.3f rad/s  steering %.3f  slip %.2f m/s  v %.1f" % [t, v0, act, sum / maxf(n, 1), c.steering, lat / maxf(n, 1), vend])
+			print("  %s v0 %.0f %s: yaw rate %.3f rad/s  steering %.3f  slip %.2f m/s  v %.1f  max tilt %.0f deg  wheel-off ticks %d  flight ticks %d" % [t, v0, act, sum / maxf(n, 1), c.steering, lat / maxf(n, 1), vend, roll, lifted, flew])
 			_free(c)
 			await tree.physics_frame
 		var l: float = rates[0]
