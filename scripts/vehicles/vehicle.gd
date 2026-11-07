@@ -491,6 +491,12 @@ const BEATER_PRIMER := Vector4(-1.86, 0.62, 0.15, 1.0)
 ## Steering shrinks at speed so the car does not spin out: full steer below this speed (m/s).
 @export var steer_full_speed: float = 12.0
 @export var steer_min_factor: float = 0.35
+## The most sideways grip full lock may ask of the tyres (m/s^2): the front wheels turn no
+## further than v^2 tan(steer) / wheelbase = this (wave 9 drive-fix). Godot's tyres hold ~10 g,
+## so the old curve's lock at 30 m/s asked for 11 g and rolled the car onto its roof.
+@export var steer_lateral_limit: float = 16.0
+## The least lock at any speed (radians), so a flat-out car still answers the stick.
+@export var steer_floor: float = 0.035
 ## Top speed (m/s); engine force fades to zero here.
 @export var top_speed: float = 55.0
 ## Self-righting torque when upside down and slow on the ground.
@@ -622,6 +628,12 @@ static var wheels_enabled: bool = true
 var _seat: Node3D
 var _exit_side: float = 1.0
 var _steer_target: float = 0.0
+## The wave 9 drive-fix (docs/HANDOFF.md "The car that would not turn right"): steer and throttle
+## read as two axes (a diagonal no longer cuts both to 71 %), lock limited by the grip it asks for.
+## DRIVE_FIX=0 is the A/B.
+static var drive_fix: bool = OS.get_environment("DRIVE_FIX") != "0"
+## Front axle to rear axle (m), from _dims() in _build().
+var wheelbase: float = 3.0
 var _engine_sound: AudioStreamPlayer3D
 var _jump_timer: float = 0.0
 ## Heading the car holds while flying (radians). Seeded from the car when it leaves the ground.
@@ -1012,6 +1024,8 @@ func _physics_process(delta: float) -> void:
 			_engine_sound.play()
 		_engine_sound.pitch_scale = 0.8 + clampf(linear_velocity.length() / top_speed, 0.0, 1.0) * 1.4
 	var input := Input.get_vector("move_left", "move_right", "move_forward", "move_back")
+	if drive_fix:
+		input = Vector2(Input.get_axis("move_left", "move_right"), Input.get_axis("move_forward", "move_back"))
 	var throttle := -input.y # forward is negative y on the stick
 	var speed := linear_velocity.dot(-global_basis.z)
 	var boost := nitro_multiplier if Input.is_action_pressed("boost") else 1.0
@@ -1049,7 +1063,7 @@ func _physics_process(delta: float) -> void:
 		angular_velocity = Vector3.ZERO
 		Sfx.play("jump", global_position, -2.0, 0.7)
 	var steer_factor := lerpf(1.0, steer_min_factor, clampf(absf(speed) / (steer_full_speed * 3.0), 0.0, 1.0))
-	_steer_target = -input.x * max_steer * steer_factor
+	_steer_target = -input.x * (steer_lock(speed) if drive_fix else max_steer * steer_factor)
 	steering = lerpf(steering, _steer_target, 1.0 - exp(-steer_speed * delta))
 	DriveDrift.step(self, delta, input, airborne) # handbrake, drift, power oversteer (drive_drift.gd)
 	# A wheel into a deep pothole (RoadWear): a jolt at that corner.
@@ -1066,6 +1080,15 @@ func _physics_process(delta: float) -> void:
 			# Upside down and stuck: roll back onto the wheels.
 			var axis := global_basis.z
 			apply_torque(axis * upright_torque * signf(global_basis.x.y + 0.0001))
+
+
+## Full lock at `speed` (m/s): max_steer, cut so the turn it asks for stays under
+## steer_lateral_limit of sideways acceleration (and never under steer_floor).
+func steer_lock(speed: float) -> float:
+	var v2 := speed * speed
+	if v2 < 0.01:
+		return max_steer
+	return clampf(atan(steer_lateral_limit * wheelbase / v2), minf(steer_floor, max_steer), max_steer)
 
 
 ## Stabilised flight. The car holds itself level and pointed where you steer instead of
@@ -1195,6 +1218,7 @@ func _build() -> void:
 	bumper.body_entered.connect(_on_bumper_hit)
 	add_child(bumper)
 	var wheel_z: float = dims.wheel_z
+	wheelbase = float(dims.get("wheel_front", wheel_z)) + float(dims.get("wheel_rear", wheel_z))
 	_wheel_slots = []
 	for front: bool in [true, false]:
 		for side: float in [-1.0, 1.0]:
