@@ -33320,7 +33320,7 @@ and one in the `driver` setter (`release()` on getting out). Per tick, the playe
 | slalom 100 km/h | spins (156 deg slip) | 1.40 g, 1 deg slip |
 | 90-degree turn 40 km/h | 1.22 s, r 8.4 m | 1.68 s, r 11.2 m |
 | full lock forced at 70 km/h | 2.2 g grip | 1.2 g, pushes wide (2.3 deg slip) |
-| tail kicked 4 rad/s at 80 km/h | (gain 0) 127 deg round | 4 deg, caught in 0.75 s |
+| tail kicked 4 rad/s at 80 km/h | main 9 deg (its 10 g tyres never let go); DriveHandling with the assist off 127 deg round | 4 deg, caught in 0.75 s |
 | 0-100 km/h / stop from 100 | 2.70 s / 21.1 m | 2.75 s / 21.1 m |
 
 Tune first: `tyre_grip` (the whole limit: 1.6 is ~1.35 g; up for a grippier arcade car),
