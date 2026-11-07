@@ -632,7 +632,7 @@ func _drive(delta: float, speed: float, plane_share: float) -> void:
 		if not _engine_sound.playing:
 			_engine_sound.play()
 		_engine_sound.pitch_scale = 0.7 + clampf(absf(speed) / boat_top_speed, 0.0, 1.3) * 1.2
-	var input := Input.get_vector("move_left", "move_right", "move_forward", "move_back")
+	var input := DriveInput.vector()
 	var want := -input.y
 	throttle = move_toward(throttle, want, delta * 2.5)
 	var boost := nitro_multiplier if Input.is_action_pressed("boost") else 1.0
@@ -647,13 +647,13 @@ func _drive(delta: float, speed: float, plane_share: float) -> void:
 	if stern_wet:
 		var push := thrust_accel * (throttle if throttle > 0.0 else throttle * reverse_share) * (boost if throttle > 0.0 else 1.0)
 		apply_central_impulse(fwd * push * mass * delta)
-		if Input.is_action_pressed("alt_fire"):
+		if DriveInput.handbrake():
 			# Hard over and the throttle off: a power turn's brake.
 			apply_central_impulse(-linear_velocity * 0.8 * mass * delta * Vector3(1.0, 0.0, 1.0))
 	# Steering: a turn rate that grows with speed (a rudder / the jet needs flow), a little at rest.
 	var steer_k := clampf(0.18 + absf(speed) / (boat_top_speed * 0.45), 0.0, 1.0) * (1.0 if wet > 0.0 else 0.0)
 	var turn := -input.x * turn_rate * steer_k * signf(speed + 0.5)
-	if Input.is_action_pressed("alt_fire"):
+	if DriveInput.handbrake():
 		turn *= 1.6
 	if wet > 0.0:
 		var yaw_rate := angular_velocity.dot(Vector3.UP)

@@ -33,6 +33,8 @@ const CONTROLS := [
 	["In a car", "W / S drive, Space jumps, Shift nitro"],
 	["Q / scroll", "Radio station (in a car)"],
 	["C", "Look behind (in a car)"],
+	["Right click / Ctrl", "Handbrake (in a car)"],
+	["Pad in a car", "RT gas, LT brake / reverse, RB handbrake"],
 ]
 const FONT_SEMIBOLD := "res://assets/fonts/Inter-SemiBold.woff2"
 const FONT_MEDIUM := "res://assets/fonts/Inter-Medium.woff2"
@@ -62,7 +64,8 @@ var _foot: Label
 ## The settings screen: section, then rows of [key, label, value format]. A format of "" is an
 ## On / Off toggle; "x" a multiplier, "deg" degrees, "pct" a percentage.
 const SETTINGS_LAYOUT := [
-	["CONTROLS", [["mouse_sensitivity", "Look sensitivity", "x"], ["invert_y", "Invert look", ""]]],
+	["CONTROLS", [["mouse_sensitivity", "Look sensitivity", "x"], ["invert_y", "Invert look", ""],
+		["drive_steer", "Steering sensitivity", "x"], ["drive_centre", "Steering auto-centre", "x"]]],
 	["CAMERA", [["fov", "Field of view", "deg"], ["car_fov", "Field of view in cars", "deg"],
 		["drive_shake", "Driving camera shake", ""]]],
 	["AUDIO", [["volume_master", "Master volume", "pct"], ["volume_world", "World volume", "pct"],

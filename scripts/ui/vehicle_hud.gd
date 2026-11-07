@@ -181,7 +181,7 @@ func _process(delta: float) -> void:
 		var read := speed_reading(car, v.length())
 		_mph = lerpf(_mph, float(read[0]), minf(dt * 12.0, 1.0))
 		_unit = read[1]
-		_gear = gear_letter(v.dot(fwd))
+		_gear = DriveInput.gear(car, v.dot(fwd), gear_letter(v.dot(fwd)))
 	_layout()
 	_glass.visible = _pill > 0.001
 	_ink.queue_redraw()

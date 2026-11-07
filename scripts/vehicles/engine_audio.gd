@@ -607,7 +607,7 @@ class Voice extends Node3D:
 		var free_rev := false
 		var reversing := false
 		if is_mine and car.driver is Player:
-			var input := Input.get_vector("move_left", "move_right", "move_forward", "move_back")
+			var input := DriveInput.vector()
 			throttle = absf(input.y)
 			boost = Input.is_action_pressed("boost")
 			free_rev = car.is_airborne()

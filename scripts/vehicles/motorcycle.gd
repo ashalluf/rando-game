@@ -730,12 +730,16 @@ func _physics_process(delta: float) -> void:
 		if not _engine_sound.playing:
 			_engine_sound.play()
 		_engine_sound.pitch_scale = (1.0 if kind != Kind.SCOOTER else 1.5) + clampf(absf(speed) / top_speed, 0.0, 1.0) * 1.6
-	var input := Input.get_vector("move_left", "move_right", "move_forward", "move_back")
+	var input := DriveInput.vector()
 	var throttle := -input.y
 	var boosting := Input.is_action_pressed("boost")
 	var boost := nitro_multiplier if boosting else 1.0
 	var fade := clampf(1.0 - absf(speed) / top_speed, 0.0, 1.0)
-	if throttle > 0.0:
+	if DriveInput.enabled:
+		var ped := DriveInput.pedals(self, speed, delta)
+		engine_force = -ped.x * (engine_power * boost * (fade if not boosting else maxf(fade, 0.3)) if ped.x > 0.0 else reverse_power)
+		brake = ped.y * brake_force if ped.y >= 0.0 else 0.6
+	elif throttle > 0.0:
 		engine_force = -throttle * engine_power * boost * (fade if not boosting else maxf(fade, 0.3))
 		brake = 0.0
 	elif throttle < 0.0:
@@ -748,7 +752,7 @@ func _physics_process(delta: float) -> void:
 	else:
 		engine_force = 0.0
 		brake = 0.6
-	if Input.is_action_pressed("alt_fire"):
+	if DriveInput.handbrake():
 		brake = handbrake_force
 	_jump_timer = maxf(_jump_timer - delta, 0.0)
 	var airborne := is_airborne()

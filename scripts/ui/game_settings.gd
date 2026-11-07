@@ -38,6 +38,8 @@ const DEFAULTS := {
 	"vignette": true,
 	"render_scale": 1.0,
 	"hud_scale": 1.0,
+	"drive_steer": 1.0,
+	"drive_centre": 1.0,
 }
 ## Number ranges: min, max, step.
 const RANGES := {
@@ -49,6 +51,8 @@ const RANGES := {
 	"volume_ambience": [0.0, 1.0, 0.01],
 	"render_scale": [0.5, 1.0, 0.05],
 	"hud_scale": [0.75, 1.5, 0.05],
+	"drive_steer": [0.5, 1.6, 0.05],
+	"drive_centre": [0.4, 2.0, 0.05],
 }
 ## Bus per volume key (Sfx._install_buses() makes them).
 const BUSES := {"volume_master": &"Master", "volume_world": &"World", "volume_ambience": &"Ambience"}
@@ -122,6 +126,7 @@ static func apply(scene: Node) -> void:
 		return
 	var tree := scene.get_tree()
 	_apply_camera(tree)
+	_apply_drive()
 	_apply_audio()
 	_apply_post(tree)
 	_apply_vignette(scene)
@@ -153,6 +158,13 @@ static func _apply_camera(tree: SceneTree) -> void:
 	rig.set("camera_fov", float(get_value("fov")))
 	rig.set("car_fov", float(get_value("car_fov")))
 	rig.set("drive_shake", bool(get_value("drive_shake")))
+
+
+## Driving feel (DriveInput, scripts/vehicles/drive_input.gd): steering sensitivity (how fast the
+## wheel turns in, the stick's gain) and auto-centre (how fast it comes back).
+static func _apply_drive() -> void:
+	DriveInput.steer_sensitivity = float(get_value("drive_steer"))
+	DriveInput.auto_centre = float(get_value("drive_centre"))
 
 
 static func _apply_audio() -> void:

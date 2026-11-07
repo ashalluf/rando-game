@@ -1010,13 +1010,18 @@ func _physics_process(delta: float) -> void:
 		if not _engine_sound.playing:
 			_engine_sound.play()
 		_engine_sound.pitch_scale = 0.8 + clampf(linear_velocity.length() / top_speed, 0.0, 1.0) * 1.4
-	var input := Input.get_vector("move_left", "move_right", "move_forward", "move_back")
+	var input := DriveInput.vector() # per-axis keys, stick and pad triggers (drive_input.gd)
 	var throttle := -input.y # forward is negative y on the stick
 	var speed := linear_velocity.dot(-global_basis.z)
 	var boost := nitro_multiplier if Input.is_action_pressed("boost") else 1.0
 	var fade := clampf(1.0 - absf(speed) / top_speed, 0.0, 1.0)
 	# Godot's engine_force pushes toward local +Z, which is the tail of our model, so negate it.
-	if throttle > 0.0:
+	if DriveInput.enabled:
+		# Brake-then-reverse with a beat at the stop, analog pedals (scripts/vehicles/drive_input.gd).
+		var ped := DriveInput.pedals(self, speed, delta)
+		engine_force = -ped.x * (engine_power * boost * (fade if boost == 1.0 else maxf(fade, 0.3)) if ped.x > 0.0 else reverse_power)
+		brake = ped.y * brake_force if ped.y >= 0.0 else 1.0
+	elif throttle > 0.0:
 		engine_force = -throttle * engine_power * boost * (fade if boost == 1.0 else maxf(fade, 0.3))
 		brake = 0.0
 	elif throttle < 0.0:
@@ -1029,7 +1034,7 @@ func _physics_process(delta: float) -> void:
 	else:
 		engine_force = 0.0
 		brake = 1.0
-	if Input.is_action_pressed("alt_fire"):
+	if DriveInput.handbrake():
 		brake = handbrake_force
 	_jump_timer = maxf(_jump_timer - delta, 0.0)
 	var airborne := is_airborne()
@@ -1049,7 +1054,7 @@ func _physics_process(delta: float) -> void:
 		Sfx.play("jump", global_position, -2.0, 0.7)
 	var steer_factor := lerpf(1.0, steer_min_factor, clampf(absf(speed) / (steer_full_speed * 3.0), 0.0, 1.0))
 	_steer_target = -input.x * max_steer * steer_factor
-	steering = lerpf(steering, _steer_target, 1.0 - exp(-steer_speed * delta))
+	steering = lerpf(steering, _steer_target, 1.0 - exp(-steer_speed * DriveInput.steer_rate(steering, _steer_target) * delta))
 	# A wheel into a deep pothole (RoadWear): a jolt at that corner.
 	RoadWear.bump(self)
 	_air_time = _air_time + delta if is_airborne() else 0.0

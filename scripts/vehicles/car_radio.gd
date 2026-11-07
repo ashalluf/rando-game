@@ -321,10 +321,9 @@ func _process(delta: float) -> void:
 			tune(s)
 			_level = 0.0
 	if car != null:
-		if Input.is_action_just_pressed("radio_next") or Input.is_action_just_pressed("next_weapon"):
-			step(1)
-		elif Input.is_action_just_pressed("radio_prev") or Input.is_action_just_pressed("prev_weapon"):
-			step(-1)
+		var rs := DriveInput.radio_step() # the pad's RB is the handbrake in a car (drive_input.gd)
+		if rs != 0:
+			step(rs)
 	# Every station stays on air.
 	for s in _clock.size():
 		if _len[s] <= 0.0:
