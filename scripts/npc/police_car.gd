@@ -778,15 +778,21 @@ func _pursue(delta: float) -> void:
 	if absf(ang) > 2.0 and absf(speed) < 6.0 and (routed or aim_d < 22.0):
 		_reverse_t = reverse_seconds
 		return
-	steering = lerpf(steering, clampf(ang * steer_gain, -max_steer, max_steer), 1.0 - exp(-steer_speed * delta))
-	if speed < want:
-		var push := clampf((want - speed) / 6.0, 0.25, 1.0)
-		var nitro := nitro_multiplier if dist > 45.0 and absf(ang) < 0.3 and not routed else 1.0
-		engine_force = -engine_power * push * nitro
-		brake = 0.0
+	if DriveAssist.enabled:
+		# Speed-limited lock, yaw damping, corners slowed for, stability control (drive_assist.gd).
+		DriveAssist.ai_drive(self, ang, want, delta, tac.is_empty())
+		if engine_force < 0.0 and dist > 45.0 and absf(ang) < 0.3 and not routed:
+			engine_force *= nitro_multiplier
 	else:
-		engine_force = 0.0
-		brake = brake_force * clampf((speed - want) / 8.0, 0.1, 1.0)
+		steering = lerpf(steering, clampf(ang * steer_gain, -max_steer, max_steer), 1.0 - exp(-steer_speed * delta))
+		if speed < want:
+			var push := clampf((want - speed) / 6.0, 0.25, 1.0)
+			var nitro := nitro_multiplier if dist > 45.0 and absf(ang) < 0.3 and not routed else 1.0
+			engine_force = -engine_power * push * nitro
+			brake = 0.0
+		else:
+			engine_force = 0.0
+			brake = brake_force * clampf((speed - want) / 8.0, 0.1, 1.0)
 	# No progress while pushing: back out and try again; after a few goes, stop and get out.
 	if engine_force < 0.0 and absf(speed) < 1.5:
 		_stuck_t += delta

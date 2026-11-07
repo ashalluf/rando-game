@@ -1050,6 +1050,7 @@ func _physics_process(delta: float) -> void:
 	var steer_factor := lerpf(1.0, steer_min_factor, clampf(absf(speed) / (steer_full_speed * 3.0), 0.0, 1.0))
 	_steer_target = -input.x * max_steer * steer_factor
 	steering = lerpf(steering, _steer_target, 1.0 - exp(-steer_speed * delta))
+	DriveAssist.player_tick(self, delta, Input.is_action_pressed("alt_fire")) # stability control and ABS (drive_assist.gd)
 	# A wheel into a deep pothole (RoadWear): a jolt at that corner.
 	RoadWear.bump(self)
 	_air_time = _air_time + delta if is_airborne() else 0.0
