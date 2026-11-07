@@ -1355,9 +1355,11 @@ func _city_cars(city: Node3D, plan: CityPlan, player: CharacterBody3D, macro: Ma
 		# Space makes the car jump. Wait for all four wheels to be down first: a car only jumps
 		# from the ground, and after the turn test it is still settling (airborne cars now fall
 		# at reduced gravity, so settling takes longer than it used to).
-		for i in 180:
+		# And level: a full-lock turn (DriveInput: W + D is full steer now) leaves it rocking.
+		for i in 300:
 			await get_tree().physics_frame
-			if not car.is_airborne() and absf(car.linear_velocity.y) < 0.4:
+			if not car.is_airborne() and absf(car.linear_velocity.y) < 0.4 and car.global_basis.y.y > 0.995 \
+					and car.angular_velocity.length() < 0.3:
 				break
 		var car_y0: float = car.global_position.y
 		var top_y: float = car_y0
