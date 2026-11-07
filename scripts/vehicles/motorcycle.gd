@@ -719,6 +719,7 @@ func _physics_process(delta: float) -> void:
 		return
 	if PhysicsServer3D.body_get_state(get_rid(), PhysicsServer3D.BODY_STATE_SLEEPING):
 		PhysicsServer3D.body_set_state(get_rid(), PhysicsServer3D.BODY_STATE_SLEEPING, false)
+	DriveImpacts.tick(self, delta) # shoves traffic, scrapes walls, unsticks (scripts/vehicles/drive_impacts.gd)
 	var speed := linear_velocity.dot(-global_basis.z)
 	if EngineAudio.covers(self): # the engine-audio pass voices it (scripts/vehicles/engine_audio.gd)
 		if _engine_sound and _engine_sound.playing:

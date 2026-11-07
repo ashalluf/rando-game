@@ -1000,6 +1000,7 @@ func _physics_process(delta: float) -> void:
 		if _engine_sound and _engine_sound.playing:
 			_engine_sound.stop()
 		return
+	DriveImpacts.tick(self, delta) # shoves traffic, scrapes walls, unsticks (scripts/vehicles/drive_impacts.gd)
 	if EngineAudio.covers(self): # the engine-audio pass voices it (scripts/vehicles/engine_audio.gd)
 		if _engine_sound and _engine_sound.playing:
 			_engine_sound.stop()

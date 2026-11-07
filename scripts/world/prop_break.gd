@@ -390,7 +390,7 @@ static func smash_ahead(car: Vehicle, delta: float) -> void:
 		var record: Dictionary = hit[0]
 		var ch: CityChunk = hit[1]
 		car.hold_crash_watch(2)
-		car.linear_velocity = v * (1.0 - float(SLOW.get(record.kind, 0.1)))
+		car.linear_velocity = v * (1.0 - DriveImpacts.prop_slow(car, float(SLOW.get(record.kind, 0.1))))
 		var at := ch.to_global(record.position) + Vector3.UP * 0.6
 		if FALL_AT.has(record.kind):
 			CrashAftermath.note_pole(CrashAftermath.POLE_WIDTH) # a pole: a narrow wrap, not a wall
