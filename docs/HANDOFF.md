@@ -33276,3 +33276,88 @@ Foliage cells, judged on the Mac (FOLIAGE_CELLS=1 FOLIAGE_CELL=48 / 64). (3) The
 (no LODs, 0.28-0.36 M shadow at the aerials). (4) Trash-bag piles (0.1 M, code mesh, no LOD or
 light twin). (5) Not looked at on Forward+ (geometry-only cuts; the canopy's level is the only
 shape change and it is under a pixel by construction).
+
+## 9d?. Suspension and weight (wave 9, drive-weight)
+
+The player's car now pitches, squats, leans and settles like a car with springs. `DriveSuspension`
+(`scripts/vehicles/drive_suspension.gd`), one hook line in Vehicle's `driver` setter
+(`DriveSuspension.driver_changed()`); the first time somebody takes the wheel the car is re-sprung
+once and a `DriveSuspension` child node runs while it is driven (stopped and the drawn body put
+back at rest when he gets out; the springs stay).
+
+**What was wrong.** Godot's VehicleBody3D multiplies each wheel's spring and damper by the chassis
+mass, so `suspension_stiffness` k is an acceleration per metre per wheel: four wheels heave at
+`f = sqrt(k) / PI` Hz with a damping ratio `c / sqrt(k)`. The old numbers (k 60, c 0.8 / 1.2, for
+every body) were a 2.5 Hz spring damped at 0.10 / 0.15: a 1 m drop bounced 4-6 times for ~3 s and
+a 1.7 g stop dipped the nose 1.2-1.6 degrees. The side force of the tyres acts at
+`wheel_roll_influence` x the contact's height measured from the body's ORIGIN (not the centre of
+mass): with ri 0.1 and the centre of mass at 0.1 m local the cars had a 12 cm roll lever and a
+centre of mass 28 cm over the road.
+
+**What it does now** (all knobs at the top of drive_suspension.gd):
+- `PROFILES` by class (`class_of()`: sport, car, tall, truck, big, low): spring frequency `f`
+  (1.3-1.9 Hz), compression / rebound damping ratios `zc` / `zr` (0.28-0.34 / 0.52-0.62), centre of
+  mass over the road `com` (0.40-0.85 m), the tyres' side-force lever under it `lever` (0.09-0.17 m,
+  which keeps every rollover threshold far above the ~4.5 g the tyres make on main), anti-roll bars
+  `arb` (front, rear). `tuned()` is pure: k = PI^2 f^2, c = zeta sqrt(k), and the rest length and
+  travel grow by the extra sag, so the loaded ride height and the bump stop are where they were
+  (the visible wheels, the body and every ride check see the same car standing).
+- Anti-roll bars as impulses per axle (compression difference x `arb` x mass), only with both
+  wheels down; a roll guard (past `GUARD_ROLL` 14 degrees with one side's wheels off the road it
+  bleeds the roll rate that is taking it over).
+- Kerbs (`DRIVE_KERB=0` the A/B): the wheels are rays and climb any step their travel allows, but
+  the body's collision box has square lower edges, and on a 25 cm kerb (or a low sports body on
+  any kerb at an angle) its edge scraped / caught the kerb's and stopped and slewed the car. A body
+  contact with a StaticBody under `KERB_HEIGHT` (0.42 m) over the road is a step: the speed it took
+  is handed back (`KERB_KEEP` 0.8) and, if its normal faces the travel, that corner is lifted
+  (`KERB_LIFT` 1.6 m/s). Walls are taller and left alone (drive-collide's area).
+- The drawn body leans on top (`DRIVE_LEAN=0` the A/B): the BodyModel holder and NightLights are
+  turned about a pivot `LEAN_PIVOT` over the road by a sprung (`LEAN_HZ` 1.7, `LEAN_ZETA` 0.42)
+  roll and pitch from the car's own measured, clamped, smoothed acceleration, tanh-saturated at
+  `LEAN_ROLL_MAX` 3.5 / `LEAN_PITCH_MAX` 2.1 degrees (`LEAN_ROLL_PER_G` 2.2, `LEAN_PITCH_PER_G`
+  1.25). The physics stays safe whatever grip drive-steer gives the tyres; the eye gets a car
+  that dives, squats and leans. Not on lowriders (their Hydraulics own the body).
+- Skipped: motorcycles (their own Pose), jets, the helicopter, boats, anything without four wheels.
+
+**Probe** `tools/drive_weight/probe.tscn` (headless, `--fixed-fps 60` or it runs in real time;
+`-- --types=0,8 --scen=drop,stop,launch,lane,corner,kerb,kerb_slow,kerb_high`; `DRIVE_SUSPENSION=0`
+the before; `SHOT=<prefix>` under opengl3 + Xvfb saves the peak dive side-on and mid-corner from
+behind). Before -> after (DRIVE_SUSPENSION=0 -> on):
+
+| | sedan | crossover | pickup | sports | SUV | bus | lowrider | muscle |
+|---|---|---|---|---|---|---|---|---|
+| 1 m drop: bounces, settle s | 5, 2.95 -> 1, 1.43 | 3, 2.95 -> 1, 1.10 | 5, 2.72 -> 1, 1.50 | 4, 2.90 -> 1, 1.03 | 5, 2.73 -> 1, 1.12 | 4, 2.97 -> 1, 1.60 | 4, 2.92 -> 1, 1.58 | 6, 2.95 -> 1, 1.03 |
+| 1 m drop: peak g | 4.2 -> 2.2 | 4.2 -> 2.3 | 4.1 -> 2.0 | 8.5 -> 3.1 | 4.1 -> 2.3 | 4.1 -> 1.6 | 4.2 -> 1.8 | 4.2 -> 3.1 |
+| stop from 100: body dive deg (+drawn) | 1.4 -> 3.0 (+2.2) | 2.0 -> 3.8 (+2.2) | 1.2 -> 3.0 (+2.2) | 1.4 -> 1.8 (+2.2) | 1.8 -> 3.0 (+2.2) | 0.4 -> 1.6 (+1.9) | 1.2 -> 3.5 | 1.6 -> 1.9 (+2.2) |
+| launch squat deg (+drawn) | 1.6 -> 3.7 (+2.1) | 2.1 -> 4.7 (+2.1) | 1.1 -> 3.5 (+2.1) | 1.6 -> 2.3 (+2.1) | 1.6 -> 3.5 (+2.1) | 0.3 -> 1.5 (+1.8) | 1.4 -> - | 1.8 -> 2.4 (+2.1) |
+| lane change at 80: roll deg, wheel-lift ticks | 3.8, 5 -> 5.1, 0 | 7.2, 61 -> 4.8, 0 | 3.7, 12 -> 5.0, 0 | 3.5, 0 -> 2.2, 0 | 4.3, 28 -> 3.8, 0 | 2.0 -> 3.3 | 3.6 -> 4.7, 0 | 3.9, 8 -> 2.3, 0 |
+| lane change: roll settle s | 0.25 -> 0.18 | 1.40 -> 0.28 | 0.65 -> 0.47 | 0.32 -> 0.13 | 1.03 -> 0.25 | 1.48 -> 1.43 | 0.18 -> 0.37 | 0.23 -> 0.13 |
+| full lock at 15+ m/s: steady body roll (+drawn) | 2.9 -> 4.2 (+3.6) | 3.2 -> 3.8 (+3.7) | 2.4 -> 3.4 (+3.4) | 2.9 -> 2.2 (+3.6) | 2.6 -> 2.8 (+3.5) | 0.7 -> 1.2 (+2.5) | 2.8 -> 3.6 | 2.9 -> 2.3 (+3.6) |
+| 25 cm kerb at 30 km/h, 20 deg: speed kept of 8.33, slew deg | 7.4, 0.4 -> 7.2, 0.5 | 7.1, 1.4 -> 7.3, 0.7 | 7.2 -> 7.2 | (5.4, 7.3 real time) -> 7.2, 1.2 | 6.4, 2.0 -> 7.1, 0.7 | 8.3 -> 8.3 | 8.4 -> 7.3 | 6.5, 2.4 -> 8.4, 0.1 |
+
+Lowrider rows are after its profile was stiffened (f 1.35, arb 30 / 20): on the first, softer one
+it rolled 26 degrees and lifted its inside wheels in the lane change. The 15 cm kerb at 30 and 10
+km/h is a bump either way (the slow one costs 0.2-1 m/s of the 2.8 for a second, as before). The
+"stop" distance (24 m, 1.65 s) and the lateral g (4.2-5.0) are the tyres' and the engine's, not
+this pass's (drive-steer / drive-engine): the lean saturates at that grip and reads right at a
+real car's 1 g too. With the inside wheels kept down by the bars the car slides less at the limit
+on main's grip (less tyre smoke in a full-lock corner); drive-steer may want to look at that.
+
+**Most likely to tune** (the owner's feel on the Mac): `LEAN_ROLL_MAX` / `LEAN_PITCH_MAX` (the
+drawn lean; 0 is the physics alone), `PROFILES[*].f` (softer = more pitch and a slower settle),
+`PROFILES[*].zr` (rebound damping: lower floats, higher is harsh), `PROFILES[*].arb` (roll),
+`PROFILES[*].lever` (roll; NEVER above about half track / 6, or a car can flip on main's grip),
+`KERB_KEEP`, `KERB_LIFT`.
+
+**Checks** `tests/drive_weight_checks.gd` (one line in smoke_test's `_city_files`): the classes and
+profiles, `tuned()` keeps the ride height, getting in re-springs and keeps the ride, a 1 m drop
+settles under 2 s with at most 3 bounces, a hard stop dips the nose and comes back, the bars, out
+stops the node, DRIVE_SUSPENSION=0 leaves a car alone. No Input is pressed in the gate (the car's
+own script is held off and its brake set by hand). An oddity left open: on the gate's deck the
+sedan comes to rest 2.7 cm lower after the drop than before it (the hubs read the same); the probe
+on a bare ground box shows 0.0 cm, so the check only asks for stillness and within 4 cm.
+
+**Not done.** Not felt on the Mac. Not measured with drive-fix / drive-steer / drive-engine merged
+(their grip and torque change every number above except the drop; the lean saturates, the levers
+keep the margins). Kerbs in the city are Kerbs.gd trimesh rings, only the probe's box kerb is
+measured. The trailer of a semi and the bus's rigid hitch are not leaned.

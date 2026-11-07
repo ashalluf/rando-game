@@ -29,6 +29,12 @@ extends Node
 ##   at LEAN_ROLL_MAX / LEAN_PITCH_MAX. The physics stays safe whatever grip the tyres make; what
 ##   the eye reads is a car that dives, squats and leans. Not on lowriders (their hydraulics own
 ##   the body) or anything TrafficMotion.supported() refuses. DRIVE_LEAN=0 turns this part off.
+## * Kerbs: the wheels are rays and climb any step their travel takes, but the body's collision box
+##   has square lower edges, and on a kerb taller than the bump room (or a low sports car on any
+##   kerb, at an angle) its edge caught the kerb's and stopped the car dead and slewed it. Any
+##   contact of the body with the world under KERB_HEIGHT over the road, facing the travel, is
+##   taken as a step: that corner is lifted (KERB_LIFT, capped) and the speed the contact took is
+##   handed back (KERB_KEEP of it). Walls (taller) are left alone. DRIVE_KERB=0 turns it off.
 ## DRIVE_SUSPENSION=0 is the A/B (the car keeps the old springs). Probe: tools/drive_weight/probe.tscn.
 
 static func _static_init() -> void: LoadPulse.compiled()  # a boot frame: docs/HANDOFF.md "The boot compile"
@@ -44,7 +50,7 @@ const PROFILES := {
 	"tall": {"f": 1.6, "zc": 0.32, "zr": 0.58, "com": 0.48, "lever": 0.12, "arb": Vector2(28.0, 18.0)},
 	"truck": {"f": 1.45, "zc": 0.32, "zr": 0.55, "com": 0.55, "lever": 0.13, "arb": Vector2(26.0, 18.0)},
 	"big": {"f": 1.3, "zc": 0.32, "zr": 0.55, "com": 0.85, "lever": 0.17, "arb": Vector2(26.0, 22.0)},
-	"low": {"f": 1.15, "zc": 0.26, "zr": 0.48, "com": 0.44, "lever": 0.12, "arb": Vector2(12.0, 8.0)},
+	"low": {"f": 1.35, "zc": 0.28, "zr": 0.52, "com": 0.42, "lever": 0.09, "arb": Vector2(30.0, 20.0)},
 }
 static var lean_enabled: bool = OS.get_environment("DRIVE_LEAN") != "0"
 
@@ -61,6 +67,17 @@ const LEAN_PIVOT := 0.45
 ## smoothed over about 1 / LEAN_SMOOTH s.
 const LEAN_ACCEL_CLAMP := 30.0
 const LEAN_SMOOTH := 10.0
+
+static var kerb_enabled: bool = OS.get_environment("DRIVE_KERB") != "0"
+
+## A body contact this low over the road (m, at the contact) is a step, not a wall.
+const KERB_HEIGHT := 0.42
+## Upward speed given to the corner on a step (m/s at most), and the share of the speed the
+## contact took that is handed back along the travel.
+const KERB_LIFT := 1.6
+const KERB_KEEP := 0.8
+## Not below this speed (parking against a kerb is not climbing it).
+const KERB_MIN_SPEED := 1.2
 
 const GUARD_ROLL := 14.0
 ## How hard the roll guard bleeds roll rate (per second).
@@ -83,6 +100,10 @@ var acc := Vector2.ZERO
 var lean := Vector2.ZERO
 var _lean_v := Vector2.ZERO
 var _written := Vector2(INF, INF)
+var _road_y: float = -0.2
+var _v_prev := Vector3.ZERO
+## Steps climbed (the checks and the probe read it).
+var kerb_steps: int = 0
 
 
 static func class_of(type: int) -> String:
@@ -113,7 +134,7 @@ static func driver_changed(c: Vehicle, who: Node3D) -> void:
 			ds.set_physics_process(false)
 			ds.rest()
 		return
-	if c is Motorcycle or c.wheels.size() != 4:
+	if c is Motorcycle or c is Aircraft or c is FlyableHeli or c is Boat or c.wheels.size() != 4:
 		return
 	if ds == null:
 		ds = DriveSuspension.new()
@@ -162,6 +183,7 @@ func setup(c: Vehicle) -> void:
 	c.suspension_travel = t.travel
 	c.damping_compression = t.comp
 	c.damping_relaxation = t.reb
+	_road_y = road_y
 	var com_y := road_y + float(profile.com)
 	# Side force applied at roll_influence x road_y (Godot measures it from the origin).
 	var ri := (com_y - float(profile.lever)) / road_y if absf(road_y) > 0.01 else c.wheel_roll_influence
@@ -226,7 +248,57 @@ func _physics_process(delta: float) -> void:
 		car.apply_impulse(up * f, wa.global_position - origin)
 		car.apply_impulse(-up * f, wb.global_position - origin)
 	_guard(delta)
+	_kerb()
 	_lean(delta)
+
+
+## A body contact with a step under KERB_HEIGHT: lift that corner and give back the speed it took.
+func _kerb() -> void:
+	var v := car.linear_velocity
+	var v_was := _v_prev
+	_v_prev = v
+	if not kerb_enabled:
+		return
+	if not car.contact_monitor:
+		car.contact_monitor = true
+	if car.max_contacts_reported < 4:
+		car.max_contacts_reported = 4
+	var hv := Vector3(v_was.x, 0.0, v_was.z)
+	if hv.length() < KERB_MIN_SPEED or car.global_basis.y.y < 0.7:
+		return
+	var st := PhysicsServer3D.body_get_direct_state(car.get_rid())
+	if st == null:
+		return
+	var n := st.get_contact_count()
+	var hit := false
+	var lift_at := Vector3.INF
+	for i in n:
+		var other := st.get_contact_collider_object(i)
+		if not (other is StaticBody3D):
+			continue
+		var p := st.get_contact_local_position(i)
+		var lp := car.to_local(p)
+		if lp.y - _road_y > KERB_HEIGHT:
+			continue
+		# The underbody on a step: a scrape over its edge (the normal up) or the edge in the way
+		# (the normal back against the travel). Either way it is not a wall.
+		hit = true
+		var nrm := st.get_contact_local_normal(i)
+		var flat := Vector3(nrm.x, 0.0, nrm.z)
+		if flat.length() > 0.25 and flat.normalized().dot(hv.normalized()) < -0.2:
+			lift_at = p
+	if not hit:
+		return
+	kerb_steps += 1
+	var m := car.mass
+	if lift_at != Vector3.INF:
+		var lift := clampf(KERB_LIFT - maxf(car.linear_velocity.y, 0.0), 0.0, KERB_LIFT)
+		car.apply_impulse(Vector3.UP * lift * m * 0.5, lift_at - car.global_position)
+	var hv_now := Vector3(v.x, 0.0, v.z)
+	var lost := hv.length() - hv_now.dot(hv.normalized())
+	if lost > 0.0:
+		car.apply_central_impulse(hv.normalized() * lost * KERB_KEEP * m)
+	car.hold_crash_watch(2)
 
 
 ## Pure: one step of a critically-ish damped spring toward `target` (x, v), sub-stepped so a slow

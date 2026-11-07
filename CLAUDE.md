@@ -1560,6 +1560,17 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   Parking and traffic lanes come from `CityPlan.parking_offset()` / `lane_center()`: the parking
   lane was 4.4 m wide and the kerb-side traffic lane ran 13 cm from the parked cars, so traffic
   plowed through them.
+- Suspension and weight (wave 9, docs/HANDOFF.md "Suspension and weight"): `DriveSuspension`
+  (`scripts/vehicles/drive_suspension.gd`, one hook in Vehicle's driver setter) re-springs the
+  player's car once when he gets in: Godot's wheel spring and damper are per unit of chassis mass,
+  so springs by frequency (k = PI^2 f^2, `PROFILES` per class, 1.15-1.9 Hz) and dampers by ratio
+  (c = zeta sqrt(k)); the rest length and travel grow by the extra sag (ride height and bump stop
+  kept). The centre of mass sits at a real height; the tyres' side force acts `lever` under it
+  (`wheel_roll_influence` may go negative: Godot measures it from the body ORIGIN). Anti-roll bars
+  and a roll guard as impulses, a kerb assist (a body contact under `KERB_HEIGHT` gives back the
+  speed it took and lifts that corner), a sprung drawn lean of the BodyModel (`LEAN_*`).
+  `DRIVE_SUSPENSION=0` / `DRIVE_LEAN=0` / `DRIVE_KERB=0` the A/Bs; probe `tools/drive_weight/probe.tscn`
+  (`SHOT=` stills); checks `tests/drive_weight_checks.gd`.
 - Car damage (roadmap #10): `CarDamage` (`scripts/vehicles/car_damage.gd`), a node the car makes
   on its FIRST hit - an undamaged car has none, keeps the shared `car_paint.gdshader`, its body's
   shared cabin glass and the model's own lamp materials, and costs what it did (the only per-car addition is

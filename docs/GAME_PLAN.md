@@ -4947,3 +4947,10 @@ none of either.
   SwiftShader browser and are left as they are (not root-caused, unverified on a real GPU, a
   web-only workaround would be blind); the probe tools stay for the next pass. The web bookmarks
   now include four wave 5-8 night / weather views.
+- **2026-11-07 Suspension and weight of the player's car (drive-weight, HANDOFF "Suspension and
+  weight").** Springs are tuned by frequency and damping ratio per class (Godot scales them by the
+  chassis mass), keeping the ride height; the physics roll stays on a short lever so no car flips
+  in a corner whatever the grip, and the drama (dive, squat, lean) is added as a sprung, saturating
+  lean of the drawn body, the way arcade-realism games exaggerate weight transfer without making
+  the car tippy. A kerb that only the body's square edge catches gives the speed back.
+  DRIVE_SUSPENSION=0 / DRIVE_LEAN=0 / DRIVE_KERB=0 the A/Bs.

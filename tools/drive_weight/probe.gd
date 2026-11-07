@@ -5,7 +5,9 @@ extends Node3D
 ##   godot --headless --path . res://tools/drive_weight/probe.tscn -- --types=0,8,1,3 \
 ##       --scen=drop,stop,lane,corner,kerb
 ##
-## DRIVE_SUSPENSION=0 is the before. Prints one line per (type, scenario) with the numbers:
+## DRIVE_SUSPENSION=0 is the before. SHOT=<prefix> (under opengl3 + Xvfb, not --headless) adds a
+## ground, a sun and a camera and saves <prefix>_<type>_<scen>.png at the scenario's peak (stop:
+## the deepest dive, side on; corner: two seconds in, from behind; launch: the deepest squat). Prints one line per (type, scenario) with the numbers:
 ##   drop:   a 1 m drop onto the wheels - peak g, bounces (vertical velocity sign flips), settle s
 ##   stop:   a full stop from 100 km/h - stopping distance, peak nose-down pitch, pitch settle s
 ##   launch: full throttle from rest for 2 s - peak squat (nose-up pitch)
@@ -19,6 +21,8 @@ var _types: Array = [0, 8, 1, 3]
 var _scens: Array = ["drop", "stop", "launch", "lane", "corner", "kerb"]
 var _ground: StaticBody3D
 var _driver: Node3D
+var _shot: String = OS.get_environment("SHOT")
+var _cam: Camera3D
 
 
 func _ready() -> void:
@@ -37,6 +41,30 @@ func _ready() -> void:
 	cs.position = Vector3(0, -1, 0)
 	_ground.add_child(cs)
 	add_child(_ground)
+	if _shot != "":
+		var mi := MeshInstance3D.new()
+		var pm := PlaneMesh.new()
+		pm.size = Vector2(400, 400)
+		var mat := StandardMaterial3D.new()
+		mat.albedo_color = Color(0.32, 0.32, 0.33)
+		pm.material = mat
+		mi.mesh = pm
+		add_child(mi)
+		var sun := DirectionalLight3D.new()
+		sun.rotation_degrees = Vector3(-50, -30, 0)
+		sun.shadow_enabled = true
+		add_child(sun)
+		var env := WorldEnvironment.new()
+		env.environment = Environment.new()
+		env.environment.background_mode = Environment.BG_COLOR
+		env.environment.background_color = Color(0.62, 0.72, 0.85)
+		env.environment.ambient_light_color = Color(0.6, 0.65, 0.7)
+		env.environment.ambient_light_energy = 0.8
+		add_child(env)
+		_cam = Camera3D.new()
+		_cam.fov = 40.0
+		add_child(_cam)
+		_cam.current = true
 	_driver = Node3D.new()
 	_driver.name = "ProbeDriver"
 	add_child(_driver)
@@ -63,6 +91,28 @@ func _make_car(type: int, at: Vector3, yaw: float) -> Vehicle:
 	car.rotation.y = yaw
 	add_child(car)
 	return car
+
+
+## Frames the camera on the car: `side` (from its right, level) or `rear` (behind, a little up).
+func _frame(car: Vehicle, view: String) -> void:
+	if _cam == null:
+		return
+	var b := car.global_basis
+	var c := car.global_position + Vector3(0, 0.3, 0)
+	if view == "side":
+		_cam.global_position = c + b.x * 9.0 + Vector3(0, 0.6, 0)
+	else:
+		_cam.global_position = c + b.z * 6.5 + b.x * 1.5 + Vector3(0, 0.7, 0)
+	_cam.look_at(c, Vector3.UP)
+
+
+func _snap(car: Vehicle, scen: String, view: String) -> void:
+	if _cam == null:
+		return
+	_frame(car, view)
+	await RenderingServer.frame_post_draw
+	var img := get_viewport().get_texture().get_image()
+	img.save_png("%s_%d_%s.png" % [_shot, car.body_type, scen])
 
 
 func _ticks(n: int) -> void:
@@ -95,24 +145,28 @@ func _settle(car: Vehicle) -> float:
 func _scenario(type: int, scen: String) -> void:
 	_release_all()
 	var ground_extra: Array = []
-	if scen == "kerb":
+	var kerb_h := 0.25 if scen == "kerb_high" else 0.15
+	var kerb_v := 2.8 if scen == "kerb_slow" else 8.33
+	if scen.begins_with("kerb"):
 		# A kerb along x at z = -20: a 0.15 m step up to a pavement 8 m wide.
 		var kb := StaticBody3D.new()
 		kb.collision_mask = 0
 		var c := CollisionShape3D.new()
 		var b := BoxShape3D.new()
-		b.size = Vector3(200, 0.15, 8)
+		b.size = Vector3(200, kerb_h, 8)
 		c.shape = b
-		c.position = Vector3(0, 0.075, -24)
+		c.position = Vector3(0, kerb_h * 0.5, -24)
 		kb.add_child(c)
 		add_child(kb)
 		ground_extra.append(kb)
 	var yaw := 0.0
-	if scen == "kerb":
+	if scen.begins_with("kerb"):
 		yaw = deg_to_rad(70.0) # nose -Z turned 70 deg: meets the kerb at 20 degrees
-	var car := _make_car(type, Vector3(0, 1.2, -13.0 if scen == "kerb" else 0.0), yaw)
+	var car := _make_car(type, Vector3(0, 1.2, (-17.0 if scen == "kerb_slow" else -13.0) if scen.begins_with("kerb") else 0.0), yaw)
 	var rest_y := await _settle(car)
 	var rest_pitch := _pitch(car)
+	if OS.get_environment("DW_DEBUG") == "1":
+		print("DWMETA ", Vehicle.BODY_NAMES[type], " ", car.get_meta("drive_suspension", {}), " hubs ", car.wheels.map(func(w): return snappedf(w.position.y, 0.001)), " r ", car.wheels[0].wheel_radius if car.wheels.size() > 0 else 0.0)
 	var out := ""
 	match scen:
 		"drop":
@@ -167,9 +221,15 @@ func _scenario(type: int, scen: String) -> void:
 			Input.action_press("move_back")
 			var peak := 0.0
 			var vis := 0.0
+			var shot_best := 0.0
 			var t := 0
 			while car.linear_velocity.dot(fwd) > 0.5 and t < 600:
 				await _ticks(1)
+				var dv := _pitch(car) - rest_pitch + _lean(car).y
+				if _cam != null and dv < shot_best:
+					shot_best = dv
+					if t > 10 and t % 3 == 0:
+						await _snap(car, scen, "side")
 				peak = minf(peak, _pitch(car) - rest_pitch)
 				vis = minf(vis, _lean(car).y)
 				t += 1
@@ -234,6 +294,8 @@ func _scenario(type: int, scen: String) -> void:
 				for w in car.wheels:
 					if not w.is_in_contact():
 						lift += 1
+				if i == 120:
+					await _snap(car, scen, "rear")
 				if i >= 90:
 					rolls += _roll(car)
 					var v := car.linear_velocity
@@ -242,22 +304,24 @@ func _scenario(type: int, scen: String) -> void:
 			Input.action_release("move_right")
 			Input.action_release("move_forward")
 			out = "steady_roll_deg=%.2f max_roll_deg=%.2f drawn_extra=%.2f lat_g=%.2f wheel_lift_ticks=%d speed=%.1f upright=%.2f" % [rolls / n, maxroll, visr, lats / n, lift, car.linear_velocity.length(), car.global_basis.y.y]
-		"kerb":
+		"kerb", "kerb_slow", "kerb_high":
 			var fwd := -car.global_basis.z
-			car.linear_velocity = fwd * 8.33
+			car.linear_velocity = fwd * kerb_v
 			car.hold_crash_watch(3)
 			Input.action_press("move_forward")
 			# Hold 30 km/h: throttle off once over.
-			var v0 := 8.33
+			var v0 := kerb_v
 			var peak_g := 0.0
 			var vyp := 0.0
 			var t_hit := -1
 			var min_v := 99.0
 			var yaw0 := car.rotation.y
 			var yawkick := 0.0
-			for i in 360:
+			car.contact_monitor = true
+			car.max_contacts_reported = 8
+			for i in 600:
 				await _ticks(1)
-				if car.linear_velocity.dot(fwd) > 8.4:
+				if car.linear_velocity.dot(fwd) > kerb_v + 0.05:
 					Input.action_release("move_forward")
 				elif not Input.is_action_pressed("move_forward"):
 					Input.action_press("move_forward")
@@ -266,14 +330,17 @@ func _scenario(type: int, scen: String) -> void:
 				vyp = vy
 				if t_hit < 0 and car.global_position.z < -18.0:
 					t_hit = i
-				if t_hit >= 0 and i < t_hit + 60:
+				if t_hit >= 0 and i < t_hit + (240 if scen == "kerb_slow" else 60):
 					min_v = minf(min_v, car.linear_velocity.length())
 					yawkick = maxf(yawkick, absf(rad_to_deg(wrapf(car.rotation.y - yaw0, -PI, PI))))
-				if t_hit >= 0 and i >= t_hit + 60:
+				if OS.get_environment("DW_DEBUG") == "1" and t_hit >= 0 and i < t_hit + 60 and i % 3 == 0:
+					print("DWDBG kerb i=%d v=%.2f vy=%.2f contacts=%d comp=%s pitch=%.1f roll=%.1f" % [i - t_hit, car.linear_velocity.length(), car.linear_velocity.y, car.get_contact_count(), str(car.wheels.map(func(w): return w.is_in_contact())), _pitch(car), _roll(car)])
+				if t_hit >= 0 and i >= t_hit + (240 if scen == "kerb_slow" else 60):
 					break
 			Input.action_release("move_forward")
 			var on_top := car.global_position.y > rest_y + 0.1
-			out = "min_speed_after=%.2f (of %.2f) peak_vert_g=%.2f yaw_kick_deg=%.2f on_pavement=%s z=%.1f" % [min_v, v0, peak_g, yawkick, on_top, car.global_position.z]
+			var ds := car.get_node_or_null(^"DriveSuspension")
+			out = "min_speed_after=%.2f (of %.2f) peak_vert_g=%.2f yaw_kick_deg=%.2f on_pavement=%s z=%.1f steps=%d" % [min_v, v0, peak_g, yawkick, on_top, car.global_position.z, ds.kerb_steps if ds else -1]
 	print("DW %-8s type=%-2d %s  %s" % [scen, type, Vehicle.BODY_NAMES[type], out])
 	car.driver = null
 	car.queue_free()
