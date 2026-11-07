@@ -33276,3 +33276,66 @@ Foliage cells, judged on the Mac (FOLIAGE_CELLS=1 FOLIAGE_CELL=48 / 64). (3) The
 (no LODs, 0.28-0.36 M shadow at the aerials). (4) Trash-bag piles (0.1 M, code mesh, no LOD or
 light twin). (5) Not looked at on Forward+ (geometry-only cuts; the canopy's level is the only
 shape change and it is under a pixel by construction).
+
+## 9d?. The drive train (wave 9, drive-engine)
+
+The owner: the car "doesn't accelerate properly". The player's car is now driven through a torque
+curve and a gearbox per class of body (`DriveTrain`, `scripts/vehicles/drive_train.gd`). Traffic,
+police, emergency and parked cars keep Vehicle's old push (they never call it).
+
+### What was wrong (measured, `tools/drive_engine/probe.tscn`, DRIVETRAIN=0)
+
+Every car body - sedan, van, hypercar, lowrider - had the same 1,200 kg and the same 7,000 N per
+driven wheel, faded linearly to nothing at `top_speed` 55 m/s. On top of that **Godot damps every
+rigid body's velocity**: the project default 0.1/s combined with the car's own `linear_damp` 0.05
+is 0.15/s, which is 4.5 m/s2 at 30 m/s and 6 m/s2 at 40 m/s. The result: a 0-100 km/h in 2.0 s
+(a wheel-spinning 1.4 g launch) and then a car that stops pulling at ~120 km/h and never passes
+146 km/h, whatever the body. Lifting off was 5 m/s2 (half a brake, all damping). Reverse never
+faded: 270 km/h backwards. Buses and trucks (heavier, `BigVehicles.tune()`): 87 km/h, every one.
+
+### The model
+
+- A spec per CLASS (`SPECS`, `class_of()`): compact, sedan, lux, truck, van, muscle, super, hyper,
+  lowrider, police, medium / heavy diesels, bus, three motorcycles. Power is per kilogram
+  (`pkw`), so whatever mass the suspension or impacts sessions give a body, its class keeps its
+  pull.
+- Gears are EngineAudio's (`gear_k()` on the profile, with the spec's own `first` / `gtop`
+  speeds), and the gear and rpm ARE `EngineAudio.step_engine()` run on the car's state (meta
+  `drive_train`). The engine voice reads that state for the player's car (`DriveTrain.feeds()`,
+  one branch in `Voice.tick`), so the shift you hear is the shift you feel.
+- F = P_peak x torque(x) x k / (m x redline): x = rpm / redline, k = rpm per m/s in the gear, m =
+  max of torque(x) x (so P_peak is exactly the peak power). Pulling away the clutch slips at
+  `launch` of the redline and the force is capped at `grip` g. A shift keeps `SHIFT_PULL` (0.35) of
+  the pull for EngineAudio's 0.24 s throttle cut.
+- Drag is solved per car (`drag_for()`) so full throttle in the best gear balances it at the
+  class `top` exactly; the top gear's limiter cuts past the redline.
+- Godot's damping is handed back on the ground (`damping()`, the body's `total_linear_damp`): the
+  drive train's drag is the car's whole air resistance.
+- Off the throttle: engine braking (`eb` x x^2 in the gear) + rolling resistance + `COAST_DRAG`
+  (0.5) of the drag, through Godot's `brake` (a rolling-friction impulse that only resists motion),
+  or a small forward push where the damping alone would slow it more.
+- Reverse: `rev_top` m/s per class (sedan 40 km/h), a gentle launch.
+- Nitro: `BOOST_TORQUE` 2.6 x torque, `BOOST_GRIP` 1.9 x the launch cap, `BOOST_DRAG` 0.4, the top
+  gear's limiter fades off. It still roughly halves 0-100 and adds 40 % top speed - the old boost
+  (0-100 in 0.9 s, 368 km/h in every body) is gone on purpose: tune these three if the owner
+  misses it.
+- `engine_power` is set to the current full-throttle force per wheel while the player drives
+  (DrivingFX reads the pedal as engine_force / engine_power for the burnout, shimmer and backfire)
+  and is put back by `driver_changed()` (the driver setter) when he gets out.
+
+### Numbers (probe, flat slab, `--fixed-fps 60`, all bodies at once; km/h, s, m/s2)
+
+BEFORE_AFTER_TABLE
+
+### Tuning knobs (most likely to change)
+
+`SPECS[cls].pkw` (pull), `.top` (top speed), `.grip` (launch g), `.first` / `.gtop` (gear
+spacing), `.eb` (engine braking), `.rev_top`; `BOOST_TORQUE`, `BOOST_GRIP`, `BOOST_DRAG`;
+`COAST_DRAG`; `SHIFT_PULL`. `tools/drive_engine/sim.tscn` prints the pure model for every class in
+two seconds; the probe confirms on the physics (`PROBE_TYPES=`, `PROBE_BOOST=1`, `PROBE_LOG=1`).
+
+### Not done / not verified
+
+- Feel on the Mac (headless numbers only). Steering, grip, drift, suspension are other sessions'.
+- Traffic / police physics cars keep the old push (police PURSUE is drive-assist's).
+- The damping hand-back is the player's car only; anything else physical still feels 0.15/s.

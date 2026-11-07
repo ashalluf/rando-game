@@ -2521,6 +2521,17 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   (`tools/glshot/drive_fx_stage.gd`: a car driven badly in front of the camera). Checks:
   `tests/driving_fx_checks.gd`. Trap: `ensure()` is called by every car a chunk builds in one
   frame and the add is deferred, so "made but not yet added" must count as made (it made dozens).
+- The drive train (wave 9, docs/HANDOFF.md "The drive train"): `DriveTrain`
+  (`scripts/vehicles/drive_train.gd`, one hook after the throttle lines in Vehicle and Motorcycle
+  `_physics_process`, one in the driver setter) drives the PLAYER's car only: per class (`SPECS`,
+  `class_of()`) peak W/kg, a torque curve through EngineAudio's gears (`gear_k`), the gear and
+  revs EngineAudio's own `step_engine()` on the car's state (meta `drive_train`; the voice reads
+  it, `feeds()`), drag solved so full throttle balances at the class `top`, engine braking through
+  `brake`, reverse at `rev_top`, nitro (`BOOST_*`). **Godot damps every body 0.15/s** (project 0.1 +
+  the car's 0.05; 4.5 m/s2 at 30 m/s): the drive train hands it back on the ground (`damping()`).
+  It sets `engine_power` to the current full-throttle force (DrivingFX reads the pedal against it)
+  and puts it back on exit. `DRIVETRAIN=0` the A/B; probe `tools/drive_engine/probe.tscn` (every
+  body, `--fixed-fps 60`), `sim.tscn` (the pure model); checks `tests/drive_engine_checks.gd`.
 - Car panic (2026-10-05, docs/HANDOFF.md "Drivers react to chaos"): `CarPanic`
   (`scripts/npc/car_panic.gd`) hears `Pedestrian.alarm()` and gives street traffic drivers in
   reach a reaction (BRAKE, SWERVE, KERB only where `kerb_clear()`, REVERSE with `traffic.rev`
