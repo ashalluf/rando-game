@@ -73,8 +73,8 @@ func run(t: Node, player: Node) -> void:
 	await _reach(10.0)
 	_steer(1.0)
 	await _ticks(30)
-	var old := -1.0 * _car.max_steer * lerpf(1.0, _car.steer_min_factor,
-		clampf(absf(_speed()) / (_car.steer_full_speed * 3.0), 0.0, 1.0))
+	var old: float = -1.0 * (_car.steer_lock(_speed()) if Vehicle.drive_fix else _car.max_steer * lerpf(1.0, _car.steer_min_factor,
+		clampf(absf(_speed()) / (_car.steer_full_speed * 3.0), 0.0, 1.0)))
 	_check(absf(_car._steer_target - old) < 0.02, "DRIVE_HANDLING off steers by the old line (%.3f vs %.3f)" % [_car._steer_target, old])
 	DriveHandling.enabled = true
 	_release_all()
