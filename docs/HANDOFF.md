@@ -33358,7 +33358,13 @@ own script is held off and its brake set by hand). An oddity left open: on the g
 sedan comes to rest 2.7 cm lower after the drop than before it (the hubs read the same); the probe
 on a bare ground box shows 0.0 cm, so the check only asks for stillness and within 4 cm.
 
-**Not done.** Not felt on the Mac. Not measured with drive-fix / drive-steer / drive-engine merged
-(their grip and torque change every number above except the drop; the lean saturates, the levers
-keep the margins). Kerbs in the city are Kerbs.gd trimesh rings, only the probe's box kerb is
+**With drive-fix merged** (its steer lock holds the car to ~1.7 g sideways), same probe,
+`--fixed-fps 60`: sedan / crossover / pickup drop 1 bounce in 1.43 / 1.10 / 1.50 s; hard stop
+nose -2.97 / -3.77 / -3.01 deg (+2.17 drawn); launch squat 3.7 / 4.7 / 3.5 deg; lane change at
+80 peak roll 1.8 / 1.6 / 2.1 deg with no wheel lifting; steady corner 1.4 / 1.2 / 1.4 deg body
+roll + 3.1 drawn; 25 cm kerb at 30 km/h keeps 8.33 / 7.05 / 8.33 m/s.
+
+**Not done.** Not felt on the Mac. Not measured with drive-steer / drive-engine merged (their grip
+and torque change every number above except the drop; the lean saturates, the levers keep the
+margins). Kerbs in the city are Kerbs.gd trimesh rings, only the probe's box kerb is
 measured. The trailer of a semi and the bus's rigid hitch are not leaned.
