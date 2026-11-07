@@ -33330,3 +33330,9 @@ lock at speed), `key_in*` / `key_out` (keyboard feel), `assist_gain` (how hard i
 Not done: the owner's "cannot turn right" is not reproduced on a flat slab (drive-fix owns it; the
 handling is odd in the input by construction). Motorcycles, boats, aircraft and the helicopter keep
 their own steering. Not felt on the Mac.
+
+**With drive-fix merged** (wt/drive-fix 30b171f6): its two-axis input (`get_axis`, so W+D no longer
+cuts steer to 71 %) reaches `DriveHandling.steer()` unchanged, and while DriveHandling is on its own
+`lock_at()` (also grip-limited, but by the tyres DriveHandling sets) replaces `Vehicle.steer_lock()`.
+With `DRIVE_HANDLING=0` the car steers by drive-fix's line (`DRIVE_FIX=0` as well: main's). The probe
+reads the same numbers to the decimal after the merge.
