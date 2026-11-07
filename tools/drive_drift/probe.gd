@@ -123,7 +123,7 @@ func _scenario(t: int, sc: String) -> void:
 	var r := {"type": Vehicle.BODY_NAMES[t], "scen": sc}
 	var dt := 1.0 / 60.0
 	# Lambdas capture locals by value: the accumulators live in a dictionary.
-	var m := {"max_slip": 0.0, "slide_s": 0.0, "spun": false, "peak_yaw": 0.0, "lat_g": 0.0}
+	var m := {"max_slip": 0.0, "slide_s": 0.0, "spun": false, "peak_yaw": 0.0, "min_up": 1.0}
 	var h0 := 0.0
 	var v0 := 0.0
 	var turned := 0.0
@@ -131,6 +131,7 @@ func _scenario(t: int, sc: String) -> void:
 	var acc := func() -> void:
 		var s := absf(_slip())
 		m.max_slip = maxf(m.max_slip, s)
+		m.min_up = minf(m.min_up, car.global_basis.y.y)
 		m.peak_yaw = maxf(m.peak_yaw, absf(rad_to_deg(car.angular_velocity.y)))
 		if s > 15.0 and _speed() > 2.0:
 			m.slide_s += dt

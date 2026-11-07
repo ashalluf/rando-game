@@ -33307,8 +33307,11 @@ Modes:
   throttle the same is a tight drift round a hairpin); reversing it is always a J-turn. Turned at
   `SPIN_RATE`, it stops at `SPIN_TURN` 170 degrees and finishes even if the handbrake is let go.
 - POWER (rear-driven bodies, `RWD`: sports, exotics, muscle, coupe, classic, lowriders): `RWD_REAR`
-  0.8 of the engine force on the rear wheels, and full throttle with over half lock between 3 and
-  24 m/s lets the rear step out to `POWER_ANGLE` 25 degrees (at full lock it is a donut).
+  0.8 of the engine force on the rear wheels, and full throttle with over half lock between
+  `POWER_MIN_SPEED` 6 and 24 m/s lets the rear step out to `POWER_ANGLE` 25 degrees (at full lock
+  it is a donut). The front goes light with it (`FRONT_POWER_GRIP` 0.3): with drive-fix's
+  grip-limited steer lock merged, a front tyre at mu 10 sliding sideways rolled the car over. Off
+  the throttle the slide grips back over `RECOVER_SPAN` 25 degrees of slip, not at once.
 The steer and throttle are read off the raw actions: `Input.get_vector()` clamps the stick to a
 circle, so W + D on a keyboard reads 0.71 throttle and 0.71 steer (noted for drive-fix /
 drive-controls: every keyboard turn is at 71 % throttle on main). Whatever else writes a wheel's
@@ -33317,18 +33320,18 @@ impulses x step (VehicleBody3D clears its force accumulator). DrivingFX's rear-t
 thicker in a drift and the front's thinner (`fx_smoke()`); the marks already follow the slide.
 `DRIVE_DRIFT=0` is the A/B.
 
-**Numbers** (probe, before -> after; sedan / sports; 80 km/h, handbrake and lock 0.5 s, throttle
+**Numbers** (probe with wt/drive-fix merged, before -> after; sedan / sports; 80 km/h, handbrake and lock 0.5 s, throttle
 with the stick centred 2 s, counter-steer 1 s):
 
 | | main | DriveDrift |
 | --- | --- | --- |
-| max slip angle, flick | 3.5 / 3.4 deg | 41 / 41 deg (left = right) |
+| max slip angle, flick | 3.5 / 3.4 deg | 41 / 42 deg (left = right) |
 | seconds over 15 deg, held | 0 / 0 | 2.0 / 2.0 (slip 36 deg at 2 s) |
-| speed kept after the hold | (no drift) | 71 / 69 % |
-| slip after counter-steer 1 s | - | 0.3 / 0.4 deg |
+| speed kept, mid-drift / after grip-up | (no drift) | 65 / 63 %, back to 112 / 106 % |
+| slip after counter-steer 1 s | - | 0.04 / 0.03 deg |
 | handbrake + full lock from 54 km/h | turned 74 deg, stopped | turned 170 deg |
 | J-turn from 40 km/h reversing | turned 28 deg | turned 191 deg, off at 21 m/s |
-| full throttle + lock at 32 km/h | 6.3 / 6.0 deg | 6.3 (AWD sedan unchanged) / 39 deg |
+| full throttle + lock at 32 km/h | 6.3 / 6.0 deg | 8.8 (AWD sedan) / 28 deg, never rolls |
 | 0-100 km/h | 2.77 / 2.62 s | 2.77 / 2.67 s (the sports car's rear split) |
 Every other body (crossover, hatchback, van, pickup, lowrider, coupe, luxury SUV) lands within a
 few degrees of these; the van and SUV hold 34-35 degrees. At 126 km/h the drift holds 36 degrees,

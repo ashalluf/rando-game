@@ -79,6 +79,9 @@ const YAW_MAX_ACC := 30.0
 ## Under this angle (degrees) or this speed (m/s) a drift ends and the grip comes back.
 const EXIT_ANGLE := 7.0
 const EXIT_SPEED := 4.0
+## A drift that ends with the slip this far over EXIT_ANGLE (degrees) keeps the rear light until
+## the angle comes down, rather than hooking up at once.
+const RECOVER_SPAN := 25.0
 ## Seconds for the grip to come all the way back.
 const GRIP_RETURN := 0.5
 ## The controller works in full from this speed (m/s), and fades below it.
@@ -90,10 +93,12 @@ const RWD := [Vehicle.BodyType.SPORTS, Vehicle.BodyType.SUPER, Vehicle.BodyType.
 ## Share of the engine force on the rear wheels of an RWD body (the total is unchanged).
 const RWD_REAR := 0.8
 ## Power oversteer: full throttle and over half lock between these speeds (m/s).
-const POWER_MIN_SPEED := 3.0
+const POWER_MIN_SPEED := 6.0
 const POWER_MAX_SPEED := 24.0
 const POWER_GRIP := 0.22
 const POWER_ANGLE := 25.0
+## The front's grip while the rear is light outside a handbrake drift (power oversteer, recovery).
+const FRONT_POWER_GRIP := 0.3
 
 enum Mode { GRIP, HANDBRAKE, SPIN, HOLD, POWER }
 
@@ -295,9 +300,14 @@ static func step(car: Vehicle, delta: float, input: Vector2, airborne: bool) -> 
 			target_amount = 1.0
 		Mode.HOLD:
 			target_amount = clampf(0.3 + throttle, 0.0, 1.0)
+		Mode.GRIP:
+			# Recovering: stay in it while the slip is still big, so the grip comes back as the
+			# angle does (a rear that hooks at 50 degrees of slip rolls the car).
+			if s.amount > 0.05:
+				target_amount = clampf((abeta_deg - EXIT_ANGLE) / RECOVER_SPAN, 0.0, 1.0) * s.amount
 		Mode.POWER:
 			target_amount = clampf((throttle - 0.8) / 0.2, 0.0, 1.0) * clampf((absf(steer) - 0.5) / 0.3, 0.0, 1.0) \
-					* clampf((POWER_MAX_SPEED - spd) / 6.0, 0.0, 1.0)
+					* clampf((POWER_MAX_SPEED - spd) / 6.0, 0.0, 1.0) * clampf((spd - POWER_MIN_SPEED) / 3.0, 0.0, 1.0)
 	var rate := 8.0 if target_amount > s.amount else 1.0 / GRIP_RETURN
 	s.amount = move_toward(s.amount, target_amount, rate * delta)
 	# --- Grip per wheel: the trailing axle goes light.
@@ -313,12 +323,18 @@ static func step(car: Vehicle, delta: float, input: Vector2, airborne: bool) -> 
 					want = lerpf(1.0, lerpf(0.3, HOLD_GRIP, throttle), s.amount)
 				Mode.POWER:
 					want = lerpf(1.0, POWER_GRIP, s.amount)
+				Mode.GRIP:
+					want = lerpf(1.0, HOLD_GRIP, s.amount)
 		else:
 			match mode:
 				Mode.SPIN:
 					want = HB_GRIP
 				Mode.HANDBRAKE, Mode.HOLD:
 					want = lerpf(1.0, FRONT_GRIP, s.amount)
+				Mode.POWER, Mode.GRIP:
+					# Whenever the rear is light the front is too: at mu 10 a front tyre sliding
+					# sideways (the car rotating under it) rolled the car over.
+					want = lerpf(1.0, FRONT_POWER_GRIP, s.amount)
 		# Down fast, back up over GRIP_RETURN.
 		var r := 12.0 if want < s.grip[i] else 1.0 / GRIP_RETURN
 		s.grip[i] = move_toward(s.grip[i], want, r * delta)
@@ -339,7 +355,21 @@ static func step(car: Vehicle, delta: float, input: Vector2, airborne: bool) -> 
 				# The leading axle pulls on the throttle and rolls free without it.
 				w.brake = 0.0
 				w.engine_force = ef * 2.0
-	if airborne or mode == Mode.GRIP:
+	# The front may take full lock while it slides on FRONT_GRIP (Vehicle limits the lock at speed
+	# by the grip a gripping tyre has, which is the counter-steer a drift needs). Never with the
+	# front at full grip (POWER): full lock at mu 10 rolled the car over.
+	if (mode == Mode.HANDBRAKE or mode == Mode.HOLD) and not airborne:
+		for w in car.wheels:
+			if not _is_rear(w):
+				w.steering = lerpf(car.steering, -steer * car.max_steer, s.amount)
+	if airborne:
+		return
+	if mode == Mode.GRIP:
+		# Recovery: while the grip comes back the slip is still eased to none, or a slide that ran
+		# out of speed (a power slide at walking pace) carries on as a spin.
+		if s.amount > 0.05 and spd > 1.0 and absf(beta) > deg_to_rad(EXIT_ANGLE):
+			var acc := angle_acc(beta, 0.0, travel_rate, car.angular_velocity.y) * s.amount
+			car.apply_torque_impulse(Vector3.UP * acc * _inertia_y(car) * delta)
 		return
 	# --- Yaw: the slip-angle controller, or the spin.
 	var inertia := _inertia_y(car)
