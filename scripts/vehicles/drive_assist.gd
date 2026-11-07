@@ -146,6 +146,9 @@ static func player_tick(car: Vehicle, delta: float, handbrake: bool) -> void:
 	if handbrake or bool(car.get_meta("drift_active", false)):
 		car.set_meta("da_off", true)
 		car.set_meta("da_k", 0.0)
+		# A drift may slide but never roll the car over.
+		if not car.wheels.is_empty() and not car.is_airborne():
+			_roll(car, delta)
 		return
 	_stability(car, delta)
 

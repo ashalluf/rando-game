@@ -119,7 +119,8 @@ func _frame(car: Vehicle) -> Array:
 	var right := Vector3(-fwd.z, 0, fwd.x)
 	var vl := v.dot(fwd)
 	var vs := v.dot(right)
-	var beta := rad_to_deg(atan2(vs, maxf(absf(vl), 0.5)))
+	# Slip means nothing at a crawl (the last metre of a stop): only measured over 3 m/s.
+	var beta := rad_to_deg(atan2(vs, maxf(absf(vl), 0.5))) if Vector2(vl, vs).length() > 3.0 else 0.0
 	return [vl, vs, beta, fwd]
 
 
@@ -190,6 +191,8 @@ func _scenario(type: int, kind: String, v0: float) -> Dictionary:
 				t += dt
 				var f := _frame(car)
 				max_beta = maxf(max_beta, absf(f[2]))
+				if OS.get_environment("TRACE") == "1" and Engine.get_physics_frames() % 6 == 0:
+					print("TR t=%.2f v=%.1f beta=%.1f yaw=%.2f steer=%.3f br=%s k=%.2f roll=%.2f contact=%s skid=%s" % [t, f[0], f[2], car.angular_velocity.y, car.steering, str(car.wheels.map(func(w): return int(w.brake))), float(car.get_meta("da_k", 0.0)), car.global_basis.x.y, str(car.wheels.map(func(w): return int(w.is_in_contact()))), str(car.wheels.map(func(w): return snappedf(w.get_skidinfo(), 0.01)))])
 				if f[0] < 1.0:
 					break
 			r.t_stop = t

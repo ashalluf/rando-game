@@ -33276,3 +33276,70 @@ Foliage cells, judged on the Mac (FOLIAGE_CELLS=1 FOLIAGE_CELL=48 / 64). (3) The
 (no LODs, 0.28-0.36 M shadow at the aerials). (4) Trash-bag piles (0.1 M, code mesh, no LOD or
 light twin). (5) Not looked at on Forward+ (geometry-only cuts; the canopy's level is the only
 shape change and it is under a pixel by construction).
+
+## 9d?. Driving assists and AI-car parity (fleet wave 9 session `drive-assist`, branch `wt/drive-assist`; VISUAL_ROADMAP "?")
+
+**What it is.** `DriveAssist` (`scripts/vehicles/drive_assist.gd`, static, `DRIVE_ASSIST=0` the
+A/B), two hooks: one line after the steering in `Vehicle._physics_process` (`player_tick()`), and
+`PoliceCar._pursue` driving through `ai_drive()` (the old law kept under the switch).
+
+**What the probe found.** `tools/drive_assist/probe.tscn` (headless, `--fixed-fps 60`, a few
+minutes) drives a car on a flat slab with Input actions, every scenario twice (assist off / on).
+On main, ANY full-lock corner at 28 m/s (100 km/h) ended with the car at 88 degrees of slip and
+going backwards - for the sedan, sports car and crossover, left and right alike (the pickup, with
+its wider track, held). The trace (`TRACE=1`) shows it is not a spin: the inner wheels lift at
+0.2 s, the body rolls onto its side by 0.9 s (`basis.x.y` 0.98, all four wheels out of contact),
+`Vehicle._fly()` takes over after `flight_grace`, rights it and turns it to its own `_fly_yaw`. The
+cause is 4 g of tyre grip (`wheel_grip` 10.5) on a centre of mass 0.1 m over the axles. The same
+rollover is what made the old police law "spin" in a slalom and a U-turn (it steered full lock at
+any speed). Steering was symmetric left / right in every test here (the owner's "cannot turn right"
+is drive-fix's).
+
+**What the assist does.**
+- Roll stability (`ROLL_START` 0.05, `ROLL_GAIN` 6, `ROLL_CATCH` 14 rad/s per s): past ~3 degrees
+  of roll, or with a wheel off the road, the roll rate is pulled toward one that rights the car,
+  never past upright. Always on (also under the handbrake and a drift); the airborne car is left to
+  `_fly()`.
+- Stability control: slip angle judged `SLIP_LOOKAHEAD` 0.22 s ahead at its growth rate; from
+  `SLIP_START` 7 to `SLIP_FULL` 20 degrees (or yaw `YAW_MARGIN` over the bicycle model's) it cuts the
+  throttle to `TC_FLOOR` 0.3 and takes yaw out at `YAW_CORRECT` 6 rad/s per s. `LAT_LIMIT` 45 m/s2
+  caps the reference only near standstill: a cap at a real 1.1 g fought every gripping turn (the
+  first version slowed a 15 m/s corner from 89 to 52 deg/s). Off while the handbrake is held, under
+  meta `drift_active` (for drive-drift), and after a handbrake slide until the slip is back under
+  `RESUME_SLIP` 6 degrees, so a held drift stays a drift.
+- ABS: a steered wheel whose skid info falls under `ABS_SKID` 0.9 under the foot brake gets
+  `ABS_RELEASE` 0.45 of the brake that tick. (A front-brake share given up to the steering was tried
+  and measured worse: it turned less.)
+- `ai_drive(car, ang, want, delta, cornering)`: the lock limited by speed to `AI_LAT` 22 m/s2
+  (`ai_steer_limit()`), `AI_GAIN` 2.0 per radian of heading error, yaw damping `AI_YAW_DAMP` 0.12,
+  slowed toward `AI_TURN_SPEED` 8 m/s for a 90-degree error (not during PoliceChase's manoeuvres,
+  which also get 1.6x the lock), then the same stability control. PoliceCar's nitro, reverse and
+  stuck logic are as they were.
+
+**Numbers (probe, assist off -> on; yaw deg/s, slip deg).**
+
+| case | off | on |
+|---|---|---|
+| sedan full lock 15 m/s | 89.5 yaw, 3.9 g, slip 5.1 | 90.5, 4.0 g, 4.9 (untouched) |
+| sedan full lock 28 m/s (R and L) | rolled, slip 88, ends -3 m/s | 88 yaw, 4.6 g, slip 2.8, 30 m/s |
+| sports 28 m/s | rolled, slip 88 | 91 yaw, 4.7 g, slip 2.8 |
+| crossover 28 m/s | rolled, slip 88 | 96 yaw, 5.0 g, slip 2.6 |
+| sedan nitro corner 20 m/s | slip 85, rolled | slip 3.3, 38 m/s out |
+| sedan lift-off at 26 m/s | rolled, slip 88 | slip 7.4 |
+| crossover brake + full left from 28 | 2.33 s, 23.3 m, slip 26 | 1.55 s, 18.4 m, slip 9 |
+| sedan, weak rear tyre (`FLAT=1`), brake + turn | 2.22 s, slip 20 | 1.58 s, slip 9.8 |
+| police law, slalom 22 m/s (6 gates 30 m apart) | 6 gates, slip 67 (rolled) | 6 gates, slip 7.9, 10 m further |
+| police law, U-turn from 18 m/s | 1.9 s, slip 82 (rolled round) | 2.4 s, slip 14 |
+
+Acceleration is untouched (0-100 km/h 2.13 s for every body type: they all share mass 1200 and
+`engine_power` 7000 - drive-engine's). Left and right are mirror images to the decimal.
+
+**For the other wave-9 sessions.** drive-weight: the pickup lifts its REAR wheels for over a second
+under hard braking from 100 km/h (a stoppie; trace with `TYPES=1 ONLY=brake TRACE=1`), and the
+rollover's root is the centre of mass vs grip - the assist is the safety net, not the cure.
+drive-drift: set meta `drift_active` on the car while your drift owns it. drive-steer: speed-
+sensitive steering will make the stability control step in less; nothing here writes steering.
+
+**Tunables most likely to need the owner's feel:** `SLIP_START` / `SLIP_FULL` (how early a slide
+is caught), `TC_FLOOR` (how much throttle survives), `YAW_CORRECT`, `ROLL_CATCH`, `AI_LAT` (how
+hard the police corner). Checks: `tests/drive_assist_checks.gd` (13).

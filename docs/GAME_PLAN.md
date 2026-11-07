@@ -3829,6 +3829,13 @@ already mapped so milestone 2 is script-only.
   (fronts meet where their neighbours are fronts), not banks standing apart with slots between.
   RC5_HISTORIC=0 is the A/B.
 
+- **2026-11-07, driving assists (wave 9, drive-assist).** The player's car gets a light assist that
+  a 2026 open-world game has: it never rolls in a flat corner, a slide is caught by its slip angle
+  with a throttle cut and a gentle yaw correction, and ABS lets a braking car turn. It stands aside
+  for the handbrake and for a drift (meta `drift_active`, or until a handbrake slide is over). The
+  AI's physical cars (PoliceCar._pursue) drive through the same law: a lock limited by speed, yaw
+  damping, slowing for corners. DRIVE_ASSIST=0 is the A/B.
+
 ## Correction: what build 135 (0ce833f) actually contained
 
 That commit's subject says "denser grass, real palm fronds, finer ground". It also shipped a

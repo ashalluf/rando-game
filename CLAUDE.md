@@ -2521,6 +2521,16 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   (`tools/glshot/drive_fx_stage.gd`: a car driven badly in front of the camera). Checks:
   `tests/driving_fx_checks.gd`. Trap: `ensure()` is called by every car a chunk builds in one
   frame and the add is deferred, so "made but not yet added" must count as made (it made dozens).
+- Driving assists (wave 9, docs/HANDOFF.md "Driving assists and AI-car parity"): `DriveAssist`
+  (`scripts/vehicles/drive_assist.gd`, one hook after the player's steering in
+  `Vehicle._physics_process`, one in `PoliceCar._pursue`): roll stability (`ROLL_*`: the 4 g tyres on
+  a 0.1 m centre of mass rolled a car onto its side in a full-lock corner, and `_fly()` then spun it),
+  slip-based stability control (`SLIP_*`, `TC_FLOOR`, `YAW_CORRECT`; off while the handbrake is held,
+  under meta `drift_active`, and until a handbrake slide ends), ABS on the steered wheels, and
+  `ai_drive()` for physical AI cars (`AI_LAT`, `AI_GAIN`, `AI_TURN_SPEED`). A driverless test car needs
+  its own `_physics_process` (the base one zeroes the pedals each tick). `DRIVE_ASSIST=0` is the A/B;
+  probe `tools/drive_assist/probe.tscn` (`TYPES=`, `ONLY=`, `FLAT=1`, `TRACE=1`); checks
+  `tests/drive_assist_checks.gd`.
 - Car panic (2026-10-05, docs/HANDOFF.md "Drivers react to chaos"): `CarPanic`
   (`scripts/npc/car_panic.gd`) hears `Pedestrian.alarm()` and gives street traffic drivers in
   reach a reaction (BRAKE, SWERVE, KERB only where `kerb_clear()`, REVERSE with `traffic.rev`
