@@ -111,6 +111,7 @@ class State extends RefCounted:
 	var spin_from: float = 0.0 ## heading a spin started at
 	var spin_sign: float = 0.0
 	var active: bool = false
+	var hb_was: bool = false ## the handbrake last tick: a fresh press starts a new move
 
 
 static func state_of(car: Vehicle) -> State:
@@ -251,6 +252,9 @@ static func step(car: Vehicle, delta: float, input: Vector2, airborne: bool) -> 
 	var heading := car.global_rotation.y
 	var rwd := RWD.has(car.body_type)
 	# --- The mode.
+	if hb and not s.hb_was and s.mode == Mode.SPIN and _spin_done(car, s):
+		s.mode = Mode.GRIP # a finished 180, then the handbrake again: a new move
+	s.hb_was = hb
 	var mode := s.mode
 	if airborne:
 		mode = Mode.GRIP if s.mode != Mode.SPIN else Mode.SPIN

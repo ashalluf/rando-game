@@ -135,6 +135,7 @@ func _live(player: Player) -> void:
 	_check(absf(rad_to_deg(turned)) > 150.0 and absf(rad_to_deg(turned)) < 215.0,
 		"a handbrake turn at full lock from 54 km/h turns the car round (%.0f deg)" % rad_to_deg(turned))
 	# The J-turn: reversing at 40 km/h, a flick of lock and the handbrake, then drive.
+	await _ticks(20) # let go of everything between the two moves
 	_set_speed(car2, -11.0)
 	turned = 0.0
 	last = car2.global_rotation.y
