@@ -570,6 +570,7 @@ var driver: Node3D:
 			_npc_driver = false
 		_update_occupant()
 		CarInteriors.driver_changed(self, v)
+		DriveSuspension.driver_changed(self, v) # springs, weight, anti-roll (scripts/vehicles/drive_suspension.gd)
 ## How close the player has to be to get in (meters from the origin; big for aircraft).
 var enter_radius: float = 4.5
 ## Traffic state while driven by the TrafficManager (empty otherwise). A car given traffic gets a
