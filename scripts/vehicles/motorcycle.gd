@@ -748,6 +748,7 @@ func _physics_process(delta: float) -> void:
 	else:
 		engine_force = 0.0
 		brake = 0.6
+	DriveTrain.drive(self, throttle, speed, boosting, delta) # the gearbox (scripts/vehicles/drive_train.gd)
 	if Input.is_action_pressed("alt_fire"):
 		brake = handbrake_force
 	_jump_timer = maxf(_jump_timer - delta, 0.0)

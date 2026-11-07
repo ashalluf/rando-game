@@ -591,6 +591,13 @@ class Voice extends Node3D:
 		_vel = vel
 		_lat = absf(_omega) * speed
 
+	## The player's car under the DriveTrain: its gearbox IS the engine (one gear, one rpm).
+	func _from_drive_train(d: Dictionary) -> void:
+		for key in ["rpm", "gear", "load", "shift_t", "kick_t", "limit_t", "shifts"]:
+			st[key] = d[key]
+		var red := float(prof.redline)
+		st.rpm = clampf(float(st.rpm) / float(d.prof.redline) * red, float(prof.rpm[0]) * 0.9, red)
+
 	func tick(delta: float, owner_node: EngineAudio, is_mine: bool) -> void:
 		if car == null:
 			return
@@ -619,7 +626,10 @@ class Voice extends Node3D:
 			# Knocked out of the traffic with the driver still in: idling, rolling.
 			throttle = 0.0
 			reversing = signed < -0.5
-		EngineAudio.step_engine(st, prof, speed, throttle, free_rev, boost, dt)
+		if is_mine and DriveTrain.feeds(car):
+			_from_drive_train(DriveTrain.state_of(car))
+		else:
+			EngineAudio.step_engine(st, prof, speed, throttle, free_rev, boost, dt)
 		var rpm := float(st.rpm)
 		var load := float(st.load)
 		var red := float(prof.redline)

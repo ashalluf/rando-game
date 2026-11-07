@@ -570,6 +570,7 @@ var driver: Node3D:
 			_npc_driver = false
 		_update_occupant()
 		CarInteriors.driver_changed(self, v)
+		DriveTrain.driver_changed(self, v)
 ## How close the player has to be to get in (meters from the origin; big for aircraft).
 var enter_radius: float = 4.5
 ## Traffic state while driven by the TrafficManager (empty otherwise). A car given traffic gets a
@@ -1029,6 +1030,7 @@ func _physics_process(delta: float) -> void:
 	else:
 		engine_force = 0.0
 		brake = 1.0
+	DriveTrain.drive(self, throttle, speed, boost > 1.0, delta) # the gearbox (scripts/vehicles/drive_train.gd)
 	if Input.is_action_pressed("alt_fire"):
 		brake = handbrake_force
 	_jump_timer = maxf(_jump_timer - delta, 0.0)
