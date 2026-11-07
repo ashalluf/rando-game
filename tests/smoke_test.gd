@@ -3087,6 +3087,9 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	# The bus_stop_rain refcam (tests/rc5_bus_stop_rain_checks.gd, RainDusk): the camera row, the
 	# rainy dusk's slate sky and grade, the road's mirror handed over, the lamp streak's look5.
 	load("res://tests/rc5_bus_stop_rain_checks.gd").new().run(self, city)
+	# The player's drive train (tests/drive_engine_checks.gd, DriveTrain): classes rank and top out,
+	# the gearbox is EngineAudio's, a sedan on a deck pulls, shifts, coasts and reverses.
+	await load("res://tests/drive_engine_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()

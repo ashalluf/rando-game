@@ -75,12 +75,19 @@ func _physics_process(delta: float) -> void:
 			if absf(t - 5.0) < delta * 0.5: r.v5 = kmh
 			if absf(t - 10.0) < delta * 0.5: r.v10 = kmh
 			r.top = maxf(r.top, kmh)
+			if k == 0 and OS.get_environment("PROBE_LOG") == "1" and Engine.get_physics_frames() % 30 == 0:
+				var st: Variant = DriveTrain.state_of(c)
+				var acc := (kmh / 3.6 - float(r.get("lastv", 0.0))) / 0.5
+				r.lastv = kmh / 3.6
+				print("LOG t=%.1f v=%.1f acc=%.2f ef=%.0f br=%.2f gear=%s want=%.2f skid=%.2f contact=%s damp=%.2f" % [t, kmh / 3.6, acc, c.engine_force, c.brake,
+					str(int(st.gear) + 1) if st != null else "-", (float(st.force) * 4.0 / c.mass) if st != null else 0.0,
+					c.wheels[0].get_skidinfo(), str(c.wheels[0].is_in_contact()), PhysicsServer3D.body_get_direct_state(c.get_rid()).total_linear_damp])
 		if t > run:
 			Input.action_release("move_forward")
 			Input.action_release("boost")
 			for k in cars.size():
 				rec[k]["vlift"] = cars[k].linear_velocity.length() * 3.6
-				var dt_st = DriveTrain.state_of(cars[k]) if DriveTrain.enabled else null
+				var dt_st: Variant = DriveTrain.state_of(cars[k]) if DriveTrain.enabled else null
 				rec[k]["gear"] = int(dt_st.gear) + 1 if dt_st != null else 0
 				rec[k]["rpm"] = float(dt_st.rpm) if dt_st != null else 0.0
 				rec[k]["shifts"] = int(dt_st.shifts) if dt_st != null else 0
@@ -88,7 +95,7 @@ func _physics_process(delta: float) -> void:
 			t = 0.0
 	elif phase == 2 and t > 3.0:
 		for k in cars.size():
-			var v := cars[k].linear_velocity.length() * 3.6
+			var v: float = cars[k].linear_velocity.length() * 3.6
 			rec[k]["coast"] = (float(rec[k]["vlift"]) - v) / 3.6 / 3.0
 		Input.action_press("move_back")
 		phase = 3

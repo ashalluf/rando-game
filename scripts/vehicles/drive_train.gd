@@ -75,8 +75,13 @@ const SPECS := {
 ## Pull left through a gear change (EngineAudio's 0.24 s throttle cut).
 const SHIFT_PULL := 0.35
 ## Nitro: torque gain, drag share (and the top gear's limiter is off).
-const BOOST_TORQUE := 1.7
-const BOOST_DRAG := 0.55
+const BOOST_TORQUE := 2.6
+const BOOST_DRAG := 0.4
+## Nitro: how much more launch the tyres are allowed (the grip cap times this).
+const BOOST_GRIP := 1.9
+## Share of the drag felt off the throttle (the pull is exaggerated, so the drag that balances it
+## is too: lifting at 190 km/h at full drag was a 6.5 m/s2 slow-down, half a brake).
+const COAST_DRAG := 0.5
 ## Rolling resistance (share of g).
 const ROLL_RESIST := 0.014
 ## Below this speed with nothing pressed the car is held (m/s; Godot's brake impulse).
@@ -164,7 +169,7 @@ static func pull(spec: Dictionary, prof: Dictionary, g: int, speed: float, boost
 	var a := float(spec.pkw) * torque(x, float(spec.xp)) * k / (power_peak_x(float(spec.xp)) * red) * over
 	if boost:
 		a *= BOOST_TORQUE
-	var cap := float(spec.grip) * 9.8 * (1.35 if boost else 1.0)
+	var cap := float(spec.grip) * 9.8 * (BOOST_GRIP if boost else 1.0)
 	return minf(a, cap)
 
 
@@ -241,12 +246,17 @@ static func drive(car: Vehicle, throttle: float, speed: float, boost: bool, delt
 	st.throttle = th
 	var g := int(st.gear)
 	var mass := car.mass
+	# Godot damps every body's velocity (the project's 0.1 plus the car's own 0.05: 4.5 m/s2 at
+	# 30 m/s, which held the old car to 146 km/h). The drive train's drag is the car's whole air
+	# resistance, so the damping is handed back on the ground.
+	var damp := damping(car) * absf(speed) if grounded else 0.0
 	if throttle > 0.0:
 		var a := pull(spec, prof, g, fwd_speed, boost) * th
 		if float(st.shift_t) > 0.0:
 			a *= SHIFT_PULL
 		var drag := float(st.drag) * (BOOST_DRAG if boost else 1.0) * fwd_speed * fwd_speed
 		a -= drag + ROLL_RESIST * 9.8
+		a += damp
 		var f := a * mass / float(n_drive)
 		# engine_power is what DrivingFX reads the pedal against: full throttle here and now.
 		car.engine_power = maxf(pull(spec, prof, g, fwd_speed) * mass / float(n_drive), 1.0)
@@ -261,6 +271,7 @@ static func drive(car: Vehicle, throttle: float, speed: float, boost: bool, delt
 		var rv := maxf(-speed, 0.0)
 		var rev_top := float(spec.rev_top)
 		var a := float(spec.grip) * 9.8 * 0.55 * (-throttle) * clampf(1.0 - pow(rv / rev_top, 2.0), 0.0, 1.0)
+		a += damp * (-throttle)
 		car.engine_force = a * mass / float(n_drive)
 		car.brake = 0.0
 		st.force = -a * mass / float(n_drive)
@@ -270,12 +281,22 @@ static func drive(car: Vehicle, throttle: float, speed: float, boost: bool, delt
 		# Off the throttle: engine braking by revs in the gear, rolling resistance, drag.
 		var x := clampf(fwd_speed * EngineAudio.gear_k(prof, g) / float(prof.redline), 0.0, 1.0)
 		var a := float(spec.eb) * x * x * (1.0 if grounded else 0.0)
-		a += ROLL_RESIST * 9.8 + float(st.drag) * speed * speed
+		a += ROLL_RESIST * 9.8 + float(st.drag) * COAST_DRAG * speed * speed
+		a -= damp
 		car.engine_force = 0.0
-		car.brake = a * mass / float(n_drive) * delta
+		car.brake = maxf(a, 0.0) * mass / float(n_drive) * delta
+		if a < 0.0 and speed > 1.0:
+			# Less slow-down wanted than the damping gives: the difference rolls on.
+			car.engine_force = a * mass / float(n_drive)
 		if absf(speed) < HOLD_SPEED:
 			car.brake = maxf(car.brake, 1.0)
 		st.force = 0.0
+
+
+## The body's total linear damping per second (the project's default combined with its own).
+static func damping(car: Vehicle) -> float:
+	var ds := PhysicsServer3D.body_get_direct_state(car.get_rid())
+	return ds.total_linear_damp if ds != null else car.linear_damp + 0.1
 
 
 ## A straight-line run of a class on flat ground (pure: the same pull, gearbox and drag as drive(),
