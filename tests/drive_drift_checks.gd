@@ -7,8 +7,9 @@ extends RefCounted
 ## Live (sedan and the RWD sports car): a handbrake flick at 80 km/h swings the tail out to a real
 ## slip angle and stops short of a spin, the same left and right; released with the throttle in
 ## the drift holds; counter-steer grips it back up and the tyres' grip comes back; a handbrake 180
-## turns the car round and stops there; full throttle and lock on the RWD car steps the rear out
-## and the AWD sedan's does not; out of the car every tyre has its own grip again.
+## turns the car round and stops there, a J-turn swings it round and drives off; full throttle
+## and lock steps the RWD car's rear out and the AWD sedan's not; out of the car every tyre has
+## its own grip again.
 
 const ACTIONS := ["move_left", "move_right", "move_forward", "move_back", "alt_fire", "boost"]
 
@@ -133,6 +134,26 @@ func _live(player: Player) -> void:
 	_release()
 	_check(absf(rad_to_deg(turned)) > 150.0 and absf(rad_to_deg(turned)) < 215.0,
 		"a handbrake turn at full lock from 54 km/h turns the car round (%.0f deg)" % rad_to_deg(turned))
+	# The J-turn: reversing at 40 km/h, a flick of lock and the handbrake, then drive.
+	_set_speed(car2, -11.0)
+	turned = 0.0
+	last = car2.global_rotation.y
+	_steer(1.0)
+	Input.action_press("alt_fire")
+	for i in 30:
+		await _tree.physics_frame
+		turned += wrapf(car2.global_rotation.y - last, -PI, PI)
+		last = car2.global_rotation.y
+	_release()
+	Input.action_press("move_forward")
+	for i in 90:
+		await _tree.physics_frame
+		turned += wrapf(car2.global_rotation.y - last, -PI, PI)
+		last = car2.global_rotation.y
+	_release()
+	var fwd := car2.linear_velocity.dot(-car2.global_basis.z)
+	_check(absf(rad_to_deg(turned)) > 160.0 and absf(rad_to_deg(turned)) < 220.0 and fwd > 5.0,
+		"a J-turn swings the car round (%.0f deg) and drives off forward (%.0f m/s)" % [rad_to_deg(turned), fwd])
 	player.exit_vehicle()
 	car2.queue_free()
 	await _ticks(2)

@@ -4947,3 +4947,9 @@ none of either.
   SwiftShader browser and are left as they are (not root-caused, unverified on a real GPU, a
   web-only workaround would be blind); the probe tools stay for the next pass. The web bookmarks
   now include four wave 5-8 night / weather views.
+- **2026-11-07 The handbrake drifts (drive-drift, HANDOFF "Handbrake and drift").** The handbrake
+  swings the tail out into an arcade drift held on the throttle and steered by the stick (into the
+  slide more, counter-steer to grip back up), a lock-and-handbrake off the throttle is a 180 and
+  reversing a J-turn, and rear-driven cars power-oversteer. An arcade slip-angle controller on top
+  of real per-wheel grip and brakes, so every body drifts alike and never spins out on its own.
+  DRIVE_DRIFT=0 is the A/B.

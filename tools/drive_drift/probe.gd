@@ -154,7 +154,7 @@ func _scenario(t: int, sc: String) -> void:
 			r["top_kmh"] = _speed() * 3.6
 		"drift_r", "drift_l":
 			var side := 1.0 if sc == "drift_r" else -1.0
-			await _get_to(22.0)
+			await _get_to(float(OS.get_environment("DRIFT_SPEED")) if OS.get_environment("DRIFT_SPEED") != "" else 22.0)
 			v0 = _speed()
 			h0 = _heading()
 			last_h = h0

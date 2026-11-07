@@ -15,7 +15,8 @@ extends RefCounted
 ##    rear going forward, the front reversing) is locked and its grip drops to HB_GRIP; the leading
 ##    axle keeps the throttle. The slide is steered by a slip-angle controller (below), so a flick
 ##    swings the tail out to HB_ANGLE and no further.
-##  - SPIN (180s and J-turns): handbrake with near full lock under SPIN_SPEED, or reversing, turns
+##  - SPIN (180s and J-turns): handbrake with near full lock off the throttle under SPIN_SPEED, or
+##    reversing, turns
 ##    the car on through a 180 at SPIN_RATE; nothing limits it while it is held.
 ##  - HOLD: released with the slide still on, the rear grip stays low while the throttle is in
 ##    (HOLD_GRIP at full throttle), the speed is kept by a push along the travel (DRIFT_PUSH), and
@@ -51,6 +52,8 @@ const HB_ANGLE_0 := 18.0
 ## A handbrake with lock over SPIN_STEER below this speed (m/s) is a 180, not a drift.
 const SPIN_SPEED := 17.0
 const SPIN_STEER := 0.85
+## ... and under this much throttle (forward).
+const SPIN_THROTTLE := 0.3
 ## Yaw rate a 180 / J-turn turns at (rad/s) and how hard it is chased (1/s).
 const SPIN_RATE := 4.2
 const SPIN_GAIN := 9.0
@@ -255,7 +258,9 @@ static func step(car: Vehicle, delta: float, input: Vector2, airborne: bool) -> 
 		# A 180 once started finishes, handbrake held or not (a J-turn is a flick, then drive).
 		mode = Mode.SPIN
 	elif hb and spd > HB_MIN_SPEED:
-		if s.mode == Mode.SPIN or back or (absf(steer) > SPIN_STEER and spd < SPIN_SPEED):
+		# Forward, a 180 is lock and the handbrake OFF the throttle (on it, the same is a tight drift
+		# round a hairpin); reversing it is always a J-turn.
+		if s.mode == Mode.SPIN or back or (absf(steer) > SPIN_STEER and spd < SPIN_SPEED and throttle < SPIN_THROTTLE):
 			if s.mode != Mode.SPIN:
 				s.spin_from = heading
 				# Forward, right lock turns the nose clockwise (yaw -); reversing, the other way.

@@ -2521,6 +2521,15 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   (`tools/glshot/drive_fx_stage.gd`: a car driven badly in front of the camera). Checks:
   `tests/driving_fx_checks.gd`. Trap: `ensure()` is called by every car a chunk builds in one
   frame and the add is deferred, so "made but not yet added" must count as made (it made dozens).
+- Handbrake and drift (wave 9, docs/HANDOFF.md "Handbrake and drift"): `DriveDrift`
+  (`scripts/vehicles/drive_drift.gd`, `step()` after the controls in Vehicle._physics_process,
+  `idle()` in its parked branch) - the handbrake locks the TRAILING axle per wheel and lightens its
+  grip (Godot's wheel ignores `brake` while it has engine_force, and friction_slip is the sliding
+  mu: 10.5 never slides); a yaw-rate controller steers the slip angle (`target_angle()`), a released
+  drift holds on the throttle, counter-steer grips back, a 180 / J-turn is SPIN; RWD bodies get a
+  rear torque split and power oversteer. Read stick and throttle off the raw actions
+  (get_vector() clamps W + D to 0.71). `DRIVE_DRIFT=0` the A/B; probe `tools/drive_drift/probe.tscn`;
+  checks `tests/drive_drift_checks.gd`.
 - Car panic (2026-10-05, docs/HANDOFF.md "Drivers react to chaos"): `CarPanic`
   (`scripts/npc/car_panic.gd`) hears `Pedestrian.alarm()` and gives street traffic drivers in
   reach a reaction (BRAKE, SWERVE, KERB only where `kerb_clear()`, REVERSE with `traffic.rev`

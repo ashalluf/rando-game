@@ -33276,3 +33276,75 @@ Foliage cells, judged on the Mac (FOLIAGE_CELLS=1 FOLIAGE_CELL=48 / 64). (3) The
 (no LODs, 0.28-0.36 M shadow at the aerials). (4) Trash-bag piles (0.1 M, code mesh, no LOD or
 light twin). (5) Not looked at on Forward+ (geometry-only cuts; the canopy's level is the only
 shape change and it is under a pixel by construction).
+
+## 9d?. Handbrake and drift (fleet wave 9 session `drive-drift`, branch `wt/drive-drift`)
+
+**What was wrong.** On main the handbrake (`alt_fire`: right mouse / left trigger) did nothing
+useful. Two Godot facts explain it: (1) a VehicleWheel3D's rolling impulse is its engine force
+whenever that is not zero, and `brake` only applies when it is - so with the throttle held the
+handbrake did nothing at all; (2) `wheel_friction_slip` IS the sliding friction coefficient (a
+skidding wheel's side impulse is suspension force x friction_slip x step), and every car runs 10.5
+- a mu of 10. Without throttle the handbrake braked all four wheels and the car stopped dead in a
+line; nothing ever slid. Measured (tools/drive_drift/probe.tscn, flat slab, controls through
+Input actions): 3.5 degrees of slip angle at most in any scenario, a full-lock handbrake turn from
+54 km/h stopped after 74 degrees, a J-turn turned 28.
+
+**What it does now.** `DriveDrift` (`scripts/vehicles/drive_drift.gd`), one hook after the controls
+in `Vehicle._physics_process()` (`step()`) and one in its parked branch (`idle()`: the tyres back).
+Player-driven four-wheel cars only (not bikes, boats, aircraft, the helicopter, 6-wheel trucks).
+Modes:
+- HANDBRAKE (over 4 m/s): the trailing axle (the rear going forward, the front reversing) is locked
+  per wheel (`HB_LOCK`, engine off on it) with its grip at `HB_GRIP` 0.07 (mu ~0.75), the leading
+  axle keeps the throttle at `FRONT_GRIP` 0.2. The angle is steered by a yaw-rate controller: the
+  slip angle closes on a target at `ANGLE_RATE`/s (`angle_acc()`), the target from the mode and the
+  stick (`target_angle()`: handbrake 18-42 degrees by lock).
+- HOLD: released with the throttle in and the slip over 10 degrees, the rear stays light
+  (`HOLD_GRIP`), a push along the travel keeps the speed (`DRIFT_PUSH` 9 m/s2 x throttle), and the
+  stick sets the angle: centred `HOLD_BASE` 30, into the slide up to `HOLD_MAX` 55, half
+  counter-lock (`COUNTER_FULL`) back to 0 and out. Under `EXIT_ANGLE`, under `EXIT_SPEED` or off the
+  throttle it grips back up over `GRIP_RETURN` 0.5 s.
+- SPIN: the handbrake at near full lock OFF the throttle under `SPIN_SPEED` 17 m/s is a 180 (on the
+  throttle the same is a tight drift round a hairpin); reversing it is always a J-turn. Turned at
+  `SPIN_RATE`, it stops at `SPIN_TURN` 170 degrees and finishes even if the handbrake is let go.
+- POWER (rear-driven bodies, `RWD`: sports, exotics, muscle, coupe, classic, lowriders): `RWD_REAR`
+  0.8 of the engine force on the rear wheels, and full throttle with over half lock between 3 and
+  24 m/s lets the rear step out to `POWER_ANGLE` 25 degrees (at full lock it is a donut).
+The steer and throttle are read off the raw actions: `Input.get_vector()` clamps the stick to a
+circle, so W + D on a keyboard reads 0.71 throttle and 0.71 steer (noted for drive-fix /
+drive-controls: every keyboard turn is at 71 % throttle on main). Whatever else writes a wheel's
+friction_slip (flat tyres, a wreck, a tyre model) is adopted as the base and scaled. Forces are
+impulses x step (VehicleBody3D clears its force accumulator). DrivingFX's rear-tyre smoke is
+thicker in a drift and the front's thinner (`fx_smoke()`); the marks already follow the slide.
+`DRIVE_DRIFT=0` is the A/B.
+
+**Numbers** (probe, before -> after; sedan / sports; 80 km/h, handbrake and lock 0.5 s, throttle
+with the stick centred 2 s, counter-steer 1 s):
+
+| | main | DriveDrift |
+| --- | --- | --- |
+| max slip angle, flick | 3.5 / 3.4 deg | 41 / 41 deg (left = right) |
+| seconds over 15 deg, held | 0 / 0 | 2.0 / 2.0 (slip 36 deg at 2 s) |
+| speed kept after the hold | (no drift) | 71 / 69 % |
+| slip after counter-steer 1 s | - | 0.3 / 0.4 deg |
+| handbrake + full lock from 54 km/h | turned 74 deg, stopped | turned 170 deg |
+| J-turn from 40 km/h reversing | turned 28 deg | turned 191 deg, off at 21 m/s |
+| full throttle + lock at 32 km/h | 6.3 / 6.0 deg | 6.3 (AWD sedan unchanged) / 39 deg |
+| 0-100 km/h | 2.77 / 2.62 s | 2.77 / 2.67 s (the sports car's rear split) |
+Every other body (crossover, hatchback, van, pickup, lowrider, coupe, luxury SUV) lands within a
+few degrees of these; the van and SUV hold 34-35 degrees. At 126 km/h the drift holds 36 degrees,
+at 36 km/h on the throttle it is a hairpin drift (36 degrees, 180 turned in 2 s).
+
+**Most likely to tune** (all consts at the top of drive_drift.gd): `HOLD_BASE` / `HOLD_MAX` (drift
+angle), `DRIFT_PUSH` (speed kept), `HB_GRIP` / `HOLD_GRIP` (how loose), `ANGLE_RATE` / `YAW_GAIN`
+(how quickly the angle answers the stick), `GRIP_RETURN` (snap back), `SPIN_SPEED` / `SPIN_RATE`
+(180s), `POWER_ANGLE` / `POWER_GRIP` / `RWD_REAR` (power oversteer).
+
+Probe: `godot --headless --path . --fixed-fps 60 tools/drive_drift/probe.tscn` (TYPES=, SCEN=,
+DRIFT_SPEED=, TRACE=1 per-tick slip / yaw / mode / grips). Stills: tools/drive_drift/strip.tscn
+(opengl3 under Xvfb, `SCEN=drift|u180|jturn|power`, `TYPE=`), on `shots/drive-drift`. Checks:
+`tests/drive_drift_checks.gd` (pure + live on a deck 300 m over the city).
+
+**Not done.** Judged only by numbers and opengl3 stills: the feel needs the owner's Mac (the
+controller makes every body drift alike; heavier bodies could drift less). The handbrake shares
+`alt_fire` with nothing while driving today (drive-controls owns that audit). No wet-road
+difference (a wet street could lower the drift grips). Bikes are untouched.
