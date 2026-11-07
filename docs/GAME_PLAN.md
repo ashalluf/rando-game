@@ -4952,3 +4952,9 @@ none of either.
   with restitution 0.3, the traffic car's share x1.35 - arcade, the player is overpowered), shallow
   wall hits keep 88 % of the speed along the wall and turn the nose onto it, a wedged car is
   nudged free, a car lying on its body is not flying. Head-on walls still stop the car.
+- **2026-11-07 The car that would not turn right (drive-fix, HANDOFF "The car that would not turn
+  right").** The owner's car rolled over at full lock from ~50 km/h (the steering asked for more
+  grip than a car can have, Godot's tyres gave it, and the body tipped and went into flight mode);
+  a right turn from the kerb lane is the tight one, hence "won't turn right". Full lock is now
+  limited by the sideways pull it asks for (steer_lateral_limit 16 m/s^2) and the keyboard diagonal
+  keeps full throttle and steer. DRIVE_FIX=0 is the A/B.

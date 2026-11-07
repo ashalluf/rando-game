@@ -1560,6 +1560,12 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   Parking and traffic lanes come from `CityPlan.parking_offset()` / `lane_center()`: the parking
   lane was 4.4 m wide and the kerb-side traffic lane ran 13 cm from the parked cars, so traffic
   plowed through them.
+- Steering lock (wave 9 drive-fix, docs/HANDOFF.md "The car that would not turn right"): full
+  lock is `Vehicle.steer_lock(speed)`, max_steer cut so v^2 tan(lock) / wheelbase stays under
+  `steer_lateral_limit` (16 m/s^2): Godot's tyres hold ~10 g and roll the car about its ORIGIN, so a
+  lock that asks for more tips it into flight mode. Steer and throttle are two axes (get_axis), not
+  get_vector's circle. `DRIVE_FIX=0` is the A/B; probe `tools/drive_fix/probe.gd`; checks
+  `tests/drive_fix_checks.gd`.
 - Car damage (roadmap #10): `CarDamage` (`scripts/vehicles/car_damage.gd`), a node the car makes
   on its FIRST hit - an undamaged car has none, keeps the shared `car_paint.gdshader`, its body's
   shared cabin glass and the model's own lamp materials, and costs what it did (the only per-car addition is

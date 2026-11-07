@@ -26,7 +26,7 @@ func run(t: Node, city: Node3D) -> void:
 	if _player == null:
 		_check(false, "drive-fix: a player")
 		return
-	if not Vehicle.drive_fix:
+	if not Vehicle.drive_fix and OS.get_environment("DRIVE_FIX_CHECK_ANYWAY") == "":
 		_check(true, "drive-fix: off (DRIVE_FIX=0), nothing to check")
 		return
 	_pure()
@@ -92,14 +92,18 @@ func _spawn() -> Vehicle:
 	car.setup(Vehicle.BodyType.SEDAN, Color(0.5, 0.1, 0.1), Vehicle.Addon.NONE)
 	_city.add_child(car)
 	_cars.append(car)
-	car.global_transform = Transform3D(Basis(), _top + Vector3(0.0, 1.0, 200.0))
+	car.global_transform = Transform3D(Basis(), _top + Vector3(0.0, 0.6, 200.0))
 	_player.enter_vehicle(car)
 	# Settled on its wheels (the drop onto the deck is a moment of flight).
-	await _ticks(30)
-	for i in 240:
-		if not car.get("_was_airborne") and not car.is_airborne() and car.linear_velocity.length() < 0.2:
-			break
+	var calm := 0
+	for i in 400:
 		await _tree.physics_frame
+		var down: bool = not car.get("_was_airborne")
+		for w in car.wheels:
+			down = down and w.is_in_contact()
+		calm = calm + 1 if down and car.linear_velocity.length() < 0.3 else 0
+		if calm >= 30:
+			break
 	return car
 
 
@@ -136,7 +140,7 @@ func _yaw() -> void:
 	for v0: float in [15.0, 30.0]:
 		var rates: Array[float] = []
 		var tilt := 0.0
-		var flew := 0
+		var flown := 0
 		for act: String in ["move_left", "move_right"]:
 			var car := await _spawn()
 			car.hold_crash_watch(3)
@@ -145,6 +149,7 @@ func _yaw() -> void:
 			Input.action_press(act)
 			var sum := 0.0
 			var n := 0
+			var flew := 0
 			for i in 90:
 				await _tree.physics_frame
 				tilt = maxf(tilt, rad_to_deg(acos(clampf(car.global_basis.y.y, -1.0, 1.0))))
@@ -154,12 +159,13 @@ func _yaw() -> void:
 					sum += car.angular_velocity.y
 					n += 1
 			rates.append(sum / maxf(n, 1))
+			flown += flew
 			await _done(car)
 		var l := absf(rates[0])
 		var r := absf(rates[1])
 		_check(rates[0] > 0.05 and rates[1] < -0.05 and absf(l - r) <= 0.1 * maxf(l, r),
 				"drive-fix: at %.0f m/s left and right turn alike (yaw %.3f / %.3f rad/s)" % [v0, rates[0], rates[1]])
-		_check(tilt < 35.0 and flew == 0, "drive-fix: full lock at %.0f m/s keeps the car on its wheels (tilt %.0f deg, %d ticks in flight)" % [v0, tilt, flew])
+		_check(tilt < 35.0 and flown == 0, "drive-fix: full lock at %.0f m/s keeps the car on its wheels (tilt %.0f deg, %d ticks in flight)" % [v0, tilt, flown])
 
 
 func _release() -> void:

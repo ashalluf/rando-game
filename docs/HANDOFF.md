@@ -33349,3 +33349,67 @@ into traffic and along a freeway barrier). Traffic hitting the STOPPED player (k
 physical) is unchanged. Only the player's car shoves (a physical cruiser or a shoved car hitting
 another traffic car still meets a wall). The glance query reads layer 1 only, so a parked car
 (layer 3) side-swiped at speed is the solver's. Kerb snagging at an angle is drive-weight's.
+
+## 9d?. The car that would not turn right (wave 9 drive-fix, 2026-11-07)
+
+**Owner's report:** the player's car "doesn't accelerate properly and doesn't let me turn right".
+
+**What the probe found** (`tools/drive_fix/probe.gd`, headless, seconds a body; `MODE=room` the
+real Player in the test box on a 4 km floor, `MODE=city` the airport field, `KERB=1` a 0.25 m
+kerb met at 10-60 degrees, `SET=prop=value,...` overrides exports, `HOLD=0` no speed hold,
+`DRIVE_FIX=0` the old code):
+
+1. The steering curve asked for impossible grip. Full lock was `max_steer * lerp(1,
+   steer_min_factor, v / 36)`: 0.28 rad at 30 m/s, a turn that needs 11 g. Godot's tyres
+   (`wheel_friction_slip` 10.5, the engine default) hold ~10 g, and VehicleBody3D applies the side
+   force about the body ORIGIN, not the custom centre of mass (its roll-influence fix works
+   relative to the origin), so `wheel_roll_influence` 0 did not help: every body type rolled
+   105-139 degrees at full lock at 30 m/s, the inside wheels left the road, and after
+   `flight_grace` the car went into `_fly()` (the banking hover), which spun it. At 15 m/s with
+   speed held it rolled too (173 degrees). In right-hand traffic a RIGHT turn from the kerb lane is
+   the tight one, so it is the turn that needs full lock - "it won't let me turn right" is the car
+   tipping onto two wheels and the flight mode grabbing it. On a flat floor the defect is exactly
+   symmetric (left and right yaw rates equal to 3 decimals on all six bodies).
+2. `Input.get_vector()` is a circle: W + D read 0.71 throttle and 0.71 steer, so every corner
+   taken with the throttle held lost 29 % of both ("doesn't accelerate properly").
+3. Not causes (measured): kerbs (mounted at every angle and speed), the input map (A/D, stick
+   axis 0 both ways), DriveCam, CarInteriors, ChaseFlatTyres / CrashDeform (only after damage),
+   Lowrider hydraulics (only the X button), PhysicsBudget, the player's own tick. The straight-line
+   pull is fine: 0-100 km/h in 2.0 s on every 1200 kg body; top speed 146 km/h (40.6 m/s against
+   `top_speed` 55, because the engine force fades linearly) - drive-engine's area.
+
+**The fix** (`Vehicle._physics_process`, `Vehicle.drive_fix`; `DRIVE_FIX=0` is the A/B):
+- steer and throttle read as two axes (`Input.get_axis()`), so a keyboard diagonal is full of both;
+- full lock is `steer_lock(speed)`: `max_steer` cut so v^2 tan(lock) / wheelbase stays under
+  `steer_lateral_limit` (16 m/s^2, ~1.6 g), never under `steer_floor` (0.035 rad). `wheelbase` is
+  set in `_build()` from `_dims()` (wheel_front + wheel_rear). The old `steer_factor` is used only
+  under DRIVE_FIX=0. Motorcycles keep their own code (symmetric, measured).
+
+**Before / after** (room probe, full lock held 1.5 s, no speed hold; yaw rate rad/s, max tilt):
+
+| body | 15 m/s before | 15 after | 30 m/s before | 30 after |
+|---|---|---|---|---|
+| sedan | 1.47, 2 deg | 1.23, 1 deg | 1.26, **131 deg, flight** | 0.60, 1 deg |
+| crossover | 1.61, 2 | 1.22, 1 | 1.14, **125, flight** | 0.60, 1 |
+| pickup | 1.27, 1 | 1.26, 1 | 1.70, **105, flight** | 0.62, 1 |
+| sports | 1.51, 2 | 1.23, 1 | 1.12, **139, flight** | 0.61, 1 |
+| muscle | 1.55, 2 | 1.24, 1 | 1.09, **134, flight** | 0.61, 1 |
+| lowrider | 1.43, 2 | 1.22, 1 | 1.38, **121, flight** | 0.59, 1 |
+
+Left and right equal on every row. At 30 m/s the car now turns on a ~50 m radius (0.6 rad/s) on
+its wheels. 0-100 km/h unchanged (2.02 s); W + D now 3436 N of engine force against 3468 N for W
+alone (2430 N before).
+
+**Knobs most likely to need the owner's hand:** `steer_lateral_limit` (16: higher = sharper at
+speed, ~22 starts lifting wheels again), `steer_floor` (0.035), `max_steer` (0.5, the lock at a
+crawl), `steer_speed` (8, how fast the wheels follow the key).
+
+**Checks:** `tests/drive_fix_checks.gd` (8, one line in smoke_test.gd; alone
+`SMOKE_PARTS=drive_fix_checks`): the lock curve, 0-100 under 6 s, W + D full throttle, left = right
+within 10 % at 15 and 30 m/s, no roll past 35 degrees and no flight. With
+`DRIVE_FIX=0 DRIVE_FIX_CHECK_ANYWAY=1` they fail on the old code (W + D 2430 N, 133 degrees and 62
+ticks of flight at 30 m/s).
+
+**Open:** the city probe's airport spot (the field's collision is a `StreetProps` body ~12 m over
+the GroundBody) still needs a clean lane for in-city yaw numbers; the grip itself (10 g tyres) and
+the linear engine fade are the drive-steer / drive-engine sessions' to retune.
