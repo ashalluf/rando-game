@@ -32,9 +32,6 @@ func run(st: SceneTree) -> void:
 			var q := PhysicsRayQueryParameters3D.create(ws.to_local(at) + Vector3(0, 50, 0), ws.to_local(at) + Vector3(0, -50, 0), 1)
 			var space := (tree.current_scene as Node3D).get_world_3d().direct_space_state
 			var hit := space.intersect_ray(q)
-			while not hit.is_empty() and hit.collider is StreetProps:
-				q.exclude = q.exclude + [hit.rid]
-				hit = space.intersect_ray(q)
 			if i > 60 and not hit.is_empty() and hit.collider.name != "GroundBody":
 				print("ground: ", hit.collider.name, " y ", hit.position.y)
 				at.y = ws.to_world(hit.position).y
