@@ -33364,6 +33364,17 @@ triggers, the handbrake vs LT, RB and the radio, the settings reaching DriveInpu
 A key pressed inside a physics frame is not "just pressed" until the next one: the radio checks
 await a process frame first.
 
+### Merging with drive-fix
+
+wt/drive-fix (fd018174) also reads the two axes separately (its `drive_fix` path) and limits the
+lock by grip (`steer_lock()`). The two hunks in `_physics_process` conflict; resolve them as:
+`input` = get_vector, then `DriveInput.vector()` if `DriveInput.enabled`, elif `drive_fix` its
+get_axis pair; `_steer_target = -input.x * (steer_lock(speed) if drive_fix else max_steer *
+steer_factor)` with the steering lerp rate `steer_speed * DriveInput.steer_rate(...)`. Merged that
+way here, drive_controls / city_cars / driving_fx pass; drive-fix's own two "full lock keeps the
+car on its wheels" checks fail at fd018174 with DRIVE_INPUT=0 too (its head is not gated yet), so
+the merge was not pushed.
+
 ### Not done / next
 
 (1) No keyboard arrow keys for driving (project.godot's move_* actions are shared with walking).
