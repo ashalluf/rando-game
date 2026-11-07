@@ -20,7 +20,7 @@ func _ready() -> void:
 	_deck = _static_box(Vector3(800, 1, 800), Vector3(0, -0.5, 0))
 	await get_tree().physics_frame
 	var only := OS.get_environment("SCEN")
-	var all := ["traffic", "offset", "bus", "moving", "wall50", "wall80", "headon", "parked", "wedge"]
+	var all := ["coast", "traffic", "offset", "bus", "moving", "wall50", "wall80", "headon", "parked", "wedge"]
 	for s: String in all:
 		if only != "" and not (s in only.split(",")):
 			continue
@@ -84,8 +84,9 @@ func _clear() -> void:
 	await get_tree().physics_frame
 
 
-## The player's car, driven, rolling at `speed` m/s along its nose with the throttle held.
-func _driven(at: Vector3, yaw: float, speed: float) -> Vehicle:
+## The player's car, driven, rolling at `speed` m/s along its nose (coasting: the labelled speed is
+## the impact's), the throttle held if `throttle`.
+func _driven(at: Vector3, yaw: float, speed: float, throttle: bool = false) -> Vehicle:
 	var car := _car(Vehicle.BodyType.SEDAN, at, yaw)
 	var drv := Node3D.new()
 	add_child(drv)
@@ -95,7 +96,8 @@ func _driven(at: Vector3, yaw: float, speed: float) -> Vehicle:
 	car.linear_velocity = -car.global_basis.z * speed
 	car.hold_crash_watch(3)
 	DriveImpacts.reset(car)
-	Input.action_press("move_forward")
+	if throttle:
+		Input.action_press("move_forward")
 	return car
 
 
@@ -133,6 +135,7 @@ func _s_traffic(offset: float = 0.0, type: int = Vehicle.BodyType.SEDAN, label: 
 	var yaw0 := car.global_rotation.y
 	var r := await _run(car, 2.5)
 	var ov := other.linear_velocity.length() if is_instance_valid(other) else -1.0
+	print("  shove ", DriveImpacts.last_shove, " other yaw now %.1f deg" % rad_to_deg(other.global_rotation.y))
 	print("PROBE %s: 50 km/h -> player min %.1f end %.1f m/s, peak dv %.1f; other traffic=%s speed %.1f m/s moved %.1f m spin %.2f rad/s; heading %.0f deg" % [label,
 		r.min, r.end, r.peak_dv, other.is_traffic(), ov, other.global_position.distance_to(Vector3(offset, 0.6, -25.0)), other.angular_velocity.length(), rad_to_deg(car.global_rotation.y - yaw0)])
 
@@ -149,7 +152,7 @@ func _s_bus() -> void:
 ## stand-in for TrafficManager placing it).
 func _s_moving() -> void:
 	var other := _traffic(Vehicle.BodyType.SEDAN, Vector3(0, 0.6, -25.0), 0.0, 8.0)
-	var car := await _driven(Vector3(0, 0.6, 0), 0.0, 13.9)
+	var car := await _driven(Vector3(0, 0.6, 0), 0.0, 13.9, true)
 	var t := 0.0
 	while t < 2.5:
 		await get_tree().physics_frame
@@ -167,6 +170,15 @@ func _wall(speed: float, angle_deg: float, label: String) -> void:
 	var r := await _run(car, 2.0)
 	print("PROBE %s: %.0f km/h at %.0f deg -> min %.1f end %.1f m/s (kept %.0f%%), heading now %.0f deg, x %.1f" % [label, speed * 3.6, angle_deg,
 		r.min, r.end, 100.0 * r.end / speed, rad_to_deg(car.global_rotation.y), car.global_position.x])
+
+
+## No wall: what 2 s of coasting leaves of 50 and 80 km/h (the walls' reference).
+func _s_coast() -> void:
+	for sp: float in [13.9, 22.2]:
+		var car := await _driven(Vector3(0, 0.6, 0), deg_to_rad(30.0), sp)
+		var r := await _run(car, 2.0)
+		print("PROBE coast: %.0f km/h, no wall -> %.1f m/s after 2 s" % [sp * 3.6, r.end])
+		await _clear()
 
 
 func _s_wall50() -> void:
@@ -196,7 +208,7 @@ func _s_parked() -> void:
 func _s_wedge() -> void:
 	# A post 0.4 m wide right at the nose, a little off centre: the car leans on it.
 	_items.append(_static_box(Vector3(0.4, 2.0, 0.4), Vector3(0.5, 1.0, -3.2)))
-	var car := await _driven(Vector3(0, 0.6, 0), 0.0, 0.0)
+	var car := await _driven(Vector3(0, 0.6, 0), 0.0, 0.0, true)
 	var t := 0.0
 	var start := car.global_position
 	var freed := -1.0

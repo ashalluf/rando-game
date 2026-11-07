@@ -41,6 +41,12 @@ const SHOVE_GAIN := 1.35
 const PLAYER_LOSS_SHARE := 0.75
 ## Upward kick on the shoved car, m/s per m/s of its velocity change.
 const SHOVE_LIFT := 0.08
+## The yaw an off-centre push gives the shoved car (share of what a rigid box would take, cap rad/s),
+## and its tyres' grip (share) for how long (s) after.
+const SHOVE_SPIN := 1.6
+const SHOVE_SPIN_MAX := 3.5
+const SHOVE_GRIP := 0.35
+const SHOVE_SLIDE := 1.0
 ## Seconds a shoved car is ignored afterwards (the solver has it now).
 const SHOVE_COOLDOWN := 0.6
 
@@ -187,12 +193,28 @@ static func _shove(car: Vehicle, st: State, delta: float) -> void:
 		var j := (1.0 + RESTITUTION) * closing / (1.0 / m1 + 1.0 / m2)
 		var dv1 := -n * (j / m1) * PLAYER_LOSS_SHARE
 		var dv2 := n * (j / m2) * SHOVE_GAIN
-		# Where they meet: on the line between the centres, at the player's nose.
-		var contact := car.global_position + n * (float(d.length) * 0.5) + Vector3.UP * 0.5
+		# Where they meet: the player's nose, as far across it as the other car is off its line - so
+		# an off-centre hit pushes past the other car's centre and spins it.
+		var vdir := _flat(v).normalized()
+		var side := Vector3(-vdir.z, 0.0, vdir.x)
+		var off := (other.global_position - car.global_position).dot(side)
+		var half_w := float(d.width) * 0.5
+		var contact := car.global_position + vdir * (float(d.length) * 0.5) + side * clampf(off, -half_w, half_w) * 0.5 \
+				+ Vector3.UP * 0.5
 		other.drop_out_of_traffic()
 		other.sleeping = false
 		other.linear_velocity = vo
 		other.apply_impulse(dv2 * m2 + Vector3.UP * dv2.length() * SHOVE_LIFT * m2, contact - other.global_position)
+		# The yaw the push off its centre gives it (a box's inertia), and tyres that let go for a
+		# moment: a car shunted on a corner slews round, it does not just roll on.
+		var ol := float(other._dims().length)
+		var ow := float(other._dims().width)
+		var inertia := m2 * (ol * ol + ow * ow) / 12.0
+		var torque := (contact - other.global_position).cross(dv2 * m2).y
+		var ow_v := other.angular_velocity
+		ow_v.y += clampf(torque / inertia * SHOVE_SPIN, -SHOVE_SPIN_MAX, SHOVE_SPIN_MAX)
+		other.angular_velocity = ow_v
+		_loosen(other)
 		other.hold_crash_watch(3)
 		car.linear_velocity = v + dv1
 		v = car.linear_velocity
@@ -208,6 +230,21 @@ static func _shove(car: Vehicle, st: State, delta: float) -> void:
 		if over2 > 0.0 and is_instance_valid(other):
 			other.take_hit(-1, over2, n, contact, Vehicle.HIT_CRASH)
 		Sfx.play("hit_metal", contact, clampf(-6.0 + closing * 0.5, -6.0, 6.0), 0.8)
+
+
+## A shoved car's tyres at SHOVE_GRIP of their grip for SHOVE_SLIDE seconds.
+static func _loosen(other: Vehicle) -> void:
+	var keep: Array = []
+	for w in other.wheels:
+		if is_instance_valid(w):
+			keep.append([w, w.wheel_friction_slip])
+			w.wheel_friction_slip *= SHOVE_GRIP
+	if keep.is_empty() or not other.is_inside_tree():
+		return
+	other.get_tree().create_timer(SHOVE_SLIDE, false, true).timeout.connect(func() -> void:
+		for k: Array in keep:
+			if is_instance_valid(k[0]):
+				(k[0] as VehicleWheel3D).wheel_friction_slip = float(k[1]))
 
 
 # --- glance ------------------------------------------------------------------------------------

@@ -116,20 +116,20 @@ func _walls() -> void:
 	var r := await _run(car, 2.0)
 	var yaw := rad_to_deg(wrapf(car.global_rotation.y, -PI, PI))
 	_check(DriveImpacts.glances > n0, "a 30-degree wall hit at 50 km/h glances")
-	_check(r.end > 13.9 * 0.5, "and keeps most of its speed (%.1f of 13.9 m/s)" % r.end)
+	_check(r.end > 13.9 * 0.4, "and keeps going along it (%.1f of 13.9 m/s after 2 s of coasting, which alone leaves ~10)" % r.end)
 	_check(absf(yaw) < 22.0, "with the nose turned onto the wall line (%.0f deg off it)" % yaw)
 	_clear()
-	_items.append(_static_box(Vector3(20.0, 4.0, 1.0), _at(Vector3(0.0, 2.0, -20.0))))
+	_items.append(_static_box(Vector3(20.0, 4.0, 1.0), _at(Vector3(0.0, 2.0, -12.0))))
 	car = await _driven(Vector3(0.0, 0.6, 0.0), 0.0, 13.9)
 	n0 = DriveImpacts.glances
-	r = await _run(car, 1.5)
+	r = await _run(car, 2.5)
 	_check(DriveImpacts.glances == n0 and r.min < 5.0, "a head-on wall hit is no glance and stops the car (%.1f m/s)" % r.min)
 	_clear()
 
 
 func _wedge() -> void:
 	_items.append(_static_box(Vector3(0.4, 2.0, 0.4), _at(Vector3(0.5, 1.0, -3.2))))
-	var car := await _driven(Vector3(0.0, 0.6, 0.0), 0.0, 0.0)
+	var car := await _driven(Vector3(0.0, 0.6, 0.0), 0.0, 0.0, true)
 	var start := car.global_position
 	var n0 := DriveImpacts.nudges
 	await _run(car, 5.0)
@@ -148,7 +148,7 @@ func _lamp() -> void:
 	_deck.add_child(ch)
 	ch.global_position = _top
 	_items.append(ch)
-	var at := Vector3(0.0, 0.0, -40.0)
+	var at := Vector3(0.0, 0.0, -18.0)
 	var lp := StreetLamps.place(null, at, Vector2(1.0, 0.0), 0)
 	ch._add_prop("lamp", at, Color(0.28, 0.29, 0.32), [[lp.key, lp.mesh, lp.xform, lp.paint, lp.custom]],
 			[[lp.box, at + Vector3(0.0, (lp.box as Vector3).y * 0.5, 0.0), 0.0]])
@@ -157,10 +157,20 @@ func _lamp() -> void:
 	var was := PropBreak.enabled
 	PropBreak.enabled = true
 	var car := await _driven(Vector3(0.0, 0.6, 0.0), 0.0, 22.2)
-	var r := await _run(car, 2.5)
+	# The speed the step before it went down and a few steps after.
+	var before := 0.0
+	var after := 0.0
+	for i in 150:
+		var sp := car.linear_velocity.length()
+		await _tree.physics_frame
+		if rec.dead:
+			before = sp
+			await _ticks(6)
+			after = car.linear_velocity.length()
+			break
 	PropBreak.enabled = was
 	_check(rec.dead, "a lamp post at 80 km/h goes down")
-	_check(r.min > 22.2 * 0.6, "and the player keeps most of his speed through it (slowest %.1f of 22.2 m/s)" % r.min)
+	_check(before > 0.0 and after > before * 0.8, "and the player keeps most of his speed through it (%.1f -> %.1f m/s)" % [before, after])
 	_clear()
 
 
@@ -201,7 +211,7 @@ func _traffic(type: int, local: Vector3) -> Vehicle:
 	return car
 
 
-func _driven(local: Vector3, yaw: float, speed: float) -> Vehicle:
+func _driven(local: Vector3, yaw: float, speed: float, throttle: bool = false) -> Vehicle:
 	var car := Vehicle.new()
 	car.setup(Vehicle.BodyType.SEDAN, Color(0.6, 0.1, 0.1), Vehicle.Addon.NONE)
 	car.transform = Transform3D(Basis(Vector3.UP, yaw), _city.to_local(_at(local)))
@@ -212,7 +222,8 @@ func _driven(local: Vector3, yaw: float, speed: float) -> Vehicle:
 	car.linear_velocity = -car.global_basis.z * speed
 	car.hold_crash_watch(3)
 	DriveImpacts.reset(car)
-	Input.action_press("move_forward")
+	if throttle:
+		Input.action_press("move_forward")
 	return car
 
 
