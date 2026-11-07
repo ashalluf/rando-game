@@ -94,7 +94,12 @@ func _spawn() -> Vehicle:
 	_cars.append(car)
 	car.global_transform = Transform3D(Basis(), _top + Vector3(0.0, 1.0, 200.0))
 	_player.enter_vehicle(car)
-	await _ticks(60)
+	# Settled on its wheels (the drop onto the deck is a moment of flight).
+	await _ticks(30)
+	for i in 240:
+		if not car.get("_was_airborne") and not car.is_airborne() and car.linear_velocity.length() < 0.2:
+			break
+		await _tree.physics_frame
 	return car
 
 
