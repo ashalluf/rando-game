@@ -2477,6 +2477,16 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   the mouse wheel tune while driving; the `Radio` bus (car speaker) sends to Game. The card is
   `RadioHud` (DebugHud). `CAR_RADIO=0` the A/B; stills `tools/radio/radio_shot.gd`; checks
   `tests/car_radio_checks.gd`.
+- Driving controls (wave 9, docs/HANDOFF.md "Driving controls"): `DriveInput`
+  (`scripts/vehicles/drive_input.gd`, static) is the player's driving input for the car,
+  motorcycle and boat: per-axis keys (never `Input.get_vector()`: a diagonal was 71 %), the pad's
+  RT / LT as analog pedals (actions `drive_throttle` / `drive_brake`), `pedals()` (brake, a
+  0.28 s hold at the stop, then reverse; W rolling back brakes first; reverse fades at 16 m/s),
+  `handbrake()` (action `handbrake`: right mouse, Ctrl, pad RB; alt_fire unless it is LT),
+  `steer_rate()` (Settings' steering sensitivity / auto-centre), `gear()` for VehicleHud.
+  `DRIVE_INPUT=0` is the A/B; probe `tools/drive_controls/probe.tscn`; checks
+  `tests/drive_controls_checks.gd`. A key pressed inside a physics frame is not "just pressed"
+  until the next: a check of a just-pressed read awaits a process frame first.
 - The chase camera (2026-10-30, docs/HANDOFF.md "The chase camera"): `DriveCam`
   (`scripts/player/drive_cam.gd`, made by the CameraRig) drives the rig while the player drives a
   ground Vehicle (not Aircraft / FlyableHeli): follows the travel direction on an exact critically

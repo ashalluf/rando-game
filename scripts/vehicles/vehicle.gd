@@ -1344,7 +1344,7 @@ func _tick_lights(delta: float) -> void:
 	if driver != null:
 		var speed := linear_velocity.dot(-global_basis.z)
 		braking = brake > 5.0
-		reversing = engine_force > 0.0 and speed < 1.0
+		reversing = (engine_force > 0.0 and speed < 1.0) or DriveInput.in_reverse(self)
 	elif is_traffic():
 		var v := traffic_speed
 		var decel := (_prev_traffic_speed - v) / maxf(delta, 0.0001)

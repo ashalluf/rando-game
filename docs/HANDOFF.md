@@ -33276,3 +33276,97 @@ Foliage cells, judged on the Mac (FOLIAGE_CELLS=1 FOLIAGE_CELL=48 / 64). (3) The
 (no LODs, 0.28-0.36 M shadow at the aerials). (4) Trash-bag piles (0.1 M, code mesh, no LOD or
 light twin). (5) Not looked at on Forward+ (geometry-only cuts; the canopy's level is the only
 shape change and it is under a pixel by construction).
+
+## 9d?. Driving controls (drive-controls, wave 9)
+
+**What**: an audit of every input path the player's car, motorcycle and boat take, and
+`DriveInput` (`scripts/vehicles/drive_input.gd`, static) in place of their `Input.get_vector()`
+lines. It decides only what the player ASKED for; engine, grip and steering geometry belong to
+drive-engine / drive-steer / drive-drift.
+
+**What was wrong (measured on main a870978b with `tools/drive_controls/probe.tscn`, a sedan on a
+4 km slab driven by `Input.action_press` and parsed joypad / mouse events):**
+
+1. **Keyboard diagonals were 71 %.** `Input.get_vector()` normalises: W + D gave throttle 0.71
+   and steer 0.71 (engine force 4,152 N against 5,743 N on W alone, the wheels at 0.29 of a 0.50
+   rad lock). Turning while accelerating - always on a keyboard - lost a third of both. This alone
+   reads as "does not accelerate properly / does not turn" in a corner.
+2. **The pad's triggers did nothing useful.** RT (`fire`, axis 5) nothing in a car; LT (`alt_fire`,
+   axis 4, deadzone 0.5) an on/off handbrake past half pull. The only throttle was the left stick.
+3. **Brake to reverse flipped instantly** (reverse force the tick the car fell under 1 m/s) and
+   reverse had no cap: holding S from 60 km/h ended at 48.6 m/s (175 km/h) backwards eight seconds
+   later.
+4. **W while rolling back throttled against the roll** (no brake), so a reverse-to-drive change
+   was a slow fight.
+5. **Pad RB** (`next_weapon`, button 10) tuned the radio in a car; there was no pad handbrake.
+
+**What it does now:**
+
+- `DriveInput.vector()`: per axis (`get_action_strength` of each action, deadzones remapped by
+  Godot), never normalised; pad RT / LT added as pedals through two new actions,
+  `drive_throttle` (axis 5) and `drive_brake` (axis 4), deadzone 0.05, `TRIGGER_DEAD` 0.04 on top.
+  A stick's steering takes the player's steering sensitivity as a gain (a key stays full lock).
+- `DriveInput.pedals(car, speed, delta)` -> (drive, brake): S brakes at speed, holds the car on the
+  brake at the stop for `REVERSE_DELAY` (0.28 s), then reverses; reverse fades to nothing at
+  `REVERSE_TOP_SPEED` (16 m/s, ~58 km/h); W while rolling back brakes first, then drives after
+  `FORWARD_DELAY` (0.12 s) at a stand; both pedals under `BURNOUT_SPEED` (4 m/s) is a burnout
+  (throttle against 60 % brake). Analog brake = pedal x brake_force. No pedal = the old 1.0 coast.
+- `DriveInput.handbrake()`: a new `handbrake` action (right mouse, Ctrl, pad RB), or `alt_fire`
+  unless the pad's LT is what pressed it (any remap of alt_fire still works).
+  `DriveInput.radio_step()` (CarRadio) skips next / prev_weapon while the handbrake is held, so
+  RB no longer tunes the radio; the mouse wheel and Q / d-pad still do.
+- `DriveInput.steer_rate()`: the steering's rate toward its target x the settings' **Steering
+  sensitivity** turning in, x **Steering auto-centre** coming back (GameSettings `drive_steer`
+  0.5-1.6, `drive_centre` 0.4-2.0, defaults 1 = the game as it was; two rows under CONTROLS).
+- `DriveInput.gear()`: VehicleHud's letter is R once reverse is selected (not only while moving
+  backwards), N standing with no pedal, D otherwise; the reversing lamps stay on in R.
+- EngineAudio's player throttle reads the same vector (RT revs the engine).
+- Motorcycle: the same pedals and handbrake. Boat: the per-axis vector and the handbrake action.
+  Aircraft and the helicopter keep get_vector (a cyclic is a 2D stick; LT is still the jet's
+  throttle down). The lowrider's hydraulics already read per-axis `get_axis`.
+- Nothing else eats WASD or the right stick in a car: WeaponManager, LockOn, WeaponWheel,
+  Wingsuit and Swim all return while driving (checked by reading each); `look_behind` (C / pad X)
+  shares its keys with `dive` / `wingsuit`, both off in a car.
+- The pause menu's controls card has "Right click / Ctrl - Handbrake (in a car)" and "Pad in a
+  car - RT gas, LT brake / reverse, RB handbrake".
+
+`DRIVE_INPUT=0` is the A/B (`DriveInput.enabled`: every caller runs its old lines, the new actions
+are simply unread).
+
+### Numbers (probe, sedan, before -> after)
+
+| measure | main | DriveInput |
+|---|---|---|
+| W 0-60 / 0-100 km/h | 1.55 / 2.63 s | 1.55 / 2.63 s (untouched: drive-engine's) |
+| W + D engine force (vs W) | 4,152 N (0.72) | 5,950 N (1.04) |
+| W + D steer at 10 m/s | 0.292 rad | 0.415 rad |
+| hold S from 60 km/h: stop / reverse engages | 1.43 / 1.40 s (no pause) | 1.43 / 1.67 s (0.23 s on the brake) |
+| reverse speed after 8 s of S | 48.6 m/s | 13.2 m/s |
+| reversing at 6 m/s, press W | +6,240 N throttle, no brake | 0 N, brake 80 |
+| pad RT 0.5 / 1.0 | 0 / 0 N | 2,877 / 6,366 N |
+| pad LT 0.4 / 1.0 | coast 1 / handbrake 40 | brake 27 / brake 80 |
+| handbrake right mouse / pad RB | 40 / none | 40 / 40 |
+| steering return to 10 % | 0.30 s | 0.30 s (auto-centre 1.0) |
+
+Motorcycle (`MOTO=1`): W + D 70 % -> 99 % throttle, reverse after 8 s 12.3 -> 7.8 m/s, RT 0 ->
+2,496 N, RB handbrake. The probe also prints the yaw rate left vs right at 15 m/s (sedan 1.60 vs
+2.42 rad/s on main, the car spinning out to 1.6 m/s turning left): that asymmetry is drive-fix's
+root cause, not an input path; DriveInput gives both keys exactly +-1.
+
+**Knobs most likely to need tuning (owner, on the Mac):** `REVERSE_DELAY` (0.28 s),
+`REVERSE_TOP_SPEED` (16 m/s), `FORWARD_DELAY` (0.12 s), `TRIGGER_DEAD` (0.04), `BURNOUT_SPEED`
+(4 m/s) at the top of drive_input.gd; the settings' Steering sensitivity and auto-centre.
+
+**Checks**: `tests/drive_controls_checks.gd` (one await line at the end of smoke_test.gd's
+city_files): the actions' bindings, the diagonal and the A/B's old vector, the stick gain,
+brake-hold-reverse, the reverse fade, brake-before-drive both ways, coast and N, proportional
+triggers, the handbrake vs LT, RB and the radio, the settings reaching DriveInput, the hooks.
+A key pressed inside a physics frame is not "just pressed" until the next one: the radio checks
+await a process frame first.
+
+### Not done / next
+
+(1) No keyboard arrow keys for driving (project.godot's move_* actions are shared with walking).
+(2) The stick's 0.2 radial deadzone on move_left / move_right is shared with walking; a smaller
+steering deadzone needs its own actions. (3) Stick response curves and keyboard steering ramps are
+drive-steer's. (4) Not felt on a real pad: the probe parses the events Godot would get.

@@ -4947,3 +4947,8 @@ none of either.
   SwiftShader browser and are left as they are (not root-caused, unverified on a real GPU, a
   web-only workaround would be blind); the probe tools stay for the next pass. The web bookmarks
   now include four wave 5-8 night / weather views.
+- 2026-11-07 (drive-controls): the player's driving input is DriveInput's: per axis, never a
+  normalised vector (a keyboard diagonal is full throttle and full steer), the pad's RT / LT are
+  the gas and brake pedals and RB the handbrake (GTA's layout; LT is no longer a handbrake), a
+  short pause at the stop before reverse, reverse capped at 16 m/s. Steering sensitivity and
+  auto-centre are player settings (default 1 = the old feel). DRIVE_INPUT=0 is the A/B.
